@@ -1,0 +1,64 @@
+//
+// STRESS.EPOCH
+//
+// Stress test for ensuring that large numbers of tasks function correctly
+//
+
+entrypoint : () -> ()
+{
+	constant integer(tasklimit, 30)
+	real(calclimit, 10000.0)
+
+	integer(counter, tasklimit)
+	while(counter > 0)
+	{
+		task("worker" ; cast(string, counter))
+		{ stress_task() }
+
+		message("worker" ; cast(string, counter), calculate(calclimit))
+
+		--counter
+	}
+
+	counter = tasklimit
+	while(counter > 0)
+	{
+		acceptmsg(result(real(r)) => { debugwritestring(cast(string, r)) } )
+	
+		--counter
+	}
+}
+
+
+stress_task : () -> ()
+{
+	acceptmsg(calculate(real(limit)) => { message(caller(), result(pi(limit))) } )
+}
+
+
+pi : (real(denominator_limit)) -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 0.0)
+		div = 4.0 / denominator
+
+		if(isplus)
+		{
+			retval += div
+		}
+		else
+		{
+			retval -= div
+		}
+
+		isplus = !isplus
+		denominator += 2.0
+
+	} while(denominator < denominator_limit)
+}
+
+

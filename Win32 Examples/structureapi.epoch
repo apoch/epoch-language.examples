@@ -1,0 +1,55 @@
+//
+// STRUCTUREAPI.EPOCH
+//
+// Simple demonstration of how to use structure (record) types with external APIs
+//
+
+structure msgboxtype :
+(
+	integer(size),
+	integer(ownerwnd),
+	integer(instance),
+	string(text),
+	string(caption),
+	integer(style),
+	string(icon),
+	integer(helpid),
+	integer(callback),
+	integer(language)	
+)
+
+structure systeminfotype :
+(
+	integer16(architecture),
+	integer16(reserved),
+	integer(pagesize),
+	integer(minappaddress),
+	integer(maxappaddress),
+	integer(activeprocmask),
+	integer(numprocessors),
+	integer(proctype),
+	integer(allocgranularity),
+	integer16(proclevel),
+	integer16(procrevision)
+)
+
+
+external "user32.dll" MessageBoxIndirectW : (msgboxtype(params)) -> (integer)
+external "kernel32.dll" GetSystemInfo : (systeminfotype ref(info)) -> ()
+
+
+entrypoint : () -> ()
+{
+	systeminfotype(info, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	GetSystemInfo(info)
+
+	string(proccountstr, "System processor count: " ; cast(string, info.numprocessors))
+
+	integer(styleflags, 64)
+	msgboxtype(params, sizeof(msgboxtype), 0, 0, proccountstr, "Epoch test", styleflags, "", 0, 0, 0)
+
+	MessageBoxIndirectW(params)
+}
+
+
+

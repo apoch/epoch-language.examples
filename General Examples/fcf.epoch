@@ -1,0 +1,55 @@
+//
+// FCF.EPOCH
+//
+// Example of first-class functions and higher-order functions
+//
+
+
+tuple rettype : (integer(result), integer(original))
+
+function operation : (integer) -> (integer, integer)
+function operationwithref : (integer ref) -> ()
+
+
+entrypoint : () -> ()
+{
+	operate(41, increment)
+	operate(43, decrement)
+
+	integer(foo, 41)
+	operateref(foo, incrementref)
+}
+
+operate : (integer(number), operation(op)) -> ()
+{
+	rettype(ret, 0, 0)
+	ret = op(number)
+
+	debugwritestring(cast(string, readtuple(ret, original)))
+	debugwritestring(cast(string, readtuple(ret, result)))
+}
+
+
+increment : (integer(number)) -> (integer(result, 0), integer(original, 0))
+{
+	original = number
+	result = number + 1
+}
+
+decrement : (integer(number)) -> (integer(result, 0), integer(original, 0))
+{
+	original = number
+	result = number - 1
+}
+
+
+operateref : (integer ref(number), operationwithref(op)) -> ()
+{
+	op(number)
+	debugwritestring(cast(string, number))
+}
+
+incrementref : (integer ref(number)) -> ()
+{
+	++number
+}

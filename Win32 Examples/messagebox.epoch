@@ -1,0 +1,31 @@
+//
+// MESSAGEBOX.EPOCH
+//
+// This program demonstrates accessing external C API functions, in
+// particular Win32 API functions. Some additional flow control stuff
+// is added just to make things more interesting.
+//
+
+external "user32.dll" MessageBoxW : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer)
+
+entrypoint : () -> ()
+{
+	integer(typeflags, 66)
+	string(message, "This is a test message.")
+	string(caption, "Epoch/C Interop Test")
+
+	if(typeflags == 66)
+	{
+		++typeflags
+	}
+
+	integer(temp, 0)
+	temp = MessageBoxW(0, message, caption, typeflags)
+	do
+	{
+		MessageBoxW(0, "Foo", "Bar", 0)
+		--temp
+	} while(temp > 0)
+}
+
+

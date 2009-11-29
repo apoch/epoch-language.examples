@@ -1,0 +1,46 @@
+//
+// PI.EPOCH
+//
+// This program computes the value of Pi by partially evaluating
+// a simple infinite series. Flow control, function calls, and
+// built-in arithmetic are demonstrated, as well as a simple
+// method of benchmarking program execution times.
+//
+
+
+external "winmm.dll" timeGetTime : () -> (integer)
+
+
+entrypoint : () -> ()
+{
+	integer(starttime, timeGetTime())
+	debugwritestring(cast(string, pi()))
+	integer(finishtime, timeGetTime())
+	real(elapsedtime, cast(real, finishtime - starttime) / 1000.0)
+	debugwritestring("Elapsed time for pi benchmark: " ; cast(string, elapsedtime))
+}
+
+pi : () -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 4.0 / denominator)
+
+		if(isplus)
+		{
+			retval = retval + div
+		}
+		else
+		{
+			retval = retval - div
+		}
+
+		isplus = !isplus
+		denominator = denominator + 2.0
+
+	} while(denominator < 10000.0)
+}
+

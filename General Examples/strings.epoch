@@ -1,0 +1,17 @@
+//
+// STRINGS.EPOCH
+//
+// Examples of string processing
+//
+
+
+entrypoint : () -> ()
+{
+	string(test, concat(list("The ", "quick ", "brown ", "fox ", "jumped over the lazy sle", "eping", " dog.")))
+	debugwritestring(test)
+
+	string(test2, "test")
+	test2 ;= " two"
+	debugwritestring(test2)
+}
+

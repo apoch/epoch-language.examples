@@ -1,0 +1,82 @@
+//
+// MESSAGESTRESS.EPOCH
+//
+// Stress test for sending message traffic heavily between tasks
+//
+
+
+external "winmm.dll" timeGetTime : () -> (integer)
+
+
+entrypoint : () -> ()
+{
+	task("job1")
+	{
+		stress()
+	}
+
+	task("job2")
+	{
+		stress()
+	}
+
+	task("job3")
+	{
+		stress()
+	}
+
+	message("job1", restart())
+	message("job2", restart())
+	message("job3", restart())
+
+	integer(starttime, timeGetTime())
+
+	integer(counter, 10000)
+	do
+	{
+		acceptmsg
+		(
+			ping(integer(c)) =>
+			{
+				if(c <= 0)
+				{
+					counter = counter - 1
+					message(sender(), restart())
+				}
+				else
+				{
+					message(sender(), ping(c - 1))
+				}
+			}
+		)
+	} while(counter > 0)
+
+	integer(finishtime, timeGetTime())
+
+	message("job1", terminate())
+	message("job2", terminate())
+	message("job3", terminate())
+
+	real(elapsedtime, cast(real, finishtime - starttime) / 1000.0)
+	real(throughput, 1000000.0 / elapsedtime)
+
+	debugwritestring("Completed ping stress test!")
+	debugwritestring("Message dispatch throughput: " ; cast(string, throughput) ; " messages/second")
+}
+
+
+stress : () -> ()
+{
+	responsemap(msghandler)
+	{
+		ping(integer(c))	=> { message(caller(), ping(c - 1)) }
+		restart()		=> { message(caller(), ping(100)) }
+		terminate()		=> { return() }
+	}
+
+	while(true)
+	{
+		acceptmsg(msghandler)
+	}
+}
+

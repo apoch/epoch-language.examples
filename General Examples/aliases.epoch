@@ -1,0 +1,37 @@
+//
+// ALIASES.EPOCH
+//
+// Examples of type aliases in Epoch
+//
+
+
+//
+// A basic alias creates a new name for an existing type
+//
+alias(info, string)
+
+
+//
+// Aliases can refer to built-in types or other aliases
+//
+alias(counter, integer)
+alias(number, counter)
+
+
+//
+// Use of alias types works exactly like use of built-in types
+//
+entrypoint : () -> ()
+{
+	counter(c, 0)
+	while(c < 100)
+	{
+		c = c + 1
+		info(i, cast(info, c))
+		debugwritestring(i)
+	}
+
+	number(n, 42)
+	debugwritestring(cast(string, n))
+}
+

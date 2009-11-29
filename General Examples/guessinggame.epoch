@@ -1,0 +1,47 @@
+//
+// GUESSINGGAME.EPOCH
+//
+// This program implements the simple classic "guess my secret number"
+// game. It demonstrates basic flow control and user interaction via
+// the debug console.
+//
+
+library("random")
+
+entrypoint : () -> ()
+{
+	integer(inputnumber, 0)
+	integer(randomnumber, 0)
+	boolean(quit, false)
+
+	randomnumber = random(99) + 1
+
+	debugwritestring("Guess my secret number... it's between 1 and 100.")
+
+	do
+	{
+		inputnumber = cast(integer, debugreadstring())
+
+		if(inputnumber == 0)
+		{
+			quit = true
+		}
+		else
+		{
+			if(inputnumber < randomnumber)
+			{
+				debugwritestring("Too low! Try again.")
+			}
+			elseif(inputnumber > randomnumber)
+			{
+				debugwritestring("Too high! Try again.")
+			}
+			elseif(inputnumber == randomnumber)
+			{
+				debugwritestring("You're right! You win!")
+				quit = true
+			}
+		}
+	} while(!quit)
+}
+

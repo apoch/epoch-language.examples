@@ -1,0 +1,11 @@
+[source]
+scribble.epoch
+
+[resources]
+scribble.erc
+
+[output]
+intermediates-path build
+output-path compiled
+output-file scribble.exe
+

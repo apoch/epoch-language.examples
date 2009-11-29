@@ -1,0 +1,19 @@
+//
+// BEER.EPOCH
+//
+// Implementation of the classic "99 bottles of beer" program
+//
+
+entrypoint : () -> ()
+{
+	integer(counter, 99)
+
+	do
+	{
+		debugwritestring(cast(string, counter) ; " bottles of beer on the wall")
+		--counter
+	} while(counter >= 0)
+
+	debugwritestring("Bummer, we're out of beer!")
+}
+

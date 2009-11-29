@@ -1,0 +1,19 @@
+//
+// STACKTEST.EPOCH
+//
+// This simple program tests the internal VM stack for
+// passing function parameters of various types.
+//
+
+entrypoint : () -> ()
+{
+	integer(test, 2)
+	testfunction(test, 40, "Output, this is a test")
+}
+
+testfunction : (integer(foo), integer(bar), string(baz)) -> ()
+{
+	debugwritestring(baz)
+	debugwritestring(cast(string, foo + bar))
+}
+

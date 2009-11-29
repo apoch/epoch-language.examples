@@ -1,0 +1,15 @@
+//
+// FREEBLOCK.EPOCH
+//
+// Example of freestanding blocks
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 42)
+
+	{
+		real(bar, 42.42)
+		debugwritestring(cast(string, bar))
+	}
+}

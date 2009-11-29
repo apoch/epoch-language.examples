@@ -1,0 +1,20 @@
+//
+// REFPARAM.EPOCH
+//
+// Simple example of reference parameters
+//
+
+
+entrypoint : () -> ()
+{
+	integer(foo, 41)
+	increment(foo)
+	debugwritestring(cast(string, foo))
+}
+
+
+increment : (integer ref(value)) -> ()
+{
+	++value
+}
+

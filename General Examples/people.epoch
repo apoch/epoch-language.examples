@@ -1,0 +1,45 @@
+//
+// PEOPLE.EPOCH
+//
+// Simple program demonstrating various language features
+//
+
+structure Person : (string(Name), integer(Age))
+
+
+entrypoint : () -> ()
+{
+	Person(fred, getname(), getage())
+	operate(fred, DisplayAge)
+	DisplayName(fred)
+}
+
+
+DisplayName : (Person(p)) -> ()
+{
+	debugwritestring(p.Name)
+}
+
+DisplayAge : (Person(p)) -> ()
+{
+	debugwritestring(cast(string, p.Age))
+}
+
+
+operate : (Person(p), function op : (Person)->() ) -> ()
+{
+	op(p)
+}
+
+
+getname : () -> (string(name, ""))
+{
+	debugwritestring("Enter person's name:")
+	assign(name, debugreadstring())
+}
+
+getage : () -> (integer(age, 0))
+{
+	debugwritestring("Enter person's age:")
+	assign(age, cast(integer, debugreadstring()))
+}

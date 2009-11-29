@@ -1,0 +1,26 @@
+[icongroup]
+id 101
+language 1033
+
+[icon]
+id 1
+language 1033
+group 101
+source "scribble.ico"
+
+[menu]
+id 153
+language 1033
+{
+	popup "&File"
+	{
+		item 106 "No op"
+		separator
+		item 105 "E&xit"
+	}
+	popup "&Help"
+	{
+		item 104 "&About..."
+	}
+}
+

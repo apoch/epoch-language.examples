@@ -1,0 +1,92 @@
+//
+// TASKS.EPOCH
+//
+// Demonstration of the multiprocessing capabilities of Epoch
+//
+
+global
+{
+	constant integer(globalconstant, 4200)
+}
+
+
+entrypoint : () -> ()
+{
+	task("asyncjob1")
+	{
+		pi_task()
+	}
+
+	task("asyncjob2")
+	{
+		pi_task()
+	}
+
+	task("complexjob")
+	{
+		acceptmsg
+		(
+			compute(integer(a), integer(b), integer(c), string(d)) =>
+			{
+				message(sender(), completed(a * b + c + globalconstant, d))
+			}
+		)
+	}
+
+	message("asyncjob1", calculate("ignored"))
+	message("asyncjob1", ignoredmessage("foo", "bar", 42))
+
+	message("asyncjob1", calculate(10000.0))
+	message("asyncjob2", calculate(50000.0))
+
+	message("complexjob", compute(5, 4, 2, "Filler"))
+
+	debugwritestring("Please wait, async tasks running...")
+
+
+	integer(baz, 42)
+	debugwritestring("Main task: " ; cast(string, baz))
+
+	responsemap(resulthandler)
+	{
+		result(real(foo)) => { debugwritestring("Pi result: " ; cast(string, foo)) }
+		completed(integer(a), string(b)) => { debugwritestring(b ; cast(string, a)) }
+	}
+
+	acceptmsg(resulthandler)
+	acceptmsg(resulthandler)
+	acceptmsg(resulthandler)
+}
+
+
+pi_task : () -> ()
+{
+	acceptmsg(calculate(real(limit)) => { message(sender(), result(pi(limit))) } )
+}
+
+
+pi : (real(denominator_limit)) -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 4.0 / denominator)
+
+		if(isplus)
+		{
+			retval += div
+		}
+		else
+		{
+			retval -= div
+		}
+
+		isplus = !isplus
+		denominator += 2.0
+
+	} while(denominator < denominator_limit)
+}
+
+

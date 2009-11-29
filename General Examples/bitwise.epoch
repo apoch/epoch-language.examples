@@ -1,0 +1,42 @@
+//
+// BITWISE.EPOCH
+//
+// Examples of using bitwise operators in Epoch
+//
+
+
+entrypoint : () -> ()
+{
+	constant integer(flag1, 0x01)
+	constant integer(flag2, 0x02)
+	constant integer(flag3, 0x04)
+
+	integer(result, 0)
+	result = result | flag1
+
+	if(result & flag1 != 0)
+	{
+		debugwritestring("Flag 1 is set!")
+	}
+
+	if(result & flag2 == 0)
+	{
+		debugwritestring("Flag 3 is not set!")
+	}
+
+	integer(test, 0x0b)
+	integer(test2, 0x09)
+
+	if(test ^ test2 == 0x02)
+	{
+		debugwritestring("Xor is correct!")
+	}
+
+	integer(nottest, 0xaaaaaaaa)
+	if(!nottest == 0x55555555)
+	{
+		debugwritestring("Not is correct!")
+	}
+}
+
+

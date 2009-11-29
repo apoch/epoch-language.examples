@@ -1,0 +1,24 @@
+//
+// STRUCTURES.EPOCH
+//
+// Simple demonstration of how to use structure types in Epoch
+//
+
+structure demotype : (integer(intvalue), string(strvalue))
+
+entrypoint : () -> ()
+{
+	demotype(test, 42, "test")
+	demotype(test2, 42, "flapjacks")
+
+	dump(test)
+	dump(test2)
+}
+
+
+dump : (demotype(data)) -> ()
+{
+	debugwritestring(cast(string, data.intvalue))
+	debugwritestring(data.strvalue)
+}
+

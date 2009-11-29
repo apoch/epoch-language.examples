@@ -1,0 +1,71 @@
+//
+// NESTEDSTRUCTS.EPOCH
+//
+// Demonstration of nested structure types
+//
+
+
+structure inner :
+(
+	integer(foo),
+	string(bar)
+)
+
+structure outer :
+(
+	integer(a),
+	integer(b),
+	inner(i),
+	string(c)
+)
+
+structure reallyouter :
+(
+	real(r),
+	outer(o),
+	string(s),
+	integer(i)
+)
+
+structure outermost :
+(
+	integer(baz),
+	reallyouter(quux),
+	integer(xorph)
+)
+
+
+entrypoint : () -> ()
+{
+	inner(i, 1234, "innerstring")
+	outer(test, 42, 666, i, "test")
+
+	outer(test2, 420, 0, inner(990 + 3 * 3, "mostinner"), "blah")
+	reallyouter(bigtest, 3.1416, test2, "yada", 42)
+	outermost(insanity, 54321, bigtest, 216)
+
+	outermost(lunacy, 154, reallyouter(1.5, outer(4, 9, inner(3, "hork"), "blergh"), "stuff", 23), 0)
+
+	debugwritestring(cast(string, test.a))
+	debugwritestring(cast(string, test.b))
+	debugwritestring(test.c)
+	debugwritestring(cast(string, test.i.foo))
+	debugwritestring(test.i.bar)
+
+	test.c = "more test"
+	debugwritestring(test.c)
+
+	test.i.foo = 9000
+	debugwritestring(cast(string, test.i.foo))
+
+	bigtest.o.i.bar = "final test"
+	debugwritestring(bigtest.o.i.bar)
+
+	insanity.quux.o.i.bar = "hello universe"
+	debugwritestring(insanity.quux.o.i.bar)
+
+	debugwritestring("-----")
+	debugwritestring(test2.i.bar)
+	test2.i = i
+	debugwritestring(test2.i.bar)
+}

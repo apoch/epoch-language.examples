@@ -1,0 +1,31 @@
+//
+// VALIDATION.EPOCH
+//
+// This program is designed to fail static safety validation, in
+// order to test that the validation system works correctly.
+//
+
+global
+{
+	integer(test, 0)
+}
+
+entrypoint : () -> ()
+{
+	task("test")
+	{
+		if(false == true)
+		{
+			test = 42
+		}
+		elseif(true == false)
+		{
+			test = 666
+		}
+		else
+		{
+			test = 101010
+		}
+	}
+}
+

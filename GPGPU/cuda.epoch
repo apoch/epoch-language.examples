@@ -1,0 +1,41 @@
+//
+// CUDA.EPOCH
+//
+// Minimal example of invoking language extension modules for Epoch,
+// specifically the module for interoperability with nVidia's CUDA.
+//
+
+
+extension("EpochCUDA")
+
+
+entrypoint : () -> ()
+{
+	debugwritestring(cast(string, ExecuteCUDADemo()))
+	debugwritestring(cast(string, TestMultipleCUDABlocks()))
+}
+
+
+ExecuteCUDADemo : () -> (real(retval, 0.0))
+{
+	real(test, 40.0)
+	real(foo, 2.0)
+
+	cuda
+	{
+		retval = test + foo
+	}
+}
+
+
+TestMultipleCUDABlocks : () -> (real(retval, 0.0))
+{
+	real(test, 669.0)
+	real(foo, 3.0)
+
+	cuda
+	{
+		retval = test - foo
+	}
+}
+

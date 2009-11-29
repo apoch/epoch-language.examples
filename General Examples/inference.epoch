@@ -1,0 +1,18 @@
+//
+// INFERENCE.EPOCH
+//
+// Examples of Epoch's type inference facilities
+//
+
+
+entrypoint : () -> ()
+{
+	var(first, 42)
+	var(second, 3.14159)
+	var(third, "Hello World!")
+
+	debugwritestring(cast(string, first))
+	debugwritestring(cast(string, second))
+	debugwritestring(third)
+}
+

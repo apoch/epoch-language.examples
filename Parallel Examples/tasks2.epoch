@@ -1,0 +1,68 @@
+//
+// TASKS2.EPOCH
+//
+// Another example of tasks and message-based communication and flow control
+//
+
+entrypoint : () -> ()
+{
+
+	task("foo")
+	{
+		responsemap(foohandler)
+		{
+
+			test_outer(integer(x)) =>
+			{
+				message(sender(), test_reply(x - 1))
+
+				while(true)
+				{
+					responsemap(innerhandler)
+					{
+						test_ack(integer(x)) =>
+						{
+							message(sender(), test_reply(x - 1))
+						}
+
+						stop() => { break() }
+					}
+	
+					acceptmsg(innerhandler)
+				}
+
+			}
+
+		}
+
+		acceptmsg(foohandler)
+	}
+
+
+	message("foo", test_outer(5))
+
+	responsemap(handler)
+	{
+		test_reply(integer(x)) =>
+		{
+			debugwritestring(cast(string, x))
+			
+			if(x > 0)
+			{
+				message(sender(), test_ack(x))
+			}
+			else
+			{
+				message(sender(), stop())
+				return()
+			}
+		}
+	}
+
+	while(true)
+	{
+		acceptmsg(handler)
+	}
+
+}
+

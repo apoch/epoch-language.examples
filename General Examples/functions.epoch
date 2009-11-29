@@ -1,0 +1,26 @@
+//
+// FUNCTIONS.EPOCH
+//
+// This program demonstrates the basic syntax of calling functions,
+// passing parameters, and working with the returned results.
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 0)
+	debugwritestring("Enter a number: ")
+	foo = cast(integer, debugreadstring())
+
+	integer(bar, 0)
+	debugwritestring("Enter another number: ")
+	bar = cast(integer, debugreadstring())
+
+	foo = quuxfunction(foo, bar)
+
+	debugwritestring(cast(string, foo))
+}
+
+quuxfunction : (integer(var), integer(var2)) -> (integer(ret, 0))
+{
+	ret = var - var2
+}

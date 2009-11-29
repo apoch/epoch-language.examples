@@ -1,0 +1,119 @@
+//
+// SCRIBBLE.EPOCH
+//
+// Basic Win32 application demo
+//
+
+
+library("Win32Util")
+
+external "user32.dll" GetDC : (integer(hwnd)) -> (integer)
+external "gdi32.dll" LineTo : (integer(hdc), integer(x), integer(y)) -> (integer)
+external "gdi32.dll" MoveToEx : (integer(hdc), integer(x), integer(y), integer(ignored)) -> (integer)
+
+external "user32.dll" LoadMenuW : (integer(hinstance), integer(menuid)) -> (integer)
+external "user32.dll" DestroyMenu : (integer(hmenu)) -> (integer)
+external "user32.dll" LoadIconW : (integer(hinstance), integer(iconid)) -> (integer)
+
+external "user32.dll" MessageBoxW : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer)
+
+external "kernel32.dll" GetLastError : () -> (integer)
+
+
+global
+{
+	integer(oldx, 0)
+	integer(oldy, 0)
+}
+
+
+entrypoint : () -> ()
+{
+	integer(hInstance, GetModuleHandle(0))
+
+	integer(icon, LoadIconW(hInstance, 101))
+
+	WindowClass(wc, sizeof(WindowClass), 0, mywndproc, 0, 0, hInstance, icon, LoadCursor(0, 32512), 6, "", "ScribbleClass", icon)
+	RegisterClassEx(wc)
+
+	integer(menu, LoadMenuW(hInstance, 153))
+
+	if(equal(menu, 0))
+	{
+		MessageBoxW(0, "FAILURE!", cast(string, GetLastError()), 0)
+	}
+	
+	integer(hwnd, CreateWindowEx(0, "ScribbleClass", "Scribble", 13565952, -2147483648, 0, -2147483648, 0, 0, menu, hInstance, 0))
+	ShowWindow(hwnd, 5)
+
+	if(notequal(hwnd, 0))
+	{
+		Point(pt, 0, 0)
+		MessageInfo(msg, 0, 0, 0, 0, 0, pt)
+
+		while(GetMessage(msg, 0, 0, 0))
+		{
+			TranslateMessage(msg)
+			DispatchMessage(msg)
+		}
+	}
+
+	DestroyMenu(menu)
+}
+
+
+mywndproc : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0))
+{
+	if(equal(message, 15))
+	{
+		Rect(prect, 0, 0, 0, 0)
+		PaintInfo(ps, 0, 0, prect, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+		BeginPaint(hwnd, ps)
+		EndPaint(hwnd, ps)
+		assign(ret, 0)
+	}
+	elseif(equal(message, 2))
+	{
+		PostQuitMessage(0)
+		assign(ret, 0)
+	}
+	elseif(equal(message, 512))
+	{
+		integer(x, loword(lparam))
+		integer(y, hiword(lparam))
+		integer(hdc, GetDC(hwnd))
+
+		if(equal(wparam, 1))
+		{
+			MoveToEx(hdc, oldx, oldy, 0)
+			LineTo(hdc, x, y)
+		}
+
+		assign(oldx, x)
+		assign(oldy, y)
+
+		assign(ret, 0)
+	}
+	elseif(equal(message, 273))
+	{
+		integer(command, loword(wparam))
+		if(equal(command, 105))
+		{
+			PostQuitMessage(0)
+		}
+		elseif(equal(command, 104))
+		{
+			MessageBoxW(hwnd, "Scribble is a demo program written in the Epoch language.", "About", 64)
+		}
+		else
+		{
+			assign(ret, DefWindowProc(hwnd, message, wparam, lparam))
+		}
+	}
+	else
+	{
+		assign(ret, DefWindowProc(hwnd, message, wparam, lparam))
+	}
+}
+

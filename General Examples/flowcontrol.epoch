@@ -1,0 +1,44 @@
+//
+// FLOWCONTROL.EPOCH
+//
+// Demonstration of basic flow control elements in Epoch
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 10)
+
+	while(greater(foo, 0))
+	{
+		debugwritestring(cast(string, foo))
+		--foo
+
+		if(5 == foo)
+		{
+			break()
+		}
+	}
+
+	returndemo()
+}
+
+
+returndemo : () -> ()
+{
+	integer(counter, 0)
+
+	while(true)
+	{
+		debugwritestring("This message will be displayed 3 times")
+		
+		++counter
+
+		if(counter >= 3)
+		{
+			return()
+		}
+	}
+
+	debugwritestring("This message will not be displayed")
+}
+

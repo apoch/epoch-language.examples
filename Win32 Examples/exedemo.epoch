@@ -1,0 +1,15 @@
+//
+// EXEDEMO.EPOCH
+//
+// This is just a boring little app designed to demonstrate
+// embedding Epoch code in EXE files for execution.
+//
+
+external "user32.dll" MessageBoxW : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer)
+
+entrypoint : () -> ()
+{
+	MessageBoxW(0, "Hello world! This program is written in Epoch!", "Epoch Demo", 0)
+}
+
+

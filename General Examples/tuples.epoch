@@ -1,0 +1,46 @@
+//
+// TUPLES.EPOCH
+//
+// Simple demonstration of how to use tuple types in Epoch
+//
+
+tuple demotype : (integer(intvalue), string(strvalue))
+
+entrypoint : () -> ()
+{
+	demotype(test, 0, "")
+	demotype(test2, 42, "test")
+	demotype(test3, 42, "flapjacks")
+
+	assign(test, foofunction())
+
+	dump(test)
+	dump(test2)
+	dump(test3)
+
+	test3.strvalue = "pancakes"
+	debugwritestring(test3.strvalue)
+
+	if(test == test2)
+	{
+		debugwritestring("Equality confirmed")
+	}
+
+	if(test2 != test3)
+	{
+		debugwritestring("Inequality confirmed")
+	}	
+}
+
+foofunction : () -> (integer(intvalue, 0), string(strvalue, ""))
+{
+	intvalue = 42
+	strvalue = "test"
+}
+
+dump : (demotype(data)) -> ()
+{
+	debugwritestring(cast(string, data.intvalue))
+	debugwritestring(data.strvalue)
+}
+

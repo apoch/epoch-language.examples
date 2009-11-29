@@ -1,0 +1,45 @@
+//
+// FUTURES.EPOCH
+//
+// This program demonstrates the use of asynchronous processing
+// via futures. In Epoch, a future is simply a wrapper for a
+// task block which forks off, performs a given operation, and
+// then returns the resulting value to the caller when the value
+// is needed.
+//
+
+entrypoint : () -> ()
+{
+	future(value, pi())
+
+	debugwritestring("Computing pi asynchronously via a future...")
+	debugwritestring("Enter some text to query the future's value")
+	debugreadstring()
+
+	debugwritestring(cast(string, value))
+}
+
+pi : () -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 4.0 / denominator)
+
+		if(isplus)
+		{
+			retval = retval + div
+		}
+		else
+		{
+			retval = retval - div
+		}
+
+		isplus = !isplus
+		denominator = denominator + 2.0
+
+	} while(denominator < 10000.0)
+}
+

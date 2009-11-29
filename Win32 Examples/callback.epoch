@@ -1,0 +1,78 @@
+//
+// CALLBACK.EPOCH
+//
+// Demonstration of calling back into Epoch code from external code
+//
+
+structure point :
+(
+	integer(x),
+	integer(y)
+)
+
+structure messagetype :
+(
+	integer(hwnd),
+	integer(message),
+	integer(wparam),
+	integer(lparam),
+	integer(time),
+	point(pt)
+)
+
+external "user32.dll" EnumWindows : (function callback : (integer, integer)->(boolean), integer(lparam)) -> (boolean)
+external "user32.dll" MessageBoxW : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer)
+external "user32.dll" GetWindowTextW : (integer(hwnd), buffer ref(thebuffer), integer(maxlength)) -> (integer)
+
+external "user32.dll" GetMessageW : (messagetype ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean)
+external "user32.dll" TranslateMessage : (messagetype(msg)) -> (boolean)
+external "user32.dll" DispatchMessageW : (messagetype(msg)) -> (integer)
+
+external "user32.dll" SetTimer : (integer(hwnd), integer(eventid), integer(time), function callback : (integer, integer, integer, integer) -> ()) -> (integer)
+external "user32.dll" KillTimer : (integer(hwnd), integer(id)) -> (boolean)
+
+external "user32.dll" PostQuitMessage : (integer(exitcode)) -> ()
+
+
+entrypoint : () -> ()
+{
+	EnumWindows(enumcallback, 42)
+
+	SetTimer(0, 42, 2000, timercallback)
+
+	point(pt, 0, 0)
+	messagetype(msg, 0, 0, 0, 0, 0, pt)
+
+	while(GetMessageW(msg, 0, 0, 0))
+	{
+		TranslateMessage(msg)
+		DispatchMessageW(msg)
+	}
+}
+
+
+enumcallback : (integer(hwnd), integer(lparam)) -> (boolean(ret, false))
+{
+	buffer(thebuffer, 512)
+	integer(result, GetWindowTextW(hwnd, thebuffer, sizeof(thebuffer) / 2))
+
+	if(result > 0)
+	{
+		debugwritestring("Callback invoked! " ; cast(string, thebuffer))
+	}
+
+	ret = true
+}
+
+timercallback : (integer(hwnd), integer(msg), integer(eventid), integer(time)) -> ()
+{
+	KillTimer(0, eventid)
+
+	string(message, "Callback successfully invoked!")
+	string(caption, "Epoch Language Interop")
+	MessageBoxW(0, message, caption, 0)
+
+	PostQuitMessage(0)
+}
+
+
