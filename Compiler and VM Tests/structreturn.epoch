@@ -12,9 +12,8 @@ structure VectorPair : (Vector(alpha), Vector(bravo))
 structure DeepTest : (VectorPair(one), VectorPair(two))
 
 
-infix(plus)
 
-plus : (Vector(left), Vector(right)) -> (Vector(result, 0.0, 0.0, 0.0))
+infix plus : (Vector(left), Vector(right)) -> (Vector(result, 0.0, 0.0, 0.0))
 {
 	result.X = left.X + right.X
 	result.Y = left.Y + right.Y

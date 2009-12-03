@@ -5,7 +5,6 @@
 // Also includes tests for unary operators and parenthetical expressions
 //
 
-infix(plus)
 
 entrypoint : () -> ()
 {
@@ -98,7 +97,7 @@ echo : (integer(x)) -> (integer(ret, 0))
 	ret = x
 }
 
-plus : (integer(x), integer(y)) -> (integer(ret, 0))
+infix plus : (integer(x), integer(y)) -> (integer(ret, 0))
 {
 	ret = x + y
 }
