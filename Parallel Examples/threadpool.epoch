@@ -1,0 +1,67 @@
+//
+// THREADPOOL.EPOCH
+//
+// Demonstration of worker thread pooling in Epoch
+//
+
+
+entrypoint : () -> ()
+{
+	// Create the thread pool with a limited number of threads
+	threadpool("demo pool", 2)
+
+
+	// Fork off a chunk of work for the thread pool to do
+	thread("task1", "demo pool")
+	{
+		message(caller(), result(pi()))
+	}
+
+	thread("task2", "demo pool")
+	{
+		message(caller(), result(pi()))
+	}
+
+	future(r1, pi(), "demo pool")
+	future(r2, pi(), "demo pool")
+
+
+	// Wait for work results to complete and display them
+	responsemap(resulthandler)
+	{
+		result(real(piresult)) => { debugwritestring("Result: " ; cast(string, piresult)) }
+	}
+
+	acceptmsg(resulthandler)
+	acceptmsg(resulthandler)
+
+	debugwritestring("Future result: " ; cast(string, r1))
+	debugwritestring("Future result: " ; cast(string, r2))
+}
+
+
+
+pi : () -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 4.0 / denominator)
+
+		if(isplus)
+		{
+			retval = retval + div
+		}
+		else
+		{
+			retval = retval - div
+		}
+
+		isplus = !isplus
+		denominator = denominator + 2.0
+
+	} while(denominator < 10000.0)
+}
+
