@@ -24,7 +24,7 @@ external "user32.dll" EnumWindows : (function callback : (integer, integer)->(bo
 external "user32.dll" MessageBoxW : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer)
 external "user32.dll" GetWindowTextW : (integer(hwnd), buffer ref(thebuffer), integer(maxlength)) -> (integer)
 
-external "user32.dll" GetMessageW : (messagetype ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean)
+external "user32.dll" GetMessageW : (messagetype ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (integer)
 external "user32.dll" TranslateMessage : (messagetype(msg)) -> (boolean)
 external "user32.dll" DispatchMessageW : (messagetype(msg)) -> (integer)
 
@@ -43,11 +43,17 @@ entrypoint : () -> ()
 	point(pt, 0, 0)
 	messagetype(msg, 0, 0, 0, 0, 0, pt)
 
-	while(GetMessageW(msg, 0, 0, 0))
+	integer(ret, 0)
+	do
 	{
-		TranslateMessage(msg)
-		DispatchMessageW(msg)
-	}
+		ret = GetMessageW(msg, 0, 0, 0)
+
+		if(ret > 0)
+		{
+			TranslateMessage(msg)
+			DispatchMessageW(msg)
+		}
+	} while(ret > 0)
 }
 
 
