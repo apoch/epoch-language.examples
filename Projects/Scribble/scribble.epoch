@@ -51,11 +51,17 @@ entrypoint : () -> ()
 		Point(pt, 0, 0)
 		MessageInfo(msg, 0, 0, 0, 0, 0, pt)
 
-		while(GetMessage(msg, 0, 0, 0))
+		integer(ret, 0)
+		do
 		{
-			TranslateMessage(msg)
-			DispatchMessage(msg)
-		}
+			ret = GetMessage(msg, 0, 0, 0)
+
+			if(ret > 0)
+			{
+				TranslateMessage(msg)
+				DispatchMessage(msg)
+			}
+		} while(ret > 0)
 	}
 
 	DestroyMenu(menu)
