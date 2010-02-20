@@ -1,0 +1,61 @@
+//
+// ARRAYS.EPOCH
+//
+// Basic demonstration of using arrays
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 0)
+
+	foo = add(array(1, 2, 3, 4, 5))
+	debugwritestring(cast(string, foo))
+
+	foo = add(foo, array(40, 2))
+	debugwritestring(cast(string, foo))
+
+	foo = 0
+	foo = add(array(40, 2), foo)
+	debugwritestring(cast(string, foo))
+
+	foo = add(array(21, 9), array(10, 2))
+	debugwritestring(cast(string, foo))
+
+	debugwritestring(cast(string, reduce(array(20, 20, 1, 1), add)))
+
+	debugwritestring(reduce(array("The quick brown", " fox jumped o", "ver the lazy ", "sleeping dog."), concat))
+
+	map(array("Testing", "1", "2", "3"), debugwritestring)
+
+	map(map(array(1, 2, 3, 4, 5), square), writearrayelement)
+
+
+	array(fib, 1, 1, 2, 3, 5, 8, 13, 21, 34)
+	map(fib, writearrayelement)
+
+	debugwritestring(cast(string, reduce(fib, mysum)))
+
+	foo = reduce(array(10, 1, 2, 3), subtract)
+	debugwritestring(cast(string, foo))
+
+
+	array(emptyarray, string)
+	map(emptyarray, debugwritestring)		// This should not do anything
+}
+
+
+square : (integer(x)) -> (integer(ret, 0))
+{
+	ret = x * x
+}
+
+writearrayelement : (integer(element)) -> ()
+{
+	debugwritestring(cast(string, element))
+}
+
+mysum : (integer(x), integer(y)) -> (integer(ret, 0))
+{
+	ret = x + y
+}
+
