@@ -1,0 +1,119 @@
+//
+// GPUTHREADS.EPOCH
+//
+// This program demonstrates running threaded computations on the GPU,
+// courtesy of CUDA. A thread is created for each logical CPU core in
+// the host machine, and the computations are run on both the CPU and
+// GPU, using as many threads as possible in the GPU case.
+//
+// Note that both the GPU and CPU threaded functions invoke the same
+// Epoch source code; there is no need to explicitly write the GPU-side
+// code in another language, as the JIT cross-compiler will take care
+// of generating the appropriate CUDA code for execution on the GPU.
+//
+
+
+extension("EpochCUDA")
+
+
+//
+// Win32 API access
+//
+structure SystemInfoType :
+(
+	integer16(architecture),
+	integer16(reserved),
+	integer(pagesize),
+	integer(minappaddress),
+	integer(maxappaddress),
+	integer(activeprocmask),
+	integer(numprocessors),
+	integer(proctype),
+	integer(allocgranularity),
+	integer16(proclevel),
+	integer16(procrevision)
+)
+
+external "kernel32.dll" GetSystemInfo : (SystemInfoType ref(info)) -> ()
+external "winmm.dll" timeGetTime : () -> (integer)
+
+
+//
+// Program entry point; execution begins here
+//
+entrypoint : () -> ()
+{
+	integer(cpucount, GetCPUCount())
+
+	if(cpucount <= 0)
+	{
+		debugwritestring("Failed to determine number of logical CPUs available!")
+		return()
+	}
+
+	debugwritestring("Generating test data...")
+
+	array(input1, CUDAGenerateDataArray())
+	array(input2, CUDAGenerateDataArray())
+	array(output, CUDAGenerateEmptyArray())
+
+
+	debugwritestring("Computation batch, CPU, " ; cast(string, cpucount) ; " threads (1 per core), " ; cast(string, length(input1)) ; " elements:")
+
+	integer(starttime, 0)
+	integer(finishtime, 0)
+	real(elapsedtime, 0.0)
+
+	starttime = timeGetTime()
+
+	parallelfor(i, 0, length(input1), cpucount)
+	{
+		compute(i, input1, input2, output)
+	}
+
+	finishtime = timeGetTime()
+	elapsedtime = cast(real, finishtime - starttime) / 1000.0
+
+	debugwritestring(cast(string, elapsedtime) ; " seconds")
+
+
+
+	debugwritestring("Computation batch, CUDA, " ; cast(string, length(input1)) ; " elements:")
+
+	starttime = timeGetTime()
+
+	cudafor(i, 0, length(input1))
+	{
+		compute(i, input1, input2, output)
+	}
+
+	finishtime = timeGetTime()
+	elapsedtime = cast(real, finishtime - starttime) / 1000.0
+
+	debugwritestring(cast(string, elapsedtime) ; " seconds")
+}
+
+
+
+//
+// Actual worker kernel function; doesn't do much, just runs some throw-away calculations
+//
+compute : (integer(index), real array(input1), real array(input2), real array ref(output)) -> (integer(result, 0))
+{
+	writearray(output, index, readarray(input1, index) + readarray(input2, index))
+}
+
+
+
+//
+// Helper for getting the logical number of CPUs on the host machine
+//
+GetCPUCount : () -> (integer(retval, 0))
+{
+	SystemInfoType(info, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	GetSystemInfo(info)
+	retval = info.numprocessors
+}
+
+
+

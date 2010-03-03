@@ -25,10 +25,9 @@ entrypoint : () -> ()
 
 	debugwritestring(reduce(array("The quick brown", " fox jumped o", "ver the lazy ", "sleeping dog."), concat))
 
-	map(array("Testing", "1", "2", "3"), debugwritestring)
+	map(array("Testing", "1", "2", "3"), debugwritestring) 
 
 	map(map(array(1, 2, 3, 4, 5), square), writearrayelement)
-
 
 	array(fib, 1, 1, 2, 3, 5, 8, 13, 21, 34)
 	map(fib, writearrayelement)

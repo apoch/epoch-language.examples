@@ -1,0 +1,80 @@
+//
+// GPU-PI.EPOCH
+//
+// This program implements a simple comparison between performing
+// computations on the CPU, and on CUDA-enabled GPU hardware. Note
+// that both computation methods invoke the same function to do
+// the actual work; the code executes on GPU hardware only when
+// invoked from within a "cuda" language extension block. This
+// illustrates the powerful capability of Epoch programs to run
+// code on various target hardware transparently and seamlessly.
+//
+// Another interesting feature of this program (as compared to the
+// similar "pi.epoch" program) is the partial unrolling of the
+// worker loop in the pi() function. This helps run things more
+// efficiently on the GPU where conditional branches are risky.
+//
+
+
+extension("EpochCUDA")
+
+external "winmm.dll" timeGetTime : () -> (integer)
+
+
+entrypoint : () -> ()
+{
+	integer(starttime, 0)
+	integer(finishtime, 0)
+	real(elapsedtime, 0.0)
+
+	real(pivalue, 0.0)
+	integer(iterations, 0)
+
+	debugwritestring("Welcome to the GPU-PI benchmark")
+	debugwritestring("")
+	debugwritestring("This benchmark computes an approximate value of Pi by partial")
+	debugwritestring("evaluation of a simple infinite series. More iterations will")
+	debugwritestring("yield more accurate results, at the cost of extra processing")
+	debugwritestring("time. We recommend 10,000 iterations for use with debug VMs,")
+	debugwritestring("due to their inherent speed limitations. For optimized VMs,")
+	debugwritestring("try 500,000 or more iterations to show the contrast between")
+	debugwritestring("various types of computing hardware.")
+	debugwritestring("")
+	debugwritestring("Please enter the desired iteration count:")
+	iterations = cast(integer, debugreadstring())
+
+	starttime = timeGetTime()
+	pivalue = pi(iterations)
+	finishtime = timeGetTime()
+	elapsedtime = cast(real, finishtime - starttime) / 1000.0
+	debugwritestring("Calibration run, 1 thread on CPU: " ; cast(string, elapsedtime) ; " seconds, yielding " ; cast(string, pivalue))
+
+	starttime = timeGetTime()
+	cuda
+	{
+		pivalue = pi(iterations)
+	}
+	finishtime = timeGetTime()
+	elapsedtime = cast(real, finishtime - starttime) / 1000.0
+	debugwritestring("Calibration run, 1 thread, CUDA: " ; cast(string, elapsedtime) ; " seconds, yielding " ; cast(string, pivalue))
+}
+
+
+pi : (integer(iterlimit)) -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	real(div, 0.0)
+
+	do
+	{
+		div = 4.0 / denominator
+		retval += div
+		denominator += 2.0
+
+		div = 4.0 / denominator
+		retval -= div
+		denominator += 2.0
+
+		iterlimit = iterlimit - 1
+	} while(iterlimit > 0)
+}
