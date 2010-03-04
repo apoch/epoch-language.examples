@@ -51,6 +51,15 @@ entrypoint : () -> ()
 		return()
 	}
 
+
+	if(!IsCUDAAvailable())
+	{
+		debugwritestring("WARNING: No CUDA-capable hardware found!")
+		debugwritestring("Code targeted for CUDA will run on the CPU instead")
+		debugwritestring("")
+	}
+
+
 	debugwritestring("Generating test data...")
 
 	array(input1, CUDAGenerateDataArray())

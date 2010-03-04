@@ -32,6 +32,14 @@ entrypoint : () -> ()
 
 	debugwritestring("Welcome to the GPU-PI benchmark")
 	debugwritestring("")
+
+	if(!IsCUDAAvailable())
+	{
+		debugwritestring("WARNING: No CUDA-capable hardware found!")
+		debugwritestring("Code targeted for CUDA will run on the CPU instead")
+		debugwritestring("")
+	}
+
 	debugwritestring("This benchmark computes an approximate value of Pi by partial")
 	debugwritestring("evaluation of a simple infinite series. More iterations will")
 	debugwritestring("yield more accurate results, at the cost of extra processing")
