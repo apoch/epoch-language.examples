@@ -13,14 +13,14 @@ entrypoint : () -> ()
 	debugwritestring("OR test:")
 	boolean(ortest, or(returntrue(), returnfalse()))
 
-	debugwritestring("List test:")
-	boolean(orlisttest, or(list(returntrue(), returnfalse())))
+	debugwritestring("Array test:")
+	boolean(orarraytest, or(array(returntrue(), returnfalse())))
 
-	debugwritestring("List test 2:")
-	boolean(andlisttest, and(list(returnfalse(), returntrue())))
+	debugwritestring("Array test 2:")
+	boolean(andarraytest, and(array(returnfalse(), returntrue())))
 
-	debugwritestring("List test 3:")
-	boolean(andlisttest2, and(list(returnfalse(), returntrue()), list(returntrue())))
+	debugwritestring("Array test 3:")
+	boolean(andarraytest2, and(array(returnfalse(), returntrue()), array(returntrue())))
 }
 
 
