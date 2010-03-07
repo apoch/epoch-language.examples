@@ -35,11 +35,11 @@ operate : (Person(p), function op : (Person)->() ) -> ()
 getname : () -> (string(name, ""))
 {
 	debugwritestring("Enter person's name:")
-	assign(name, debugreadstring())
+	name = debugreadstring()
 }
 
 getage : () -> (integer(age, 0))
 {
 	debugwritestring("Enter person's age:")
-	assign(age, cast(integer, debugreadstring()))
+	age = cast(integer, debugreadstring())
 }

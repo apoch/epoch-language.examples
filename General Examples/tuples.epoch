@@ -12,7 +12,7 @@ entrypoint : () -> ()
 	demotype(test2, 42, "test")
 	demotype(test3, 42, "flapjacks")
 
-	assign(test, foofunction())
+	test = foofunction()
 
 	dump(test)
 	dump(test2)

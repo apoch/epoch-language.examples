@@ -8,7 +8,7 @@ entrypoint : () -> ()
 {
 	integer(foo, 10)
 
-	while(greater(foo, 0))
+	while(foo > 0)
 	{
 		debugwritestring(cast(string, foo))
 		--foo
