@@ -9,14 +9,11 @@ entrypoint : () -> ()
 {
 	integer(test, 2)
 	testfunction(test, 40, "Output, this is a test")
+	debugwritestring(cast(string, 20 + 10 + 8 + 4))
 }
 
 testfunction : (integer(foo), integer(bar), string(baz)) -> ()
 {
 	debugwritestring(baz)
-	debugwritestring(cast(string, foo))
-	
-	// Addition here is currently disabled because the newly rewritten parser can't cope with it yet
-	//debugwritestring(cast(string, foo + bar))
+	debugwritestring(cast(string, foo + bar))
 }
-
