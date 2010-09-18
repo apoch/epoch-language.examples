@@ -6,6 +6,7 @@
 
 entrypoint : () -> ()
 {
+	debugwritestring("test")
 	debugwritestring(cast(string, adderfunction(40, 2)))
 	debugwritestring(cast(string, shortadderfunction(40, 2)))
 }
