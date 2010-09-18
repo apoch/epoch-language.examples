@@ -1,0 +1,19 @@
+//
+// RETVAL.EPOCH
+//
+// Test case for returning values from functions
+//
+
+entrypoint : () -> ()
+{
+	debugwritestring(cast(string, adderfunction(40, 2)))
+	//debugwritestring(cast(string, shortadderfunction(40, 2)))
+}
+
+adderfunction : (integer(a), integer(b)) -> (integer(ret, 0))
+{
+	ret = a + b
+}
+
+//shortadderfunction : (integer(a), integer(b)) -> (integer(ret, a + b)) { }
+
