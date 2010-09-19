@@ -16,5 +16,5 @@ adderfunction : (integer(a), integer(b)) -> (integer(ret, 0))
 	ret = a + b
 }
 
-shortadderfunction : (integer(a), integer(b)) -> (integer(ret, a + b)) { }
+shortadderfunction : (integer(a), integer(b)) -> (integer(ret, a + b + 42)) { }
 
