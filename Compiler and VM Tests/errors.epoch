@@ -1,0 +1,15 @@
+//
+// ERRORS.EPOCH
+//
+// Test of parser recovery in the face of blatant syntax errors
+//
+
+entrypoint : () -> ()
+{
+	this_function_does_not_exist()
+	function_which_does_not_exist(variable_which_does_not_exist)
+	this_error(has, multiple, parameters)
+	this_function_also_does_not_exist()
+	variable_which_does_not_exist = 42 + 42
+	variable_which_does_not_exist = function_which_does_not_exist()
+}

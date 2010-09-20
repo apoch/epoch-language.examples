@@ -7,9 +7,13 @@
 
 entrypoint : () -> ()
 {
+	voidtest()
+
 	integer(test, 2)
 	testfunction(test, 40, "Output, this is a test")
 	debugwritestring(cast(string, 20 + 10 + 8 + 4))
+
+	voidtest()
 }
 
 testfunction : (integer(foo), integer(bar), string(baz)) -> ()
@@ -17,3 +21,9 @@ testfunction : (integer(foo), integer(bar), string(baz)) -> ()
 	debugwritestring(baz)
 	debugwritestring(cast(string, foo + bar))
 }
+
+voidtest : () -> ()
+{
+	debugwritestring("Void function invoked")
+}
+
