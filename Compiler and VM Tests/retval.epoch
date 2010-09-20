@@ -9,6 +9,8 @@ entrypoint : () -> ()
 	debugwritestring("test")
 	debugwritestring(cast(string, adderfunction(40, 2)))
 	debugwritestring(cast(string, shortadderfunction(40, 2)))
+	debugwritestring(cast(string, testfunction(40, 2)))
+	debugwritestring(cast(string, anothertestfunction(40, 2)))
 }
 
 adderfunction : (integer(a), integer(b)) -> (integer(ret, 0))
@@ -17,4 +19,8 @@ adderfunction : (integer(a), integer(b)) -> (integer(ret, 0))
 }
 
 shortadderfunction : (integer(a), integer(b)) -> (integer(ret, a + b + 42)) { }
+
+testfunction : (integer(alpha), integer(beta)) -> (integer(value, shortadderfunction(alpha, beta))) { }
+
+anothertestfunction : (integer(a), integer(b)) -> (integer(ret, testfunction(a, b) + testfunction(a, b))) { }
 
