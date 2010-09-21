@@ -1,0 +1,23 @@
+//
+// OVERLOADS.EPOCH
+//
+// Simple demonstration of function overloading
+//
+
+entrypoint : () -> ()
+{
+	debugwritestring("Output")
+	foo(42, 42, 42)
+	foo(42, "Test", 42)
+}
+
+foo : (integer(ignored), integer(a), integer(alsoignored)) -> ()
+{
+	debugwritestring(cast(string, a))
+}
+
+foo : (integer(ignored), string(a), integer(alsoignored)) -> ()
+{
+	debugwritestring(a)
+}
+
