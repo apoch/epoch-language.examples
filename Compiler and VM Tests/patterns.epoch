@@ -1,0 +1,20 @@
+//
+// PATTERNS.EPOCH
+//
+// Demonstration of function parameter pattern matching
+//
+
+entrypoint : () -> ()
+{
+	debugwritestring(cast(string, fib(0)))
+	debugwritestring(cast(string, fib(1)))
+	debugwritestring(cast(string, fib(2)))
+	debugwritestring(cast(string, fib(3)))
+	debugwritestring(cast(string, fib(4)))
+	debugwritestring(cast(string, fib(5)))
+}
+
+fib : (0) -> (integer(ret, 1))
+fib : (1) -> (integer(ret, 1))
+fib : (integer(n)) -> (integer(ret, fib(n - 1) + fib(n - 2)))
+
