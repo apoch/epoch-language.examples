@@ -12,6 +12,9 @@ entrypoint : () -> ()
 
 	debugwritestring(bar(42))
 	debugwritestring(bar("Test"))
+
+	debugwritestring(echo("Passthrough"))
+	debugwritestring(cast(string, echo(42)))
 }
 
 foo : (integer(ignored), integer(a), integer(alsoignored)) -> ()
@@ -25,6 +28,10 @@ foo : (integer(ignored), string(a), integer(alsoignored)) -> ()
 }
 
 
-bar : (integer(value)) -> (string(ret, "Integer overload")) { }
-bar : (string(value)) -> (string(ret, "String overload")) { }
+bar : (integer(value)) -> (string(ret, "Integer overload"))
+bar : (string(value)) -> (string(ret, "String overload"))
+
+
+echo : (string(value)) -> (string(ret, value))
+echo : (integer(value)) -> (integer(ret, value))
 
