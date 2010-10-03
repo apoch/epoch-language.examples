@@ -17,6 +17,9 @@ entrypoint : () -> ()
 	overload(42)
 
 	func(void())
+
+	integer(test, 0)
+	test = "foo"
 }
 
 
