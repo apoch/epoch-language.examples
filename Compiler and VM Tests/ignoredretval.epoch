@@ -1,0 +1,14 @@
+//
+// IGNOREDRETVAL.EPOCH
+//
+// Test case for issue #64 - ignoring return value from a non-void
+// function should not result in a runtime stack leak
+//
+
+entrypoint : () -> ()
+{
+	test(42)
+}
+
+test : (integer(in)) -> (integer(out, in))
+
