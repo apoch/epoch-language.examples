@@ -15,9 +15,16 @@ entrypoint : () -> ()
 	variable_which_does_not_exist = function_which_does_not_exist()
 
 	overload(42)
+
+	func(void())
 }
 
 
 overload : (integer(n)) -> (integer(ret, n))
 overload : (integer(n)) -> (string(ret, cast(string, n)))
+
+
+void : () -> ()
+
+func : (integer(n)) -> (integer(ret, n))
 
