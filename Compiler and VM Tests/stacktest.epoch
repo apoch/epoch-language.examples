@@ -9,8 +9,8 @@ entrypoint : () -> ()
 {
 	voidtest()
 
-	integer(test, 2)
-	testfunction(test, 40, "Output, this is a test")
+	integer(test, 1 + 1)
+	testfunction(test, 20 + 20, "Output, this is a test")
 	debugwritestring(cast(string, 20 + 10 + 8 + 4))
 
 	voidtest()
