@@ -10,6 +10,14 @@ entrypoint : () -> ()
 	function_which_does_not_exist(variable_which_does_not_exist)
 	this_error(has, multiple, parameters)
 	this_function_also_does_not_exist()
+
 	variable_which_does_not_exist = 42 + 42
 	variable_which_does_not_exist = function_which_does_not_exist()
+
+	overload(42)
 }
+
+
+overload : (integer(n)) -> (integer(ret, n))
+overload : (integer(n)) -> (string(ret, cast(string, n)))
+
