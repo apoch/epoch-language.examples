@@ -1,0 +1,13 @@
+//
+// CASTS.EPOCH
+//
+// Test case for typecasting function overloads
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, cast(integer, "40"))
+	integer(bar, cast(integer, "2"))
+
+	debugwritestring(cast(string, foo + bar))
+}
