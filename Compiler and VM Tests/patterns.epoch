@@ -12,6 +12,9 @@ entrypoint : () -> ()
 	debugwritestring(cast(string, fib(3)))
 	debugwritestring(cast(string, fib(4)))
 	debugwritestring(cast(string, fib(5)))
+
+	integer(test, 6)
+	debugwritestring(cast(string, fib(test)))
 }
 
 fib : (0) -> (integer(ret, 1))
