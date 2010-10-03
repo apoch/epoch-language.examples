@@ -1,0 +1,19 @@
+//
+// PATTERNOVERLOAD.EPOCH
+//
+// Demonstration of combining parameter pattern matching with overloading
+//
+
+entrypoint : () -> ()
+{
+	debugwritestring(demo(0))
+	debugwritestring(cast(string, demo(42)))
+
+	integer(test, 0)
+	debugwritestring(cast(string, demo(test)))
+}
+
+
+demo : (0) -> (string(ret, "Test"))
+demo : (integer(n)) -> (integer(ret, n))
+
