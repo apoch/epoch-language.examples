@@ -1,0 +1,18 @@
+//
+// GLOBALTEST.EPOCH
+//
+// Test of global values
+//
+
+global
+{
+	integer(foo, 666)
+	string(bar, "Test")
+}
+
+
+entrypoint : () -> ()
+{
+	debugwritestring(bar)
+	debugwritestring(cast(string, foo))
+}

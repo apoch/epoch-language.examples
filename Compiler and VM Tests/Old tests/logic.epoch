@@ -1,0 +1,37 @@
+//
+// LOGIC.EPOCH
+//
+// Examples of logic operators and short-circuiting
+//
+
+
+entrypoint : () -> ()
+{
+	debugwritestring("AND test:")
+	boolean(andtest, and(returnfalse(), returntrue()))
+
+	debugwritestring("OR test:")
+	boolean(ortest, or(returntrue(), returnfalse()))
+
+	debugwritestring("Array test:")
+	boolean(orarraytest, or(array(returntrue(), returnfalse())))
+
+	debugwritestring("Array test 2:")
+	boolean(andarraytest, and(array(returnfalse(), returntrue())))
+
+	debugwritestring("Array test 3:")
+	boolean(andarraytest2, and(array(returnfalse(), returntrue()), array(returntrue())))
+}
+
+
+returnfalse : () -> (boolean(ret, false))
+{
+	debugwritestring("Returning false!")
+}
+
+returntrue : () -> (boolean(ret, true))
+{
+	debugwritestring("Returning true!")
+}
+
+

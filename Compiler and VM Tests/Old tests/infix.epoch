@@ -1,0 +1,107 @@
+//
+// INFIX.EPOCH
+//
+// Tests for validating infix operator behaviour (particularly operator precedence)
+// Also includes tests for unary operators and parenthetical expressions
+//
+
+
+entrypoint : () -> ()
+{
+	debugwritestring(cast(string, 38 + 5 - 1))
+	debugwritestring(cast(string, 51 - 9))
+
+	debugwritestring(cast(string, 40 + 2))
+	debugwritestring(cast(string, 50 - 10 + 2))
+	debugwritestring(cast(string, 50 + 2 - 10 - 42 + 22 + 18 + 2))
+
+	debugwritestring(cast(string, 2 + 10 * 4))
+	debugwritestring(cast(string, 14 * 2 - 8 + 20 + 6 * 2 - 10))
+
+
+	debugwritestring(cast(string, -2))
+	debugwritestring(cast(string, 44 + -2))
+	debugwritestring(cast(string, -2 + 44))
+
+	boolean(foo, false)
+	foo = !foo
+	debugwritestring(cast(string, foo))
+
+	foo = !true
+	debugwritestring(cast(string, foo))
+
+	foo = !test()
+	debugwritestring(cast(string, foo))
+
+	integer(baz, 42)
+	baz = !baz
+	debugwritestring(cast(string, baz))
+
+	integer(quux, 0)
+	quux = bletch() - 1
+	debugwritestring(cast(string, quux))
+
+
+	debugwritestring(cast(string, 2 + echo(1 + 1)))
+	debugwritestring(cast(string, (4 + 7)))
+	debugwritestring(cast(string, 30 + (4 + 7)))
+	debugwritestring(cast(string, 30 + (4 + 7) + 1))
+	debugwritestring(cast(string, (9 + 2) * (4 - 2)))
+	debugwritestring(cast(string, ((4 - 1) + 6) * 2))
+	debugwritestring(cast(string, 2 * ((4 - 1) + 6)))
+	debugwritestring(cast(string, bletch() / 2))
+
+	// Just tests of the assignment operator
+	baz = 0
+	baz = 1 + 1
+	baz = baz * 2
+	baz = quux
+	baz = quux = 42
+	debugwritestring(cast(string, baz))
+
+	// Demo of custom infix operator
+	baz = 1 plus 5
+	debugwritestring(cast(string, baz))
+
+	// Demo of op+assignment operators
+	baz += 34 + 2
+	baz -= 2
+	++baz
+	baz++
+	--baz
+	baz--
+	baz += 2
+	debugwritestring(cast(string, baz))
+
+	debugwritestring(cast(string, ++baz))
+	
+	baz = 0
+	debugwritestring(cast(string, baz++))
+	debugwritestring(cast(string, baz))
+
+	baz = quux = sanitycheck("test", "xorph")
+	debugwritestring(cast(string, baz))
+
+	real(x, 41.0)
+	++x
+	debugwritestring(cast(string, x))
+}
+
+
+test : () -> (boolean(ret, true)) { }
+
+bletch : () -> (integer(ret, 43)) { }
+
+echo : (integer(x)) -> (integer(ret, 0))
+{
+	ret = x
+}
+
+infix plus : (integer(x), integer(y)) -> (integer(ret, 0))
+{
+	ret = x + y
+}
+
+
+sanitycheck : (string(a), string(b)) -> (integer(ret, 42)) { }
+

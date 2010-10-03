@@ -1,0 +1,25 @@
+//
+// RECURSION.EPOCH
+//
+// This simple program demonstrates a recursive function and is
+// used for testing language support for recursion.
+//
+
+entrypoint : () -> ()
+{
+	recurse(5)
+}
+
+recurse : (integer(counter)) -> ()
+{
+	integer(test, 0)
+	test = 42
+
+	debugwritestring(cast(string, counter) ; " bottles of Beer on the wall...")
+
+	if(counter != 0)
+	{
+		recurse(counter - 1)
+	}	
+}
+
