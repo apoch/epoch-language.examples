@@ -1,0 +1,20 @@
+//
+// FREEBLOCK.EPOCH
+//
+// Test case for issue #42 - free block compilation
+//
+
+entrypoint : () -> ()
+{
+	integer(outer, 40)
+
+	{
+		integer(inner, 2)
+		debugwritestring(cast(string, inner + outer))
+		outer = 666
+	}
+
+	outer = 42
+	debugwritestring(cast(string, outer))
+}
+
