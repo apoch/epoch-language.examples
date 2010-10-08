@@ -1,0 +1,20 @@
+//
+// WHILETEST.EPOCH
+//
+// Test case for while loops
+//
+
+entrypoint : () -> ()
+{
+	integer(beer, 5)
+
+	while(beer > 0)
+	{
+		debugwritestring("Beer supply:")
+		debugwritestring(cast(string, beer))
+		beer = beer - 1
+	}
+
+	debugwritestring("Bummer, we're out of beer!")
+}
+
