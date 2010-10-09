@@ -8,7 +8,7 @@ entrypoint : () -> ()
 {
 	integer(beer, 5)
 
-	dowhile(beer > 0)
+	while(beer > 0)
 	{
 		integer(test, 1)
 
