@@ -8,11 +8,14 @@ entrypoint : () -> ()
 {
 	integer(beer, 5)
 
-	while(beer > 0)
+	dowhile(beer > 0)
 	{
-		debugwritestring("Beer supply:")
-		debugwritestring(cast(string, beer))
-		beer = beer - 1
+		integer(test, 1)
+
+		debugwritestring("Beer supply: " ; cast(string, beer))
+		debugwritestring("Take " ; cast(string, test) ; " down, pass it around...")
+
+		beer = beer - test
 	}
 
 	debugwritestring("Bummer, we're out of beer!")

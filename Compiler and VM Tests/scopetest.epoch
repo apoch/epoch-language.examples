@@ -15,7 +15,7 @@ entrypoint : () -> ()
 		// Should output 42 every time, regardless of the assignment made below
 		debugwritestring(cast(string, baz))
 
-		--foo
+		foo = foo - 1
 
 		// This assignment's effect should be obliterated in the next loop iteration
 		// when baz enters the local scope as a new variable and is reinitialized
