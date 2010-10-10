@@ -1,0 +1,16 @@
+//
+// UNARY.EPOCH
+//
+// Test of unary operators
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 123456)
+	debugwritestring(cast(string, 1 + !foo))
+
+	boolean(bar, false)
+	debugwritestring(cast(string, !bar))
+	debugwritestring(cast(string, !!!!bar))
+}
+
