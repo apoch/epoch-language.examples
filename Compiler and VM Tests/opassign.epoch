@@ -1,0 +1,14 @@
+//
+// OPASSIGN.EPOCH
+//
+// Test suite for operation-assignment operators
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 40)
+	foo += 6
+	foo -= 4
+	debugwritestring(cast(string, foo))
+}
+
