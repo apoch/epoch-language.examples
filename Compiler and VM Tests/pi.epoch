@@ -1,0 +1,38 @@
+//
+// PI.EPOCH
+//
+// This program computes the value of Pi by partially evaluating
+// a simple infinite series. Flow control, function calls, and
+// built-in arithmetic are demonstrated.
+//
+
+
+entrypoint : () -> ()
+{
+	debugwritestring(cast(string, pi()))
+}
+
+pi : () -> (real(retval, 0.0))
+{
+	real(denominator, 1.0)
+	boolean(isplus, true)
+
+	do
+	{
+		real(div, 4.0 / denominator)
+
+		if(isplus)
+		{
+			retval += div
+		}
+		else
+		{
+			retval -= div
+		}
+
+		isplus = !isplus
+		denominator += 2.0
+
+	} while(denominator < 10000.0)
+}
+
