@@ -1,0 +1,19 @@
+//
+// PREPOST.EPOCH
+//
+// Test case for pre-increment, post-increment, and related operators
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 40)
+
+	++foo
+	foo++
+
+	debugwritestring(cast(string, foo))
+	debugwritestring(cast(string, foo++))
+	debugwritestring(cast(string, foo))
+	debugwritestring(cast(string, --foo))
+	debugwritestring(cast(string, foo))
+}
