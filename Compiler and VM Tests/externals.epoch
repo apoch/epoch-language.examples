@@ -1,0 +1,17 @@
+//
+// EXTERNALS.EPOCH
+//
+// Test case for forwarding functions to external DLL implementations
+//
+
+
+MessageBox : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer(ret, 0)) [external("user32.dll", "MessageBoxW")]
+PlaySound : (string(soundname), integer(flags)) -> (integer(ret, 0)) [external("winmm.dll", "sndPlaySoundW")]
+
+
+entrypoint : () -> ()
+{
+	PlaySound("c:\windows\media\notify.wav", 0)
+	debugwritestring(cast(string, MessageBox(0, "Hello, World from the Epoch Programming Language!", "Epoch Message", 65)))
+}
+

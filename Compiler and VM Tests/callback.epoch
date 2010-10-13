@@ -1,0 +1,28 @@
+//
+// CALLBACK.EPOCH
+//
+// Demonstration of calling back into Epoch code from external code
+//
+
+
+EnumWindows : (callback : (integer, integer) -> (integer), integer(foo)) -> (integer(ret, 0)) [external("user32.dll", "EnumWindows")]
+GetWindowText : (integer(hwnd), buffer(thebuffer), integer(maxlength)) -> (integer(ret, 0)) [external("user32.dll", "GetWindowTextW")]
+
+
+entrypoint : () -> ()
+{
+	EnumWindows(enumcallback, 42)
+	debugwritestring("Callbacks finished")
+}
+
+
+enumcallback : (integer(hwnd), integer(lparam)) -> (integer(ret, 1))
+{
+	buffer(thebuffer, 512)
+	integer(result, GetWindowText(hwnd, thebuffer, 255))
+
+	if(result > 0)
+	{
+		debugwritestring("Callback invoked! " ; cast(string, thebuffer))
+	}
+}
