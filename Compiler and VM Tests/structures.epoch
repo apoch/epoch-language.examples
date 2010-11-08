@@ -1,0 +1,29 @@
+//
+// STRUCTURES.EPOCH
+//
+// Test suite for using POD structures
+//
+
+structure test :
+(
+	integer(alpha),
+	integer(beta),
+	string(gamma)
+)
+
+
+entrypoint : () -> ()
+{
+	test(quux, 42, 666, "Hello World")
+	foo(quux)
+	quux.beta = 42
+	debugwritestring(cast(string, quux.beta))
+	debugwritestring("Finished")
+}
+
+foo : (test(struct)) -> ()
+{
+	debugwritestring(struct.gamma)
+	debugwritestring(cast(string, struct.alpha))
+}
+

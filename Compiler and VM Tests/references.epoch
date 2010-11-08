@@ -1,0 +1,24 @@
+//
+// REFERENCES.EPOCH
+//
+// Test case for reference semantics
+//
+
+entrypoint : () -> ()
+{
+	integer(test, 41)
+	chain(test)
+	debugwritestring(cast(string, test))
+}
+
+chain : (integer ref(variable)) -> ()
+{
+	mutate(variable)
+}
+
+mutate : (integer ref(variable)) -> ()
+{
+	++variable
+	debugwritestring(cast(string, variable))
+}
+
