@@ -16,7 +16,10 @@ entrypoint : () -> ()
 {
 	test(quux, 42, 666, "Hello World")
 	foo(quux)
-	quux.beta = 42
+	quux.beta = 20
+	quux.beta += 20
+	++quux.beta
+	quux.beta++
 	debugwritestring(cast(string, quux.beta))
 	debugwritestring("Finished")
 }
