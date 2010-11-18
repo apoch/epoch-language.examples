@@ -1,0 +1,45 @@
+//
+// NESTEDSTRUCTS.EPOCH
+//
+// Test suite for nested structures
+//
+
+
+structure inner :
+(
+	integer(alpha),
+	integer(beta),
+	string(gamma)
+)
+
+structure outer :
+(
+	integer(i),
+	string(s),
+	inner(nested),
+	real(r)
+)
+
+
+
+entrypoint : () -> ()
+{
+	inner(blork, 42, 666, "Hello World")
+	outer(quux, 42, "Test", blork, 3.14159)
+
+	foo(quux.nested)
+
+	quux.nested.beta = 20
+	quux.nested.beta += 20
+	++quux.nested.beta
+	quux.nested.beta++
+	debugwritestring(cast(string, quux.nested.beta))
+	debugwritestring("Finished")
+}
+
+foo : (inner(struct)) -> ()
+{
+	debugwritestring(struct.gamma)
+	debugwritestring(cast(string, struct.alpha))
+}
+
