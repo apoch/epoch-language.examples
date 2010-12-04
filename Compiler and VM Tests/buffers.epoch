@@ -1,0 +1,44 @@
+//
+// BUFFERS.EPOCH
+//
+// Simple test cases for working with value-semantics and reference-semantics
+// on buffer variable types, including marshaling to external APIs.
+//
+
+
+EnumWindows : (callback : (integer, integer) -> (integer), integer(foo)) -> (integer(ret, 0)) [external("user32.dll", "EnumWindows")]
+GetWindowText : (integer(hwnd), buffer ref(thebuffer), integer(maxlength)) -> (integer(ret, 0)) [external("user32.dll", "GetWindowTextW")]
+
+
+entrypoint : () -> ()
+{
+	EnumWindows(enumcallback, 42)
+	debugwritestring("Callbacks finished")
+}
+
+
+enumcallback : (integer(hwnd), integer(lparam)) -> (integer(ret, 1))
+{
+	buffer(thebuffer, 512)
+	buffer(anotherbuffer, 512)
+
+	boolean(result, PopulateBuffer(hwnd, thebuffer))
+	anotherbuffer = thebuffer
+
+	if(result)
+	{
+		debugwritestring(cast(string, anotherbuffer))
+	}
+}
+
+
+
+PopulateBuffer : (integer(hwnd), buffer ref(thebuffer)) -> (boolean(ret, false))
+{
+	integer(result, GetWindowText(hwnd, thebuffer, 512))
+	if(result > 0)
+	{
+		ret = true
+	}
+}
+

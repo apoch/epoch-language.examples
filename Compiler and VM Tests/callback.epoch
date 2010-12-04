@@ -19,7 +19,7 @@ entrypoint : () -> ()
 enumcallback : (integer(hwnd), integer(lparam)) -> (integer(ret, 1))
 {
 	buffer(thebuffer, 512)
-	integer(result, GetWindowText(hwnd, thebuffer, 255))
+	integer(result, GetWindowText(hwnd, thebuffer, 512))
 
 	if(result > 0)
 	{
