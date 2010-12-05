@@ -23,9 +23,9 @@ entrypoint : () -> ()
 		bar.baz = foo(mastercounter)
 
 		integer(counter, 0)
-		while(counter < 10000)
+		while(counter < 100000)
 		{
-			foo(counter)	
+			foo(counter)
 		}
 
 		debugwritestring("Marked: " ; bar.baz)
