@@ -12,8 +12,8 @@ entrypoint : () -> ()
 	foo++
 
 	debugwritestring(cast(string, foo))
-	debugwritestring(cast(string, foo++))
+	debugwritestring(cast(string, (foo++)))
 	debugwritestring(cast(string, foo))
-	debugwritestring(cast(string, --foo))
+	debugwritestring(cast(string, (--foo)))
 	debugwritestring(cast(string, foo))
 }

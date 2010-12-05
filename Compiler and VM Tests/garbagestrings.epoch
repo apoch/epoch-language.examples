@@ -1,0 +1,43 @@
+//
+// GARBAGESTRINGS.EPOCH
+// 
+// VM test suite for garbage collecting strings
+//
+
+
+structure s :
+(
+	integer(quux),
+	string(baz),
+	integer(xorph)
+)
+
+
+entrypoint : () -> ()
+{
+	integer(mastercounter, 0)
+	s(bar, 42, "test", 666)
+
+	while(true)
+	{
+		bar.baz = foo(mastercounter)
+
+		integer(counter, 0)
+		while(counter < 10000)
+		{
+			foo(counter)	
+		}
+
+		debugwritestring("Marked: " ; bar.baz)
+	}
+}
+
+
+foo : (integer ref(counter)) -> (string(ret, ""))
+{
+	string(alpha, "a")
+	string(beta, "b")
+
+	ret = alpha ; beta ; cast(string, (++counter))
+}
+
