@@ -1,0 +1,15 @@
+//
+// EXEDEMO.EPOCH
+//
+// Minimal example of an Epoch program running embedded in a native .EXE
+//
+
+
+MessageBox : (integer(windowhandle), string(message), string(caption), integer(typeflags)) -> (integer(ret, 0)) [external("user32.dll", "MessageBoxW")]
+
+
+entrypoint : () -> ()
+{
+	MessageBox(0, "Hello, World from the Epoch Programming Language!", "Epoch Test Message", 65)
+}
+

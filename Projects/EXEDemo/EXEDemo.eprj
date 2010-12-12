@@ -1,0 +1,6 @@
+[source]
+EXEDemo.epoch
+
+[output]
+output-file EXEDemo.exe
+
