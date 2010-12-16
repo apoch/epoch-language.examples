@@ -1,0 +1,50 @@
+//
+// GARBAGESTRUCTS.EPOCH
+// 
+// VM test suite for garbage collecting structures
+//
+
+
+structure s :
+(
+	integer(quux),
+	string(baz),
+	integer(xorph)
+)
+
+structure nested :
+(
+	integer(ignored),
+	s(nestedvalue),
+	integer(alsoignored)
+)
+
+
+entrypoint : () -> ()
+{
+	integer(mastercounter, 0)
+	s(bar, 0, "", 0)
+	nested(bletch, 42, bar, 666)
+
+	while(true)
+	{
+		foo(mastercounter)
+		bletch.nestedvalue.quux = mastercounter
+
+		integer(counter, 0)
+		while(counter < 100000)
+		{
+			foo(counter)
+		}
+
+		debugwritestring("Iterations: " ; cast(string, bletch.nestedvalue.quux))
+	}
+}
+
+
+foo : (integer ref(counter)) -> ()
+{
+	s(temp, (++counter), "Test", 42)
+	temp.xorph = 666
+}
+

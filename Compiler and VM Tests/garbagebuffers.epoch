@@ -1,0 +1,33 @@
+//
+// GARBAGEBUFFERS.EPOCH
+// 
+// VM test suite for garbage collecting buffers
+//
+
+
+entrypoint : () -> ()
+{
+	integer(mastercounter, 0)
+
+	while(true)
+	{
+		buffer(bletch, 32)
+		foo(mastercounter)
+
+		integer(counter, 0)
+		while(counter < 100000)
+		{
+			foo(counter)
+		}
+
+		debugwritestring("Iterations: " ; cast(string, mastercounter) ; " " ; cast(string, bletch))
+	}
+}
+
+
+foo : (integer ref(counter)) -> ()
+{
+	buffer(ret, 128)
+	++counter
+}
+
