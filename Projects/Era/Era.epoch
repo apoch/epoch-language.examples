@@ -80,6 +80,7 @@ GetClientRect : (integer(hwnd), Rect ref(rect)) -> (boolean(ret, false)) [extern
 MoveWindow : (integer(hwnd), integer(x), integer(y), integer(width), integer(height), boolean(repaint)) -> (boolean(ret, false)) [external("User32.dll", "MoveWindow")]
 GetWindow : (integer(hwnd), integer(relationship)) -> (integer(ret, 0)) [external("User32.dll", "GetWindow")]
 LoadLibrary : (string(dllname)) -> (integer(ret, 0)) [external("Kernel32.dll", "LoadLibraryW")]
+SetTimer : (integer(hwnd), integer(eventid), integer(time), integer(func)) -> (integer(ret, 0)) [external("User32.dll", "SetTimer")]
 
 PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
@@ -109,6 +110,8 @@ entrypoint : () -> ()
 		integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, 0, hInstance, 0))
 
 		SetScintillaFont(ScintillaHWND, "Consolas", 10)
+		SetScintillaLexer(ScintillaHWND)
+		ScintillaColorize(ScintillaHWND)
 
 		ShowWindow(hwnd, SW_SHOW)
 
@@ -176,6 +179,8 @@ SetScintillaFont : (integer(hwnd), string(fontname), integer(fontsize)) -> ()
 	integer(SCI_STYLECLEARALL, 2050)
 	integer(SCI_STYLERESETDEFAULT, 2058)
 	integer(SCI_STYLESETSIZE, 2055)
+	integer(SCI_STYLESETFORE, 2051)
+	integer(SCI_STYLESETBOLD, 2053)
 
 	buffer(fontnamenarrow, length(fontname))
 	narrowstring(fontname, fontnamenarrow)
@@ -184,5 +189,36 @@ SetScintillaFont : (integer(hwnd), string(fontname), integer(fontsize)) -> ()
 	PostMessage(hwnd, SCI_STYLESETFONT, 32, fontnamenarrow)
 	PostMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
 	PostMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
+
+	PostMessage(hwnd, SCI_STYLESETFORE, 1, 32768)
+	PostMessage(hwnd, SCI_STYLESETFORE, 2, 16711680)
+	PostMessage(hwnd, SCI_STYLESETFORE, 3, 1381795)
+
+	PostMessage(hwnd, SCI_STYLESETBOLD, 4, 1)
+
+	PostMessage(hwnd, SCI_STYLESETFORE, 5, 8421376)
 }
+
+SetScintillaLexer : (integer(hwnd)) -> ()
+{
+	integer(SCI_SETLEXERLANGUAGE, 4006)
+	integer(SCI_LOADLEXERLIBRARY, 4007)
+
+	buffer(lexernamenarrow, 32)
+	narrowstring("epoch", lexernamenarrow)
+
+	buffer(dllnamenarrow, 32)
+	narrowstring("epochlexer.dll", dllnamenarrow)
+
+	PostMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, dllnamenarrow)
+	PostMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, lexernamenarrow)
+}
+
+ScintillaColorize : (integer(hwnd)) -> ()
+{
+	integer(SCI_COLOURISE, 4003)
+
+	PostMessage(hwnd, SCI_COLOURISE, 0, -1)
+}
+
 
