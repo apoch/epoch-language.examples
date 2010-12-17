@@ -1,0 +1,188 @@
+//
+// The Epoch Language Project
+// ERA Integrated Development Environment
+//
+// Entry point and main setup/tear-down logic for the Era IDE
+//
+
+
+structure WindowClass :
+(
+	integer(Size),
+	integer(Style),
+	WindowProc : (integer, integer, integer, integer) -> (integer),
+	integer(ClassExtra),
+	integer(WindowExtra),
+	integer(hInstance),
+	integer(hIcon),
+	integer(hCursor),
+	integer(hBackgroundBrush),
+	string(MenuName),
+	string(ClassName),
+	integer(hIconSmall)
+)
+
+structure Point :
+(
+	integer(x),
+	integer(y)
+)
+
+structure Rect :
+(
+	integer(left),
+	integer(top),
+	integer(right),
+	integer(bottom)
+)
+
+structure MessageInfo :
+(
+	integer(hwnd),
+	integer(message),
+	integer(wparam),
+	integer(lparam),
+	integer(time),
+	Point(point)
+)
+
+structure PaintInfo :
+(
+	integer(hdc),
+	boolean(erase),
+	Rect(paintarea),
+	boolean(restore),
+	boolean(incupdate),
+	integer(reserved0),
+	integer(reserved1),
+	integer(reserved2),
+	integer(reserved3),
+	integer(reserved4),
+	integer(reserved5),
+	integer(reserved6),
+	integer(reserved7)
+)
+
+
+GetModuleHandle : (integer(null)) -> (integer(ret, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
+RegisterClassEx : (WindowClass(wc)) -> (integer16(ret, 0)) [external("User32.dll", "RegisterClassExW")]
+CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integer(style), integer(x), integer(y), integer(width), integer(height), integer(hwndparent), integer(hmenu), integer(hinstance), integer(param)) -> (integer(ret, 0)) [external("User32.dll", "CreateWindowExW")]
+ShowWindow : (integer(hwnd), integer(cmdshow)) -> (boolean(ret, false)) [external("User32.dll", "ShowWindow")]
+LoadCursor : (integer(hinstance), integer(cursorid)) -> (integer(ret, 0)) [external("User32.dll", "LoadCursorW")]
+GetMessage : (MessageInfo ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean(ret, false)) [external("User32.dll", "GetMessageW")]
+TranslateMessage : (MessageInfo(msg)) -> (boolean(ret, false)) [external("User32.dll", "TranslateMessage")]
+DispatchMessage : (MessageInfo(msg)) -> (integer(ret, 0)) [external("User32.dll", "DispatchMessageW")]
+BeginPaint : (integer(hwnd), PaintInfo ref(paintinfo)) -> (integer(ret, 0)) [external("User32.dll", "BeginPaint")]
+EndPaint : (integer(hwnd), PaintInfo(paintinfo)) -> (boolean(ret, false)) [external("User32.dll", "EndPaint")]
+PostQuitMessage : (integer(exitcode)) -> () [external("User32.dll", "PostQuitMessage")]
+DefWindowProc : (integer(hwnd), integer(msg), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "DefWindowProcW")]
+GetClientRect : (integer(hwnd), Rect ref(rect)) -> (boolean(ret, false)) [external("User32.dll", "GetClientRect")]
+MoveWindow : (integer(hwnd), integer(x), integer(y), integer(width), integer(height), boolean(repaint)) -> (boolean(ret, false)) [external("User32.dll", "MoveWindow")]
+GetWindow : (integer(hwnd), integer(relationship)) -> (integer(ret, 0)) [external("User32.dll", "GetWindow")]
+LoadLibrary : (string(dllname)) -> (integer(ret, 0)) [external("Kernel32.dll", "LoadLibraryW")]
+
+PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
+PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
+
+
+entrypoint : () -> ()
+{
+	integer(IDC_ARROW, 32512)
+	integer(COLOR_WINDOWFRAME, 6)
+	integer(WS_OVERLAPPEDWINDOW, 13565952)
+	integer(CW_USEDEFAULT, -2147483648)
+	integer(SW_SHOW, 5)
+
+	integer(hInstance, GetModuleHandle(0))
+
+	WindowClass(wc, sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "ERAClass", 0)
+	RegisterClassEx(wc)
+
+	integer(hwnd, CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, 0, hInstance, 0))
+
+	if(hwnd != 0)
+	{
+		Rect(client, 0, 0, 0, 0)
+		GetClientRect(hwnd, client)
+
+		integer(ScintillaModule, LoadLibrary("SciLexer.DLL"))
+		integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, 0, hInstance, 0))
+
+		SetScintillaFont(ScintillaHWND, "Consolas", 10)
+
+		ShowWindow(hwnd, SW_SHOW)
+
+		Point(pt, 0, 0)
+		MessageInfo(msg, 0, 0, 0, 0, 0, pt)
+
+		while(GetMessage(msg, 0, 0, 0))
+		{
+			TranslateMessage(msg)
+			DispatchMessage(msg)
+		}
+	}
+}
+
+
+MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0))
+{
+	integer(WM_PAINT, 15)
+	integer(WM_DESTROY, 2)
+	integer(WM_SIZE, 5)
+
+	integer(GW_CHILD, 5)
+
+	if(message == WM_PAINT)
+	{
+		Rect(prect, 0, 0, 0, 0)
+		PaintInfo(ps, 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0)
+
+		BeginPaint(hwnd, ps)
+		EndPaint(hwnd, ps)
+	}
+	elseif(message == WM_DESTROY)
+	{
+		PostQuitMessage(0)
+	}
+	elseif(message == WM_SIZE)
+	{
+		Rect(client, 0, 0, 0, 0)
+		GetClientRect(hwnd, client)		
+
+		integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+		MoveWindow(scintillahwnd, client.left, client.top, client.right - client.left, client.bottom - client.top, true)
+
+		SetScintillaScrolling(scintillahwnd, client.right - client.left - 64)
+	}
+	else
+	{
+		ret = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+
+SetScintillaScrolling : (integer(hwnd), integer(width)) -> ()
+{
+	integer(SCI_SETSCROLLWIDTH, 2274)
+	integer(SCI_SETSCROLLWIDTHTRACKING, 2516)
+
+	PostMessage(hwnd, SCI_SETSCROLLWIDTH, width, 0)
+	PostMessage(hwnd, SCI_SETSCROLLWIDTHTRACKING, 1, 0)
+}
+
+
+SetScintillaFont : (integer(hwnd), string(fontname), integer(fontsize)) -> ()
+{
+	integer(SCI_STYLESETFONT, 2056)
+	integer(SCI_STYLECLEARALL, 2050)
+	integer(SCI_STYLERESETDEFAULT, 2058)
+	integer(SCI_STYLESETSIZE, 2055)
+
+	buffer(fontnamenarrow, length(fontname))
+	narrowstring(fontname, fontnamenarrow)
+
+	PostMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
+	PostMessage(hwnd, SCI_STYLESETFONT, 32, fontnamenarrow)
+	PostMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
+	PostMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
+}
+
