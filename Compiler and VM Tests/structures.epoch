@@ -1,7 +1,7 @@
 //
 // STRUCTURES.EPOCH
 //
-// Test suite for using POD structures
+// Test suite for using POD structures, as well as structure value semantics
 //
 
 structure test :
@@ -16,6 +16,7 @@ entrypoint : () -> ()
 {
 	test(quux, 42, 666, "Hello World")
 	foo(quux)
+	debugwritestring(cast(string, quux.alpha))
 	quux.beta = 20
 	quux.beta += 20
 	++quux.beta
@@ -28,5 +29,8 @@ foo : (test(struct)) -> ()
 {
 	debugwritestring(struct.gamma)
 	debugwritestring(cast(string, struct.alpha))
+
+	// Test value semantics: this change should not affect the calling code
+	struct.alpha = 0	
 }
 
