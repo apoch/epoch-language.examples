@@ -1,0 +1,27 @@
+//
+// ANONYMOUS.EPOCH
+//
+// Test of anonymous temporary variables
+//
+
+
+structure Test :
+(
+	integer(Numeric),
+	string(Textual)
+)
+
+
+entrypoint : () -> ()
+{
+	foo(Test(42, "test"))
+}
+
+
+foo : (Test(param)) -> ()
+{
+	debugwritestring(cast(string, param.Numeric))
+	debugwritestring(param.Textual)
+}
+
+
