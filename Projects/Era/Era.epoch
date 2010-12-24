@@ -64,22 +64,22 @@ structure PaintInfo :
 )
 
 
-GetModuleHandle : (integer(null)) -> (integer(ret, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
-RegisterClassEx : (WindowClass(wc)) -> (integer16(ret, 0)) [external("User32.dll", "RegisterClassExW")]
-CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integer(style), integer(x), integer(y), integer(width), integer(height), integer(hwndparent), integer(hmenu), integer(hinstance), integer(param)) -> (integer(ret, 0)) [external("User32.dll", "CreateWindowExW")]
-ShowWindow : (integer(hwnd), integer(cmdshow)) -> (boolean(ret, false)) [external("User32.dll", "ShowWindow")]
-LoadCursor : (integer(hinstance), integer(cursorid)) -> (integer(ret, 0)) [external("User32.dll", "LoadCursorW")]
-GetMessage : (MessageInfo ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean(ret, false)) [external("User32.dll", "GetMessageW")]
-TranslateMessage : (MessageInfo(msg)) -> (boolean(ret, false)) [external("User32.dll", "TranslateMessage")]
-DispatchMessage : (MessageInfo(msg)) -> (integer(ret, 0)) [external("User32.dll", "DispatchMessageW")]
-BeginPaint : (integer(hwnd), PaintInfo ref(paintinfo)) -> (integer(ret, 0)) [external("User32.dll", "BeginPaint")]
-EndPaint : (integer(hwnd), PaintInfo(paintinfo)) -> (boolean(ret, false)) [external("User32.dll", "EndPaint")]
+GetModuleHandle : (integer(null)) -> (integer(handle, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
+RegisterClassEx : (WindowClass(wc)) -> (integer16(atom, 0)) [external("User32.dll", "RegisterClassExW")]
+CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integer(style), integer(x), integer(y), integer(width), integer(height), integer(hwndparent), integer(hmenu), integer(hinstance), integer(param)) -> (integer(windowhandle, 0)) [external("User32.dll", "CreateWindowExW")]
+ShowWindow : (integer(hwnd), integer(cmdshow)) -> (boolean(success, false)) [external("User32.dll", "ShowWindow")]
+LoadCursor : (integer(hinstance), integer(cursorid)) -> (integer(cursorhandle, 0)) [external("User32.dll", "LoadCursorW")]
+GetMessage : (MessageInfo ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean(success, false)) [external("User32.dll", "GetMessageW")]
+TranslateMessage : (MessageInfo(msg)) -> (boolean(success, false)) [external("User32.dll", "TranslateMessage")]
+DispatchMessage : (MessageInfo(msg)) -> (integer(unused, 0)) [external("User32.dll", "DispatchMessageW")]
+BeginPaint : (integer(hwnd), PaintInfo ref(paintinfo)) -> (integer(hdc, 0)) [external("User32.dll", "BeginPaint")]
+EndPaint : (integer(hwnd), PaintInfo(paintinfo)) -> (boolean(success, false)) [external("User32.dll", "EndPaint")]
 PostQuitMessage : (integer(exitcode)) -> () [external("User32.dll", "PostQuitMessage")]
 DefWindowProc : (integer(hwnd), integer(msg), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "DefWindowProcW")]
-GetClientRect : (integer(hwnd), Rect ref(rect)) -> (boolean(ret, false)) [external("User32.dll", "GetClientRect")]
-MoveWindow : (integer(hwnd), integer(x), integer(y), integer(width), integer(height), boolean(repaint)) -> (boolean(ret, false)) [external("User32.dll", "MoveWindow")]
-GetWindow : (integer(hwnd), integer(relationship)) -> (integer(ret, 0)) [external("User32.dll", "GetWindow")]
-LoadLibrary : (string(dllname)) -> (integer(ret, 0)) [external("Kernel32.dll", "LoadLibraryW")]
+GetClientRect : (integer(hwnd), Rect ref(rect)) -> (boolean(success, false)) [external("User32.dll", "GetClientRect")]
+MoveWindow : (integer(hwnd), integer(x), integer(y), integer(width), integer(height), boolean(repaint)) -> (boolean(success, false)) [external("User32.dll", "MoveWindow")]
+GetWindow : (integer(hwnd), integer(relationship)) -> (integer(windowhandle, 0)) [external("User32.dll", "GetWindow")]
+LoadLibrary : (string(dllname)) -> (integer(libraryhandle, 0)) [external("Kernel32.dll", "LoadLibraryW")]
 SetTimer : (integer(hwnd), integer(eventid), integer(time), integer(func)) -> (integer(ret, 0)) [external("User32.dll", "SetTimer")]
 
 PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
@@ -182,11 +182,8 @@ SetScintillaFont : (integer(hwnd), string(fontname), integer(fontsize)) -> ()
 	integer(SCI_STYLESETFORE, 2051)
 	integer(SCI_STYLESETBOLD, 2053)
 
-	buffer(fontnamenarrow, length(fontname))
-	narrowstring(fontname, fontnamenarrow)
-
 	PostMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
-	PostMessage(hwnd, SCI_STYLESETFONT, 32, fontnamenarrow)
+	PostMessage(hwnd, SCI_STYLESETFONT, 32, narrowstring(fontname))
 	PostMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
 	PostMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
 
@@ -205,14 +202,8 @@ SetScintillaLexer : (integer(hwnd)) -> ()
 	integer(SCI_SETLEXERLANGUAGE, 4006)
 	integer(SCI_LOADLEXERLIBRARY, 4007)
 
-	buffer(lexernamenarrow, 32)
-	narrowstring("epoch", lexernamenarrow)
-
-	buffer(dllnamenarrow, 32)
-	narrowstring("epochlexer.dll", dllnamenarrow)
-
-	PostMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, dllnamenarrow)
-	PostMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, lexernamenarrow)
+	PostMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowstring("epochlexer.dll"))
+	PostMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowstring("epoch"))
 }
 
 ScintillaColorize : (integer(hwnd)) -> ()
