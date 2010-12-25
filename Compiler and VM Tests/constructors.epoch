@@ -1,0 +1,33 @@
+//
+// CONSTRUCTORS.EPOCH
+//
+// Example/test case for overloaded structure constructors
+//
+
+
+structure Large :
+(
+	integer(alpha),
+	integer(beta),
+	integer(gamma),
+	string(foo),
+	string(bar),
+	string(baz),
+	string(quux)
+)
+
+
+Large : (identifier(new)) -> (Large(ret, 0, 0, 0, "Implicit ", "construction ", "is ", "blissful")) [constructor]
+
+
+entrypoint : () -> ()
+{
+	integer(debug, 42)
+
+	Large(default, 0, 42, 666, "Explicit ", "construction ", "is ", "annoying")
+	Large(overloaded)
+
+	debugwritestring("Default: " ; default.foo ; default.bar ; default.baz ; default.quux)
+	debugwritestring("Overloaded: " ; overloaded.foo ; overloaded.bar ; overloaded.baz ; overloaded.quux)
+}
+
