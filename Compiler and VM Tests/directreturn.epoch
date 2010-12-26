@@ -1,0 +1,22 @@
+//
+// DIRECTRETURN.EPOCH
+//
+// Compiler test for returning values from functions directly with anonymous return variables
+//
+
+
+
+entrypoint : () -> ()
+{
+	debugwritestring(returnstring("test"))
+	debugwritestring(cast(string, returninteger(21)))
+	debugwritestring(cast(string, fib(5)))
+}
+
+
+returnstring : (string(param)) -> (param)
+returninteger : (integer(param)) -> (param * 2)
+
+fib : (0) -> (1)
+fib : (1) -> (1)
+fib : (integer(n)) -> (integer(ret, fib(n - 1) + fib(n - 2)))		// Can't infer the return type here because of pattern matching
