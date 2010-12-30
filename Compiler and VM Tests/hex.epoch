@@ -1,0 +1,12 @@
+//
+// HEX.EPOCH
+//
+// Compiler test for hex literals
+//
+
+
+entrypoint : () -> ()
+{
+	integer(hex, 0xff)
+	debugwritestring(cast(string, hex))
+}

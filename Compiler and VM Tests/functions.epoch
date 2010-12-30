@@ -7,7 +7,7 @@
 entrypoint : () -> ()
 {
 	apply("test", debugwritestring)
-	debugwritestring(apply("test", mutate))	
+	debugwritestring(apply("test", mutate))
 }
 
 

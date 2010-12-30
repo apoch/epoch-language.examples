@@ -1,0 +1,19 @@
+//
+// MOREERRORS.EPOCH
+//
+// Additional compile errors that should be caught and reported cleanly
+//
+
+
+
+structure DuplicateMembers :
+(
+	integer(Foo),
+	Foo : () -> ()
+)
+
+
+entrypoint : () -> ()
+{
+}
+
