@@ -20,12 +20,22 @@ structure outer :
 	real(r)
 )
 
+structure deep :
+(
+	string(one),
+	outer(two),
+	integer(three)
+)
+
 
 
 entrypoint : () -> ()
 {
 	inner(blork, 42, 666, "Hello World")
 	outer(quux, 42, "Test", blork, 3.14159)
+
+	deep(moop, "Stuff", quux, 999)
+	
 
 	foo(quux.nested)
 
@@ -34,6 +44,9 @@ entrypoint : () -> ()
 	++quux.nested.beta
 	quux.nested.beta++
 	debugwritestring(cast(string, quux.nested.beta))
+
+	debugwritestring(moop.two.nested.gamma)
+
 	debugwritestring("Finished")
 }
 

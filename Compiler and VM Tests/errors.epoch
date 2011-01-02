@@ -1,8 +1,15 @@
 //
 // ERRORS.EPOCH
 //
-// Test of parser recovery in the face of blatant syntax errors
+// Test of parser recovery in the face of blatant syntax/semantic errors
 //
+
+
+structure TestStruct :
+(
+	Foo : (integer) -> (boolean)
+)
+
 
 entrypoint : () -> ()
 {
@@ -20,14 +27,37 @@ entrypoint : () -> ()
 
 	integer(test, 0)
 	test = "foo"
+
+	TestStruct(test2, func)
+
+	TestStruct(test3, anotherfunc)
+	frobnicate(test3, func)
 }
 
 
-overload : (integer(n)) -> (integer(ret, n))
+overload : (integer(n)) -> (n)
 overload : (integer(n)) -> (string(ret, cast(string, n)))
 
 
 void : () -> ()
 
-func : (integer(n)) -> (integer(ret, n))
+func : (integer(n)) -> (n)
+anotherfunc : (integer(n)) -> (false)
+
+
+frobnicate : (TestStruct(foo), paramfunc : (integer) -> (integer)) -> ()
+{
+	foo.Foo = func			// should trip an error because func doesn't match the signature of Foo
+	foo.Foo = paramfunc		// should also trip an error because paramfunc doesn't match either
+	paramfunc = anotherfunc		// oops! yet another error!
+	paramfunc = foo.Foo		// one last error for good measure
+	paramfunc = func		// but this one should be good...
+	foo.Foo = anotherfunc		// and this one too
+}
+
+
+finally : () -> ()
+{
+	this_should_be_the_last_error()
+}
 
