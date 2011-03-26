@@ -35,7 +35,9 @@ entrypoint : () -> ()
 	outer(quux, 42, "Test", blork, 3.14159)
 
 	deep(moop, "Stuff", quux, 999)
-	
+
+	foo(moop.two.nested)
+	debugwritestring(cast(string, moop.two.nested.beta))
 
 	foo(quux.nested)
 
@@ -45,6 +47,11 @@ entrypoint : () -> ()
 	quux.nested.beta++
 	debugwritestring(cast(string, quux.nested.beta))
 
+	moop.two.nested.beta = 1334
+	moop.two.nested.beta++
+	++moop.two.nested.beta
+	moop.two.nested.beta += 1
+	debugwritestring(cast(string, moop.two.nested.beta))
 	debugwritestring(moop.two.nested.gamma)
 
 	debugwritestring("Finished")
@@ -54,5 +61,7 @@ foo : (inner(struct)) -> ()
 {
 	debugwritestring(struct.gamma)
 	debugwritestring(cast(string, struct.alpha))
+
+	struct.beta = 777
 }
 
