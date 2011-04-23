@@ -1,0 +1,16 @@
+[menu]
+id 1000
+language 1033
+{
+	popup "&File"
+	{
+		item 1001 "No op"
+		separator
+		item 1002 "E&xit"
+	}
+	popup "&Help"
+	{
+		item 1101 "&About..."
+	}
+}
+

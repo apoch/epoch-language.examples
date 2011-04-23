@@ -69,6 +69,7 @@ RegisterClassEx : (WindowClass(wc)) -> (integer16(atom, 0)) [external("User32.dl
 CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integer(style), integer(x), integer(y), integer(width), integer(height), integer(hwndparent), integer(hmenu), integer(hinstance), integer(param)) -> (integer(windowhandle, 0)) [external("User32.dll", "CreateWindowExW")]
 ShowWindow : (integer(hwnd), integer(cmdshow)) -> (boolean(success, false)) [external("User32.dll", "ShowWindow")]
 LoadCursor : (integer(hinstance), integer(cursorid)) -> (integer(cursorhandle, 0)) [external("User32.dll", "LoadCursorW")]
+LoadMenu : (integer(hinstance), integer(menuid)) -> (integer(menuhandle, 0)) [external("User32.dll", "LoadMenuW")]
 GetMessage : (MessageInfo ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean(success, false)) [external("User32.dll", "GetMessageW")]
 TranslateMessage : (MessageInfo(msg)) -> (boolean(success, false)) [external("User32.dll", "TranslateMessage")]
 DispatchMessage : (MessageInfo(msg)) -> (integer(unused, 0)) [external("User32.dll", "DispatchMessageW")]
@@ -85,6 +86,8 @@ SetTimer : (integer(hwnd), integer(eventid), integer(time), integer(func)) -> (i
 PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 
+MessageBox : (integer(hwnd), string(message), string(caption), integer(style)) -> (integer(ret, 0)) [external("User32.dll", "MessageBoxW")]
+
 
 entrypoint : () -> ()
 {
@@ -99,7 +102,9 @@ entrypoint : () -> ()
 	WindowClass(wc, sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "ERAClass", 0)
 	RegisterClassEx(wc)
 
-	integer(hwnd, CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, 0, hInstance, 0))
+	integer(hMainMenuBar, LoadMenu(hInstance, 1000))
+
+	integer(hwnd, CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, hMainMenuBar, hInstance, 0))
 
 	if(hwnd != 0)
 	{
@@ -132,6 +137,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 	integer(WM_PAINT, 15)
 	integer(WM_DESTROY, 2)
 	integer(WM_SIZE, 5)
+	integer(WM_COMMAND, 273)
 
 	integer(GW_CHILD, 5)
 
@@ -156,6 +162,20 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		MoveWindow(scintillahwnd, client.left, client.top, client.right - client.left, client.bottom - client.top, true)
 
 		SetScintillaScrolling(scintillahwnd, client.right - client.left - 64)
+	}
+	elseif(message == WM_COMMAND)
+	{
+		if(wparam == 1001)
+		{
+		}
+		elseif(wparam == 1002)
+		{
+			PostQuitMessage(0)
+		}
+		elseif(wparam == 1101)
+		{
+			MessageBox(hwnd, "Era is the prototype Integrated Development Environment for the Epoch programming language.", "About Era", 64)
+		}
 	}
 	else
 	{

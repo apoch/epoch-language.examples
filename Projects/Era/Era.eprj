@@ -1,6 +1,9 @@
 [source]
 Era.epoch
 
+[resources]
+Era.erc
+
 [output]
 output-file Era.exe
 
