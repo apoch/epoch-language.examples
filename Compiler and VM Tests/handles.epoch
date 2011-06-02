@@ -1,0 +1,27 @@
+//
+// HANDLES.EPOCH
+//
+// Pathological test case for ensuring the VM can cope with huge
+// numbers of used handles over the lifetime of a running program
+//
+
+entrypoint : () -> ()
+{
+	string(test, "")
+	integer(mastercounter, 0)
+
+	debugwritestring("Begin!")
+
+	while(true)
+	{
+		integer(counter, 0)
+		while(counter < 100000)
+		{
+			string(temp, cast(string, counter))
+			++counter
+			test = temp
+		}
+
+		debugwritestring("Main count: " ; cast(string, (++mastercounter)))
+	}
+}
