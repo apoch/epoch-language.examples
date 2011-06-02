@@ -214,7 +214,8 @@ SetScintillaFont : (integer(hwnd), string(fontname), integer(fontsize)) -> ()
 	PostMessage(hwnd, SCI_STYLESETBOLD, 4, 1)
 
 	PostMessage(hwnd, SCI_STYLESETFORE, 5, 8421376)
-	PostMessage(hwnd, SCI_STYLESETFORE, 6, 16744576)
+	PostMessage(hwnd, SCI_STYLESETFORE, 6, 8421376)
+	PostMessage(hwnd, SCI_STYLESETFORE, 7, 16744576)
 }
 
 SetScintillaLexer : (integer(hwnd)) -> ()
