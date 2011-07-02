@@ -70,6 +70,7 @@ CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integ
 ShowWindow : (integer(hwnd), integer(cmdshow)) -> (boolean(success, false)) [external("User32.dll", "ShowWindow")]
 LoadCursor : (integer(hinstance), integer(cursorid)) -> (integer(cursorhandle, 0)) [external("User32.dll", "LoadCursorW")]
 LoadMenu : (integer(hinstance), integer(menuid)) -> (integer(menuhandle, 0)) [external("User32.dll", "LoadMenuW")]
+LoadIcon : (integer(hinstance), integer(iconid)) -> (integer(iconhandle, 0)) [external("User32.dll", "LoadIconW")]
 GetMessage : (MessageInfo ref(msg), integer(hwnd), integer(filtermin), integer(filtermax)) -> (boolean(success, false)) [external("User32.dll", "GetMessageW")]
 TranslateMessage : (MessageInfo(msg)) -> (boolean(success, false)) [external("User32.dll", "TranslateMessage")]
 DispatchMessage : (MessageInfo(msg)) -> (integer(unused, 0)) [external("User32.dll", "DispatchMessageW")]
@@ -88,9 +89,14 @@ PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam))
 
 MessageBox : (integer(hwnd), string(message), string(caption), integer(style)) -> (integer(ret, 0)) [external("User32.dll", "MessageBoxW")]
 
+GetCommandLine : () -> (string(ret, "")) [external("Kernel32.dll", "GetCommandLineW")]
+
 
 entrypoint : () -> ()
 {
+	MessageBox(0, GetCommandLine(), "test", 0)
+
+	integer(IDI_ICON, 101)
 	integer(IDC_ARROW, 32512)
 	integer(COLOR_WINDOWFRAME, 6)
 	integer(WS_OVERLAPPEDWINDOW, 13565952)
@@ -99,7 +105,7 @@ entrypoint : () -> ()
 
 	integer(hInstance, GetModuleHandle(0))
 
-	WindowClass(wc, sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "ERAClass", 0)
+	WindowClass(wc, sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, LoadIcon(hInstance, IDI_ICON), LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "ERAClass", 0)
 	RegisterClassEx(wc)
 
 	integer(hMainMenuBar, LoadMenu(hInstance, 1000))
@@ -119,6 +125,15 @@ entrypoint : () -> ()
 		ScintillaColorize(ScintillaHWND)
 
 		ShowWindow(hwnd, SW_SHOW)
+
+
+		// Load a file, if one was provided on the command line
+		//string(cmdline, GetCommandLine())
+		//if(length(cmdline) > 0)
+		//{
+		//	MessageBox(0, cmdline, "Command line", 0)
+		//}
+
 
 		Point(pt, 0, 0)
 		MessageInfo(msg, 0, 0, 0, 0, 0, pt)

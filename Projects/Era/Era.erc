@@ -1,3 +1,13 @@
+[icon]
+id 101
+language 1033
+source "epoch.ico"
+
+[icon]
+id 201
+language 1033
+source "scribble.ico"
+
 [menu]
 id 1000
 language 1033
