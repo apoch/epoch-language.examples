@@ -14,9 +14,13 @@ language 1033
 {
 	popup "&File"
 	{
-		item 1001 "No op"
+		item 1001 "&New"
 		separator
-		item 1002 "E&xit"
+		item 1002 "&Open..."
+		item 1003 "&Save"
+		item 1004 "Save &As..."
+		separator
+		item 1005 "E&xit"
 	}
 	popup "&Help"
 	{

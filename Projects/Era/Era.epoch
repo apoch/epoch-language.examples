@@ -64,6 +64,7 @@ structure PaintInfo :
 )
 
 
+CloseHandle : (integer(handle)) -> (boolean(ret, false)) [external("Kernel32.dll", "CloseHandle")]
 GetModuleHandle : (integer(null)) -> (integer(handle, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
 RegisterClassEx : (WindowClass(wc)) -> (integer16(atom, 0)) [external("User32.dll", "RegisterClassExW")]
 CreateWindowEx : (integer(exstyle), string(classname), string(windowname), integer(style), integer(x), integer(y), integer(width), integer(height), integer(hwndparent), integer(hmenu), integer(hinstance), integer(param)) -> (integer(windowhandle, 0)) [external("User32.dll", "CreateWindowExW")]
@@ -87,14 +88,35 @@ SetTimer : (integer(hwnd), integer(eventid), integer(time), integer(func)) -> (i
 PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 
+SendMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "SendMessageW")]
+SendMessage : (integer(hwnd), integer(message), integer(wparam), buffer ref(lparam)) -> (integer(ret, 0)) [external("User32.dll", "SendMessageW")]
+
 MessageBox : (integer(hwnd), string(message), string(caption), integer(style)) -> (integer(ret, 0)) [external("User32.dll", "MessageBoxW")]
 
-GetCommandLine : () -> (string(ret, "")) [external("Kernel32.dll", "GetCommandLineW")]
+CreateFile : (string(filename), integer(access), integer(sharemode), integer(attributes), integer(creation), integer(flags), integer(template)) -> (integer(ret, 0)) [external("Kernel32.dll", "CreateFileW")]
+CreateFileMapping : (integer(filehandle), integer(attributes), integer(protection), integer(maxsizehigh), integer(maxsizelow), integer(name)) -> (integer(ret, 0)) [external("Kernel32.dll", "CreateFileMappingW")]
+MapViewOfFile : (integer(handle), integer(access), integer(offsethigh), integer(offsetlow), integer(bytestomap)) -> (integer(ptr, 0)) [external("Kernel32.dll", "MapViewOfFile")]
+UnmapViewOfFile : (integer(ptr)) -> (boolean(ret, false)) [external("Kernel32.dll", "UnmapViewOfFile")]
+GetFileSize : (integer(handle), integer(ignored)) -> (integer(size, 0)) [external("Kernel32.dll", "GetFileSize")]
+
+WriteFile : (integer(handle), buffer ref(data), integer(numbytes), integer ref(written), integer(ignored2)) -> (boolean(ret, false)) [external("Kernel32.dll", "WriteFile")]
+
+
+global
+{
+	string(OpenFileName, "")
+}
 
 
 entrypoint : () -> ()
 {
-	MessageBox(0, GetCommandLine(), "test", 0)
+	integer(MB_ICONEXCLAMATION, 0x30)
+
+	if(!cmdlineisvalid())
+	{
+		MessageBox(0, "Invalid command line specified; please check for mismatched quotes or other formatting problems.", "ERA Development Environment", MB_ICONEXCLAMATION)
+		return()
+	}
 
 	integer(IDI_ICON, 101)
 	integer(IDC_ARROW, 32512)
@@ -106,43 +128,82 @@ entrypoint : () -> ()
 	integer(hInstance, GetModuleHandle(0))
 
 	WindowClass(wc, sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, LoadIcon(hInstance, IDI_ICON), LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "ERAClass", 0)
-	RegisterClassEx(wc)
+	integer16(fail, 0)
+	if(RegisterClassEx(wc) == fail)
+	{
+		MessageBox(0, "Failed to register primary application window class!", "ERA Development Enviroment", MB_ICONEXCLAMATION)
+		return()
+	}
 
 	integer(hMainMenuBar, LoadMenu(hInstance, 1000))
 
 	integer(hwnd, CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, hMainMenuBar, hInstance, 0))
 
-	if(hwnd != 0)
+	if(hwnd == 0)
 	{
-		Rect(client, 0, 0, 0, 0)
-		GetClientRect(hwnd, client)
+		MessageBox(0, "Failed to create primary application window!", "ERA Development Environment", MB_ICONEXCLAMATION)
+		return()
+	}
 
-		integer(ScintillaModule, LoadLibrary("SciLexer.DLL"))
-		integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, 0, hInstance, 0))
+	Rect(client, 0, 0, 0, 0)
+	GetClientRect(hwnd, client)
 
-		SetScintillaFont(ScintillaHWND, "Consolas", 10)
-		SetScintillaLexer(ScintillaHWND)
-		ScintillaColorize(ScintillaHWND)
+	integer(ScintillaModule, LoadLibrary("SciLexer.DLL"))
+	integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, 0, hInstance, 0))
 
-		ShowWindow(hwnd, SW_SHOW)
+	SetScintillaFont(ScintillaHWND, "Consolas", 10)
+	SetScintillaLexer(ScintillaHWND)
+	ScintillaColorize(ScintillaHWND)
 
+	ShowWindow(hwnd, SW_SHOW)
 
-		// Load a file, if one was provided on the command line
-		//string(cmdline, GetCommandLine())
-		//if(length(cmdline) > 0)
-		//{
-		//	MessageBox(0, cmdline, "Command line", 0)
-		//}
+	if(cmdlinegetcount() > 1)
+	{
+		integer(INVALID_HANDLE_VALUE, 0xffffffff)
+		integer(FILE_SHARE_READ, 0x01)
+		integer(OPEN_EXISTING, 3)
+		integer(GENERIC_READ, 0x80000000)
 
-
-		Point(pt, 0, 0)
-		MessageInfo(msg, 0, 0, 0, 0, 0, pt)
-
-		while(GetMessage(msg, 0, 0, 0))
+		integer(filehandle, CreateFile(cmdlineget(1), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0))
+		if(filehandle != INVALID_HANDLE_VALUE)
 		{
-			TranslateMessage(msg)
-			DispatchMessage(msg)
+			integer(PAGE_READONLY, 0x02)
+			
+			integer(mappinghandle, CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0))
+			if(mappinghandle != 0)
+			{
+				integer(FILE_MAP_READ, 0x04)
+				integer(len, GetFileSize(filehandle, 0))
+				integer(ptr, MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len))
+
+				if(ptr != 0)
+				{
+					OpenFileName = cmdlineget(1)
+					SetScintillaText(ScintillaHWND, ptr, len)
+					UnmapViewOfFile(ptr)
+				}
+				CloseHandle(mappinghandle)
+			}
+			else
+			{
+				MessageBox(hwnd, "Failed to create mapping of file: " ; cmdlineget(1), "ERA Development Environment", MB_ICONEXCLAMATION)
+			}
+			CloseHandle(filehandle)
 		}
+		else
+		{
+			MessageBox(hwnd, "Could not open file: " ; cmdlineget(1), "ERA Development Environment", MB_ICONEXCLAMATION)
+		}
+	}
+
+
+	Point(pt, 0, 0)
+	MessageInfo(msg, 0, 0, 0, 0, 0, pt)
+
+	while(GetMessage(msg, 0, 0, 0))
+	{
+		TranslateMessage(msg)
+		DispatchMessage(msg)
 	}
 }
 
@@ -182,10 +243,38 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 	{
 		if(wparam == 1001)
 		{
+			boolean(clear, true)
+			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			if(GetScintillaDirty(scintillahwnd))
+			{
+				clear = PromptToSave(hwnd, scintillahwnd)
+			}
+
+			if(clear)
+			{
+				ClearScintillaText(scintillahwnd)
+				SetScintillaNonDirty(scintillahwnd)
+				OpenFileName = ""
+			}
 		}
-		elseif(wparam == 1002)
+		elseif(wparam == 1003)
 		{
-			PostQuitMessage(0)
+			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			SaveDocument(scintillahwnd)
+		}
+		elseif(wparam == 1005)
+		{
+			boolean(exit, true)
+			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			if(GetScintillaDirty(scintillahwnd))
+			{
+				exit = PromptToSave(hwnd, scintillahwnd)
+			}
+
+			if(exit)
+			{
+				PostQuitMessage(0)
+			}
 		}
 		elseif(wparam == 1101)
 		{
@@ -249,4 +338,100 @@ ScintillaColorize : (integer(hwnd)) -> ()
 	PostMessage(hwnd, SCI_COLOURISE, 0, -1)
 }
 
+SetScintillaText : (integer(hwnd), integer(ptr), integer(len)) -> ()
+{
+	ClearScintillaText(hwnd)
+
+	integer(SCI_ADDTEXT, 2001)
+	SendMessage(hwnd, SCI_ADDTEXT, len, ptr)
+}
+
+ClearScintillaText : (integer(hwnd)) -> ()
+{
+	integer(SCI_CLEARALL, 2004)
+
+	SendMessage(hwnd, SCI_CLEARALL, 0, 0)
+}
+
+
+DoSave : (integer(hwnd)) -> ()
+{
+	integer(GENERIC_WRITE, 0x40000000)
+	integer(CREATE_ALWAYS, 2)
+	integer(MB_ICONSTOP, 0x10)
+	integer(SCI_GETLENGTH, 2183)
+	integer(SCI_GETTEXT, 2182)
+
+	integer(filehandle, CreateFile(OpenFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0))
+	if(filehandle == 0)
+	{
+		MessageBox(hwnd, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)
+		return()
+	}
+
+	integer(doclength, SendMessage(hwnd, SCI_GETLENGTH, 0, 0) + 1)
+	buffer(output, doclength)
+	SendMessage(hwnd, SCI_GETTEXT, doclength, output)
+
+	integer(written, 0)
+	WriteFile(filehandle, output, doclength, written, 0)
+
+	CloseHandle(filehandle)
+
+	SetScintillaNonDirty(hwnd)
+}
+
+SaveDocument : (integer(hwnd)) -> ()
+{
+	if(length(OpenFileName) == 0)
+	{
+		SaveDocumentAs(hwnd)
+	}
+	else
+	{
+		DoSave(hwnd)
+	}
+}
+
+SaveDocumentAs : (integer(hwnd)) -> ()
+{
+	MessageBox(0, "Must save as new file", "Save as", 0)
+}
+
+
+SetScintillaNonDirty : (integer(hwnd)) -> ()
+{
+	integer(SCI_SETSAVEPOINT, 2014)
+	PostMessage(hwnd, SCI_SETSAVEPOINT, 0, 0)	
+}
+
+GetScintillaDirty : (integer(hwnd)) -> (boolean(dirty, false))
+{
+	integer(SCI_GETMODIFY, 2159)
+	if(SendMessage(hwnd, SCI_GETMODIFY, 0, 0) != 0)
+	{
+		dirty = true
+	}
+}
+
+
+PromptToSave : (integer(hwnd), integer(scintillahwnd)) -> (boolean(ret, false))
+{
+	integer(MB_ICONQUESTION, 0x020)
+	integer(MB_YESNOCANCEL, 0x003)
+	integer(YES, 6)
+	integer(NO, 7)
+	integer(CANCEL, 2)
+
+	integer(prompt, MessageBox(hwnd, "The current document has unsaved changes. Would you like to save them first?", "ERA Development Environment", MB_ICONQUESTION + MB_YESNOCANCEL))
+	if(prompt == YES)
+	{
+		SaveDocument(scintillahwnd)
+		ret = true
+	}
+	elseif(prompt == NO)
+	{
+		ret = true
+	}
+}
 
