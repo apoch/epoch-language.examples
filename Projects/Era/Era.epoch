@@ -63,6 +63,30 @@ structure PaintInfo :
 	integer(reserved7)
 )
 
+structure OpenFileNameStruct :
+(
+	integer(structsize),
+	integer(hwndowner),
+	integer(hinstance),
+	string(filter),
+	buffer(customfilter),
+	integer(maxcustomfilter),
+	integer(filterindex),
+	buffer(file),
+	integer(maxfile),
+	buffer(filetitle),
+	integer(maxfiletitle),
+	string(initialdir),
+	string(title),
+	integer(flags),
+	integer16(offset),
+	integer16(extension),
+	string(defext),
+	integer(customdata),
+	integer(hook),
+	string(templatename)
+)
+
 
 CloseHandle : (integer(handle)) -> (boolean(ret, false)) [external("Kernel32.dll", "CloseHandle")]
 GetModuleHandle : (integer(null)) -> (integer(handle, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
@@ -92,6 +116,7 @@ SendMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)
 SendMessage : (integer(hwnd), integer(message), integer(wparam), buffer ref(lparam)) -> (integer(ret, 0)) [external("User32.dll", "SendMessageW")]
 
 MessageBox : (integer(hwnd), string(message), string(caption), integer(style)) -> (integer(ret, 0)) [external("User32.dll", "MessageBoxW")]
+MessageBox : (integer(hwnd), buffer(message), string(caption), integer(style)) -> (integer(ret, 0)) [external("User32.dll", "MessageBoxW")]
 
 CreateFile : (string(filename), integer(access), integer(sharemode), integer(attributes), integer(creation), integer(flags), integer(template)) -> (integer(ret, 0)) [external("Kernel32.dll", "CreateFileW")]
 CreateFileMapping : (integer(filehandle), integer(attributes), integer(protection), integer(maxsizehigh), integer(maxsizelow), integer(name)) -> (integer(ret, 0)) [external("Kernel32.dll", "CreateFileMappingW")]
@@ -101,17 +126,22 @@ GetFileSize : (integer(handle), integer(ignored)) -> (integer(size, 0)) [externa
 
 WriteFile : (integer(handle), buffer ref(data), integer(numbytes), integer ref(written), integer(ignored2)) -> (boolean(ret, false)) [external("Kernel32.dll", "WriteFile")]
 
+DestroyWindow : (integer(handle)) -> (boolean(ret, false)) [external("User32.dll", "DestroyWindow")]
+
+GetOpenFileName : (OpenFileNameStruct ref(ofn)) -> (integer(ret, 0)) [external("comdlg32.dll", "GetOpenFileNameW")]
+
+
 
 global
 {
 	string(OpenFileName, "")
+
+	integer(MB_ICONEXCLAMATION, 0x30)
 }
 
 
 entrypoint : () -> ()
 {
-	integer(MB_ICONEXCLAMATION, 0x30)
-
 	if(!cmdlineisvalid())
 	{
 		MessageBox(0, "Invalid command line specified; please check for mismatched quotes or other formatting problems.", "ERA Development Environment", MB_ICONEXCLAMATION)
@@ -159,43 +189,8 @@ entrypoint : () -> ()
 
 	if(cmdlinegetcount() > 1)
 	{
-		integer(INVALID_HANDLE_VALUE, 0xffffffff)
-		integer(FILE_SHARE_READ, 0x01)
-		integer(OPEN_EXISTING, 3)
-		integer(GENERIC_READ, 0x80000000)
-
-		integer(filehandle, CreateFile(cmdlineget(1), GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0))
-		if(filehandle != INVALID_HANDLE_VALUE)
-		{
-			integer(PAGE_READONLY, 0x02)
-			
-			integer(mappinghandle, CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0))
-			if(mappinghandle != 0)
-			{
-				integer(FILE_MAP_READ, 0x04)
-				integer(len, GetFileSize(filehandle, 0))
-				integer(ptr, MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len))
-
-				if(ptr != 0)
-				{
-					OpenFileName = cmdlineget(1)
-					SetScintillaText(ScintillaHWND, ptr, len)
-					UnmapViewOfFile(ptr)
-				}
-				CloseHandle(mappinghandle)
-			}
-			else
-			{
-				MessageBox(hwnd, "Failed to create mapping of file: " ; cmdlineget(1), "ERA Development Environment", MB_ICONEXCLAMATION)
-			}
-			CloseHandle(filehandle)
-		}
-		else
-		{
-			MessageBox(hwnd, "Could not open file: " ; cmdlineget(1), "ERA Development Environment", MB_ICONEXCLAMATION)
-		}
+		Open(hwnd, ScintillaHWND, cmdlineget(1))
 	}
-
 
 	Point(pt, 0, 0)
 	MessageInfo(msg, 0, 0, 0, 0, 0, pt)
@@ -214,6 +209,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 	integer(WM_DESTROY, 2)
 	integer(WM_SIZE, 5)
 	integer(WM_COMMAND, 273)
+	integer(WM_CLOSE, 0x10)
 
 	integer(GW_CHILD, 5)
 
@@ -224,6 +220,20 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 
 		BeginPaint(hwnd, ps)
 		EndPaint(hwnd, ps)
+	}
+	elseif(message == WM_CLOSE)
+	{
+		boolean(exit, true)
+		integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+		if(GetScintillaDirty(scintillahwnd))
+		{
+			exit = PromptToSave(hwnd, scintillahwnd)
+		}
+
+		if(exit)
+		{
+			DestroyWindow(hwnd)
+		}
 	}
 	elseif(message == WM_DESTROY)
 	{
@@ -257,10 +267,48 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 				OpenFileName = ""
 			}
 		}
+		elseif(wparam == 1002)
+		{
+			boolean(open, true)
+			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			if(GetScintillaDirty(scintillahwnd))
+			{
+				open = PromptToSave(hwnd, scintillahwnd)
+			}
+
+			if(open)
+			{
+				integer(customfilterbuffersize, 256)
+				buffer(customfilterbuffer, customfilterbuffersize)
+
+				integer(filebuffersize, 2048)
+				buffer(filebuffer, filebuffersize)
+
+				integer(filetitlebuffersize, 2048)
+				buffer(filetitlebuffer, filetitlebuffersize)
+
+				integer16(word, 0)
+
+				OpenFileNameStruct(ofn, sizeof(ofn), hwnd, GetModuleHandle(0), unescape("All files (*.*)\0*.*\0"),
+							customfilterbuffer, customfilterbuffersize, 1, filebuffer, filebuffersize,
+							filetitlebuffer, filetitlebuffersize, "", "Open File", 0, word, word, "", 0, 0, "")
+
+				integer(ofnret, GetOpenFileName(ofn))
+				if(ofnret != 0)
+				{
+					Open(hwnd, scintillahwnd, cast(string, ofn.file))
+				}
+			}
+		}
 		elseif(wparam == 1003)
 		{
 			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
 			SaveDocument(scintillahwnd)
+		}
+		elseif(wparam == 1004)
+		{
+			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			SaveDocumentAs(scintillahwnd)
 		}
 		elseif(wparam == 1005)
 		{
@@ -273,7 +321,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 
 			if(exit)
 			{
-				PostQuitMessage(0)
+				DestroyWindow(hwnd)
 			}
 		}
 		elseif(wparam == 1101)
@@ -353,6 +401,46 @@ ClearScintillaText : (integer(hwnd)) -> ()
 	SendMessage(hwnd, SCI_CLEARALL, 0, 0)
 }
 
+Open : (integer(hwnd), integer(ScintillaHWND), string(filename)) -> ()
+{
+	integer(INVALID_HANDLE_VALUE, 0xffffffff)
+	integer(FILE_SHARE_READ, 0x01)
+	integer(OPEN_EXISTING, 3)
+	integer(GENERIC_READ, 0x80000000)
+
+	integer(filehandle, CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0))
+	if(filehandle != INVALID_HANDLE_VALUE)
+	{
+		integer(PAGE_READONLY, 0x02)
+		
+		integer(mappinghandle, CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0))
+		if(mappinghandle != 0)
+		{
+			integer(FILE_MAP_READ, 0x04)
+			integer(len, GetFileSize(filehandle, 0))
+			integer(ptr, MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len))
+
+			if(ptr != 0)
+			{
+				OpenFileName = cmdlineget(1)
+				SetScintillaText(ScintillaHWND, ptr, len)
+				SetScintillaNonDirty(ScintillaHWND)
+				UnmapViewOfFile(ptr)
+			}
+			CloseHandle(mappinghandle)
+		}
+		else
+		{
+			MessageBox(hwnd, "Failed to create mapping of file: " ; filename, "ERA Development Environment", MB_ICONEXCLAMATION)
+		}
+		CloseHandle(filehandle)
+	}
+	else
+	{
+		MessageBox(hwnd, "Could not open file: " ; filename, "ERA Development Environment", MB_ICONEXCLAMATION)
+	}
+}
+
 
 DoSave : (integer(hwnd)) -> ()
 {
@@ -374,7 +462,7 @@ DoSave : (integer(hwnd)) -> ()
 	SendMessage(hwnd, SCI_GETTEXT, doclength, output)
 
 	integer(written, 0)
-	WriteFile(filehandle, output, doclength, written, 0)
+	WriteFile(filehandle, output, doclength - 1, written, 0)
 
 	CloseHandle(filehandle)
 
