@@ -87,6 +87,39 @@ structure OpenFileNameStruct :
 	string(templatename)
 )
 
+structure NotifyMessageHeader :
+(
+	integer(hwnd),
+	integer(childid),
+	integer(code)
+)
+
+structure ScintillaNotification :
+(
+	integer(hwnd),
+	integer(childid),
+	integer(code),
+	integer(position),
+	integer(ch),
+	integer(modifiers),
+	integer(modtype),
+	string(text),
+	integer(length),
+	integer(linesadded),
+	integer(message),
+	integer(wparam),
+	integer(lparam),
+	integer(line),
+	integer(foldlevelnow),
+	integer(foldlevelprev),
+	integer(margin),
+	integer(listtype),
+	integer(x),
+	integer(y),
+	integer(token),
+	integer(annotationlinesadded)
+)
+
 
 CloseHandle : (integer(handle)) -> (boolean(ret, false)) [external("Kernel32.dll", "CloseHandle")]
 GetModuleHandle : (integer(null)) -> (integer(handle, 0)) [external("Kernel32.dll", "GetModuleHandleW")]
@@ -105,12 +138,13 @@ PostQuitMessage : (integer(exitcode)) -> () [external("User32.dll", "PostQuitMes
 DefWindowProc : (integer(hwnd), integer(msg), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "DefWindowProcW")]
 GetClientRect : (integer(hwnd), Rect ref(rect)) -> (boolean(success, false)) [external("User32.dll", "GetClientRect")]
 MoveWindow : (integer(hwnd), integer(x), integer(y), integer(width), integer(height), boolean(repaint)) -> (boolean(success, false)) [external("User32.dll", "MoveWindow")]
-GetWindow : (integer(hwnd), integer(relationship)) -> (integer(windowhandle, 0)) [external("User32.dll", "GetWindow")]
+GetDlgItem : (integer(hwnd), integer(childid)) -> (integer(windowhandle, 0)) [external("User32.dll", "GetDlgItem")]
 LoadLibrary : (string(dllname)) -> (integer(libraryhandle, 0)) [external("Kernel32.dll", "LoadLibraryW")]
 SetTimer : (integer(hwnd), integer(eventid), integer(time), integer(func)) -> (integer(ret, 0)) [external("User32.dll", "SetTimer")]
 
 PostMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 PostMessage : (integer(hwnd), integer(message), integer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
+PostMessage : (integer(hwnd), integer(message), buffer(wparam), buffer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "PostMessageW")]
 
 SendMessage : (integer(hwnd), integer(message), integer(wparam), integer(lparam)) -> (integer(ret, 0)) [external("User32.dll", "SendMessageW")]
 SendMessage : (integer(hwnd), integer(message), integer(wparam), buffer ref(lparam)) -> (integer(ret, 0)) [external("User32.dll", "SendMessageW")]
@@ -140,6 +174,34 @@ global
 	string(FileTypeFilters, unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0"))
 
 	integer(MB_ICONEXCLAMATION, 0x30)
+
+	integer(WNDID_SCINTILLA, 0x001)
+
+	integer(SCN_MARGINCLICK, 2010)
+
+	integer(SCI_LINEFROMPOSITION, 2166)
+	integer(SCI_TOGGLEFOLD, 2231)
+	integer(SCI_SETPROPERTY, 4004)
+	integer(SCI_SETMARGINWIDTHN, 2242)
+	integer(SCI_SETMARGINTYPEN, 2240)
+	integer(SCI_SETMARGINMASKN, 2244)
+	integer(SCI_MARKERDEFINE, 2040)
+	integer(SCI_SETFOLDFLAGS, 2233)
+	integer(SCI_SETMARGINSENSITIVEN, 2246)
+
+	integer(SC_MARGIN_SYMBOL, 0)
+	integer(SC_MASK_FOLDERS, 0xfe000000)
+	integer(SC_MARKNUM_FOLDER, 30)
+	integer(SC_MARKNUM_FOLDEROPEN, 31)
+	integer(SC_MARKNUM_FOLDEREND, 25)
+	integer(SC_MARKNUM_FOLDERMIDTAIL, 27)
+	integer(SC_MARKNUM_FOLDEROPENMID, 26)
+	integer(SC_MARKNUM_FOLDERSUB, 29)
+	integer(SC_MARKNUM_FOLDERTAIL, 28)
+
+	integer(SC_MARK_PLUS, 8)
+	integer(SC_MARK_MINUS, 7)
+	integer(SC_MARK_EMPTY, 5)
 }
 
 
@@ -182,7 +244,7 @@ entrypoint : () -> ()
 	GetClientRect(hwnd, client)
 
 	integer(ScintillaModule, LoadLibrary("SciLexer.DLL"))
-	integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, 0, hInstance, 0))
+	integer(ScintillaHWND, CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, WNDID_SCINTILLA, hInstance, 0))
 
 	SetScintillaFont(ScintillaHWND, "Consolas", 10)
 	SetScintillaLexer(ScintillaHWND)
@@ -213,6 +275,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 	integer(WM_SIZE, 5)
 	integer(WM_COMMAND, 273)
 	integer(WM_CLOSE, 0x10)
+	integer(WM_NOTIFY, 0x4e)
 
 	integer(GW_CHILD, 5)
 
@@ -227,7 +290,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 	elseif(message == WM_CLOSE)
 	{
 		boolean(exit, true)
-		integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+		integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 		if(GetScintillaDirty(scintillahwnd))
 		{
 			exit = PromptToSave(hwnd, scintillahwnd)
@@ -247,7 +310,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		Rect(client, 0, 0, 0, 0)
 		GetClientRect(hwnd, client)		
 
-		integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+		integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 		MoveWindow(scintillahwnd, client.left, client.top, client.right - client.left, client.bottom - client.top, true)
 
 		SetScintillaScrolling(scintillahwnd, client.right - client.left - 64)
@@ -257,7 +320,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		if(wparam == 1001)
 		{
 			boolean(clear, true)
-			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				clear = PromptToSave(hwnd, scintillahwnd)
@@ -273,7 +336,7 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		elseif(wparam == 1002)
 		{
 			boolean(open, true)
-			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				open = PromptToSave(hwnd, scintillahwnd)
@@ -305,18 +368,18 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		}
 		elseif(wparam == 1003)
 		{
-			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 			SaveDocument(hwnd, scintillahwnd)
 		}
 		elseif(wparam == 1004)
 		{
-			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 			SaveDocumentAs(hwnd, scintillahwnd)
 		}
 		elseif(wparam == 1005)
 		{
 			boolean(exit, true)
-			integer(scintillahwnd, GetWindow(hwnd, GW_CHILD))
+			integer(scintillahwnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				exit = PromptToSave(hwnd, scintillahwnd)
@@ -330,6 +393,27 @@ MainWindowProcedure : (integer(hwnd), integer(message), integer(wparam), integer
 		elseif(wparam == 1101)
 		{
 			MessageBox(hwnd, "Era is the prototype Integrated Development Environment for the Epoch programming language.", "About Era", 64)
+		}
+	}
+	elseif(message == WM_NOTIFY)
+	{
+		NotifyMessageHeader(nmhdr, 0, 0, 0)
+		marshalstructure(nmhdr, lparam)
+		
+		if(nmhdr.childid == WNDID_SCINTILLA)
+		{
+			if(nmhdr.code == SCN_MARGINCLICK)
+			{
+				ScintillaNotification(scn, 0, 0, 0, 0, 0, 0, 0, "", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+				marshalstructure(scn, lparam)
+
+				if(scn.margin == 1)
+				{
+					integer(scintillawnd, GetDlgItem(hwnd, WNDID_SCINTILLA))
+					integer(linenumber, SendMessage(scintillawnd, SCI_LINEFROMPOSITION, scn.position, 0))
+					PostMessage(scintillawnd, SCI_TOGGLEFOLD, linenumber, 0)
+				}
+			}
 		}
 	}
 	else
@@ -380,6 +464,26 @@ SetScintillaLexer : (integer(hwnd)) -> ()
 
 	PostMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowstring("epochlexer.dll"))
 	PostMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowstring("epoch"))
+
+	PostMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold"), narrowstring("1"))
+	PostMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold.compact"), narrowstring("0"))
+
+	PostMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 0)
+	PostMessage(hwnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL)
+	PostMessage(hwnd, SCI_SETMARGINMASKN, 1, SC_MASK_FOLDERS)
+	PostMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 20)
+
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_PLUS)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_MINUS)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEREND, SC_MARK_EMPTY)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERMIDTAIL, SC_MARK_EMPTY)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPENMID, SC_MARK_EMPTY)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERSUB, SC_MARK_EMPTY)
+	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERTAIL, SC_MARK_EMPTY)
+
+	PostMessage(hwnd, SCI_SETFOLDFLAGS, 16, 0)
+
+	PostMessage(hwnd, SCI_SETMARGINSENSITIVEN, 1, 1)
 }
 
 ScintillaColorize : (integer(hwnd)) -> ()
