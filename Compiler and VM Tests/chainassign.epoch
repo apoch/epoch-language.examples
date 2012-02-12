@@ -1,0 +1,18 @@
+//
+// CHAINASSIGN.EPOCH
+// Test suite for chained assignment expressions
+//
+
+entrypoint : () -> ()
+{
+	integer(foo, 0)
+	integer(bar, 0)
+	integer(baz, 0)
+
+	foo = bar = baz = 40 + 2
+
+	debugwritestring(cast(string, foo))
+	debugwritestring(cast(string, bar))
+	debugwritestring(cast(string, baz))
+}
+
