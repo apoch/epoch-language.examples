@@ -1,0 +1,12 @@
+//
+// FUNCTIONCALL.EPOCH
+// Compiler test for invoking a function
+//
+
+entrypoint :
+{
+	func()
+}
+
+
+func :

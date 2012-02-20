@@ -1,0 +1,12 @@
+//
+// FUNCTIONRETURN.EPOCH
+// Compiler test for invoking a function with a return value
+//
+
+entrypoint :
+{
+	add(1, 2)
+}
+
+
+add : integer a, integer b -> integer(c, a + b)

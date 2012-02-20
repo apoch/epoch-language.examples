@@ -1,0 +1,14 @@
+//
+// FUNCTIONPARAM.EPOCH
+// Compiler test for invoking a function with parameters
+//
+
+entrypoint :
+{
+	func(1, 2)
+}
+
+
+func : integer a, integer b
+
+
