@@ -6,5 +6,4 @@
 entrypoint :
 
 
-no-op :
-
+noop :
