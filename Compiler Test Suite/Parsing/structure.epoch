@@ -1,0 +1,17 @@
+//
+// STRUCTURE.EPOCH
+//
+// Compiler test for simple structure
+//
+
+structure test :
+	integer foo,
+	string bar,
+	(func : integer -> string),
+	(voidfunc : )
+
+
+entrypoint :
+{
+}
+

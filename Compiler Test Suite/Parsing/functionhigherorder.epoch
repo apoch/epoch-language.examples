@@ -1,0 +1,21 @@
+//
+// FUNCTIONHIGHERORDER.EPOCH
+//
+// Compiler test for higher-order functions
+//
+
+entrypoint :
+{
+	apply("test", debugwritestring)
+	debugwritestring(apply("test", mutate))
+}
+
+
+apply : string param, (thefunction : string)
+{
+	thefunction(param)
+}
+
+apply : string param, (thefunction : string -> string) -> string(ret, thefunction(param))
+
+mutate : string param -> string(ret, param ; " foo")
