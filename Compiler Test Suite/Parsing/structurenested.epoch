@@ -1,0 +1,27 @@
+//
+// STRUCTURENESTED.EPOCH
+//
+// Compiler test for nested structures
+//
+
+
+structure outer :
+	integer foo,
+	inner bar
+
+structure inner :
+	string baz,
+	deep quux
+
+structure deep :
+	string flork
+
+
+entrypoint :
+{
+	deep(d, "deeptest")
+	inner(i, "test", d)
+	outer(o, 42, i)
+	debugwritestring(o.bar.quux.flork)
+}
+
