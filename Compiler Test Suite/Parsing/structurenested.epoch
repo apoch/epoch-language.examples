@@ -19,9 +19,9 @@ structure deep :
 
 entrypoint :
 {
-	deep(d, "deeptest")
-	inner(i, "test", d)
-	outer(o, 42, i)
+	deep d = "deeptest"
+	inner i = "test", d
+	outer o = 42, i
 	debugwritestring(o.bar.quux.flork)
 }
 

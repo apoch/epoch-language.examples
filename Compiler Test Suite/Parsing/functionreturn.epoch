@@ -10,4 +10,4 @@ entrypoint :
 }
 
 
-add : integer a, integer b -> integer(c, a + b)
+add : integer a, integer b -> integer c = a + b
