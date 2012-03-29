@@ -1,7 +1,7 @@
 //
 // ENTRYPOINT.EPOCH
 //
-// Compiler test for an empty entry point function
+// Parser test for an empty entry point function
 //
 
 entrypoint :

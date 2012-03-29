@@ -1,7 +1,7 @@
 //
 // VARIABLE.EPOCH
 //
-// Compiler test for variable declaration/initialization syntax
+// Parser test for variable declaration/initialization syntax
 //
 
 entrypoint :

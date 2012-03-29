@@ -1,13 +1,11 @@
 //
 // FUNCTIONHIGHERORDER.EPOCH
 //
-// Compiler test for higher-order functions
+// Parser test for higher-order functions
 //
 
 entrypoint :
 {
-	apply("test", debugwritestring)
-	debugwritestring(apply("test", mutate))
 }
 
 

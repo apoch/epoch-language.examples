@@ -1,7 +1,7 @@
 //
 // FUNCTIONRETURN.EPOCH
 //
-// Compiler test for invoking a function with a return value
+// Parser test for invoking a function with a return value
 //
 
 entrypoint :

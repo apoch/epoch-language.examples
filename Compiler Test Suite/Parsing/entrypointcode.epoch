@@ -1,7 +1,7 @@
 //
 // ENTYRPOINTCODE.EPOCH
 //
-// Compiler test for an entry point function with a code body
+// Parser test for an entry point function with a code body
 //
 
 entrypoint :

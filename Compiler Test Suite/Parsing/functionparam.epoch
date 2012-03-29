@@ -1,7 +1,7 @@
 //
 // FUNCTIONPARAM.EPOCH
 //
-// Compiler test for invoking a function with parameters
+// Parser test for invoking a function with parameters
 //
 
 entrypoint :

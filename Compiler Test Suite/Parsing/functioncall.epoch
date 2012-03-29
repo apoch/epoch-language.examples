@@ -1,7 +1,7 @@
 //
 // FUNCTIONCALL.EPOCH
 //
-// Compiler test for invoking a function
+// Parser test for invoking a function
 //
 
 entrypoint :

@@ -1,7 +1,7 @@
 //
 // STRUCTURENESTED.EPOCH
 //
-// Compiler test for nested structures
+// Parser test for nested structures
 //
 
 
@@ -22,6 +22,6 @@ entrypoint :
 	deep d = "deeptest"
 	inner i = "test", d
 	outer o = 42, i
-	debugwritestring(o.bar.quux.flork)
+	o.bar.quux.flork = "harbl"
 }
 

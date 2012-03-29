@@ -1,7 +1,7 @@
 //
 // STRUCTURE.EPOCH
 //
-// Compiler test for simple structure
+// Parser test for simple structure
 //
 
 structure test :
