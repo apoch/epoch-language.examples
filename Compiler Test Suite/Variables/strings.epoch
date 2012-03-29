@@ -1,0 +1,12 @@
+//
+// STRINGS.EPOCH
+//
+// Basic test of string variables
+//
+
+entrypoint :
+{
+	string s = "test"
+	assert(s == "test")
+}
+

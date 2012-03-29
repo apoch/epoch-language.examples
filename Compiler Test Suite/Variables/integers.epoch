@@ -1,0 +1,12 @@
+//
+// INTEGERS.EPOCH
+//
+// Basic test of integer variables
+//
+
+entrypoint :
+{
+	integer n = 42
+	assert(n == 42)
+}
+

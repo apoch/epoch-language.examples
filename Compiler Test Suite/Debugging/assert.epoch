@@ -1,0 +1,11 @@
+//
+// ASSERT.EPOCH
+//
+// Basic test of assertions
+//
+
+
+entrypoint :
+{
+	assert(true)
+}

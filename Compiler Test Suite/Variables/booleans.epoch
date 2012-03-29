@@ -1,0 +1,12 @@
+//
+// BOOLEANS.EPOCH
+//
+// Basic test of boolean variables
+//
+
+entrypoint :
+{
+	boolean b = true
+	assert(b)
+}
+
