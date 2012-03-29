@@ -1,0 +1,18 @@
+//
+// PARAMETER.EPOCH
+//
+// Basic function parameter test
+//
+
+entrypoint :
+{
+	func(42)
+}
+
+
+func : integer n
+{
+	assert(n == 42)
+	debugwritestring("Pass")
+}
+

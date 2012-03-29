@@ -1,0 +1,16 @@
+//
+// RETURN.EPOCH
+//
+// Basic function return test
+//
+
+entrypoint :
+{
+	integer n = func()
+	assert(n == 42)
+	debugwritestring("Pass")
+}
+
+
+func : -> integer ret = 42
+

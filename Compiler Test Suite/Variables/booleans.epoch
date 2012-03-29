@@ -8,5 +8,6 @@ entrypoint :
 {
 	boolean b = true
 	assert(b)
+	debugwritestring("Pass")
 }
 

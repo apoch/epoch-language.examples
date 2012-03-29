@@ -8,5 +8,6 @@ entrypoint :
 {
 	integer n = 42
 	assert(n == 42)
+	debugwritestring("Pass")
 }
 

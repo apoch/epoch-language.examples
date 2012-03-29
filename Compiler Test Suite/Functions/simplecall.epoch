@@ -1,0 +1,17 @@
+//
+// SIMPLECALL.EPOCH
+//
+// Basic function call test
+//
+
+entrypoint :
+{
+	func()
+}
+
+
+func :
+{
+	debugwritestring("Pass")
+}
+

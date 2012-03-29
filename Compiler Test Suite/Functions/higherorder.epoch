@@ -1,0 +1,22 @@
+//
+// HIGHERORDER.EPOCH
+//
+// Basic test for higher-order functions
+//
+
+entrypoint :
+{
+	string s = apply("test", mutate)
+	assert(s == "test foo")
+	apply("Pass", debugwritestring)
+}
+
+
+apply : string param, (thefunction : string)
+{
+	thefunction(param)
+}
+
+apply : string param, (thefunction : string -> string) -> string ret = thefunction(param)
+
+mutate : string param -> string ret = param ; " foo"

@@ -8,5 +8,6 @@ entrypoint :
 {
 	string s = "test"
 	assert(s == "test")
+	debugwritestring("Pass")
 }
 
