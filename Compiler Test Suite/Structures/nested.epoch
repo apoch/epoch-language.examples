@@ -1,0 +1,34 @@
+//
+// NESTED.EPOCH
+//
+// Basic test for nested structures
+//
+
+
+structure outer :
+	integer foo,
+	inner bar
+
+structure inner :
+	string baz,
+	deep quux
+
+structure deep :
+	string flork
+
+
+entrypoint :
+{
+	deep d = "deeptest"
+	inner i = "test", d
+	outer o = 42, i
+
+	assert(o.foo == 42)
+	assert(o.bar.baz == "test")
+	assert(o.bar.quux.flork == "deeptest")
+
+	o.bar.quux.flork = "harbl"
+
+	assert(o.bar.quux.flork == "harbl")
+}
+

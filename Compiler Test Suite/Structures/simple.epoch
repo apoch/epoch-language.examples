@@ -1,0 +1,27 @@
+//
+// SIMPLE.EPOCH
+//
+// Basic test of simple structure types
+//
+
+
+structure test :
+	integer foo,
+	string bar
+
+
+entrypoint :
+{
+	test x = 42, "test"
+
+	assert(x.foo == 42)
+	assert(x.bar == "test")
+	assert(x.bar != "xorph")
+
+	x.foo = 666
+	x.bar = "bletch"
+
+	assert(x.foo == 666)
+	assert(x.bar == "bletch")
+}
+
