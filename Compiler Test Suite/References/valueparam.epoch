@@ -1,0 +1,22 @@
+//
+// VALUEPARAM.EPOCH
+//
+// Basic test of value-semantic parameters
+//
+
+
+entrypoint :
+{
+	integer test = 42
+	nonmutating(test)
+
+	assert(test == 42)
+	debugwritestring("Pass")
+}
+
+
+nonmutating : integer param
+{
+	param = 0
+}
+
