@@ -1,0 +1,17 @@
+//
+// NONTRIVIALPARAM.EPOCH
+//
+// Test of type inference in the presence of a non-trivial function parameter
+//
+// Specifically, tests function calls inside expressions in a function parameter
+//
+
+entrypoint :
+{
+	assert(func() == 42)
+	debugwritestring("Pass")
+}
+
+
+func : -> integer ret = 42
+
