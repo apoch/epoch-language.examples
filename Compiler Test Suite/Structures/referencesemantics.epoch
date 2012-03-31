@@ -1,0 +1,25 @@
+//
+// REFERENCESEMANTICS.EPOCH
+//
+// Basic test of structure reference semantics
+//
+
+
+structure test :
+	integer field
+
+
+entrypoint :
+{
+	test foo = 0
+	func(foo)
+	assert(foo.field == 42)
+	debugwritestring("Pass")
+}
+
+
+func : test ref param
+{
+	param.field = 42
+}
+

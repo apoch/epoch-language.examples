@@ -1,0 +1,25 @@
+//
+// VALUESEMANTICS.EPOCH
+//
+// Basic test of structure value semantics
+//
+
+
+structure test :
+	integer field
+
+
+entrypoint :
+{
+	test foo = 42
+	func(foo)
+	assert(foo.field == 42)
+	debugwritestring("Pass")
+}
+
+
+func : test param
+{
+	param.field = 0
+}
+
