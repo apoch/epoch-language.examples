@@ -1,0 +1,16 @@
+//
+// ANONYMOUSRET.EPOCH
+//
+// Basic anonymous function return test
+//
+
+entrypoint :
+{
+	integer n = func()
+	assert(n == 42)
+	debugwritestring("Pass")
+}
+
+
+func : -> 42
+
