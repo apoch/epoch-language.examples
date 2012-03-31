@@ -1,0 +1,22 @@
+//
+// REFPARAM.EPOCH
+//
+// Basic test of reference parameters
+//
+
+
+entrypoint :
+{
+	integer test = 0
+	mutate(test)
+
+	assert(test == 42)
+	debugwritestring("Pass")
+}
+
+
+mutate : integer ref param
+{
+	param = 42
+}
+
