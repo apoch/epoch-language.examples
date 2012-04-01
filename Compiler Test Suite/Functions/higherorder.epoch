@@ -8,7 +8,7 @@ entrypoint :
 {
 	string s = apply("test", mutate)
 	assert(s == "test foo")
-	apply("Pass", debugwritestring)
+	apply("Pass", print)
 }
 
 

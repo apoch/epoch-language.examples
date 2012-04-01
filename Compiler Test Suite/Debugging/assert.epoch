@@ -8,5 +8,5 @@
 entrypoint :
 {
 	assert(true)
-	debugwritestring("Pass")
+	print("Pass")
 }

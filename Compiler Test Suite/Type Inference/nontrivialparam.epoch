@@ -9,7 +9,7 @@
 entrypoint :
 {
 	assert(func() == 42)
-	debugwritestring("Pass")
+	print("Pass")
 }
 
 

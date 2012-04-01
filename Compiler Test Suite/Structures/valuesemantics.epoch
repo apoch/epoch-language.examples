@@ -14,7 +14,7 @@ entrypoint :
 	test foo = 42
 	func(foo)
 	assert(foo.field == 42)
-	debugwritestring("Pass")
+	print("Pass")
 }
 
 

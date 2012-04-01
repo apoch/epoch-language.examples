@@ -13,6 +13,6 @@ entrypoint :
 func : integer n
 {
 	assert(n == 42)
-	debugwritestring("Pass")
+	print("Pass")
 }
 

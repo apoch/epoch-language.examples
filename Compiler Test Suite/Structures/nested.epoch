@@ -31,6 +31,6 @@ entrypoint :
 
 	assert(o.bar.quux.flork == "harbl")
 
-	debugwritestring("Pass")
+	print("Pass")
 }
 
