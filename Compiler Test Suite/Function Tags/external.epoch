@@ -1,0 +1,16 @@
+//
+// EXTERNAL.EPOCH
+//
+// Basic test of external functions
+//
+
+
+entrypoint :
+{
+	assert(GetDesktopWindow() != 0)
+	print("Pass")
+}
+
+
+GetDesktopWindow : -> integer ret = 0 [external("User32.dll", "GetDesktopWindow")]
+
