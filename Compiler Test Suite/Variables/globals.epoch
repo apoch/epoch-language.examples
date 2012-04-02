@@ -1,0 +1,19 @@
+//
+// GLOBALS.EPOCH
+//
+// Basic test of global variables
+//
+
+
+global
+{
+	integer n = 42
+}
+
+
+entrypoint :
+{
+	assert(n == 42)
+	print("Pass")
+}
+
