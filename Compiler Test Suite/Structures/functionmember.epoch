@@ -1,0 +1,21 @@
+//
+// FUNCTIONMEMBER.EPOCH
+//
+// Basic test of structures with function-type members
+//
+
+
+structure test :
+	(func : integer -> integer)
+
+entrypoint :
+{
+	test foo = echo
+
+	assert(apply(42, foo.func) == 42)
+	print("Pass")
+}
+
+echo : integer in -> integer out = in
+
+apply : integer n, (func : integer -> integer) -> integer out = func(n)
