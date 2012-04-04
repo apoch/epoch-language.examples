@@ -1,0 +1,69 @@
+//
+// JIT.EPOCH
+//
+// Just in time compilation test for Epoch
+//
+
+
+timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime")]
+
+
+entrypoint :
+{
+	integer four = 1 + 3
+	assert(four == 4)
+
+	vmbench(2, 3)
+	jitbench(2, 3)
+}
+
+
+vmbench : integer a, integer b
+{
+	integer begintime = timeGetTime()
+	integer counter = 0
+	integer result = 0
+
+	while(counter < 100000)
+	{
+		result = vmmath(a, b, result)
+		counter++
+	}
+
+	integer duration = timeGetTime() - begintime
+	string durationstr = cast(string, duration)
+	print("VM benchmark lasted: " ; durationstr)
+	string resultstr = cast(string, result)
+	print("Result: " ; resultstr)
+}
+
+
+jitbench : integer a, integer b
+{
+	integer begintime = timeGetTime()
+	integer counter = 0
+	integer result = 0
+
+	while(counter < 100000)
+	{
+		result = jitmath(a, b, result)
+		counter++
+	}
+
+	integer duration = timeGetTime() - begintime
+	string durationstr = cast(string, duration)
+	print("JIT benchmark lasted: " ; durationstr)
+	string resultstr = cast(string, result)
+	print("Result: " ; resultstr)
+}
+
+
+vmmath : integer a, integer b, integer accumulator -> integer ret = a * b
+{
+	ret = ret + accumulator
+}
+
+jitmath : integer a, integer b, integer accumulator -> integer ret = a * b [native]
+{
+	ret = ret + accumulator
+}
