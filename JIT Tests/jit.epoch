@@ -21,15 +21,7 @@ entrypoint :
 vmbench : integer a, integer b
 {
 	integer begintime = timeGetTime()
-	integer counter = 0
-	integer result = 0
-
-	while(counter < 100000)
-	{
-		result = vmmath(a, b, result)
-		counter++
-	}
-
+	integer result = vmmath(a, b)
 	integer duration = timeGetTime() - begintime
 	string durationstr = cast(string, duration)
 	print("VM benchmark lasted: " ; durationstr)
@@ -41,15 +33,7 @@ vmbench : integer a, integer b
 jitbench : integer a, integer b
 {
 	integer begintime = timeGetTime()
-	integer counter = 0
-	integer result = 0
-
-	while(counter < 100000)
-	{
-		result = jitmath(a, b, result)
-		counter++
-	}
-
+	integer result = jitmath(a, b)
 	integer duration = timeGetTime() - begintime
 	string durationstr = cast(string, duration)
 	print("JIT benchmark lasted: " ; durationstr)
@@ -58,12 +42,31 @@ jitbench : integer a, integer b
 }
 
 
-vmmath : integer a, integer b, integer accumulator -> integer ret = a * b
+vmmath : integer a, integer b -> integer ret = 0
 {
-	ret = ret + accumulator
+	integer counter = 0
+	integer result = 0
+
+	while(counter < 1000000)
+	{
+		result = a * b
+		ret = ret + result
+		counter = counter + 1
+	}
 }
 
-jitmath : integer a, integer b, integer accumulator -> integer ret = a * b [native]
+
+jitmath : integer a, integer b -> integer ret = 0 [native]
 {
-	ret = ret + accumulator
+	integer counter = 0
+	integer result = 0
+
+	while(counter < 1000000)
+	{
+		result = a * b
+		ret = ret + result
+		counter = counter + 1
+	}
 }
+
+
