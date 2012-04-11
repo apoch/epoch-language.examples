@@ -1,0 +1,11 @@
+//
+// DUPPARAMNAME.EPOCH
+//
+// Semantic error test - duplicate function parameter names
+//
+
+
+dup : integer a, integer a
+
+entrypoint :
+
