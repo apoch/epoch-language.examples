@@ -1,0 +1,13 @@
+//
+// DUPFUNCNAME.EPOCH
+//
+// Semantic error test - duplicate function overloads
+//
+
+func : integer a, integer b
+
+dup : integer a, integer b
+dup : integer b, integer c
+
+entrypoint :
+
