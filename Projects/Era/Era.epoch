@@ -512,24 +512,32 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 		
 		integer len = GetFileSize(filehandle, 0)
 
-		integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
-		if(mappinghandle != 0)
+		if(len > 0)
 		{
-			integer FILE_MAP_READ = 0x04
-			integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
-
-			if(ptr != 0)
+			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			if(mappinghandle != 0)
 			{
-				OpenFileName = filename
-				SetScintillaText(ScintillaHWND, ptr, len)
-				SetScintillaNonDirty(ScintillaHWND)
-				UnmapViewOfFile(ptr)
+				integer FILE_MAP_READ = 0x04
+				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
+
+				if(ptr != 0)
+				{
+					OpenFileName = filename
+					SetScintillaText(ScintillaHWND, ptr, len)
+					SetScintillaNonDirty(ScintillaHWND)
+					UnmapViewOfFile(ptr)
+				}
+				CloseHandle(mappinghandle)
 			}
-			CloseHandle(mappinghandle)
+			else
+			{
+				MessageBox(hwnd, "Failed to create mapping of file: " ; filename, "ERA Development Environment", MB_ICONEXCLAMATION)
+			}
 		}
 		else
 		{
-			MessageBox(hwnd, "Failed to create mapping of file: " ; filename, "ERA Development Environment", MB_ICONEXCLAMATION)
+			ClearScintillaText(ScintillaHWND)
+			SetScintillaNonDirty(ScintillaHWND)
 		}
 		CloseHandle(filehandle)
 	}
