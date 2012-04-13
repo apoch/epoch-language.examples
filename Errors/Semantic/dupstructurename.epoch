@@ -1,0 +1,16 @@
+//
+// DUPSTRUCTURENAME.EPOCH
+//
+// Semantic error test - duplicate structure names
+//
+
+
+structure dup :
+	integer a
+
+structure dup:
+	string b
+
+
+entrypoint :
+

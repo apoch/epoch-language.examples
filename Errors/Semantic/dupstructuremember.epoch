@@ -1,0 +1,18 @@
+//
+// DUPSTRUCTUREMEMBER.EPOCH
+//
+// Semantic error test - duplicate structure member names
+//
+
+
+structure dup1 :
+	integer a,
+	string a
+
+structure dup2:
+	string b,
+	(b : integer -> integer)
+
+
+entrypoint :
+
