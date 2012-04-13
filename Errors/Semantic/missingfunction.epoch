@@ -1,0 +1,11 @@
+//
+// MISSINGFUNCTION.EPOCH
+//
+// Semantic error test - accessing a non-existant function
+//
+
+entrypoint :
+{
+	bogus()
+}
+

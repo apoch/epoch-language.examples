@@ -1,0 +1,11 @@
+//
+// MISSINGVAR.EPOCH
+//
+// Semantic error test - accessing a non-existant local variable
+//
+
+entrypoint :
+{
+	print(bogus)
+}
+
