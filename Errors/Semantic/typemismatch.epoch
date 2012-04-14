@@ -1,0 +1,18 @@
+//
+// TYPEMISMATCH.EPOCH
+//
+// Semantic error test - basic type mismatches
+//
+
+
+entrypoint :
+{
+	frobnicate(3.14)
+}
+
+
+frobnicate : integer x
+{
+	++x
+}
+
