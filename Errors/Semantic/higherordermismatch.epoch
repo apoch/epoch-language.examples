@@ -1,0 +1,24 @@
+//
+// HIGHERORDERMISMATCH.EPOCH
+//
+// Semantic error test - detect incorrect higher order function application
+//
+
+
+apply : (func : integer -> integer), integer v
+{
+	print(cast(string, func(v)))
+}
+
+
+entrypoint :
+{
+	apply(broken, 42)
+}
+
+
+broken : string x -> integer y = 0
+{
+	y = cast(integer, x)
+}
+

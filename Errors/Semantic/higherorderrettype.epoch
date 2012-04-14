@@ -1,0 +1,21 @@
+//
+// HIGHERORDERRETTYPE.EPOCH
+//
+// Semantic error test - validate return types of higher order functions
+//
+
+
+apply : (func : integer), integer v
+{
+	print(cast(string, func(v)))
+}
+
+
+entrypoint :
+{
+	apply(broken, 42)
+}
+
+
+broken : integer x
+

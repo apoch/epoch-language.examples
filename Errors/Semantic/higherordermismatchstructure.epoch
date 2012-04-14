@@ -1,0 +1,30 @@
+//
+// HIGHERORDERMISMATCHSTRUCTURE.EPOCH
+//
+// Semantic error test - detect incorrect higher order function application
+// Variant #2 - test with structure function pointer members
+//
+
+
+structure test :
+	(func : integer -> integer)
+
+
+apply : (func : integer -> integer), integer v
+{
+	print(cast(string, func(v)))
+}
+
+
+entrypoint :
+{
+	test t = broken
+	apply(t.func, 42)
+}
+
+
+broken : string x -> integer y = 0
+{
+	y = cast(integer, x)
+}
+
