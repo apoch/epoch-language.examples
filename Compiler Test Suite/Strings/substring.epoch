@@ -1,0 +1,18 @@
+//
+// SUBSTRING.EPOCH
+//
+// Compiler/library test of substring() function
+//
+
+
+entrypoint :
+{
+	string test = "This is a test"
+	string this = substring(test, 0, 4)
+	string isatest = substring(test, 5)
+
+	assert(this == "This")
+	assert(isatest == "is a test")
+
+	print("Pass")
+}
