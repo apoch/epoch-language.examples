@@ -1,0 +1,27 @@
+//
+// PATTERNMATCH.EPOCH
+//
+// Compiler test for simple pattern matching
+//
+
+
+entrypoint :
+{
+	integer a = fib(0)
+	integer b = fib(1)
+	integer c = fib(2)
+	integer d = fib(3)
+	integer e = fib(4)
+
+	assert(a == 1)
+	assert(b == 1)
+	assert(c == 2)
+	assert(d == 3)
+	assert(e == 5)
+
+	print("Pass")
+}
+
+fib : 0 -> 1
+fib : 1 -> 1
+fib : integer n -> integer f = fib(n - 1) + fib(n - 2)
