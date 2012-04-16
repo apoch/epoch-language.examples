@@ -1,0 +1,16 @@
+//
+// PRECEDENCE.EPOCH
+//
+// Compiler test of operator precedence ordering
+//
+
+
+entrypoint :
+{
+	integer test = 12 + 6 * 5
+
+	assert(test == 42)
+
+	print("Pass")
+}
+
