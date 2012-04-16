@@ -1,0 +1,16 @@
+//
+// PARENTHETICAL.EPOCH
+//
+// Compiler test of parenthetical expressions
+//
+
+
+entrypoint :
+{
+	integer foo = 1
+	integer test = (foo + 1) * 2
+
+	assert(test == 4)
+
+	print("Pass")
+}
