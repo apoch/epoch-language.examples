@@ -13,11 +13,15 @@ entrypoint :
 	integer d = fib(3)
 	integer e = fib(4)
 
+	integer answer = fib(5) + fib(8)
+
 	assert(a == 1)
 	assert(b == 1)
 	assert(c == 2)
 	assert(d == 3)
 	assert(e == 5)
+
+	assert(answer == 42)
 
 	print("Pass")
 }
