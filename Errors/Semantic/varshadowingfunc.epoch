@@ -1,0 +1,17 @@
+//
+// VARSHADOWINGFUNC.EPOCH
+//
+// Semantic error test - variables should not be permitted to shadow function names
+//
+
+
+func :
+{
+}
+
+
+entrypoint :
+{
+	integer func = 42
+}
+

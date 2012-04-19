@@ -1,0 +1,24 @@
+//
+// ANONTEMP.EPOCH
+//
+// Compiler test of anonymous temporary structure variables
+//
+
+structure test :
+	integer alpha,
+	string beta
+
+
+entrypoint :
+{
+	foo(test(42, "ding"))
+
+	print("Pass")
+}
+
+foo : test param
+{
+	assert(param.alpha == 42)
+	assert(param.beta == "ding")
+}
+
