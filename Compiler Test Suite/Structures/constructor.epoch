@@ -1,0 +1,26 @@
+//
+// CONSTRUCTOR.EPOCH
+//
+// Compiler test of constructor functions
+//
+
+structure foo :
+	integer mandatory,
+	integer optional
+
+foo : integer mandatory -> foo ret = mandatory, 999 [constructor]
+
+entrypoint :
+{
+	foo simple = 42
+	foo complex = 666, 777
+
+	assert(simple.mandatory == 42)
+	assert(simple.optional == 999)
+
+	assert(complex.mandatory == 666)
+	assert(complex.optional == 777)
+
+	print("Pass")
+}
+

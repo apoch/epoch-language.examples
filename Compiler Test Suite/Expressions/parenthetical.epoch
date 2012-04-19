@@ -7,10 +7,24 @@
 
 entrypoint :
 {
-	integer foo = 1
-	integer test = (foo + 1) * 2
+	integer blargh = 1
+	integer test = (blargh + 1) * 2
+
+	foo(1 + (23 * bar() / 7) + baz())
 
 	assert(test == 4)
 
 	print("Pass")
 }
+
+
+foo : integer n
+{
+	assert(n == 42)
+}
+
+
+bar : -> 14
+
+baz : -> -5
+
