@@ -13,6 +13,10 @@ entrypoint :
 {
 	foo(test(42, "ding"))
 
+
+	integer value = 42
+	foo(test(value, "ding"))
+
 	print("Pass")
 }
 
