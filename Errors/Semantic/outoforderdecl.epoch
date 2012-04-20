@@ -1,0 +1,13 @@
+//
+// OUTOFORDERDECL.EPOCH
+//
+// Semantic error test - using a variable before it is defined
+//
+
+
+entrypoint :
+{
+	foo = 42
+	integer foo = 0
+}
+
