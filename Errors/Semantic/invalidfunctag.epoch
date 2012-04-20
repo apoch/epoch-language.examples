@@ -1,0 +1,14 @@
+//
+// INVALIDFUNCTAG.EPOCH
+//
+// Semantic error test - invalid function tag
+//
+
+
+bogus : [badtag]
+{
+}
+
+entrypoint :
+{
+}

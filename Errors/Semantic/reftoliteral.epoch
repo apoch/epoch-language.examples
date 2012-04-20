@@ -1,0 +1,18 @@
+//
+// REFTOLITERAL.EPOCH
+//
+// Semantic error test - pass a literal to a function expecting a reference
+//
+
+
+func : integer ref a
+{
+	++a
+}
+
+
+entrypoint :
+{
+	func(42)
+}
+
