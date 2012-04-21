@@ -1,0 +1,15 @@
+//
+// VARSHADOWINGVAR.EPOCH
+//
+// Semantic error test - flag variables shadowing identifiers in parent scopes
+//
+
+entrypoint :
+{
+	integer foo = 42
+	if(foo == 42)
+	{
+		integer foo = 0
+	}
+}
+

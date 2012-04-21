@@ -1,0 +1,12 @@
+//
+// DUPVARIABLENAME.EPOCH
+//
+// Semantic error test - flag duplicate variable names
+//
+
+entrypoint :
+{
+	integer foo = 42
+	integer foo = 0
+}
+
