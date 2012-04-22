@@ -1,0 +1,16 @@
+//
+// MISMATCHASSIGN.EPOCH
+//
+// Semantic error test - detect chained assignments of incompatible types
+//
+
+
+entrypoint :
+{
+	integer foo = 42
+	string bar = "Test"
+	integer baz = 666
+
+	foo = bar = baz = 0
+}
+
