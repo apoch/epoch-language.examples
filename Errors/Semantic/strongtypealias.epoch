@@ -1,0 +1,26 @@
+//
+// STRONGTYPEALIAS.EPOCH
+//
+// Basic test of violating "strong" type alias definitions
+//
+
+
+type Pixels : integer
+type Meters : integer
+
+
+entrypoint :
+{
+	Pixels p = 42
+	Meters m = 666
+
+	p = 1 + 2
+	p = p + 4
+	m--
+	++m
+
+	m = p
+	m = p + p
+	m = p + 2
+}
+

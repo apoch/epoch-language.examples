@@ -1,0 +1,18 @@
+//
+// STRONGALIAS.EPOCH
+//
+// Basic test of strong type aliases
+//
+
+
+type Meters : integer
+
+RectArea : Meters w, Meters h -> Meters ret = w * h
+
+
+entrypoint :
+{
+	assert(RectArea(3, 5) == 15)
+	print("Pass")
+}
+
