@@ -1,0 +1,21 @@
+//
+// TYPEALIAS.EPOCH
+//
+// Basic tests of type aliasing
+//
+
+
+alias Meters = integer
+alias Height = Meters
+alias Width = Meters
+
+
+SquareArea : Height h, Width w -> h * w
+
+
+entrypoint :
+{
+	assert(SquareArea(3, 5) == 15)
+	print("Pass")
+}
+
