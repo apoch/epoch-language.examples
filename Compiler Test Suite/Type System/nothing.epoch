@@ -1,0 +1,31 @@
+//
+// NOTHING.EPOCH
+//
+// Basic test of "nothing" type
+//
+
+
+type optional : integer | nothing
+
+
+test : integer i
+{
+	assert(i == 42)
+}
+
+
+test : nothing
+{
+	print("Pass")
+}
+
+
+entrypoint :
+{
+	optional foo = 42
+	optional bar = nothing
+
+	test(foo)
+	test(bar)
+}
+
