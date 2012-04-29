@@ -1,0 +1,20 @@
+//
+// SUMTYPE.EPOCH
+//
+// Basic test of sum types
+//
+
+type test : integer | string
+
+
+entrypoint :
+{
+	test foo = 42
+	test bar = "bletch"
+
+	assert(foo == 42)
+	assert(bar == "bletch")
+
+	print("Pass")
+}
+

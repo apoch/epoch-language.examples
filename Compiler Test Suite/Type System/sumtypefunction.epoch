@@ -1,0 +1,32 @@
+//
+// SUMTYPEFUNCTION.EPOCH
+//
+// Basic test of functions operating on sum types
+//
+
+type test : integer | string
+
+
+
+sumfunc : integer param
+{
+	assert(param == 42)
+}
+
+sumfunc : string param
+{
+	assert(param == "bletch")
+}
+
+
+entrypoint :
+{
+	test foo = 42
+	test bar = "bletch"
+
+	sumfunc(foo)
+	sumfunc(bar)
+
+	print("Pass")
+}
+
