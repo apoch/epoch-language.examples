@@ -1,0 +1,47 @@
+//
+// SUMTYPESTRUCTURE.EPOCH
+//
+// Test of holding a sum-typed value in a structure member
+//
+
+
+type intorstring : integer | string
+
+structure s :
+	intorstring alpha,
+	intorstring beta
+
+
+operate : s param
+{
+	check(param.alpha)
+	check(param.beta)
+}
+
+
+check : integer param
+{
+	assert(param == 42)
+}
+
+check : string param
+{
+	assert(param == "test")
+}
+
+
+entrypoint :
+{
+	s foo = 42, "test"
+	s bar = "test", 42
+	s baz = 42, 42
+	s quux = "test", "test"
+
+	operate(foo)
+	operate(bar)
+	operate(baz)
+	operate(quux)
+
+	print("Pass")
+}
+
