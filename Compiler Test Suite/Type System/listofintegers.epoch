@@ -1,0 +1,89 @@
+//
+// LISTOFINTEGERS.EPOCH
+//
+// Simple implementation of a singly linked list holding integers
+//
+
+
+type listnode : list | nothing
+
+structure list :
+	integer value,
+	listnode next
+
+
+prepend : list ref thelist, integer value
+{
+	list newlist = value, thelist
+	thelist = newlist
+}
+
+
+append : list ref thelist, integer value
+{
+	append_recurse(thelist, thelist.next, value)
+}
+
+
+append_recurse : list ref thelist, nothing, integer value
+{
+	list newlist = value, nothing
+	thelist.next = newlist
+}
+
+append_recurse : list ref thelist, list ref tail, integer value
+{
+	append_recurse(tail, tail.next, value)
+}
+
+
+next : list ref thelist -> listnode tail = thelist.next
+next : nothing -> listnode tail = nothing
+
+checkvalue : list ref thelist, integer expected
+{
+	assert(thelist.value == expected)
+}
+
+checkvalue : nothing, integer expected
+{
+	print("Unexpected end of list")
+	assert(false)
+}
+
+
+dumplist : list ref thelist
+{
+	listnode nn = thelist.next
+	dumplist(nn)
+}
+
+dumplist : nothing
+{
+}
+
+
+entrypoint :
+{
+	list numbers = 1, nothing
+
+	append(numbers, 2)
+	append(numbers, 3)
+	prepend(numbers, 0)
+
+	dumplist(numbers)
+
+	assert(numbers.value == 0)
+	
+	listnode node = next(numbers)
+	checkvalue(node, 1)
+
+	node = next(node)
+	checkvalue(node, 2)
+
+	node = next(node)
+	checkvalue(node, 3)
+
+	print("Pass")
+}
+
