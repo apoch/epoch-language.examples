@@ -7,13 +7,24 @@
 type test : integer | string
 
 
+check : integer in, integer expected
+{
+	assert(in == expected)
+}
+
+check : string in, string expected
+{
+	assert(in == expected)
+}
+
+
 entrypoint :
 {
 	test foo = 42
 	test bar = "bletch"
 
-	assert(foo == 42)
-	assert(bar == "bletch")
+	check(foo, 42)
+	check(bar, "bletch")
 
 	print("Pass")
 }
