@@ -15,9 +15,16 @@ entrypoint :
 {
 	testwrapper<integer> intwrap = 42, "number"
 	testwrapper<string> strwrap = "test", "text"
+	testwrapper<boolean> boolwrap = true, "flag"
 
 	assert(intwrap.contents == 42)
+	assert(intwrap.tag == "number")
+
 	assert(strwrap.contents == "test")
+	assert(strwrap.tag == "text")
+
+	assert(boolwrap.contents)
+	assert(boolwrap.tag == "flag")
 
 	print("Pass")
 }
