@@ -1,0 +1,24 @@
+//
+// GENERICSTRUCT.EPOCH
+//
+// Simple test of generic structures
+//
+
+
+structure testwrapper<type T> :
+	T contents,
+	string tag
+
+
+
+entrypoint : 
+{
+	testwrapper<integer> intwrap = 42, "number"
+	testwrapper<string> strwrap = "test", "text"
+
+	assert(intwrap.contents == 42)
+	assert(strwrap.contents == "test")
+
+	print("Pass")
+}
+
