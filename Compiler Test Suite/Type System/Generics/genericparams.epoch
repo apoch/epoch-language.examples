@@ -1,0 +1,47 @@
+//
+// GENERICPARAMS.EPOCH
+//
+// Simple test of generic structures passed into functions
+//
+
+
+structure testwrapper<type T> :
+	T contents,
+	string tag
+
+
+
+check : testwrapper<integer> ref intwrap
+{
+	assert(intwrap.contents == 42)
+	assert(intwrap.tag == "number")
+}
+
+
+check : testwrapper<string> ref strwrap
+{
+	assert(strwrap.contents == "test")
+	assert(strwrap.tag == "text")
+}
+
+
+check : testwrapper<boolean> ref boolwrap
+{
+	assert(boolwrap.contents)
+	assert(boolwrap.tag == "flag")
+}
+
+
+entrypoint : 
+{
+	testwrapper<integer> intwrap = 42, "number"
+	testwrapper<string> strwrap = "test", "text"
+	testwrapper<boolean> boolwrap = true, "flag"
+
+	check(intwrap)
+	check(strwrap)
+	check(boolwrap)
+
+	print("Pass")
+}
+
