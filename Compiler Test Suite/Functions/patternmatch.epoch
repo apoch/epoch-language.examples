@@ -23,7 +23,7 @@ entrypoint :
 
 	assert(answer == 42)
 
-	print("Pass")
+	passtest()
 }
 
 fib : integer n -> integer f = fib(n - 1) + fib(n - 2)

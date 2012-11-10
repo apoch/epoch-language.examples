@@ -11,6 +11,6 @@ test : integer a, integer b -> a * b
 entrypoint :
 {
 	assert(test(4, 5) == 20)
-	print("Pass")
+	passtest()
 }
 

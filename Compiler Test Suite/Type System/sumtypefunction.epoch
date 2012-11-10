@@ -27,6 +27,6 @@ entrypoint :
 	sumfunc(foo)
 	sumfunc(bar)
 
-	print("Pass")
+	passtest()
 }
 

@@ -26,6 +26,6 @@ entrypoint :
 	assert(boolwrap.contents)
 	assert(boolwrap.tag == "flag")
 
-	print("Pass")
+	passtest()
 }
 

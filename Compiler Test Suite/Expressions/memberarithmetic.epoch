@@ -15,6 +15,6 @@ entrypoint :
 	test foo = 40, 2
 	integer n = foo.alpha + foo.beta
 	assert(n == 42)
-	print("Pass")
+	passtest()
 }
 

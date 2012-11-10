@@ -8,13 +8,13 @@ entrypoint :
 {
 	string s = apply("test", mutate)
 	assert(s == "test foo")
-	apply("Pass", print)
+	apply(passtest)
 }
 
 
-apply : string param, (thefunction : string)
+apply : (thefunction : )
 {
-	thefunction(param)
+	thefunction()
 }
 
 apply : string param, (thefunction : string -> string) -> string ret = thefunction(param)

@@ -14,5 +14,5 @@ entrypoint :
 	assert(this == "This")
 	assert(isatest == "is a test")
 
-	print("Pass")
+	passtest()
 }

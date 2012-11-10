@@ -17,7 +17,7 @@ entrypoint :
 	integer value = 42
 	foo(test(value, "ding"))
 
-	print("Pass")
+	passtest()
 }
 
 foo : test param

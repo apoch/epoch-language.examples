@@ -9,5 +9,7 @@ entrypoint :
 	integer foo = 42
 	real bar = 3.14159
 	string baz = "testing"
+
+	passtest()
 }
 

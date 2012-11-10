@@ -26,6 +26,6 @@ entrypoint :
 	check(foo, 42)
 	check(bar, "bletch")
 
-	print("Pass")
+	passtest()
 }
 

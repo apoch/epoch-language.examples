@@ -8,5 +8,5 @@
 entrypoint :
 {
 	assert(true)
-	print("Pass")
+	passtest()
 }

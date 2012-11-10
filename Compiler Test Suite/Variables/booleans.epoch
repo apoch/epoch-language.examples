@@ -8,6 +8,6 @@ entrypoint :
 {
 	boolean b = true
 	assert(b)
-	print("Pass")
+	passtest()
 }
 

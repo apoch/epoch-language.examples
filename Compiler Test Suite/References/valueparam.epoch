@@ -11,7 +11,7 @@ entrypoint :
 	nonmutating(test)
 
 	assert(test == 42)
-	print("Pass")
+	passtest()
 }
 
 

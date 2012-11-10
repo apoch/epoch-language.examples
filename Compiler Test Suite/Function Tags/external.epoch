@@ -8,7 +8,7 @@
 entrypoint :
 {
 	assert(GetDesktopWindow() != 0)
-	print("Pass")
+	passtest()
 }
 
 

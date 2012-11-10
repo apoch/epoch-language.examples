@@ -23,5 +23,7 @@ entrypoint :
 	inner i = "test", d
 	outer o = 42, i
 	o.bar.quux.flork = "harbl"
+
+	passtest()
 }
 

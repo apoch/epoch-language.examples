@@ -12,6 +12,6 @@ entrypoint :
 
 func :
 {
-	print("Pass")
+	passtest()
 }
 

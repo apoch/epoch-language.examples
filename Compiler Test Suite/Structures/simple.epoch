@@ -24,6 +24,6 @@ entrypoint :
 	assert(x.foo == 666)
 	assert(x.bar == "bletch")
 
-	print("Pass")
+	passtest()
 }
 

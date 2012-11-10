@@ -84,6 +84,6 @@ entrypoint :
 	node = next(node)
 	checkvalue(node, 3)
 
-	print("Pass")
+	passtest()
 }
 

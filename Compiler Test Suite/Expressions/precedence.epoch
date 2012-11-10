@@ -11,6 +11,6 @@ entrypoint :
 
 	assert(test == 42)
 
-	print("Pass")
+	passtest()
 }
 

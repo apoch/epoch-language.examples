@@ -42,6 +42,6 @@ entrypoint :
 	check(strwrap)
 	check(boolwrap)
 
-	print("Pass")
+	passtest()
 }
 

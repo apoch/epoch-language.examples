@@ -21,6 +21,6 @@ entrypoint :
 	assert(complex.mandatory == 666)
 	assert(complex.optional == 777)
 
-	print("Pass")
+	passtest()
 }
 

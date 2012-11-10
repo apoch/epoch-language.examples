@@ -13,7 +13,7 @@ entrypoint :
 	test foo = echo
 
 	assert(apply(42, foo.func) == 42)
-	print("Pass")
+	passtest()
 }
 
 echo : integer in -> integer out = in

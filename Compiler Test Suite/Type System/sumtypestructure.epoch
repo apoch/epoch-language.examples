@@ -42,6 +42,6 @@ entrypoint :
 	operate(baz)
 	operate(quux)
 
-	print("Pass")
+	passtest()
 }
 

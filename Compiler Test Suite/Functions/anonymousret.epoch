@@ -8,7 +8,7 @@ entrypoint :
 {
 	integer n = func()
 	assert(n == 42)
-	print("Pass")
+	passtest()
 }
 
 

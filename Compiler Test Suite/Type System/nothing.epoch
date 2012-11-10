@@ -16,7 +16,7 @@ test : integer i
 
 test : nothing
 {
-	print("Pass")
+	passtest()
 }
 
 
