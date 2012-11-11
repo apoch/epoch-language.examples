@@ -1,0 +1,22 @@
+//
+// GENERICFUNCTION.EPOCH
+//
+// Simple test of a generic (type parameterized) function
+//
+
+
+add<type T> : T a, T b -> T sum = a + b
+
+
+
+entrypoint :
+{
+	integer foo = add<integer>(40, 2)
+	real bar = add<real>(3.0, 0.14)
+
+	assert(foo == 42)
+	assert(bar == 3.14)
+
+	passtest()
+}
+
