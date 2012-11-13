@@ -67,8 +67,8 @@ entrypoint :
 {
 	list numbers = 1, nothing
 
-	append(numbers, 2)
-	append(numbers, 3)
+	append(numbers, 999)
+	append(numbers, 666)
 	prepend(numbers, 0)
 
 	dumplist(numbers)
@@ -79,10 +79,10 @@ entrypoint :
 	checkvalue(node, 1)
 
 	node = next(node)
-	checkvalue(node, 2)
+	checkvalue(node, 999)
 
 	node = next(node)
-	checkvalue(node, 3)
+	checkvalue(node, 666)
 
 	passtest()
 }
