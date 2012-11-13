@@ -1,0 +1,93 @@
+//
+// GENERICLIST.EPOCH
+//
+// Simple implementation of a singly linked list holding arbitrary data
+//
+
+
+type listnode<type T> : list<T> | nothing
+
+structure list<type T> :
+	T value,
+	listnode<T> next
+
+
+prepend<type T> : list<T> ref thelist, T value
+{
+	list<T> newlist = value, thelist
+	thelist = newlist
+}
+
+
+append_recurse<type T> : list<T> ref thelist, nothing, T value
+{
+	print("base case!")
+	list<T> newlist = value, nothing
+	thelist.next = newlist
+}
+
+append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T value
+{
+	print("recursing!")
+	append_recurse<T>(tail, tail.next, value)
+}
+
+
+append<type T> : list<T> ref thelist, T value
+{
+	append_recurse<T>(thelist, thelist.next, value)
+	print("done appending")
+}
+
+next<type T> : list<T> ref thelist -> listnode<T> tail = thelist.next
+next<type T> : nothing -> listnode<T> tail = nothing
+
+checkvalue<type T> : list<T> ref thelist, T expected
+{
+	print(cast(string, thelist.value))
+	print(cast(string, expected))
+	assert(thelist.value == expected)
+}
+
+checkvalue<type T> : nothing, T expected
+{
+	print("Unexpected end of list")
+	assert(false)
+}
+
+
+dumplist<type T> : list<T> ref thelist
+{
+	listnode<T> nn = thelist.next
+	dumplist(nn)
+}
+
+dumplist<type T> : nothing
+{
+}
+
+
+entrypoint :
+{
+	list<integer> numbers = 1, nothing
+
+	append<integer>(numbers, 2)
+	append<integer>(numbers, 666)
+	prepend<integer>(numbers, 0)
+
+	dumplist<integer>(numbers)
+
+	assert(numbers.value == 0)
+	
+	listnode<integer> node = next<integer>(numbers)
+	checkvalue<integer>(node, 1)
+
+	node = next<integer>(node)
+	checkvalue<integer>(node, 2)
+
+	node = next<integer>(node)
+	checkvalue<integer>(node, 666)
+
+	passtest()
+}
+
