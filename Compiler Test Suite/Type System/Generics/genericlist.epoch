@@ -21,14 +21,12 @@ prepend<type T> : list<T> ref thelist, T value
 
 append_recurse<type T> : list<T> ref thelist, nothing, T value
 {
-	print("base case!")
 	list<T> newlist = value, nothing
 	thelist.next = newlist
 }
 
 append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T value
 {
-	print("recursing!")
 	append_recurse<T>(tail, tail.next, value)
 }
 
@@ -36,7 +34,6 @@ append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T value
 append<type T> : list<T> ref thelist, T value
 {
 	append_recurse<T>(thelist, thelist.next, value)
-	print("done appending")
 }
 
 next<type T> : list<T> ref thelist -> listnode<T> tail = thelist.next
@@ -44,8 +41,6 @@ next<type T> : nothing -> listnode<T> tail = nothing
 
 checkvalue<type T> : list<T> ref thelist, T expected
 {
-	print(cast(string, thelist.value))
-	print(cast(string, expected))
 	assert(thelist.value == expected)
 }
 
