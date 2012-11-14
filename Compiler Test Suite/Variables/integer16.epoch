@@ -1,0 +1,14 @@
+//
+// INTEGER16.EPOCH
+//
+// Basic test of 16-bit integer variables
+//
+
+entrypoint :
+{
+	integer16 n = 42
+	assert(n == 42)
+	assert(42 == n)
+	passtest()
+}
+
