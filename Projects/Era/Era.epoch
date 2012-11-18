@@ -154,6 +154,19 @@ GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError")]
 
 
 
+
+structure ParseCallbacks :
+	(ParseOKFunc : ),
+	(ParseStructureFunc : string)
+
+
+UDTListReset : [external("EpochLexer.dll", "UDTListReset")]
+UDTListAppend : buffer token [external("EpochLexer.dll", "UDTListAppend")]
+
+ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.dll", "ParseSource")]
+
+
+
 global
 {
 	string OpenFileName = ""
@@ -175,6 +188,8 @@ global
 	integer SCI_MARKERDEFINE = 2040
 	integer SCI_SETFOLDFLAGS = 2233
 	integer SCI_SETMARGINSENSITIVEN = 2246
+	integer SCI_GETLENGTH = 2183
+	integer SCI_GETTEXT = 2182
 
 	integer SC_MARGIN_SYMBOL = 0
 	integer SC_MASK_FOLDERS = 0xfe000000
@@ -237,12 +252,16 @@ entrypoint :
 	SetScintillaLexer(ScintillaHWND)
 	ScintillaColorize(ScintillaHWND)
 
+	UDTListAppend(narrowstring("WindowClass"))
+
 	ShowWindow(hwnd, SW_SHOW)
 
 	if(cmdlinegetcount() > 1)
 	{
 		Open(hwnd, ScintillaHWND, cmdlineget(1))
 	}
+
+	SetTimer(hwnd, 1, 1000, 0)
 
 	Point pt = 0, 0
 	MessageInfo msg = 0, 0, 0, 0, 0, pt
@@ -263,6 +282,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	integer WM_COMMAND = 273
 	integer WM_CLOSE = 0x10
 	integer WM_NOTIFY = 0x4e
+	integer WM_TIMER = 0x113
 
 	integer GW_CHILD = 5
 
@@ -403,6 +423,17 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				}
 			}
 		}
+	}
+	elseif(message == WM_TIMER)
+	{
+		integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+		integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
+		buffer output = doclength
+		SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
+
+		ParseCallbacks callbacks = ParseOK, ParseStructure
+		ParseSource(output, callbacks)
+		ScintillaColorize(scintillahwnd)
 	}
 	else
 	{
@@ -553,8 +584,6 @@ DoSave : integer hwnd
 	integer GENERIC_WRITE = 0x40000000
 	integer CREATE_ALWAYS = 2
 	integer MB_ICONSTOP = 0x10
-	integer SCI_GETLENGTH = 2183
-	integer SCI_GETTEXT = 2182
 
 	integer filehandle = CreateFile(OpenFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == 0)
@@ -647,5 +676,15 @@ PromptToSave : integer hwnd, integer scintillahwnd -> boolean ret = false
 	{
 		ret = true
 	}
+}
+
+ParseOK :
+{
+	UDTListReset()
+}
+
+ParseStructure : string name
+{
+	UDTListAppend(narrowstring(name))
 }
 
