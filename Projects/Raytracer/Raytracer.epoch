@@ -1,0 +1,251 @@
+//
+// Some working thought-space for the raytracer project for R14
+//
+
+
+type listnode<type T> : list<T> | nothing
+
+structure list<type T> :
+	T value,
+	listnode<T> next
+
+
+
+structure Point :
+	real x,
+	real y,
+	real z
+
+type Vector : Point
+
+
+structure Ray :
+	Point origin,
+	Vector direction
+
+
+structure Sphere :
+	Point center,
+	real radius
+
+
+structure Plane :
+	Point origin,
+	Vector normal
+
+
+type Geometry : Sphere | Plane | nothing
+
+
+
+structure Color :
+	real r,
+	real g,
+	real b
+
+
+structure Light :
+	Point location,
+	Color color,
+	real intensity
+
+
+
+intersect : Plane ref p, Ray ref r -> real t = 100000.0
+{
+	// TODO - implement plane intersection code
+}
+
+intersect : Sphere ref s, Ray ref r -> real t = 100000.0
+{
+	// TODO - implement sphere intersection code
+}
+
+
+intersect : nothing, Ray ref r -> real t = 100000.0
+
+
+structure Camera :
+	Point location,
+	Vector direction,
+	real horizontalFOV,
+	real verticalFOV
+
+structure Scene :
+	list<Geometry> objects,
+	list<Light> lights,
+	Camera camera
+
+
+test : nothing, Ray ref r, Geometry ref closest -> real t = 100000.0
+
+
+test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 100000.0
+{
+	real thist = intersect(geometry.value, r)
+	if(thist < t)
+	{
+		t = thist
+		closest = geometry.value
+	}
+
+	listnode<Geometry> nextnode = geometry.next
+	real nextt = test(nextnode, r, closest)
+	if(nextt < t)
+	{
+		t = nextt
+	}
+}
+
+
+findclosesthit : Scene ref scene, Ray ref r, Geometry ref closest, real ref t
+{
+	t = test(scene.objects, r, closest)
+}
+
+
+shade : Scene ref scene, Geometry ref closest, Ray ref r, real t -> Color c = 1.0, 1.0, 1.0
+{
+}
+
+
+trace : Scene ref scene, Ray ref r -> Color c = 0.0, 0.0, 0.0
+{
+	Geometry closestobj = nothing
+	real t = 100000.0
+
+	findclosesthit(scene, r, closestobj, t)
+	if(t < 100000.0)
+	{
+		c = shade(scene, closestobj, r, t)
+	}
+}
+
+
+structure Point2D :
+	integer x,
+	integer y
+
+structure Rect :
+	integer left,
+	integer top,
+	integer right,
+	integer bottom
+
+structure PaintInfo :
+	integer hdc,
+	boolean erase,
+	Rect paintarea,
+	boolean restore,
+	boolean incupdate,
+	integer reserved0,
+	integer reserved1,
+	integer reserved2,
+	integer reserved3,
+	integer reserved4,
+	integer reserved5,
+	integer reserved6,
+	integer reserved7
+
+structure WindowClass :
+	integer Size,
+	integer Style,
+	(WindowProc : integer, integer, integer, integer -> integer),
+	integer ClassExtra,
+	integer WindowExtra,
+	integer hInstance,
+	integer hIcon,
+	integer hCursor,
+	integer hBackgroundBrush,
+	string MenuName,
+	string ClassName,
+	integer hIconSmall
+
+
+structure MessageInfo :
+	integer hwnd,
+	integer message,
+	integer wparam,
+	integer lparam,
+	integer time,
+	Point2D point
+
+
+GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW")]
+RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW")]
+CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW")]
+ShowWindow : integer hwnd, integer cmdshow -> integer success = 0 [external("User32.dll", "ShowWindow")]
+GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> boolean success = false [external("User32.dll", "GetMessageW")]
+TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage")]
+DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW")]
+BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint")]
+EndPaint : integer hwnd, PaintInfo paintinfo -> integer success = 0 [external("User32.dll", "EndPaint")]
+PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage")]
+DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW")]
+DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow")]
+
+LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW")]
+
+
+MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
+
+
+entrypoint :
+{
+	// Construct a scene
+	// Add some geometry
+	// Add some lights
+	// Add a camera
+	// Generate a ray per pixel and invoke trace() on it
+	// Convert color data into a bitmap
+
+	integer IDC_ARROW = 32512
+	integer COLOR_WINDOWFRAME = 6
+	integer WS_OVERLAPPEDWINDOW = 13565952
+	integer CW_USEDEFAULT = -2147483648
+	integer SW_SHOW = 5
+	integer MB_ICONEXCLAMATION = 0x30
+
+	integer hInstance = GetModuleHandle(0)
+
+	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "RaytracerClass", 0
+	RegisterClassEx(wc)
+
+	integer hwnd = CreateWindowEx(0, "RaytracerClass", "Raytracer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, 0, hInstance, 0)
+
+	ShowWindow(hwnd, SW_SHOW)
+
+	Point2D pt = 0, 0
+	MessageInfo msg = 0, 0, 0, 0, 0, pt
+
+	while(GetMessage(msg, 0, 0, 0))
+	{
+		TranslateMessage(msg)
+		DispatchMessage(msg)
+	}
+}
+
+
+MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
+{
+	integer WM_PAINT = 15
+	integer WM_DESTROY = 2
+
+	if(message == WM_PAINT)
+	{
+		Rect prect = 0, 0, 0, 0
+		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
+
+		BeginPaint(hwnd, ps)
+		EndPaint(hwnd, ps)
+	}
+	elseif(message == WM_DESTROY)
+	{
+		PostQuitMessage(0)
+	}
+	else
+	{
+		ret = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+

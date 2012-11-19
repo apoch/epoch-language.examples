@@ -1,0 +1,14 @@
+//
+// WRONGRETURNTYPE.EPOCH
+//
+// Ensure that functions returning incorrectly typed literals cause type errors
+//
+
+entrypoint :
+{
+}
+
+borken : -> integer ret = "test"
+{
+}
+
