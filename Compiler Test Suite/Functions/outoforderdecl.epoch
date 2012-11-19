@@ -1,0 +1,30 @@
+//
+// OUTOFORDERDECL.EPOCH
+//
+// Basic test of calling around through functions defined out of order
+//
+
+
+entrypoint :
+{
+	func()
+}
+
+
+func :
+{
+	func2()
+}
+
+
+func2 :
+{
+	func3()
+}
+
+func3 :
+{
+	passtest()
+}
+
+

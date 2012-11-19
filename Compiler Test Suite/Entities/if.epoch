@@ -1,0 +1,24 @@
+//
+// IF.EPOCH
+//
+// Basic test of if() entities
+//
+
+
+entrypoint :
+{
+	if(1 == 2)
+	{
+		assert(false)
+	}
+	elseif(false)
+	{
+		assert(false)
+	}
+	else
+	{
+		passtest()
+	}
+}
+
+

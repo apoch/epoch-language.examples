@@ -567,6 +567,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 		}
 		else
 		{
+			OpenFileName = filename
 			ClearScintillaText(ScintillaHWND)
 			SetScintillaNonDirty(ScintillaHWND)
 		}
