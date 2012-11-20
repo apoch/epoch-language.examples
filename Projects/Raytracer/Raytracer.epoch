@@ -190,6 +190,12 @@ LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [ex
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
 
 
+global
+{
+	buffer RenderedBitmap = 300 * 300 * 4
+}
+
+
 entrypoint :
 {
 	// Construct a scene
@@ -199,6 +205,14 @@ entrypoint :
 	// Generate a ray per pixel and invoke trace() on it
 	// Convert color data into a bitmap
 
+	DisplayWindow()
+}
+
+AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean result = false [external("User32.dll", "AdjustWindowRect")]
+
+
+DisplayWindow :
+{
 	integer IDC_ARROW = 32512
 	integer COLOR_WINDOWFRAME = 6
 	integer WS_OVERLAPPEDWINDOW = 13565952
@@ -211,7 +225,10 @@ entrypoint :
 	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "RaytracerClass", 0
 	RegisterClassEx(wc)
 
-	integer hwnd = CreateWindowEx(0, "RaytracerClass", "Raytracer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, 0, hInstance, 0)
+	Rect adjusted = 0, 0, 300, 300
+	AdjustWindowRect(adjusted, WS_OVERLAPPEDWINDOW, false)
+
+	integer hwnd = CreateWindowEx(0, "RaytracerClass", "Raytracer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, 0, 0, hInstance, 0)
 
 	ShowWindow(hwnd, SW_SHOW)
 
@@ -226,17 +243,53 @@ entrypoint :
 }
 
 
+structure BitmapInfoHeader :
+	integer size,
+	integer width,
+	integer height,
+	integer16 planes,
+	integer16 bitcount,
+	integer compression,
+	integer sizeimage,
+	integer xppm,
+	integer yppm,
+	integer used,
+	integer important
+
+SetDIBitsToDevice :
+	integer hdc,
+	integer xdest,
+	integer ydest,
+	integer width,
+	integer height,
+	integer xsrc,
+	integer ysrc,
+	integer startscan,
+	integer scanlines,
+	buffer ref bits,
+	BitmapInfoHeader bitmap,
+	integer coloruse
+  ->
+	integer unused = 0
+  [external("Gdi32.dll", "SetDIBitsToDevice")]
+
+
 MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
 {
 	integer WM_PAINT = 15
 	integer WM_DESTROY = 2
+	integer DIB_RGB_COLORS = 0
 
 	if(message == WM_PAINT)
 	{
 		Rect prect = 0, 0, 0, 0
 		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
 
-		BeginPaint(hwnd, ps)
+		integer hdc = BeginPaint(hwnd, ps)
+
+		BitmapInfoHeader bitmap = sizeof(bitmap), 300, 300, 1, 32, 0, 0, 0, 0, 0, 0
+		SetDIBitsToDevice(hdc, 0, 0, 300, 300, 0, 0, 0, 300, RenderedBitmap, bitmap, DIB_RGB_COLORS)
+
 		EndPaint(hwnd, ps)
 	}
 	elseif(message == WM_DESTROY)
