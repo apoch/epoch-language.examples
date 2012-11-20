@@ -205,6 +205,22 @@ entrypoint :
 	// Generate a ray per pixel and invoke trace() on it
 	// Convert color data into a bitmap
 
+
+	integer y = 0
+	while(y < 300)
+	{
+		integer color = y * 255 / 300
+		integer x = 0
+		while(x < 300)
+		{
+			plotpixel(RenderedBitmap, (300 * 300) - (y * 300 + x), color)
+
+			++x
+		}
+
+		++y
+	}
+
 	DisplayWindow()
 }
 
