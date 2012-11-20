@@ -1,0 +1,24 @@
+//
+// RETSTRUCT.EPOCH
+//
+// Basic test of returning a structure from a function
+//
+
+
+structure foo :
+	integer a,
+	string b
+
+
+test : -> foo ret = 42, "Test"
+
+
+entrypoint :
+{
+	foo f = test()
+
+	//assert(f.a == 42)
+	//assert(f.b == "Test")
+
+	passtest()
+}
