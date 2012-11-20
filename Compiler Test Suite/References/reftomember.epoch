@@ -1,0 +1,28 @@
+//
+// REFTOMEMBER.EPOCH
+//
+// Basic test of references bound to structure members
+//
+
+
+structure foo :
+	integer a,
+	string b
+
+
+entrypoint :
+{
+	foo test = 41, "Test"
+	mutate(test.a)
+
+	assert(test.a == 42)
+
+	passtest()
+}
+
+mutate : integer ref a
+{
+	++a
+}
+
+

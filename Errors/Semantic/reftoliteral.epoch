@@ -14,5 +14,6 @@ func : integer ref a
 entrypoint :
 {
 	func(42)
+	func(40 + 2)
 }
 

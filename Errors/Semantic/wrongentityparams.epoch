@@ -1,0 +1,16 @@
+//
+// WRONGENTITYPARAMS.EPOCH
+//
+
+entrypoint :
+{
+
+	if(42, "blork")
+	{
+	}
+
+	while("test")
+	{
+	}
+
+}
