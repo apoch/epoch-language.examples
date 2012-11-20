@@ -16,8 +16,11 @@ structure Point :
 	real y,
 	real z
 
-type Vector : Point
-
+// TODO - fix type aliases
+structure Vector :
+	real x,
+	real y,
+	real z
 
 structure Ray :
 	Point origin,
@@ -77,20 +80,19 @@ structure Scene :
 	Camera camera
 
 
-test : nothing, Ray ref r, Geometry ref closest -> real t = 100000.0
+test : nothing, Ray ref r -> real t = 100000.0
 
 
-test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 100000.0
+test : list<Geometry> ref geometry, Ray ref r -> real t = 100000.0
 {
 	real thist = intersect(geometry.value, r)
 	if(thist < t)
 	{
 		t = thist
-		closest = geometry.value
 	}
 
 	listnode<Geometry> nextnode = geometry.next
-	real nextt = test(nextnode, r, closest)
+	real nextt = test(nextnode, r)
 	if(nextt < t)
 	{
 		t = nextt
@@ -98,26 +100,24 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 
 }
 
 
-findclosesthit : Scene ref scene, Ray ref r, Geometry ref closest, real ref t
+findclosesthit : Scene ref scene, Ray ref r, real ref t
 {
-	t = test(scene.objects, r, closest)
+	t = test(scene.objects, r)
 }
 
-
-shade : Scene ref scene, Geometry ref closest, Ray ref r, real t -> Color c = 1.0, 1.0, 1.0
+shade : Scene ref scene, Ray ref r, real t -> Color c = 1.0, 1.0, 1.0
 {
 }
 
 
 trace : Scene ref scene, Ray ref r -> Color c = 0.0, 0.0, 0.0
 {
-	Geometry closestobj = nothing
 	real t = 100000.0
 
-	findclosesthit(scene, r, closestobj, t)
+	findclosesthit(scene, r, t)
 	if(t < 100000.0)
 	{
-		c = shade(scene, closestobj, r, t)
+		c = shade(scene, r, t)
 	}
 }
 
@@ -196,24 +196,42 @@ global
 }
 
 
+//makeray : Camera ref cam, integer x, integer y -> Ray r = Point(0.0, 0.0, 0.0), Vector(0.0, 0.0, 0.0)
+//{
+//}
+
+
+rgb : Color ref c -> integer ret = 0
+
+
 entrypoint :
 {
-	// Construct a scene
-	// Add some geometry
-	// Add some lights
-	// Add a camera
-	// Generate a ray per pixel and invoke trace() on it
-	// Convert color data into a bitmap
+	Point zero = 0.0, 0.0, 0.0
+	Vector zero2 = 0.0, 0.0, 0.0
 
+	Sphere sphere = zero, 1.0
+
+	Color white = 1.0, 1.0, 1.0
+	Light light = zero, white, 1.0
+
+	list<Geometry> objects = sphere, nothing
+	list<Light> lights = light, nothing
+	
+	Camera camera = zero, zero2, 1.0, 1.0
+
+	Scene scene = objects, lights, camera
 
 	integer y = 0
 	while(y < 300)
 	{
-		integer color = y * 255 / 300
 		integer x = 0
 		while(x < 300)
 		{
-			plotpixel(RenderedBitmap, (300 * 300) - (y * 300 + x), color)
+			Ray ray = zero, zero2 //makeray(scene.camera, x, y)
+			Color raycolor = trace(scene, ray)
+
+			integer color = rgb(raycolor)
+			plotpixel(RenderedBitmap, ((300 - y) * 300 + x), color)
 
 			++x
 		}
