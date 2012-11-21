@@ -1,0 +1,16 @@
+//
+// CAST.EPOCH
+//
+// Basic test of type casting
+//
+
+entrypoint :
+{
+	real r = 42.0
+	integer i = cast(integer, r)
+
+	assert(i == 42)
+
+	passtest()
+}
+

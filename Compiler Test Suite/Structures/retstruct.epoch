@@ -17,8 +17,8 @@ entrypoint :
 {
 	foo f = test()
 
-	//assert(f.a == 42)
-	//assert(f.b == "Test")
+	assert(f.a == 42)
+	assert(f.b == "Test")
 
 	passtest()
 }
