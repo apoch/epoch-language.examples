@@ -258,7 +258,7 @@ global
 }
 
 
-normalize : Vector ref in
+normalize : Vector ref in [native]
 {
 	real length = sqrt(in.x * in.x + in.y * in.y + in.z * in.z)
 	in.x = in.x / length
