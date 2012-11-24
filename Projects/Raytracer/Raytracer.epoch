@@ -37,7 +37,7 @@ structure Plane :
 	Vector normal
 
 
-type Geometry : Sphere | Plane | nothing
+type Geometry : Sphere | Plane
 
 
 
@@ -65,27 +65,24 @@ intersect : Plane ref p, Ray ref r -> real t = 100000.0
 
 intersect : Sphere ref s, Ray ref r -> real t = 100000.0
 {
-	real rad = 1.0
-	real a = dot(r.direction, r.direction)
-	real b = 2.0 * dot(r.direction, r.origin)
-	real c = dot(r.origin, r.origin) - (rad * rad)
-	real disc = b * b - 4.0 * a * c
+	real b = dot(r.direction, r.origin)
+	real c = dot(r.origin, r.origin) - 1.0
+	real disc = 4.0 * (b * b - c)
 
 	if(disc > 0.0)
 	{
 		real distSqrt = sqrt(disc)
-		real q = 0.0
+		real t0 = 0.0
 		if(b < 0.0)
 		{
-			q = (0.0 - b - distSqrt) / 2.0
+			t0 = (0.0 - 2.0*b - distSqrt) / 2.0
 		}
 		else
 		{
-			q = (0.0 - b + distSqrt) / 2.0
+			t0 = (0.0 - 2.0*b + distSqrt) / 2.0
 		}
 
-		real t0 = q / a
-		real t1 = c / q
+		real t1 = c / t0
 
 		if(t0 > t1)
 		{
@@ -269,6 +266,8 @@ rgb : Color ref c -> integer ret = 0
 }
 
 
+timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime")]
+
 entrypoint :
 {
 	Point zero = 0.0, 0.0, 0.0
@@ -289,10 +288,13 @@ entrypoint :
 	Ray ray = Point(0.0, 0.0, -10.0), zero2
 	Color c = 0.0, 0.0, 0.0
 
+	integer startms = timeGetTime()
+
 	integer y = 0
+	integer x = 0
 	while(y < 300)
 	{
-		integer x = 0
+		x = 0
 		while(x < 300)
 		{
 			ray.direction.x = cast(real, 150 - x) / 300.0
@@ -308,6 +310,10 @@ entrypoint :
 
 		++y
 	}
+
+	integer endms = timeGetTime()
+
+	print("Render complete, time in ms: " ; cast(string, endms - startms))
 
 	DisplayWindow()
 }
@@ -371,7 +377,7 @@ SetDIBitsToDevice :
 	integer startscan,
 	integer scanlines,
 	buffer ref bits,
-	BitmapInfoHeader bitmap,
+	BitmapInfoHeader ref bitmap,
 	integer coloruse
   ->
 	integer unused = 0
