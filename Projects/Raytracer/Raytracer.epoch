@@ -53,9 +53,9 @@ structure Light :
 	real intensity
 
 
-dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
+dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
+dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 
 
 intersect : Plane ref p, Ray ref r -> real t = 100000.0
