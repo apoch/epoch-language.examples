@@ -53,9 +53,9 @@ structure Light :
 	real intensity
 
 
-dot : Vector ref v1, Vector ref v2 -> real d = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Vector ref v1, Point ref v2 -> real d = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Point ref v1, Point ref v2 -> real d = v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
 
 
 intersect : Plane ref p, Ray ref r -> real t = 100000.0
@@ -75,11 +75,11 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0
 		real t0 = 0.0
 		if(b < 0.0)
 		{
-			t0 = (0.0 - 2.0*b - distSqrt) / 2.0
+			t0 = (-2.0*b - distSqrt) / 2.0
 		}
 		else
 		{
-			t0 = (0.0 - 2.0*b + distSqrt) / 2.0
+			t0 = (-2.0*b + distSqrt) / 2.0
 		}
 
 		real t1 = c / t0
@@ -106,7 +106,7 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0
 }
 
 
-intersect : nothing, Ray ref r -> real t = 100000.0
+intersect : nothing, Ray ref r -> 100000.0
 
 
 structure Camera :
@@ -121,7 +121,7 @@ structure Scene :
 	Camera camera
 
 
-test : nothing, Ray ref r, Geometry ref closest -> real t = 100000.0
+test : nothing, Ray ref r, Geometry ref closest -> 100000.0
 
 
 test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 100000.0
@@ -149,16 +149,25 @@ findclosesthit : Scene ref scene, Ray ref r, real ref t, Geometry ref closest
 
 shade : Scene ref scene, Ray ref r, real t, Geometry ref obj -> Color c = 0.0, 0.0, 0.0
 {
-	real y = r.origin.y
-	real dy = r.direction.y
-	real hy = y + dy * t
+	real px = r.origin.x + r.direction.x * t
+	real py = r.origin.y + r.direction.y * t
+	real pz = r.origin.z + r.direction.z * t
 
-	if(hy < 0.0)
+	// Hack: assume our intersection point lies on a unit sphere, so the normal == point
+	Vector normal = px, py, pz
+
+	real lx = 3.0 - px
+	real ly = 3.0 - py
+	real lz = -8.0 - pz
+
+	Vector lightdir = lx, ly, lz
+	normalize(lightdir)
+
+	real i = dot(normal, lightdir)
+	if(i > 0.0)
 	{
-		hy = 0.0 - hy
+		c.g = i
 	}
-
-	c.g = 1.0 - hy
 }
 
 
@@ -262,7 +271,7 @@ rgb : Color ref c -> integer ret = 0
 {
 	ret += cast(integer, c.b * 255.0)
 	ret += cast(integer, c.g * 255.0) * 256
-	ret += cast(integer, c.r * 255.0) * 256 * 256
+	ret += cast(integer, c.r * 255.0) * 65536
 }
 
 
@@ -290,20 +299,27 @@ entrypoint :
 
 	integer startms = timeGetTime()
 
+	integer yoffset = 0
+
 	integer y = 0
 	integer x = 0
+
+	real rayy = 0.0
+
 	while(y < 300)
 	{
+		rayy = cast(real, 150 - y) / 300.0
+		yoffset = (300 - y) * 300
 		x = 0
 		while(x < 300)
 		{
 			ray.direction.x = cast(real, 150 - x) / 300.0
-			ray.direction.y = cast(real, 150 - y) / 300.0
+			ray.direction.y = rayy
 			ray.direction.z = 1.0
 			normalize(ray.direction)
 
 			c = trace(scene, ray)
-			plotpixel(RenderedBitmap, ((300 - y) * 300 + x), rgb(c))
+			plotpixel(RenderedBitmap, (yoffset + x), rgb(c))
 
 			++x
 		}
