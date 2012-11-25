@@ -147,7 +147,7 @@ findclosesthit : Scene ref scene, Ray ref r, real ref t, Geometry ref closest
 	t = test(scene.objects, r, closest)
 }
 
-shade : Scene ref scene, Ray ref r, real t, Geometry ref obj -> Color c = 0.0, 0.0, 0.0
+shade : Scene ref scene, Ray ref r, real t, Sphere ref obj -> Color c = 0.0, 0.0, 0.0
 {
 	real px = r.origin.x + r.direction.x * t
 	real py = r.origin.y + r.direction.y * t
@@ -155,23 +155,20 @@ shade : Scene ref scene, Ray ref r, real t, Geometry ref obj -> Color c = 0.0, 0
 
 	// Hack: assume our intersection point lies on a unit sphere, so the normal == point
 	Vector normal = px, py, pz
-
-	real lx = 3.0 - px
-	real ly = 3.0 - py
-	real lz = -8.0 - pz
-
-	Vector lightdir = lx, ly, lz
+	Vector lightdir = 3.0 - px, 3.0 - py, -8.0 - pz
 	normalize(lightdir)
 
 	real i = dot(normal, lightdir)
 	if(i > 0.0)
 	{
-		c.g = i
+		c.r = i * 0.306
+		c.g = i * 0.584
+		c.b = i * 0.816
 	}
 }
 
 
-trace : Scene ref scene, Ray ref r -> Color c = 0.0, 0.0, 0.0
+trace : Scene ref scene, Ray ref r -> integer c = 0
 {
 	Geometry closestobj = scene.objects.value
 	real t = 100000.0
@@ -179,7 +176,8 @@ trace : Scene ref scene, Ray ref r -> Color c = 0.0, 0.0, 0.0
 	findclosesthit(scene, r, t, closestobj)
 	if(t < 100000.0)
 	{
-		c = shade(scene, r, t, closestobj)
+		Color color = shade(scene, r, t, closestobj)
+		c = rgb(color)
 	}
 }
 
@@ -295,7 +293,6 @@ entrypoint :
 	Scene scene = objects, lights, camera
 
 	Ray ray = Point(0.0, 0.0, -10.0), zero2
-	Color c = 0.0, 0.0, 0.0
 
 	integer startms = timeGetTime()
 
@@ -318,8 +315,8 @@ entrypoint :
 			ray.direction.z = 1.0
 			normalize(ray.direction)
 
-			c = trace(scene, ray)
-			plotpixel(RenderedBitmap, (yoffset + x), rgb(c))
+			integer c = trace(scene, ray)
+			plotpixel(RenderedBitmap, (yoffset + x), c)
 
 			++x
 		}
