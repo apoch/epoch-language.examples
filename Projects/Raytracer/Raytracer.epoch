@@ -63,7 +63,7 @@ intersect : Plane ref p, Ray ref r -> real t = 100000.0
 	// TODO - implement plane intersection code
 }
 
-intersect : Sphere ref s, Ray ref r -> real t = 100000.0
+intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
 {
 	real b = dot(r.direction, r.origin)
 	real c = dot(r.origin, r.origin) - 1.0
