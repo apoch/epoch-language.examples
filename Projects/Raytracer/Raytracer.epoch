@@ -58,13 +58,15 @@ dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [na
 dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 
 
-intersect : Plane ref p, Ray ref r -> real t = 100000.0
-{
+//intersect : Plane ref p, Ray ref r -> real t = 100000.0
+//{
 	// TODO - implement plane intersection code
-}
+//}
 
 intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
 {
+	// TODO - transform ray into object space
+
 	real b = dot(r.direction, r.origin)
 	real c = dot(r.origin, r.origin) - 1.0
 	real disc = 4.0 * (b * b - c)
@@ -106,9 +108,6 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
 }
 
 
-intersect : nothing, Ray ref r -> 100000.0
-
-
 structure Camera :
 	Point location,
 	Vector direction,
@@ -121,10 +120,10 @@ structure Scene :
 	Camera camera
 
 
-test : nothing, Ray ref r, Geometry ref closest -> 100000.0
+test : nothing, Ray ref r, Geometry ref closest, real ref t [native]
 
 
-test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 100000.0
+test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t [native]
 {
 	real thist = intersect(geometry.value, r)
 	if(thist < t)
@@ -134,20 +133,10 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest -> real t = 
 	}
 
 	listnode<Geometry> nextnode = geometry.next
-	real nextt = test(nextnode, r, closest)
-	if(nextt < t)
-	{
-		t = nextt
-	}
+	test(nextnode, r, closest, t)
 }
 
-
-findclosesthit : Scene ref scene, Ray ref r, real ref t, Geometry ref closest
-{
-	t = test(scene.objects, r, closest)
-}
-
-shade : Scene ref scene, Ray ref r, real t, Sphere ref obj -> Color c = 0.0, 0.0, 0.0
+shade : Scene ref scene, Ray ref r, real t -> integer c = 0 [native]
 {
 	real px = r.origin.x + r.direction.x * t
 	real py = r.origin.y + r.direction.y * t
@@ -161,23 +150,20 @@ shade : Scene ref scene, Ray ref r, real t, Sphere ref obj -> Color c = 0.0, 0.0
 	real i = dot(normal, lightdir)
 	if(i > 0.0)
 	{
-		c.r = i * 0.306
-		c.g = i * 0.584
-		c.b = i * 0.816
+		Color cs = i * 0.306, i * 0.584, i * 0.816
+		c = rgb(cs)
 	}
 }
 
 
-trace : Scene ref scene, Ray ref r -> integer c = 0
+trace : Scene ref scene, Ray ref r -> integer c = 0 [native]
 {
 	Geometry closestobj = scene.objects.value
 	real t = 100000.0
-
-	findclosesthit(scene, r, t, closestobj)
+	test(scene.objects, r, closestobj, t)
 	if(t < 100000.0)
 	{
-		Color color = shade(scene, r, t, closestobj)
-		c = rgb(color)
+		c = shade(scene, r, t)
 	}
 }
 
@@ -265,7 +251,7 @@ normalize : Vector ref in [native]
 }
 
 
-rgb : Color ref c -> integer ret = 0
+rgb : Color ref c -> integer ret = 0 [native]
 {
 	ret += cast(integer, c.b * 255.0)
 	ret += cast(integer, c.g * 255.0) * 256
@@ -275,26 +261,10 @@ rgb : Color ref c -> integer ret = 0
 
 timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime")]
 
-entrypoint :
+Render : Scene ref scene, buffer ref bitmap [native]
 {
-	Point zero = 0.0, 0.0, 0.0
 	Vector zero2 = 0.0, 0.0, 0.0
-
-	Sphere sphere = zero, 1.0
-
-	Color white = 1.0, 1.0, 1.0
-	Light light = zero, white, 1.0
-
-	list<Geometry> objects = sphere, nothing
-	list<Light> lights = light, nothing
-	
-	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0), 1.0, 1.0
-
-	Scene scene = objects, lights, camera
-
 	Ray ray = Point(0.0, 0.0, -10.0), zero2
-
-	integer startms = timeGetTime()
 
 	integer yoffset = 0
 
@@ -316,13 +286,34 @@ entrypoint :
 			normalize(ray.direction)
 
 			integer c = trace(scene, ray)
-			plotpixel(RenderedBitmap, (yoffset + x), c)
+			plotpixel(bitmap, (yoffset + x), c)
 
-			++x
+			x = x + 1
 		}
 
-		++y
+		y = y + 1
 	}
+}
+
+entrypoint :
+{
+	Point zero = 0.0, 0.0, 0.0
+
+	Sphere sphere = zero, 1.0
+
+	Color white = 1.0, 1.0, 1.0
+	Light light = zero, white, 1.0
+
+	list<Geometry> objects = sphere, nothing
+	list<Light> lights = light, nothing
+	
+	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0), 1.0, 1.0
+
+	Scene scene = objects, lights, camera
+
+	integer startms = timeGetTime()
+
+	Render(scene, RenderedBitmap)
 
 	integer endms = timeGetTime()
 
