@@ -116,12 +116,11 @@ structure Camera :
 
 structure Scene :
 	list<Geometry> objects,
-	list<Light> lights,
+	Light thelight,
 	Camera camera
 
 
 test : nothing, Ray ref r, Geometry ref closest, real ref t [native]
-
 
 test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t [native]
 {
@@ -132,8 +131,8 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t 
 		closest = geometry.value
 	}
 
-	listnode<Geometry> nextnode = geometry.next
-	test(nextnode, r, closest, t)
+	//listnode<Geometry> nextnode = geometry.next
+	//test(nextnode, r, closest, t)
 }
 
 shade : Scene ref scene, Ray ref r, real t -> integer c = 0 [native]
@@ -144,7 +143,7 @@ shade : Scene ref scene, Ray ref r, real t -> integer c = 0 [native]
 
 	// Hack: assume our intersection point lies on a unit sphere, so the normal == point
 	Vector normal = px, py, pz
-	Vector lightdir = 3.0 - px, 3.0 - py, -8.0 - pz
+	Vector lightdir = scene.thelight.location.x - px, scene.thelight.location.y - py, scene.thelight.location.z - pz
 	normalize(lightdir)
 
 	real i = dot(normal, lightdir)
@@ -221,7 +220,7 @@ GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "
 RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW")]
 CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW")]
 ShowWindow : integer hwnd, integer cmdshow -> integer success = 0 [external("User32.dll", "ShowWindow")]
-GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> boolean success = false [external("User32.dll", "GetMessageW")]
+PeekMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax, integer removeflag -> boolean success = false [external("User32.dll", "PeekMessageW")]
 TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage")]
 DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW")]
 BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint")]
@@ -229,8 +228,12 @@ EndPaint : integer hwnd, PaintInfo paintinfo -> integer success = 0 [external("U
 PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage")]
 DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW")]
 DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow")]
+InvalidateRect : integer hwnd, integer ignored, integer erase -> integer ret = 0 [external("User32.dll", "InvalidateRect")]
+GetCursorPos : Point2D ref out -> integer ret = 0 [external("User32.dll", "GetCursorPos")]
 
 LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW")]
+
+SetWindowText : integer hwnd, string text -> integer result = 0 [external("User32.dll", "SetWindowTextW")]
 
 
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
@@ -238,7 +241,7 @@ MessageBox : integer hwnd, string message, string caption, integer style -> inte
 
 global
 {
-	buffer RenderedBitmap = 300 * 300 * 4
+	buffer RenderedBitmap = 600 * 600 * 4
 }
 
 
@@ -273,14 +276,20 @@ Render : Scene ref scene, buffer ref bitmap [native]
 
 	real rayy = 0.0
 
-	while(y < 300)
+	ray.direction.x = 0.0
+	ray.direction.y = 0.0
+	ray.direction.z = 1.0
+	normalize(ray.direction)
+	plotpixel(bitmap, 0, trace(scene, ray))
+	
+	while(y < 600)
 	{
-		rayy = cast(real, 150 - y) / 300.0
-		yoffset = (300 - y) * 300
+		rayy = cast(real, 300 - y) / 600.0
+		yoffset = (600 - y) * 600
 		x = 0
-		while(x < 300)
+		while(x < 600)
 		{
-			ray.direction.x = cast(real, 150 - x) / 300.0
+			ray.direction.x = cast(real, 300 - x) / 600.0
 			ray.direction.y = rayy
 			ray.direction.z = 1.0
 			normalize(ray.direction)
@@ -297,30 +306,34 @@ Render : Scene ref scene, buffer ref bitmap [native]
 
 entrypoint :
 {
+	DisplayWindow()
+}
+
+
+DoScene :
+{
+	Point2D cursorpos = 0, 0
+	GetCursorPos(cursorpos)
+
+	real rx = cast(real, 960 - cursorpos.x) / 40.0
+	real ry = cast(real, 540 - cursorpos.y) / 40.0
+
 	Point zero = 0.0, 0.0, 0.0
 
 	Sphere sphere = zero, 1.0
 
 	Color white = 1.0, 1.0, 1.0
-	Light light = zero, white, 1.0
+	Light light = Point(rx, ry, -10.0), white, 1.0
 
-	list<Geometry> objects = sphere, nothing
-	list<Light> lights = light, nothing
-	
+	list<Geometry> objects = sphere, nothing	
 	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0), 1.0, 1.0
 
-	Scene scene = objects, lights, camera
-
-	integer startms = timeGetTime()
+	Scene scene = objects, light, camera
 
 	Render(scene, RenderedBitmap)
-
-	integer endms = timeGetTime()
-
-	print("Render complete, time in ms: " ; cast(string, endms - startms))
-
-	DisplayWindow()
 }
+
+
 
 AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean result = false [external("User32.dll", "AdjustWindowRect")]
 
@@ -333,13 +346,14 @@ DisplayWindow :
 	integer CW_USEDEFAULT = -2147483648
 	integer SW_SHOW = 5
 	integer MB_ICONEXCLAMATION = 0x30
+	integer WM_QUIT = 0x12
 
 	integer hInstance = GetModuleHandle(0)
 
 	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), COLOR_WINDOWFRAME, "", "RaytracerClass", 0
 	RegisterClassEx(wc)
 
-	Rect adjusted = 0, 0, 300, 300
+	Rect adjusted = 0, 0, 600, 600
 	AdjustWindowRect(adjusted, WS_OVERLAPPEDWINDOW, false)
 
 	integer hwnd = CreateWindowEx(0, "RaytracerClass", "Raytracer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, 0, 0, hInstance, 0)
@@ -349,10 +363,29 @@ DisplayWindow :
 	Point2D pt = 0, 0
 	MessageInfo msg = 0, 0, 0, 0, 0, pt
 
-	while(GetMessage(msg, 0, 0, 0))
+	while(msg.message != WM_QUIT)
 	{
-		TranslateMessage(msg)
-		DispatchMessage(msg)
+		if(PeekMessage(msg, 0, 0, 0, 1))
+		{
+			TranslateMessage(msg)
+			DispatchMessage(msg)
+		}
+		else
+		{
+			integer startms = timeGetTime()
+
+			DoScene()
+
+			integer duration = timeGetTime() - startms
+
+			real fps = 1000.0 / cast(real, duration)
+			string fpsstr = cast(string, fps)
+
+			string title = "Raytracer - FPS: " ; fpsstr
+			SetWindowText(hwnd, title)
+
+			InvalidateRect(hwnd, 0, 0)
+		}
 	}
 }
 
@@ -401,8 +434,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 		integer hdc = BeginPaint(hwnd, ps)
 
-		BitmapInfoHeader bitmap = sizeof(bitmap), 300, 300, 1, 32, 0, 0, 0, 0, 0, 0
-		SetDIBitsToDevice(hdc, 0, 0, 300, 300, 0, 0, 0, 300, RenderedBitmap, bitmap, DIB_RGB_COLORS)
+		BitmapInfoHeader bitmap = sizeof(bitmap), 600, 600, 1, 32, 0, 0, 0, 0, 0, 0
+		SetDIBitsToDevice(hdc, 0, 0, 600, 600, 0, 0, 0, 600, RenderedBitmap, bitmap, DIB_RGB_COLORS)
 
 		EndPaint(hwnd, ps)
 	}

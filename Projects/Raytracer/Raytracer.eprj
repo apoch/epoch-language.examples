@@ -1,0 +1,6 @@
+[source]
+Raytracer.epoch
+
+[output]
+output-file Raytracer.exe
+
