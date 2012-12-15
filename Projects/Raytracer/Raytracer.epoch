@@ -131,18 +131,19 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t 
 		closest = geometry.value
 	}
 
-	//listnode<Geometry> nextnode = geometry.next
-	//test(nextnode, r, closest, t)
+	listnode<Geometry> nextnode = geometry.next
+	test(nextnode, r, closest, t)
 }
 
-shade : Scene ref scene, Ray ref r, real t -> integer c = 0 [native]
+shade : Sphere ref s, Scene ref scene, Ray ref r, real t -> integer c = 0 [native]
 {
 	real px = r.origin.x + r.direction.x * t
 	real py = r.origin.y + r.direction.y * t
 	real pz = r.origin.z + r.direction.z * t
 
-	// Hack: assume our intersection point lies on a unit sphere, so the normal == point
-	Vector normal = px, py, pz
+	Vector normal = px, py, pz //px - s.center.x, py - s.center.y, pz - s.center.z
+	normalize(normal)
+
 	Vector lightdir = scene.thelight.location.x - px, scene.thelight.location.y - py, scene.thelight.location.z - pz
 	normalize(lightdir)
 
@@ -162,7 +163,7 @@ trace : Scene ref scene, Ray ref r -> integer c = 0 [native]
 	test(scene.objects, r, closestobj, t)
 	if(t < 100000.0)
 	{
-		c = shade(scene, r, t)
+		c = shade(closestobj, scene, r, t)
 	}
 }
 
