@@ -141,7 +141,7 @@ shade : Sphere ref s, Scene ref scene, Ray ref r, real t -> integer c = 0 [nativ
 	real py = r.origin.y + r.direction.y * t
 	real pz = r.origin.z + r.direction.z * t
 
-	Vector normal = px, py, pz //px - s.center.x, py - s.center.y, pz - s.center.z
+	Vector normal = px - s.center.x, py - s.center.y, pz - s.center.z
 	normalize(normal)
 
 	Vector lightdir = scene.thelight.location.x - px, scene.thelight.location.y - py, scene.thelight.location.z - pz
