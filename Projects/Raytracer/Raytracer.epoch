@@ -1,22 +1,50 @@
 //
-// Some working thought-space for the raytracer project for R14
+// RAYTRACER.EPOCH
+//
+// A realtime raytracing demo for the Epoch language platform.
+//
+// This program is intended to provide a test case for realistic and performance-sensitive
+// development styles in Epoch. It employs a wide variety of language constructs which are
+// useful (or sometimes necessary) for creating compact and elegant code solutions in real
+// software projects. It also highlights the performance capabilities of the platform.
+//
+// Note that there are a few locations where we deliberately sacrifice code clarity and/or
+// simplicity in favor of increased performance. This is, for the moment, predominantly an
+// accidental side effect of limitations in the optimization engines. There are also a few
+// cases where we make trade-offs due to half-finished features of the language itself. We
+// will specifically call out these trade-offs where appropriate.
 //
 
 
-type listnode<type T> : list<T> | nothing
 
-structure list<type T> :
+//
+// Idiomatic definition of a recursive generic linked list
+//
+// Since Epoch does not provide unbound references ("null", "nil", etc. from other languages)
+// we need a mechanism to denote that a list node does not have any successors. To accomplish
+// this, we use an algebraic sum type (discriminated union) which can store a value of either
+// the list type itself, or the special marker type "nothing" which can have no value. Due to
+// the type system's static checking, we can ensure that operations on a list are always safe
+// because the compiler ensures that "nothing" values are handled correctly. This effectively
+// eliminates the entire category of "null pointer/reference" errors.
+//
+
+type listnode<type T> : list<T> | nothing		// Sum type which allows us to terminate the list
+
+structure list<type T> :				// Structure type which embeds a link to the next node
 	T value,
 	listnode<T> next
 
 
-
+//
+// Elemetary data structures
+//
 structure Point :
 	real x,
 	real y,
 	real z
 
-// TODO - fix type aliases
+// TODO - fix type aliases	[this should be a strong alias based on Point to eliminate redundancy, but the compiler has bugs]
 structure Vector :
 	real x,
 	real y,
@@ -27,36 +55,93 @@ structure Ray :
 	Vector direction
 
 
-structure Sphere :
-	Point center,
-	real radius
-
-
-structure Plane :
-	Vector normal,
-	real offset
-
-
-type Geometry : Sphere | Plane
-
-
-
 structure Color :
 	real r,
 	real g,
 	real b
 
 
+//
+// Objects that can be rendered
+//
+structure Sphere :
+	Point center,
+	real radius
+
+structure Plane :
+	Vector normal,
+	real offset
+
+
+//
+// Sum type to handle all renderable geometries in the engine
+//
+type Geometry : Sphere | Plane
+
+
+//
+// Auxiliary data structures
+//
+
 structure Light :
 	Point location,
 	Color color,
 	real intensity
 
+structure Camera :
+	Point location,
+	Vector direction
 
+structure Scene :
+	list<Geometry> objects,
+	Light thelight,
+	Camera camera
+
+
+
+//
+// Assorted helper routines
+//
+
+//
+// Note that we overload the dot product function for various combinations of vectors
+// and points. This is because, while the two share representational structures, they
+// are differing types in the type system itself and not considered interchangeable.
+//
+// A better approach would be to define a single generic implementation and allow the
+// compiler to generate the variants we need; however, as of this version of the code
+// there is a limitation on type inference when calling generic functions; in effect,
+// the types must be provided at each call site explicitly instead of being inferred.
+// This would result in every call to dot becoming a call to e.g. dot<Point, Point>()
+// which obviously is not desirable.
+//
+// TODO - fix type inference on generic calls
+//
 dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 
+normalize : Vector ref in [native]
+{
+	real length = sqrt(in.x * in.x + in.y * in.y + in.z * in.z)
+	in.x = in.x / length
+	in.y = in.y / length
+	in.z = in.z / length
+}
+
+rgb : Color ref c -> integer ret = 0 [native]
+{
+	ret += cast(integer, c.b * 255.0)
+	ret += cast(integer, c.g * 255.0) * 256
+	ret += cast(integer, c.r * 255.0) * 65536
+}
+
+
+
+
+//
+// Ray-geometry intersection tests
+//
 
 intersect : Plane ref p, Ray ref r -> real t = 100000.0 [native]
 {
@@ -116,17 +201,9 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
 }
 
 
-structure Camera :
-	Point location,
-	Vector direction,
-	real horizontalFOV,
-	real verticalFOV
-
-structure Scene :
-	list<Geometry> objects,
-	Light thelight,
-	Camera camera
-
+//
+// Routines for testing a ray against all objects in a scene
+//
 
 test : nothing, Ray ref r, Geometry ref closest, real ref t [native]
 
@@ -160,6 +237,11 @@ shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false [nati
 	}
 }
 
+
+
+//
+// Lighting and coloration routines
+//
 
 shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0 [native]
 {
@@ -204,6 +286,11 @@ shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdir
 }
 
 
+
+//
+// Master ray trace handler
+//
+
 trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> integer c = 0 [native]
 {
 	Geometry closestobj = scene.objects.value
@@ -224,6 +311,104 @@ trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> int
 	}
 }
 
+
+//
+// Scene rendering handler
+//
+
+Render : Scene ref scene, buffer ref bitmap [native]
+{
+	Ray ray = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 0.0)
+
+	// As of this implementation of the raytracer, it is very expensive to
+	// create objects per-pixel because they are always heap allocated and
+	// then later garbage collected. To avoid this overhead, we allocate a
+	// set of temporaries per-frame that are reused per-pixel. Eventually,
+	// Epoch's allocation strategies will allow stack-allocated structures
+	// which will eliminate the need for this hackery entirely.
+	Point scratchp = 0.0, 0.0, 0.0
+	Vector scratchv = 0.0, 0.0, 0.0
+	Ray scratchr = scratchp, scratchv
+
+	integer x = 0
+	integer y = 0
+
+	// This is stupid but it provides a hint to LLVM that we can cache the
+	// result of converting the "bitmap" buffer handle to a pointer. Since
+	// that conversion requires a function call into the VM, LLVM does not
+	// allow the process to be hoisted by LICM because the call "may" have
+	// side effects even though we have indicated in the JIT setup that it
+	// does not. Placing this call here creates a cache in the actual LLVM
+	// bitcode instead of relying on the optimizer to do the caching/hoist
+	// the call to VMGetBuffer(). The performance effects are considerable
+	// since we eliminate a per-pixel indirection into the VM and a lookup
+	// in the buffer handle map.
+	plotpixel(bitmap, 0, 0)
+	
+	while(y < 600)
+	{
+		while(x < 600)
+		{
+			ray.direction.x = cast(real, 300 - x) / 600.0
+			ray.direction.y = cast(real, 300 - y) / 600.0
+			ray.direction.z = 1.0
+			normalize(ray.direction)
+
+			integer c = trace(scene, ray, scratchp, scratchv, scratchr)
+			plotpixel(bitmap, ((600 - y) * 600 + x), c)
+
+			// Preincrement/postincrement are not in the JIT support list yet
+			// TODO - implement JIT support for pre/post operations
+			x = x + 1
+		}
+
+		x = 0
+		y = y + 1
+	}
+}
+
+
+//
+// Create a scene and shell out to the renderer to draw it
+//
+// We currently invoke this every frame for rather lame reasons. Storing
+// the entire scene in a global variable is for some reason not working,
+// due to a compiler bug or some such. Once that bug is fixed, the scene
+// can be constructed once and the light source simply moved per frame.
+//
+// TODO - fix bug with global objects that prevents scene persistence
+//
+
+DoScene :
+{
+	Point2D cursorpos = 0, 0
+	GetCursorPos(cursorpos)
+
+	// Assume 1920x1080 screen res; we could probably do better
+	// if we query the Win32 API for the actual desktop res.
+	real rx = cast(real, 960 - cursorpos.x) / 40.0
+	real ry = cast(real, 540 - cursorpos.y) / 40.0
+
+	Sphere sphere = Point(0.0, 0.0, 0.0), 1.0
+	Plane plane = Vector(0.0, 1.0, 0.0), 50.0
+
+	Light light = Point(rx, ry, -10.0), Color(1.0, 1.0, 1.0), 1.0
+
+	list<Geometry> objects2 = plane, nothing
+	list<Geometry> objects = sphere, objects2
+
+	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0)
+
+	Scene scene = objects, light, camera
+
+	Render(scene, RenderedBitmap)
+}
+
+
+
+//
+// Win32 boilerplate stuff
+//
 
 structure Point2D :
 	integer x,
@@ -264,7 +449,6 @@ structure WindowClass :
 	string ClassName,
 	integer hIconSmall
 
-
 structure MessageInfo :
 	integer hwnd,
 	integer message,
@@ -273,6 +457,22 @@ structure MessageInfo :
 	integer time,
 	Point2D point
 
+structure BitmapInfoHeader :
+	integer size,
+	integer width,
+	integer height,
+	integer16 planes,
+	integer16 bitcount,
+	integer compression,
+	integer sizeimage,
+	integer xppm,
+	integer yppm,
+	integer used,
+	integer important
+
+//
+// Win32 APIs
+//
 
 GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW")]
 RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW")]
@@ -288,117 +488,33 @@ DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> int
 DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow")]
 InvalidateRect : integer hwnd, integer ignored, integer erase -> integer ret = 0 [external("User32.dll", "InvalidateRect")]
 GetCursorPos : Point2D ref out -> integer ret = 0 [external("User32.dll", "GetCursorPos")]
-
 LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW")]
-
 SetWindowText : integer hwnd, string text -> integer result = 0 [external("User32.dll", "SetWindowTextW")]
-
-
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
-
-
-global
-{
-	buffer RenderedBitmap = 600 * 600 * 4
-	integer FrameCount = 0
-	integer AccumulatedDuration = 0
-}
-
-
-normalize : Vector ref in [native]
-{
-	real length = sqrt(in.x * in.x + in.y * in.y + in.z * in.z)
-	in.x = in.x / length
-	in.y = in.y / length
-	in.z = in.z / length
-}
-
-
-rgb : Color ref c -> integer ret = 0 [native]
-{
-	ret += cast(integer, c.b * 255.0)
-	ret += cast(integer, c.g * 255.0) * 256
-	ret += cast(integer, c.r * 255.0) * 65536
-}
-
-
 timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime")]
-
-Render : Scene ref scene, buffer ref bitmap [native]
-{
-	Vector zero2 = 0.0, 0.0, 0.0
-	Ray ray = Point(0.0, 0.0, -10.0), zero2
-
-	Point scratchp = 0.0, 0.0, 0.0
-	Vector scratchv = 0.0, 0.0, 0.0
-	Ray scratchr = scratchp, scratchv
-
-	integer y = 0
-	integer x = 0
-
-	// TODO - see if we can figure out why LICM doesn't work without this prefetch stub
-	ray.direction.x = 0.0
-	ray.direction.y = 0.0
-	ray.direction.z = 1.0
-	normalize(ray.direction)
-	plotpixel(bitmap, 0, trace(scene, ray, scratchp, scratchv, scratchr))
-	
-	while(y < 600)
-	{
-		while(x < 600)
-		{
-			ray.direction.x = cast(real, 300 - x) / 600.0
-			ray.direction.y = cast(real, 300 - y) / 600.0
-			ray.direction.z = 1.0
-			normalize(ray.direction)
-
-			integer c = trace(scene, ray, scratchp, scratchv, scratchr)
-			plotpixel(bitmap, ((600 - y) * 600 + x), c)
-
-			x = x + 1
-		}
-
-		x = 0
-		y = y + 1
-	}
-}
-
-entrypoint :
-{
-	DisplayWindow()
-}
-
-DoScene :
-{
-	Point2D cursorpos = 0, 0
-	GetCursorPos(cursorpos)
-
-	real rx = cast(real, 960 - cursorpos.x) / 40.0
-	real ry = cast(real, 540 - cursorpos.y) / 40.0
-
-	Point zero = 0.0, 0.0, 0.0
-
-	Sphere sphere = zero, 1.0
-
-	Vector pnorm = 0.0, 1.0, 0.0
-	Plane plane = pnorm, 50.0
-
-	Color white = 1.0, 1.0, 1.0
-	Light light = Point(rx, ry, -10.0), white, 1.0
-
-	list<Geometry> objects2 = plane, nothing
-	list<Geometry> objects = sphere, objects2
-	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0), 1.0, 1.0
-
-	Scene scene = objects, light, camera
-
-	Render(scene, RenderedBitmap)
-}
-
-
-
 AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean result = false [external("User32.dll", "AdjustWindowRect")]
 
+SetDIBitsToDevice :
+	integer hdc,
+	integer xdest,
+	integer ydest,
+	integer width,
+	integer height,
+	integer xsrc,
+	integer ysrc,
+	integer startscan,
+	integer scanlines,
+	buffer ref bits,
+	BitmapInfoHeader ref bitmap,
+	integer coloruse
+  ->
+	integer unused = 0
+  [external("Gdi32.dll", "SetDIBitsToDevice")]
+
+
+//
+// Win32 message pump routine
+//
 
 DisplayWindow :
 {
@@ -460,36 +576,9 @@ DisplayWindow :
 }
 
 
-structure BitmapInfoHeader :
-	integer size,
-	integer width,
-	integer height,
-	integer16 planes,
-	integer16 bitcount,
-	integer compression,
-	integer sizeimage,
-	integer xppm,
-	integer yppm,
-	integer used,
-	integer important
-
-SetDIBitsToDevice :
-	integer hdc,
-	integer xdest,
-	integer ydest,
-	integer width,
-	integer height,
-	integer xsrc,
-	integer ysrc,
-	integer startscan,
-	integer scanlines,
-	buffer ref bits,
-	BitmapInfoHeader ref bitmap,
-	integer coloruse
-  ->
-	integer unused = 0
-  [external("Gdi32.dll", "SetDIBitsToDevice")]
-
+//
+// Win32 WndProc
+//
 
 MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
 {
@@ -518,3 +607,21 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
 	}
 }
+
+
+//
+// Global data and program entry point
+//
+
+global
+{
+	buffer RenderedBitmap = 600 * 600 * 4
+	integer FrameCount = 0
+	integer AccumulatedDuration = 0
+}
+
+entrypoint :
+{
+	DisplayWindow()
+}
+
