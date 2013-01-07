@@ -117,6 +117,7 @@ structure Scene :
 //
 // TODO - fix type inference on generic calls
 //
+
 dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
 dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
@@ -357,26 +358,17 @@ Render : Scene ref scene, buffer ref bitmap [native]
 			integer c = trace(scene, ray, scratchp, scratchv, scratchr)
 			plotpixel(bitmap, ((600 - y) * 600 + x), c)
 
-			// Preincrement/postincrement are not in the JIT support list yet
-			// TODO - implement JIT support for pre/post operations
-			x = x + 1
+			++x
 		}
 
 		x = 0
-		y = y + 1
+		++y
 	}
 }
 
 
 //
-// Create a scene and shell out to the renderer to draw it
-//
-// We currently invoke this every frame for rather lame reasons. Storing
-// the entire scene in a global variable is for some reason not working,
-// due to a compiler bug or some such. Once that bug is fixed, the scene
-// can be constructed once and the light source simply moved per frame.
-//
-// TODO - fix bug with global objects that prevents scene persistence
+// Update the animation in the scene and then render it
 //
 
 DoScene :
@@ -386,22 +378,10 @@ DoScene :
 
 	// Assume 1920x1080 screen res; we could probably do better
 	// if we query the Win32 API for the actual desktop res.
-	real rx = cast(real, 960 - cursorpos.x) / 40.0
-	real ry = cast(real, 540 - cursorpos.y) / 40.0
+	GlobalScene.thelight.location.x = cast(real, 960 - cursorpos.x) / 40.0
+	GlobalScene.thelight.location.y = cast(real, 540 - cursorpos.y) / 40.0
 
-	Sphere sphere = Point(0.0, 0.0, 0.0), 1.0
-	Plane plane = Vector(0.0, 1.0, 0.0), 50.0
-
-	Light light = Point(rx, ry, -10.0), Color(1.0, 1.0, 1.0), 1.0
-
-	list<Geometry> objects2 = plane, nothing
-	list<Geometry> objects = sphere, objects2
-
-	Camera camera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0)
-
-	Scene scene = objects, light, camera
-
-	Render(scene, RenderedBitmap)
+	Render(GlobalScene, RenderedBitmap)
 }
 
 
@@ -618,6 +598,18 @@ global
 	buffer RenderedBitmap = 600 * 600 * 4
 	integer FrameCount = 0
 	integer AccumulatedDuration = 0
+
+	Sphere GlobalSphere = Point(0.0, 0.0, 0.0), 1.0
+	Plane GlobalPlane = Vector(0.0, 1.0, 0.0), 50.0
+
+	Light GlobalLight = Point(0.0, 0.0, -10.0), Color(1.0, 1.0, 1.0), 1.0
+
+	list<Geometry> GlobalObjects2 = GlobalPlane, nothing
+	list<Geometry> GlobalObjects = GlobalSphere, GlobalObjects2
+
+	Camera GlobalCamera = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 1.0)
+
+	Scene GlobalScene = GlobalObjects, GlobalLight, GlobalCamera
 }
 
 entrypoint :
