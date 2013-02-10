@@ -1,0 +1,20 @@
+//
+// SHADOWING.EPOCH
+//
+// Test case to catch legal identifier reuse that results in shadowing
+// when a buggy lexical scope flattener pass is executed on the code.
+//
+
+entrypoint :
+{
+	boolean flag = false
+	if(flag)
+	{
+		integer foo = 42
+	}
+	else
+	{
+		integer foo = 666
+	}
+}
+
