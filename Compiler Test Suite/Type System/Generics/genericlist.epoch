@@ -46,7 +46,7 @@ checkvalue<type T> : list<T> ref thelist, T expected
 
 checkvalue<type T> : nothing, T expected
 {
-	print("Unexpected end of list")
+	//print("Unexpected end of list")
 	assert(false)
 }
 
