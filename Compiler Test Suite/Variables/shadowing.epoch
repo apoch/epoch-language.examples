@@ -16,5 +16,7 @@ entrypoint :
 	{
 		integer foo = 666
 	}
+
+	passtest()
 }
 
