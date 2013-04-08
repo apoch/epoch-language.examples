@@ -1,0 +1,23 @@
+//
+// BUFFERMARSHAL.EPOCH
+//
+// Compiler test of buffer marshaling to external functions
+//
+
+
+strcpy : buffer ref dest, buffer source [external("msvcr100.dll", "strcpy")]
+strcmp : buffer a, buffer b -> integer ret = 0 [external("msvcr100.dll", "strcmp")]
+
+
+entrypoint :
+{
+	buffer test = 128
+
+	strcpy(test, narrowstring("foo"))
+	assert(strcmp(narrowstring("foo"), test) == 0)
+
+	assert(strcmp(narrowstring("foo"), narrowstring("bar")) > 0)
+
+	passtest()
+}
+

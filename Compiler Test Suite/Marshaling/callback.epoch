@@ -1,0 +1,21 @@
+//
+// CALLBACK.EPOCH
+//
+// Compiler test for marshaling between external functions and Epoch callbacks
+//
+
+
+EnumDesktopWindows : integer desktop, (callback : integer, integer -> boolean), integer lparam -> boolean ret = false [external("User32.dll", "EnumDesktopWindows", "stdcall")]
+
+
+entrypoint :
+{
+	EnumDesktopWindows(0, enumerator, 0)
+}
+
+
+enumerator : integer hwnd, integer lparam -> boolean ret = false
+{
+	passtest()
+}
+

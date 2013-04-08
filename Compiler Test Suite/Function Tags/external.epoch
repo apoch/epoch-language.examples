@@ -12,5 +12,5 @@ entrypoint :
 }
 
 
-GetDesktopWindow : -> integer ret = 0 [external("User32.dll", "GetDesktopWindow")]
+GetDesktopWindow : -> integer ret = 0 [external("User32.dll", "GetDesktopWindow", "stdcall")]
 

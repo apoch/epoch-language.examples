@@ -1,0 +1,25 @@
+//
+// STRUCTMARSHAL.EPOCH
+//
+// Compiler test for marshaling a structure to external functions
+//
+
+
+structure Point :
+	integer x,
+	integer y
+
+
+GetCursorPos : Point ref p -> boolean ret = false [external("User32.dll", "GetCursorPos", "stdcall")]
+
+
+entrypoint :
+{
+	Point p = -666, -42
+	GetCursorPos(p)
+
+	assert(p.x != -666)
+
+	passtest()
+}
+

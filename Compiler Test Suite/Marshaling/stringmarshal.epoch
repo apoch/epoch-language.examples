@@ -1,0 +1,17 @@
+//
+// STRINGMARSHAL.EPOCH
+//
+// Compiler test of string marshaling to external functions
+//
+
+
+wcscmp : string a, string b -> integer ret = 0 [external("msvcr100.dll", "wcscmp")]
+
+entrypoint :
+{
+	string alpha = "foo"
+	assert(wcscmp(alpha, "bar") > 0)
+
+	passtest()
+}
+
