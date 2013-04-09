@@ -118,11 +118,11 @@ structure Scene :
 // TODO - fix type inference on generic calls
 //
 
-dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
-dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
-dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z [native]
+dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
 
-normalize : Vector ref in [native]
+normalize : Vector ref in
 {
 	real length = sqrt(in.x * in.x + in.y * in.y + in.z * in.z)
 	in.x = in.x / length
@@ -130,7 +130,7 @@ normalize : Vector ref in [native]
 	in.z = in.z / length
 }
 
-rgb : Color ref c -> integer ret = 0 [native]
+rgb : Color ref c -> integer ret = 0
 {
 	ret += cast(integer, c.b * 255.0)
 	ret += cast(integer, c.g * 255.0) * 256
@@ -144,7 +144,7 @@ rgb : Color ref c -> integer ret = 0 [native]
 // Ray-geometry intersection tests
 //
 
-intersect : Plane ref p, Ray ref r -> real t = 100000.0 [native]
+intersect : Plane ref p, Ray ref r -> real t = 100000.0
 {
 	real dotprod = dot(p.normal, r.direction)
 	if(dotprod < 0.0)
@@ -157,7 +157,7 @@ intersect : Plane ref p, Ray ref r -> real t = 100000.0 [native]
 	}
 }
 
-intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
+intersect : Sphere ref s, Ray ref r -> real t = 100000.0
 {
 	// TODO - transform ray into object space
 
@@ -206,9 +206,9 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [native]
 // Routines for testing a ray against all objects in a scene
 //
 
-test : nothing, Ray ref r, Geometry ref closest, real ref t [native]
+test : nothing, Ray ref r, Geometry ref closest, real ref t
 
-test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t [native]
+test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t
 {
 	real thist = intersect(geometry.value, r)
 	if(thist < t)
@@ -222,9 +222,9 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t 
 }
 
 
-shadowtest : nothing, Ray ref r -> boolean ret = false [native]
+shadowtest : nothing, Ray ref r -> boolean ret = false
 
-shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false [native]
+shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false
 {
 	real t = intersect(geometry.value, r)
 	if(t < 100000.0)
@@ -244,7 +244,7 @@ shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false [nati
 // Lighting and coloration routines
 //
 
-shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0 [native]
+shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0
 {
 	sr.direction.x = intersectpt.x - s.center.x
 	sr.direction.y = intersectpt.y - s.center.y
@@ -261,7 +261,7 @@ shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdi
 }
 
 
-shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0 [native]
+shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0
 {
 	real i = p.normal.x * lightdirvec.x + p.normal.y * lightdirvec.y + p.normal.z * lightdirvec.z
 	if(i > 0.0)
@@ -292,7 +292,7 @@ shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdir
 // Master ray trace handler
 //
 
-trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> integer c = 0 [native]
+trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> integer c = 0
 {
 	Geometry closestobj = scene.objects.value
 	real t = 100000.0
@@ -317,7 +317,7 @@ trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> int
 // Scene rendering handler
 //
 
-Render : Scene ref scene, buffer ref bitmap [native]
+Render : Scene ref scene, buffer ref bitmap
 {
 	Ray ray = Point(0.0, 0.0, -10.0), Vector(0.0, 0.0, 0.0)
 
@@ -454,25 +454,25 @@ structure BitmapInfoHeader :
 // Win32 APIs
 //
 
-GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW")]
-RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW")]
-CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW")]
-ShowWindow : integer hwnd, integer cmdshow -> integer success = 0 [external("User32.dll", "ShowWindow")]
-PeekMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax, integer removeflag -> boolean success = false [external("User32.dll", "PeekMessageW")]
-TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage")]
-DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW")]
-BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint")]
-EndPaint : integer hwnd, PaintInfo paintinfo -> integer success = 0 [external("User32.dll", "EndPaint")]
-PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage")]
-DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW")]
-DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow")]
-InvalidateRect : integer hwnd, integer ignored, integer erase -> integer ret = 0 [external("User32.dll", "InvalidateRect")]
-GetCursorPos : Point2D ref out -> integer ret = 0 [external("User32.dll", "GetCursorPos")]
-LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW")]
-SetWindowText : integer hwnd, string text -> integer result = 0 [external("User32.dll", "SetWindowTextW")]
-MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
-timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime")]
-AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean result = false [external("User32.dll", "AdjustWindowRect")]
+GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW", "stdcall")]
+RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW", "stdcall")]
+CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW", "stdcall")]
+ShowWindow : integer hwnd, integer cmdshow -> integer success = 0 [external("User32.dll", "ShowWindow", "stdcall")]
+PeekMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax, integer removeflag -> boolean success = false [external("User32.dll", "PeekMessageW", "stdcall")]
+TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
+DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
+BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint", "stdcall")]
+EndPaint : integer hwnd, PaintInfo paintinfo -> integer success = 0 [external("User32.dll", "EndPaint", "stdcall")]
+PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage", "stdcall")]
+DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW", "stdcall")]
+DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow", "stdcall")]
+InvalidateRect : integer hwnd, integer ignored, integer erase -> integer ret = 0 [external("User32.dll", "InvalidateRect", "stdcall")]
+GetCursorPos : Point2D ref out -> integer ret = 0 [external("User32.dll", "GetCursorPos", "stdcall")]
+LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW", "stdcall")]
+SetWindowText : integer hwnd, string text -> integer result = 0 [external("User32.dll", "SetWindowTextW", "stdcall")]
+MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
+timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")]
+AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean result = false [external("User32.dll", "AdjustWindowRect", "stdcall")]
 
 SetDIBitsToDevice :
 	integer hdc,
@@ -489,7 +489,7 @@ SetDIBitsToDevice :
 	integer coloruse
   ->
 	integer unused = 0
-  [external("Gdi32.dll", "SetDIBitsToDevice")]
+  [external("Gdi32.dll", "SetDIBitsToDevice", "stdcall")]
 
 
 //
@@ -515,8 +515,12 @@ DisplayWindow :
 	AdjustWindowRect(adjusted, WS_OVERLAPPEDWINDOW, false)
 
 	integer hwnd = CreateWindowEx(0, "RaytracerClass", "Raytracer", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, 0, 0, hInstance, 0)
+	assert(hwnd != 0)
 
 	ShowWindow(hwnd, SW_SHOW)
+
+	integer FrameCount = 0
+	integer AccumulatedDuration = 0
 
 	Point2D pt = 0, 0
 	MessageInfo msg = 0, 0, 0, 0, 0, pt
@@ -595,9 +599,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 global
 {
-	buffer RenderedBitmap = 600 * 600 * 4
-	integer FrameCount = 0
-	integer AccumulatedDuration = 0
+	buffer RenderedBitmap = 601 * 601 * 4
 
 	Sphere GlobalSphere = Point(0.0, 0.0, 0.0), 1.0
 	Plane GlobalPlane = Vector(0.0, 1.0, 0.0), 50.0
