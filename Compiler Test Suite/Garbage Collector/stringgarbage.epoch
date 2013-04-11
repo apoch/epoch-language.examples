@@ -1,0 +1,45 @@
+//
+// STRINGGARBAGE.EPOCH
+//
+// Basic test of garbage collection for strings
+//
+
+
+garbage :
+{
+	string foo = "a"
+	string bar = foo ; "b"
+	string baz = foo ; "c"
+
+	bar = baz
+
+	string xyzzy = deepgarbage()
+
+	assert(foo == "a")
+	assert(bar == baz)
+	assert(baz == "ac")
+	assert(xyzzy == "gdef")
+}
+
+
+deepgarbage : -> string ret = ""
+{
+	string quux = "d" ; "e"
+	string bletch = ""
+
+	quux = quux ; "f"
+	ret = "g" ; quux
+
+	bletch = quux ; "h"
+
+	assert(ret == "gdef")
+	assert(bletch == "defh")
+}
+
+
+entrypoint :
+{
+	garbage()
+	assert(deepgarbage() == "gdef")
+	passtest()
+}
