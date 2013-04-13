@@ -1,0 +1,39 @@
+//
+// BUFFERGARBAGE.EPOCH
+//
+// Test of garbage collection for buffer types
+//
+
+
+strcpy : buffer ref dest, buffer source [external("msvcr100.dll", "strcpy")]
+strcmp : buffer a, buffer b -> integer ret = 0 [external("msvcr100.dll", "strcmp")]
+
+
+entrypoint :
+{
+	generategarbage(4)
+	passtest()
+}
+
+
+generategarbage : integer x
+{
+	if(x > 0)
+	{
+		buffer garbage = 256
+		buffer second = 512
+
+		strcpy(second, narrowstring("test"))
+		garbage = second
+
+		// The position of this is crucial; it tests whether or
+		// not register spilling of GC roots is working.
+		generategarbage(x - 1)
+
+		integer test = strcmp(second, narrowstring("test"))
+		assert(test == 0)
+	}
+
+	buffer nogarbage = 128
+}
+
