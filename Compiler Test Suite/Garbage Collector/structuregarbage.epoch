@@ -1,0 +1,52 @@
+//
+// STRUCTUREGARBAGE.EPOCH
+//
+// Test of garbage collection of structures
+//
+
+
+structure inner :
+	integer foo,
+	string bar
+
+
+structure test :
+	inner i,
+	integer baz
+
+
+entrypoint :
+{
+	inner x = 1, "test"
+	test y = x, 42
+
+	generategarbage(y, 5)
+
+	passtest()
+}
+
+
+generategarbage : test in, integer counter
+{
+	if(counter > 0)
+	{
+		inner trash = 3, "bletch"
+		inner second = 4, "xyzzy"
+		test xorph = trash, 42
+
+		trash = second
+
+		generategarbage(in, counter - 1)
+
+		assert(trash.foo == 4)
+		assert(trash.bar == "xyzzy")
+
+		assert(xorph.i.foo == 3)
+		assert(xorph.i.bar == "bletch")
+		assert(xorph.baz == 42)
+	}
+
+	test moregarbage = in
+}
+
+

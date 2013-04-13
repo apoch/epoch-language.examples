@@ -1,0 +1,64 @@
+//
+// SUMTYPEGARBAGE.EPOCH
+//
+// Test of collecting garbage-collected data types within sum types
+//
+
+
+structure structtype :
+	integer foo,
+	string bar
+
+
+type sumtype : structtype | nothing
+
+
+entrypoint :
+{
+	structtype test = 42, "Test"
+	sumtype s = test
+	sumtype t = nothing
+
+	generategarbage(5)
+
+	checkvalues(s)
+	checkvalues(t)
+}
+
+
+checkvalues : structtype ref in
+{
+	assert(in.foo == 42)
+	assert(in.bar == "Test")
+}
+
+checkvalues : nothing
+{
+	passtest()
+}
+
+
+generategarbage : integer counter
+{
+	if(counter > 0)
+	{
+		structtype st = 666, "bletch"
+		sumtype q = st
+
+		generategarbage(counter - 1)
+
+		checkgarbage(st)
+	}
+}
+
+checkgarbage : structtype ref in
+{
+	assert(in.foo == 666)
+	assert(in.bar == "bletch")
+}
+
+checkgarbage : nothing
+{
+	assert(false)
+}
+
