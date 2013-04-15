@@ -455,14 +455,14 @@ structure BitmapInfoHeader :
 //
 
 GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW", "stdcall")]
-RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW", "stdcall")]
+RegisterClassEx : WindowClass ref wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW", "stdcall")]
 CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW", "stdcall")]
 ShowWindow : integer hwnd, integer cmdshow -> integer success = 0 [external("User32.dll", "ShowWindow", "stdcall")]
 PeekMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax, integer removeflag -> boolean success = false [external("User32.dll", "PeekMessageW", "stdcall")]
-TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
-DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
+TranslateMessage : MessageInfo ref msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
+DispatchMessage : MessageInfo ref msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
 BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint", "stdcall")]
-EndPaint : integer hwnd, PaintInfo paintinfo -> integer success = 0 [external("User32.dll", "EndPaint", "stdcall")]
+EndPaint : integer hwnd, PaintInfo ref paintinfo -> integer success = 0 [external("User32.dll", "EndPaint", "stdcall")]
 PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage", "stdcall")]
 DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW", "stdcall")]
 DestroyWindow : integer handle -> integer ret = 0 [external("User32.dll", "DestroyWindow", "stdcall")]
