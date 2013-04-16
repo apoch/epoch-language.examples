@@ -106,51 +106,51 @@ structure ScintillaNotification :
 
 
 
-CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle")]
-GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW")]
-RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW")]
-CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW")]
-ShowWindow : integer hwnd, integer cmdshow -> boolean success = false [external("User32.dll", "ShowWindow")]
-LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW")]
-LoadMenu : integer hinstance, integer menuid -> integer menuhandle = 0 [external("User32.dll", "LoadMenuW")]
-LoadIcon : integer hinstance, integer iconid -> integer iconhandle = 0 [external("User32.dll", "LoadIconW")]
-GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> boolean success = false [external("User32.dll", "GetMessageW")]
-TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage")]
-DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW")]
-BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint")]
-EndPaint : integer hwnd, PaintInfo paintinfo -> boolean success = false [external("User32.dll", "EndPaint")]
-PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage")]
-DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW")]
-GetClientRect : integer hwnd, Rect ref rect -> boolean success = false [external("User32.dll", "GetClientRect")]
-MoveWindow : integer hwnd, integer x, integer y, integer width, integer height, boolean repaint -> boolean success = false [external("User32.dll", "MoveWindow")]
-GetDlgItem : integer hwnd, integer childid -> integer windowhandle = 0 [external("User32.dll", "GetDlgItem")]
-LoadLibrary : string dllname -> integer libraryhandle = 0 [external("Kernel32.dll", "LoadLibraryW")]
-SetTimer : integer hwnd, integer eventid, integer time, integer func -> integer ret = 0 [external("User32.dll", "SetTimer")]
+CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
+GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW", "stdcall")]
+RegisterClassEx : WindowClass wc -> integer16 atom = 0 [external("User32.dll", "RegisterClassExW", "stdcall")]
+CreateWindowEx : integer exstyle, string classname, string windowname, integer style, integer x, integer y, integer width, integer height, integer hwndparent, integer hmenu, integer hinstance, integer param -> integer windowhandle = 0 [external("User32.dll", "CreateWindowExW", "stdcall")]
+ShowWindow : integer hwnd, integer cmdshow -> boolean success = false [external("User32.dll", "ShowWindow", "stdcall")]
+LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW", "stdcall")]
+LoadMenu : integer hinstance, integer menuid -> integer menuhandle = 0 [external("User32.dll", "LoadMenuW", "stdcall")]
+LoadIcon : integer hinstance, integer iconid -> integer iconhandle = 0 [external("User32.dll", "LoadIconW", "stdcall")]
+GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> boolean success = false [external("User32.dll", "GetMessageW", "stdcall")]
+TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
+DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
+BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint", "stdcall")]
+EndPaint : integer hwnd, PaintInfo paintinfo -> boolean success = false [external("User32.dll", "EndPaint", "stdcall")]
+PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage", "stdcall")]
+DefWindowProc : integer hwnd, integer msg, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "DefWindowProcW", "stdcall")]
+GetClientRect : integer hwnd, Rect ref rect -> boolean success = false [external("User32.dll", "GetClientRect", "stdcall")]
+MoveWindow : integer hwnd, integer x, integer y, integer width, integer height, boolean repaint -> boolean success = false [external("User32.dll", "MoveWindow", "stdcall")]
+GetDlgItem : integer hwnd, integer childid -> integer windowhandle = 0 [external("User32.dll", "GetDlgItem", "stdcall")]
+LoadLibrary : string dllname -> integer libraryhandle = 0 [external("Kernel32.dll", "LoadLibraryW", "stdcall")]
+SetTimer : integer hwnd, integer eventid, integer time, integer func -> integer ret = 0 [external("User32.dll", "SetTimer", "stdcall")]
 
-PostMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW")]
-PostMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW")]
-PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW")]
+PostMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
+PostMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
+PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 
-SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW")]
-SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW")]
+SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
-MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
-MessageBox : integer hwnd, buffer message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW")]
+MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
+MessageBox : integer hwnd, buffer message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
 
-CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW")]
-CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW")]
-MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile")]
-UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile")]
-GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize")]
+CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
+CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
+MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
+UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
+GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
 
-WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile")]
+WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
 
-DestroyWindow : integer handle -> boolean ret = false [external("User32.dll", "DestroyWindow")]
+DestroyWindow : integer handle -> boolean ret = false [external("User32.dll", "DestroyWindow", "stdcall")]
 
-GetOpenFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdlg32.dll", "GetOpenFileNameW")]
-GetSaveFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdlg32.dll", "GetSaveFileNameW")]
+GetOpenFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdlg32.dll", "GetOpenFileNameW", "stdcall")]
+GetSaveFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdlg32.dll", "GetSaveFileNameW", "stdcall")]
 
-GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError")]
+GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError", "stdcall")]
 
 
 
@@ -160,10 +160,10 @@ structure ParseCallbacks :
 	(ParseStructureFunc : string)
 
 
-UDTListReset : [external("EpochLexer.dll", "UDTListReset")]
-UDTListAppend : buffer token [external("EpochLexer.dll", "UDTListAppend")]
+UDTListReset : [external("EpochLexer.dll", "UDTListReset", "stdcall")]
+UDTListAppend : buffer token [external("EpochLexer.dll", "UDTListAppend", "stdcall")]
 
-ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.dll", "ParseSource")]
+ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.dll", "ParseSource", "stdcall")]
 
 
 
