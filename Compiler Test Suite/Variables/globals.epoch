@@ -7,12 +7,13 @@
 
 global
 {
-	integer n = 42
+	integer n = 41
 }
 
 
 entrypoint :
 {
+	++n
 	assert(n == 42)
 	passtest()
 }
