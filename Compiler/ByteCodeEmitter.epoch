@@ -1,0 +1,87 @@
+//
+// Epoch Compiler
+// ByteCodeEmitter.epoch
+//
+// Module for generating bytecode
+//
+
+
+
+//
+// API for registering plugins with the C++ compiler
+//
+RegisterFunc : string name, (funcptr : ) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> integer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> buffer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+
+
+
+//
+// Entrypoint - called when the plugin is loaded
+//
+// Performs function registration with the C++ compiler
+//
+entrypoint :
+{
+	RegisterFunc("PluginOnCompileStart", OnCompileStart)
+
+	RegisterFunc("PluginBytecodeEmitByte", OnBytecodeEmitByte)
+	RegisterFunc("PluginBytecodeEmitBytes", OnBytecodeEmitBytes)
+	RegisterFunc("PluginBytecodeGetBuffer", OnBytecodeGetBuffer)
+	RegisterFunc("PluginBytecodeGetSize", OnBytecodeGetSize)
+
+	print("Epoch Compiler - bytecode emitter plugin registered")
+}
+
+
+//
+// Global state (just a hack while we bootstrap!)
+//
+global
+{
+	buffer Hack = 102400
+	integer HackSize = 0
+}
+
+
+//
+// Callback for when compilation on a program begins
+//
+OnCompileStart :
+{
+	print("Epoch Compiler - compilation started")
+}
+
+
+//
+// Callback used to emit a byte to a bytecode stream
+//
+OnBytecodeEmitByte : integer b
+{
+	writebuffer(Hack, HackSize, b)
+	++HackSize
+}
+
+//
+// Callback used to emit a series of bytes to a bytecode stream
+//
+OnBytecodeEmitBytes : integer bytes, integer size
+{
+	writebuffer(Hack, HackSize, bytes, size)
+	HackSize += size
+}
+
+
+//
+// Callback used to retrieve a bytecode stream's pointer
+//
+OnBytecodeGetBuffer : -> buffer ret = Hack
+
+
+//
+// Callback used to retrieve the size of a bytecode stream
+//
+OnBytecodeGetSize : -> integer size = HackSize
+
