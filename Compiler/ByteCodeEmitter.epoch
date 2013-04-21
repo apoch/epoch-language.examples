@@ -6,15 +6,20 @@
 //
 
 
+// TODO - strong type aliases
+
 
 //
 // API for registering plugins with the C++ compiler
 //
-RegisterFunc : string name, (funcptr : ) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> integer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> buffer) 		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : ) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : string) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, string)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> integer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> buffer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 
 
 
@@ -29,8 +34,19 @@ entrypoint :
 
 	RegisterFunc("PluginBytecodeEmitByte", OnBytecodeEmitByte)
 	RegisterFunc("PluginBytecodeEmitBytes", OnBytecodeEmitBytes)
+	RegisterFunc("PluginBytecodeEmitString", OnBytecodeEmitByte)
+	RegisterFunc("PluginBytecodeEmitInteger", OnBytecodeEmitBytes)
+
 	RegisterFunc("PluginBytecodeGetBuffer", OnBytecodeGetBuffer)
 	RegisterFunc("PluginBytecodeGetSize", OnBytecodeGetSize)
+
+	RegisterFunc("PluginBytecodePoolString", OnBytecodePoolString)
+	RegisterFunc("PluginBytecodeLexicalScope", OnBytecodeLexicalScope)
+	RegisterFunc("PluginBytecodeInvokeOffset", OnBytecodeInvokeOffset)
+	RegisterFunc("PluginBytecodeHalt", OnBytecodeHalt)
+	RegisterFunc("PluginBytecodeEnterFunction", OnBytecodeEnterFunction)
+	RegisterFunc("PluginBytecodeExitFunction", OnBytecodeExitFunction)
+	RegisterFunc("PluginBytecodeInvoke", OnBytecodeInvoke)
 
 	print("Epoch Compiler - bytecode emitter plugin registered")
 }
@@ -84,4 +100,72 @@ OnBytecodeGetBuffer : -> buffer ret = Hack
 // Callback used to retrieve the size of a bytecode stream
 //
 OnBytecodeGetSize : -> integer size = HackSize
+
+
+
+OnBytecodeEmitInteger : integer value
+{
+	writebuffer(Hack, HackSize, (value) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x100) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x10000) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x1000000) & 0xff)
+	++HackSize
+}
+
+OnBytecodeEmitString : string value
+{
+	integer len = (length(value) + 1) * 2
+	writebuffer(Hack, HackSize, value, len)
+	HackSize += len
+}
+
+
+OnBytecodePoolString : integer handle, string data
+{
+	OnBytecodeEmitByte(0x10)			// PoolString instruction
+	OnBytecodeEmitInteger(handle)
+	OnBytecodeEmitString(data)
+}
+
+OnBytecodeLexicalScope : integer name, integer parent, integer count
+{
+	OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(parent)
+	OnBytecodeEmitInteger(count)
+}
+
+OnBytecodeInvokeOffset : integer name
+{
+	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(0)
+}
+
+OnBytecodeHalt :
+{
+	OnBytecodeEmitByte(0x00)			// Halt instruction
+}
+
+OnBytecodeEnterFunction : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitFunction :
+{
+	OnBytecodeEmitByte(0x09)			// Return instruction
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeInvoke : integer target
+{
+	OnBytecodeEmitByte(0x07)			// Invoke instruction
+	OnBytecodeEmitInteger(target)
+}
 
