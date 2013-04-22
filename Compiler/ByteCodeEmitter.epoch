@@ -12,14 +12,17 @@
 //
 // API for registering plugins with the C++ compiler
 //
-RegisterFunc : string name, (funcptr : ) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : string) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, string)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> integer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> buffer) 			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : ) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : string) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : boolean) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, string)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> integer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> buffer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 
 
 
@@ -34,19 +37,49 @@ entrypoint :
 
 	RegisterFunc("PluginBytecodeEmitByte", OnBytecodeEmitByte)
 	RegisterFunc("PluginBytecodeEmitBytes", OnBytecodeEmitBytes)
-	RegisterFunc("PluginBytecodeEmitString", OnBytecodeEmitByte)
-	RegisterFunc("PluginBytecodeEmitInteger", OnBytecodeEmitBytes)
+	RegisterFunc("PluginBytecodeEmitString", OnBytecodeEmitString)
+	RegisterFunc("PluginBytecodeEmitInteger", OnBytecodeEmitInteger)
+	RegisterFunc("PluginBytecodeEmitBoolean", OnBytecodeEmitBoolean)
 
 	RegisterFunc("PluginBytecodeGetBuffer", OnBytecodeGetBuffer)
 	RegisterFunc("PluginBytecodeGetSize", OnBytecodeGetSize)
 
 	RegisterFunc("PluginBytecodePoolString", OnBytecodePoolString)
 	RegisterFunc("PluginBytecodeLexicalScope", OnBytecodeLexicalScope)
+	RegisterFunc("PluginBytecodeLexicalScopeEntry", OnBytecodeLexicalScopeEntry)
 	RegisterFunc("PluginBytecodeInvokeOffset", OnBytecodeInvokeOffset)
 	RegisterFunc("PluginBytecodeHalt", OnBytecodeHalt)
 	RegisterFunc("PluginBytecodeEnterFunction", OnBytecodeEnterFunction)
 	RegisterFunc("PluginBytecodeExitFunction", OnBytecodeExitFunction)
 	RegisterFunc("PluginBytecodeInvoke", OnBytecodeInvoke)
+	RegisterFunc("PluginBytecodeEnterEntity", OnBytecodeEnterEntity)
+	RegisterFunc("PluginBytecodeExitEntity", OnBytecodeExitEntity)
+	RegisterFunc("PluginBytecodeBeginChain", OnBytecodeBeginChain)
+	RegisterFunc("PluginBytecodeEndChain", OnBytecodeEndChain)
+	RegisterFunc("PluginBytecodeDefineStructure", OnBytecodeDefineStructure)
+	RegisterFunc("PluginBytecodeStructureMember", OnBytecodeStructureMember)
+	RegisterFunc("PluginBytecodeReadReference", OnBytecodeReadReference)
+	RegisterFunc("PluginBytecodeReadReferenceAnnotated", OnBytecodeReadReferenceAnnotated)
+	RegisterFunc("PluginBytecodeAllocStructure", OnBytecodeAllocStructure)
+	RegisterFunc("PluginBytecodeBindReference", OnBytecodeBindReference)
+	RegisterFunc("PluginBytecodeAssign", OnBytecodeAssign)
+	RegisterFunc("PluginBytecodePushVarValue", OnBytecodePushVarValue)
+	RegisterFunc("PluginBytecodeCopyBuffer", OnBytecodeCopyBuffer)
+	RegisterFunc("PluginBytecodeCopyStructure", OnBytecodeCopyStructure)
+	RegisterFunc("PluginBytecodeCopyToStructure", OnBytecodeCopyToStructure)
+	RegisterFunc("PluginBytecodeSetReturnRegister", OnBytecodeSetReturnRegister)
+	RegisterFunc("PluginBytecodePushVarNoCopy", OnBytecodePushVarNoCopy)
+	RegisterFunc("PluginBytecodeInvokeIndirect", OnBytecodeInvokeIndirect)
+	RegisterFunc("PluginBytecodeEnterPatternResolver", OnBytecodeEnterPatternResolver)
+	RegisterFunc("PluginBytecodeExitPatternResolver", OnBytecodeExitPatternResolver)
+	RegisterFunc("PluginBytecodeConstructSumType", OnBytecodeConstructSumType)
+	RegisterFunc("PluginBytecodeEnterTypeResolver", OnBytecodeEnterTypeResolver)
+	RegisterFunc("PluginBytecodeExitTypeResolver", OnBytecodeExitTypeResolver)
+	RegisterFunc("PluginBytecodePopStack", OnBytecodePopStack)
+	RegisterFunc("PluginBytecodeBindStructReference", OnBytecodeBindStructReference)
+	RegisterFunc("PluginBytecodePushType", OnBytecodePushType)
+	RegisterFunc("PluginBytecodeAssignSumType", OnBytecodeAssignSumType)
+	RegisterFunc("PluginBytecodePushLocal", OnBytecodePushLocal)
 
 	print("Epoch Compiler - bytecode emitter plugin registered")
 }
@@ -122,6 +155,11 @@ OnBytecodeEmitString : string value
 	HackSize += len
 }
 
+OnBytecodeEmitBoolean : boolean value
+{
+	OnBytecodeEmitByte(cast(integer, value))
+}
+
 
 OnBytecodePoolString : integer handle, string data
 {
@@ -136,6 +174,14 @@ OnBytecodeLexicalScope : integer name, integer parent, integer count
 	OnBytecodeEmitInteger(name)
 	OnBytecodeEmitInteger(parent)
 	OnBytecodeEmitInteger(count)
+}
+
+OnBytecodeLexicalScopeEntry : integer varname, integer vartype, boolean isreference, integer origin
+{
+	OnBytecodeEmitInteger(varname)
+	OnBytecodeEmitInteger(vartype)
+	OnBytecodeEmitInteger(origin)
+	OnBytecodeEmitBoolean(isreference)
 }
 
 OnBytecodeInvokeOffset : integer name
@@ -167,5 +213,196 @@ OnBytecodeInvoke : integer target
 {
 	OnBytecodeEmitByte(0x07)			// Invoke instruction
 	OnBytecodeEmitInteger(target)
+}
+
+OnBytecodeEnterEntity : integer tag, integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(tag)
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitEntity :
+{
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeBeginChain :
+{
+	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
+}
+
+OnBytecodeEndChain :
+{
+	OnBytecodeEmitByte(0x0e)			// EndChain instruction
+}
+
+OnBytecodeDefineStructure : integer typeid, integer nummembers
+{
+	OnBytecodeEmitByte(0x14)			// DefineStructure instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(nummembers)
+}
+
+OnBytecodeStructureMember : integer name, integer typeid
+{
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeReadReference :
+{
+	OnBytecodeEmitByte(0x17)			// ReadRef instruction
+}
+
+OnBytecodeReadReferenceAnnotated :
+{
+	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
+}
+
+OnBytecodeAllocStructure : integer typeid
+{
+	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeBindReference : integer frameskip, integer index
+{
+	OnBytecodeEmitByte(0x03)			// BindRef instruction
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(index)
+}
+
+OnBytecodeAssign :
+{
+	OnBytecodeEmitByte(0x06)			// Assign instruction
+}
+
+OnBytecodePushVarValue : integer name, integer typeid
+{
+	OnBytecodeEmitByte(0x05)			// Read instruction
+	OnBytecodeEmitInteger(name)
+
+	integer family = typeid & 0xff000000
+
+	if(typeid == 0x02000001)			// Buffer type signature
+	{
+		OnBytecodeCopyBuffer()
+	}
+	elseif(family == 0x03000000)			// Structure family signature
+	{
+		OnBytecodeCopyStructure()
+	}
+	elseif(family == 0x08000000)			// Template instance family signature
+	{
+		OnBytecodeCopyStructure()
+	}
+}
+
+OnBytecodeCopyBuffer :
+{
+	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
+}
+
+OnBytecodeCopyStructure :
+{
+	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
+}
+
+OnBytecodeCopyToStructure : integer structurename, integer membername
+{
+	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
+	OnBytecodeEmitInteger(structurename)
+	OnBytecodeEmitInteger(membername)
+}
+
+OnBytecodeSetReturnRegister : integer varindex
+{
+	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
+	OnBytecodeEmitInteger(varindex)
+}
+
+OnBytecodePushVarNoCopy : integer varname
+{
+	OnBytecodeEmitByte(0x05)			// Read instruction
+	OnBytecodeEmitInteger(varname)
+}
+
+OnBytecodeInvokeIndirect : integer varname
+{
+	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
+	OnBytecodeEmitInteger(varname)
+}
+
+OnBytecodeEnterPatternResolver : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x02)			// EntityTags::PatternMatchingResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitPatternResolver :
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeConstructSumType :
+{
+	OnBytecodeEmitByte(0x21)			// ConstructSumType instruction
+}
+
+OnBytecodeEnterTypeResolver : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x05)			// EntityTags::TypeResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitTypeResolver :
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodePopStack : integer bytes
+{
+	OnBytecodeEmitByte(0x04)			// Pop instruction
+	OnBytecodeEmitInteger(bytes)
+}
+
+OnBytecodeBindStructReference : integer membertype, integer memberoffset
+{
+	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
+	OnBytecodeEmitInteger(membertype)
+	OnBytecodeEmitInteger(memberoffset)
+}
+
+OnBytecodePushType : integer typeid
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeAssignSumType :
+{
+	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
+}
+
+OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, integer size
+{
+	if(isparam)
+	{
+		OnBytecodeEmitByte(0x26)		// ReadParam instruction
+	}
+	else
+	{
+		OnBytecodeEmitByte(0x25)		// ReadStack instruction
+	}
+
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(offset)
+	OnBytecodeEmitInteger(size)
 }
 
