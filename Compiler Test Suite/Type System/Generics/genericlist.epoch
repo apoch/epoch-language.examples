@@ -54,7 +54,7 @@ checkvalue<type T> : nothing, T expected
 dumplist<type T> : list<T> ref thelist
 {
 	listnode<T> nn = thelist.next
-	dumplist(nn)
+	dumplist<T>(nn)
 }
 
 dumplist<type T> : nothing
