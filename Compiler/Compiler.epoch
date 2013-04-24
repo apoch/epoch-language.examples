@@ -465,8 +465,11 @@ CodeGenEmitStrings : list<StringTableEntry> ref table
 
 CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be passed by ref
 {
-	print("Pool string " ; entry.Data)
-	OnBytecodePoolString(entry.Handle, entry.Data)
+	if(entry.Handle != 0)
+	{
+		print("Pool string " ; entry.Data)
+		OnBytecodePoolString(entry.Handle, entry.Data)
+	}
 }
 
 
