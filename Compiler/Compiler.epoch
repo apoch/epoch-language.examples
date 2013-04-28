@@ -35,17 +35,18 @@ map<type T> : nothing, (func : T)
 //
 // API for registering plugins with the C++ compiler
 //
-RegisterFunc : string name, (funcptr : ) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : string) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : boolean) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, string)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> integer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
-RegisterFunc : string name, (funcptr : -> buffer) 				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : ) 						[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : string) 						[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : boolean) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, string)					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, integer)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, integer, boolean, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> buffer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 
 
 
@@ -119,6 +120,13 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenProcessProgram", OnCodeGenProcessProgram)
 
 	RegisterFunc("PluginCodeGenRegisterString", OnCodeGenRegisterString)
+	RegisterFunc("PluginCodeGenRegisterScope", OnCodeGenRegisterScope)
+	RegisterFunc("PluginCodeGenRegisterVariable", OnCodeGenRegisterVariable)
+	RegisterFunc("PluginCodeGenRegisterFunction", OnCodeGenRegisterFunction)
+
+	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
+	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
+	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
 
 	print("Epoch Compiler - code generation plugin registered")
 }
@@ -445,11 +453,63 @@ structure StringTableEntry :
 	integer Handle,
 	string Data
 
+structure StructureMemberVariable :
+	integer Name,
+	integer Type
+
+// TODO - support for function signatures
+structure StructureMemberFunctionRef :
+	integer Name
+
+
+type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
+
+structure StructureDefinition :
+	list<StructureMember> Members
+
+
+structure Expression :
+	boolean dummy
+
+type OptionalExpression : Expression | nothing
+
+
+structure Statement :
+	integer Name
+
+
+structure CodeBlock :
+	list<Statement> Entries
+
+type OptionalCodeBlock : CodeBlock | nothing
+
+
+structure FunctionDefinition :
+	integer Name,
+	OptionalExpression Return,
+	OptionalCodeBlock Code
+
+
+structure Variable :
+	integer Name,
+	integer VarType,
+	boolean IsReference,
+	integer Origin
+
+structure Scope :
+	integer Name,
+	integer ParentName,
+	list<Variable> Variables
+
+
 
 OnCodeGenProcessProgram :
 {
+	print("Emitting program...")
 	CodeGenEmitStrings(GlobalStrings)
-	//CodeGenEmitProgram(GlobalProgram)
+	CodeGenEmitScopes(Scopes)
+	CodeGenEmitFunctions(Functions)
+	print("Done.")
 }
 
 OnCodeGenRegisterString : integer handle, string data
@@ -457,6 +517,62 @@ OnCodeGenRegisterString : integer handle, string data
 	StringTableEntry entry = handle, data
 	prepend<StringTableEntry>(GlobalStrings, entry)
 }
+
+OnCodeGenRegisterStructureMemVar : integer structurename, integer membername, integer membertype
+{
+	// TODO - find structure and append member
+}
+
+OnCodeGenRegisterScope : integer scopename, integer parentname
+{
+	Scope scope = scopename, parentname, dummyvarlist
+	prepend<Scope>(Scopes, scope)
+}
+
+OnCodeGenRegisterVariable : integer scopename, integer varname, integer vartype, boolean isref, integer origin
+{
+	// TODO - store variable metadata
+}
+
+OnCodeGenRegisterFunction : integer funcname
+{
+	FunctionDefinition func = funcname, nothing, nothing
+	prepend<FunctionDefinition>(Functions, func)
+}
+
+OnCodeGenEnterFunctionBody : integer funcname
+{
+	// TODO - set up a stack of contexts
+}
+
+OnCodeGenExitContext :
+{
+	// TODO - pop context off stack
+}
+
+
+OnCodeGenEnterStatement : integer statementname
+{
+	// TODO - this is a total hack!
+
+	list<Statement> stmtlist = Statement(statementname), nothing
+	CodeBlock block = stmtlist
+
+	SetFunctionCodeBlock(Functions.value, block)
+}
+
+
+SetFunctionCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref block
+{
+	funcdef.Code = block
+}
+
+SetFunctionCodeBlock : nothing, CodeBlock ref block
+{
+	print("Error - missing function definition")
+	assert(false)
+}
+
 
 CodeGenEmitStrings : list<StringTableEntry> ref table
 {
@@ -467,9 +583,74 @@ CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be pass
 {
 	if(entry.Handle != 0)
 	{
-		print("Pool string " ; entry.Data)
 		OnBytecodePoolString(entry.Handle, entry.Data)
 	}
+}
+
+
+CodeGenEmitScopes : list<Scope> ref scopes
+{
+	CodeGenEmitSingleScope(scopes.value)
+	CodeGenEmitScopes(scopes.next)
+}
+
+CodeGenEmitScopes : nothing
+{
+}
+
+CodeGenEmitSingleScope : Scope ref scope
+{
+	OnBytecodeLexicalScope(scope.Name, scope.ParentName, 0)		// TODO - support scopes with variables in them
+}
+
+
+CodeGenEmitFunctions : list<FunctionDefinition> ref table
+{
+	CodeGenEmitSingleFunction(table.value)
+	CodeGenEmitFunctions(table.next)
+}
+
+CodeGenEmitFunctions : nothing
+{
+}
+
+
+CodeGenEmitSingleFunction : FunctionDefinition ref def
+{
+	if(def.Name != 0)
+	{
+		OnBytecodeEnterFunction(def.Name)
+		CodeGenEmitCodeBlock(def.Code)
+		OnBytecodeExitFunction()
+	}
+}
+
+
+CodeGenEmitCodeBlock : CodeBlock ref block
+{
+	CodeGenEmitStatements(block.Entries)
+}
+
+CodeGenEmitCodeBlock : nothing
+{
+}
+
+
+
+CodeGenEmitStatements : list<Statement> ref entries
+{
+	CodeGenEmitSingleStatement(entries.value)
+	CodeGenEmitStatements(entries.next)
+}
+
+CodeGenEmitStatements : nothing
+{
+}
+
+
+CodeGenEmitSingleStatement : Statement ref s
+{
+	OnBytecodeInvoke(s.Name)
 }
 
 
@@ -483,4 +664,12 @@ global
 	integer HackSize = 0
 
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
+
+	Variable dummyvar = 0, 0, false, 0
+	list<Variable> dummyvarlist = dummyvar, nothing
+	Scope dummyscope = 0, 0, dummyvarlist
+	list<Scope> Scopes = dummyscope, nothing
+
+	FunctionDefinition dummyfunc = 0, nothing, nothing
+	list<FunctionDefinition> Functions = dummyfunc, nothing
 }
