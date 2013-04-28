@@ -507,6 +507,7 @@ OnCodeGenProcessProgram :
 {
 	print("Emitting program...")
 	CodeGenEmitStrings(GlobalStrings)
+	// TODO - emit structures
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctions(Functions)
 	print("Done.")
@@ -595,12 +596,49 @@ CodeGenEmitScopes : list<Scope> ref scopes
 }
 
 CodeGenEmitScopes : nothing
-{
-}
+
 
 CodeGenEmitSingleScope : Scope ref scope
 {
-	OnBytecodeLexicalScope(scope.Name, scope.ParentName, 0)		// TODO - support scopes with variables in them
+	integer varcount = CountScopeVariables(scope)
+	OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
+	CodeGenEmitVariables(scope.Variables)
+}
+
+
+CountScopeVariables : Scope ref scope -> integer count = 0
+{
+	CountScopeVariables(scope.Variables, count)
+}
+
+CountScopeVariables : list<Variable> ref variables, integer ref count
+{
+	if(variables.value.Name != 0)
+	{
+		++count
+	}
+
+	CountScopeVariables(variables.next, count)
+}
+
+CountScopeVariables : nothing, integer ref count
+
+
+CodeGenEmitVariables : list<Variable> ref vars
+{
+	CodeGenEmitSingleVariable(vars.value)
+	CodeGenEmitVariables(vars.next)
+}
+
+CodeGenEmitVariables : nothing
+
+
+CodeGenEmitSingleVariable : Variable ref var
+{
+	if(var.Name != 0)
+	{
+		OnBytecodeLexicalScopeEntry(var.Name, var.VarType, var.IsReference, var.Origin)
+	}
 }
 
 
@@ -611,8 +649,6 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 }
 
 CodeGenEmitFunctions : nothing
-{
-}
 
 
 CodeGenEmitSingleFunction : FunctionDefinition ref def
@@ -632,9 +668,6 @@ CodeGenEmitCodeBlock : CodeBlock ref block
 }
 
 CodeGenEmitCodeBlock : nothing
-{
-}
-
 
 
 CodeGenEmitStatements : list<Statement> ref entries
@@ -644,8 +677,6 @@ CodeGenEmitStatements : list<Statement> ref entries
 }
 
 CodeGenEmitStatements : nothing
-{
-}
 
 
 CodeGenEmitSingleStatement : Statement ref s
