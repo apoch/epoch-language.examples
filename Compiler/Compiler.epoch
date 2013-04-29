@@ -80,6 +80,7 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterScope", OnCodeGenRegisterScope)
 	RegisterFunc("PluginCodeGenRegisterVariable", OnCodeGenRegisterVariable)
 	RegisterFunc("PluginCodeGenRegisterFunction", OnCodeGenRegisterFunction)
+	RegisterFunc("PluginCodeGenRegisterLiteralBoolean", OnCodeGenRegisterLiteralBoolean)
 
 	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
 	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
@@ -400,6 +401,13 @@ OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, intege
 	OnBytecodeEmitInteger(size)
 }
 
+OnBytecodePushBoolean : boolean literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
+	OnBytecodeEmitBoolean(literal)
+}
+
 
 //
 // Code generation
@@ -425,8 +433,14 @@ structure StructureDefinition :
 	list<StructureMember> Members
 
 
+structure AtomSentinel :
+	integer dummy
+
+
+type ExpressionAtom : integer | boolean | AtomSentinel
+
 structure Expression :
-	boolean dummy
+	list<ExpressionAtom> Atoms
 
 type OptionalExpression : Expression | nothing
 
@@ -536,7 +550,13 @@ OnCodeGenEnterFunctionBody : integer funcname
 
 OnCodeGenExitContext :
 {
+	integer entrytype = ContextStack.value.EntryType
 	PopContext(ContextStack, ContextStack.next)
+
+	if(entrytype == STACK_TYPE_STATEMENT)
+	{
+		FindCurrentStatementAndAppendExpression(Functions, ScratchExpression)
+	}
 }
 
 PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
@@ -550,6 +570,37 @@ PopContext : list<ContextStackEntry> ref stack, nothing
 }
 
 
+OnCodeGenRegisterLiteralBoolean : boolean value
+{
+	ExpressionAtom atom = value
+	if(ExpressionAtomIsSentinel(ScratchExpression.Atoms.value))
+	{
+		list<ExpressionAtom> atoms = atom, nothing
+		ScratchExpression = Expression(atoms)
+	}
+	else
+	{
+		AppendAtomToExpression(ScratchExpression.Atoms, ScratchExpression.Atoms.next, atom)
+	}
+}
+
+ExpressionAtomIsSentinel : AtomSentinel ref sentinel -> boolean ret = true
+ExpressionAtomIsSentinel : integer ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : boolean ref nonsentinel -> boolean ret = false
+
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
+{
+	AppendAtomToExpression(tail, tail.next, atom)
+}
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom ref atom
+{
+	list<ExpressionAtom> newatoms = atom, nothing
+	atoms.next = newatoms
+}
+
+
 OnCodeGenEnterStatement : integer statementname
 {
 	Statement statement = statementname, nothing
@@ -557,7 +608,11 @@ OnCodeGenEnterStatement : integer statementname
 
 	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
 	prepend<ContextStackEntry>(ContextStack, entry)
+
+	ScratchExpression = Expression(dummyatomlist)
 }
+
+
 
 AppendStatementToCurrentCodeBlock : Statement ref statement
 {
@@ -621,6 +676,64 @@ AppendStatementToCodeBlock : list<Statement> ref statements, list<Statement> ref
 }
 
 
+
+FindCurrentStatementAndAppendExpression : list<FunctionDefinition> ref functions, Expression ref expression
+{
+	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
+	if(functions.value.Name == ContextStack.value.EntryName)
+	{
+		FindLastStatementInBlockAndAppendExpression(functions.value.Code, expression)
+	}
+	else
+	{
+		FindCurrentStatementAndAppendExpression(functions.next, expression)
+	}
+}
+
+FindCurrentStatementAndAppendExpression : nothing, Statement ref statement
+{
+	assert(false)
+}
+
+
+
+FindLastStatementInBlockAndAppendExpression : CodeBlock ref codeblock, Expression ref expression
+{
+	FindLastStatementAndAppendExpression(codeblock.Entries, codeblock.Entries.next, expression)
+}
+
+FindLastStatementAndAppendExpression : list<Statement> ref codeblockentries, list<Statement> ref tail, Expression ref expression
+{
+	FindLastStatementAndAppendExpression(tail, tail.next, expression)
+}
+
+FindLastStatementAndAppendExpression : list<Statement> ref codeblockentries, nothing, Expression ref expression
+{
+	AppendExpressionToStatement(codeblockentries.value, codeblockentries.value.Parameters, expression)
+}
+
+AppendExpressionToStatement : Statement ref statement, ExpressionList ref parameters, Expression ref expression
+{
+	AppendExpression(parameters.Expressions, parameters.Expressions.next, expression)
+}
+
+AppendExpressionToStatement : Statement ref statement, nothing, Expression ref expression
+{
+	list<Expression> newlist = expression, nothing
+	ExpressionList params = newlist
+	statement.Parameters = params
+}
+
+AppendExpression : list<Expression> ref expressions, list<Expression> ref tail, Expression ref expression
+{
+	AppendExpression(tail, tail.next, expression)
+}
+
+AppendExpression : list<Expression> ref expressions, nothing, Expression ref expression
+{
+	list<Expression> newlist = expression, nothing
+	expressions.next = newlist
+}
 
 
 SetFunctionCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref block
@@ -741,8 +854,39 @@ CodeGenEmitStatements : nothing
 
 CodeGenEmitSingleStatement : Statement ref s
 {
+	CodeGenEmitExpressionList(s.Parameters)
 	OnBytecodeInvoke(s.Name)
 }
+
+
+CodeGenEmitExpressionList : nothing
+
+CodeGenEmitExpressionList : ExpressionList ref expressions
+{
+	CodeGenEmitExpressionList(expressions.Expressions)
+}
+
+CodeGenEmitExpressionList : list<Expression> ref expressions
+{
+	CodeGenEmitExpressionAtoms(expressions.value.Atoms)
+	CodeGenEmitExpressionList(expressions.next)
+}
+
+CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms
+{
+	CodeGenEmitSingleAtom(atoms.value)
+	CodeGenEmitExpressionAtoms(atoms.next)
+}
+
+CodeGenEmitExpressionAtoms : nothing
+
+CodeGenEmitSingleAtom : boolean literalboolean
+{
+	OnBytecodePushBoolean(literalboolean)
+}
+
+CodeGenEmitSingleAtom : AtomSentinel sentinel
+
 
 
 //
@@ -773,5 +917,9 @@ global
 
 	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
 	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
+
+	AtomSentinel dummysentinel = 0
+	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
+	Expression ScratchExpression = dummyatomlist
 }
 
