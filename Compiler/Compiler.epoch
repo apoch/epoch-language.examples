@@ -66,51 +66,8 @@ entrypoint :
 
 RegisterBytecodePlugin :
 {
-	RegisterFunc("PluginBytecodeEmitByte", OnBytecodeEmitByte)
-	RegisterFunc("PluginBytecodeEmitBytes", OnBytecodeEmitBytes)
-	RegisterFunc("PluginBytecodeEmitString", OnBytecodeEmitString)
-	RegisterFunc("PluginBytecodeEmitInteger", OnBytecodeEmitInteger)
-	RegisterFunc("PluginBytecodeEmitBoolean", OnBytecodeEmitBoolean)
-
 	RegisterFunc("PluginBytecodeGetBuffer", OnBytecodeGetBuffer)
 	RegisterFunc("PluginBytecodeGetSize", OnBytecodeGetSize)
-
-	RegisterFunc("PluginBytecodePoolString", OnBytecodePoolString)
-	RegisterFunc("PluginBytecodeLexicalScope", OnBytecodeLexicalScope)
-	RegisterFunc("PluginBytecodeLexicalScopeEntry", OnBytecodeLexicalScopeEntry)
-	RegisterFunc("PluginBytecodeInvokeOffset", OnBytecodeInvokeOffset)
-	RegisterFunc("PluginBytecodeHalt", OnBytecodeHalt)
-	RegisterFunc("PluginBytecodeEnterFunction", OnBytecodeEnterFunction)
-	RegisterFunc("PluginBytecodeExitFunction", OnBytecodeExitFunction)
-	RegisterFunc("PluginBytecodeInvoke", OnBytecodeInvoke)
-	RegisterFunc("PluginBytecodeEnterEntity", OnBytecodeEnterEntity)
-	RegisterFunc("PluginBytecodeExitEntity", OnBytecodeExitEntity)
-	RegisterFunc("PluginBytecodeBeginChain", OnBytecodeBeginChain)
-	RegisterFunc("PluginBytecodeEndChain", OnBytecodeEndChain)
-	RegisterFunc("PluginBytecodeDefineStructure", OnBytecodeDefineStructure)
-	RegisterFunc("PluginBytecodeStructureMember", OnBytecodeStructureMember)
-	RegisterFunc("PluginBytecodeReadReference", OnBytecodeReadReference)
-	RegisterFunc("PluginBytecodeReadReferenceAnnotated", OnBytecodeReadReferenceAnnotated)
-	RegisterFunc("PluginBytecodeAllocStructure", OnBytecodeAllocStructure)
-	RegisterFunc("PluginBytecodeBindReference", OnBytecodeBindReference)
-	RegisterFunc("PluginBytecodeAssign", OnBytecodeAssign)
-	RegisterFunc("PluginBytecodePushVarValue", OnBytecodePushVarValue)
-	RegisterFunc("PluginBytecodeCopyBuffer", OnBytecodeCopyBuffer)
-	RegisterFunc("PluginBytecodeCopyStructure", OnBytecodeCopyStructure)
-	RegisterFunc("PluginBytecodeCopyToStructure", OnBytecodeCopyToStructure)
-	RegisterFunc("PluginBytecodeSetReturnRegister", OnBytecodeSetReturnRegister)
-	RegisterFunc("PluginBytecodePushVarNoCopy", OnBytecodePushVarNoCopy)
-	RegisterFunc("PluginBytecodeInvokeIndirect", OnBytecodeInvokeIndirect)
-	RegisterFunc("PluginBytecodeEnterPatternResolver", OnBytecodeEnterPatternResolver)
-	RegisterFunc("PluginBytecodeExitPatternResolver", OnBytecodeExitPatternResolver)
-	RegisterFunc("PluginBytecodeConstructSumType", OnBytecodeConstructSumType)
-	RegisterFunc("PluginBytecodeEnterTypeResolver", OnBytecodeEnterTypeResolver)
-	RegisterFunc("PluginBytecodeExitTypeResolver", OnBytecodeExitTypeResolver)
-	RegisterFunc("PluginBytecodePopStack", OnBytecodePopStack)
-	RegisterFunc("PluginBytecodeBindStructReference", OnBytecodeBindStructReference)
-	RegisterFunc("PluginBytecodePushType", OnBytecodePushType)
-	RegisterFunc("PluginBytecodeAssignSumType", OnBytecodeAssignSumType)
-	RegisterFunc("PluginBytecodePushLocal", OnBytecodePushLocal)
 
 	print("Epoch Compiler - bytecode emitter plugin registered")
 }
@@ -473,9 +430,15 @@ structure Expression :
 
 type OptionalExpression : Expression | nothing
 
+structure ExpressionList :
+	list<Expression> Expressions
+
+type OptionalExpressionList : ExpressionList | nothing
+
 
 structure Statement :
-	integer Name
+	integer Name,
+	OptionalExpressionList Parameters
 
 
 structure CodeBlock :
@@ -501,6 +464,11 @@ structure Scope :
 	integer ParentName,
 	list<Variable> Variables
 
+
+
+structure ContextStackEntry :
+	integer EntryType,
+	integer EntryName
 
 
 OnCodeGenProcessProgram :
@@ -532,8 +500,27 @@ OnCodeGenRegisterScope : integer scopename, integer parentname
 
 OnCodeGenRegisterVariable : integer scopename, integer varname, integer vartype, boolean isref, integer origin
 {
-	// TODO - store variable metadata
+	StoreVariableInScope(Scopes, scopename, varname, vartype, isref, origin)
 }
+
+StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varname, integer vartype, boolean isref, integer origin
+{
+	if(scopes.value.Name == scopename)
+	{
+		Variable var = varname, vartype, isref, origin
+		prepend<Variable>(scopes.value.Variables, var)
+	}
+	else
+	{
+		StoreVariableInScope(scopes.next, scopename, varname, vartype, isref, origin)
+	}
+}
+
+StoreVariableInScope : nothing, integer scopename, integer varname, integer vartype, boolean isref, integer origin
+{
+	assert(false)
+}
+
 
 OnCodeGenRegisterFunction : integer funcname
 {
@@ -543,24 +530,97 @@ OnCodeGenRegisterFunction : integer funcname
 
 OnCodeGenEnterFunctionBody : integer funcname
 {
-	// TODO - set up a stack of contexts
+	ContextStackEntry entry = STACK_TYPE_FUNCTION, funcname
+	prepend<ContextStackEntry>(ContextStack, entry)
 }
 
 OnCodeGenExitContext :
 {
-	// TODO - pop context off stack
+	PopContext(ContextStack, ContextStack.next)
+}
+
+PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
+{
+	stack = next
+}
+
+PopContext : list<ContextStackEntry> ref stack, nothing
+{
+	assert(false)
 }
 
 
 OnCodeGenEnterStatement : integer statementname
 {
-	// TODO - this is a total hack!
+	Statement statement = statementname, nothing
+	AppendStatementToCurrentCodeBlock(statement)
 
-	list<Statement> stmtlist = Statement(statementname), nothing
+	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
+	prepend<ContextStackEntry>(ContextStack, entry)
+}
+
+AppendStatementToCurrentCodeBlock : Statement ref statement
+{
+	if(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
+	{
+		FindCurrentFunctionAndAppendStatement(Functions, statement)
+	}
+	else
+	{
+		// TODO - support other code body types on context stack
+		assert(false)
+	}
+}
+
+FindCurrentFunctionAndAppendStatement : list<FunctionDefinition> ref functions, Statement ref statement
+{
+	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
+	if(functions.value.Name == ContextStack.value.EntryName)
+	{
+		AppendStatementToCodeBlock(functions.value, functions.value.Code, statement)
+	}
+	else
+	{
+		FindCurrentFunctionAndAppendStatement(functions.next, statement)
+	}
+}
+
+FindCurrentFunctionAndAppendStatement : nothing, Statement ref statement
+{
+	assert(false)
+}
+
+
+AppendStatementToCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref code, Statement ref statement
+{
+	AppendStatementToCodeBlock(code.Entries, statement)
+}
+
+AppendStatementToCodeBlock : FunctionDefinition ref funcdef, nothing, Statement ref statement
+{
+	list<Statement> stmtlist = statement, nothing
 	CodeBlock block = stmtlist
 
-	SetFunctionCodeBlock(Functions.value, block)
+	SetFunctionCodeBlock(funcdef, block)
 }
+
+AppendStatementToCodeBlock : list<Statement> ref statements, Statement ref statement
+{
+	AppendStatementToCodeBlock(statements, statements.next, statement)
+}
+
+AppendStatementToCodeBlock : list<Statement> ref statements, nothing, Statement ref statement
+{
+	list<Statement> newlist = statement, nothing
+	statements.next = newlist
+}
+
+AppendStatementToCodeBlock : list<Statement> ref statements, list<Statement> ref tail, Statement ref value
+{
+	AppendStatementToCodeBlock(tail, tail.next, value)
+}
+
+
 
 
 SetFunctionCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref block
@@ -703,4 +763,15 @@ global
 
 	FunctionDefinition dummyfunc = 0, nothing, nothing
 	list<FunctionDefinition> Functions = dummyfunc, nothing
+
+
+	// TODO - convert to an enumeration
+	integer STACK_TYPE_GLOBAL = 0
+	integer STACK_TYPE_FUNCTION = 1
+	integer STACK_TYPE_CODEBLOCK = 2
+	integer STACK_TYPE_STATEMENT = 3
+
+	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
+	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
 }
+
