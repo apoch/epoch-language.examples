@@ -81,6 +81,12 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterVariable", OnCodeGenRegisterVariable)
 	RegisterFunc("PluginCodeGenRegisterFunction", OnCodeGenRegisterFunction)
 	RegisterFunc("PluginCodeGenRegisterLiteralBoolean", OnCodeGenRegisterLiteralBoolean)
+	RegisterFunc("PluginCodeGenRegisterLiteralInteger", OnCodeGenRegisterLiteralInteger)
+	RegisterFunc("PluginCodeGenRegisterLiteralString", OnCodeGenRegisterLiteralString)
+	RegisterFunc("PluginCodeGenRegisterAtomIdentifier", OnCodeGenRegisterAtomIdentifier)
+	RegisterFunc("PluginCodeGenRegisterOperatorInvoke", OnCodeGenRegisterOperatorInvoke)
+
+	RegisterFunc("PluginCodeGenRegisterStructureMemVar", OnCodeGenRegisterStructureMemVar)
 
 	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
 	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
@@ -142,6 +148,16 @@ OnBytecodeEmitInteger : integer value
 	writebuffer(Hack, HackSize, (value / 0x1000000) & 0xff)
 	++HackSize
 }
+
+OnBytecodeEmitInteger16 : integer16 value
+{
+	integer v = cast(integer, value)
+	writebuffer(Hack, HackSize, (v) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (v / 0x100) & 0xff)
+	++HackSize
+}
+
 
 OnBytecodeEmitString : string value
 {
@@ -408,6 +424,27 @@ OnBytecodePushBoolean : boolean literal
 	OnBytecodeEmitBoolean(literal)
 }
 
+OnBytecodePushLiteralString : integer literalhandle
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x02000000)		// String type signature
+	OnBytecodeEmitInteger(literalhandle)
+}
+
+OnBytecodePushLiteralInteger : integer literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(literal)
+}
+
+OnBytecodePushLiteralInteger16 : integer16 literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000002)		// Integer16 type signature
+	OnBytecodeEmitInteger16(literal)
+}
+
 
 //
 // Code generation
@@ -433,11 +470,21 @@ structure StructureDefinition :
 	list<StructureMember> Members
 
 
+structure IdentifierAtom :
+	integer Handle,
+	integer Type
+
+structure StringHandleAtom :
+	integer Handle
+
+structure OperatorInvokeAtom :
+	integer OperatorName
+
 structure AtomSentinel :
 	integer dummy
 
 
-type ExpressionAtom : integer | boolean | AtomSentinel
+type ExpressionAtom : integer | integer16 | boolean | IdentifierAtom | StringHandleAtom | OperatorInvokeAtom | AtomSentinel
 
 structure Expression :
 	list<ExpressionAtom> Atoms
@@ -570,9 +617,8 @@ PopContext : list<ContextStackEntry> ref stack, nothing
 }
 
 
-OnCodeGenRegisterLiteralBoolean : boolean value
+PlaceAtomInScratchExpression : ExpressionAtom ref atom
 {
-	ExpressionAtom atom = value
 	if(ExpressionAtomIsSentinel(ScratchExpression.Atoms.value))
 	{
 		list<ExpressionAtom> atoms = atom, nothing
@@ -584,9 +630,57 @@ OnCodeGenRegisterLiteralBoolean : boolean value
 	}
 }
 
-ExpressionAtomIsSentinel : AtomSentinel ref sentinel -> boolean ret = true
-ExpressionAtomIsSentinel : integer ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : boolean ref nonsentinel -> boolean ret = false
+
+OnCodeGenRegisterLiteralBoolean : boolean value
+{
+	ExpressionAtom atom = value
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterLiteralInteger : integer value, integer literaltype
+{
+	if(literaltype == 0x01000001)		// Integer32 type signature
+	{
+		ExpressionAtom atom = value
+		PlaceAtomInScratchExpression(atom)
+	}
+	else
+	{
+		integer16 i16value = cast(integer16, value)
+		ExpressionAtom atom = i16value
+		PlaceAtomInScratchExpression(atom)
+	}
+}
+
+OnCodeGenRegisterLiteralString : integer handle
+{
+	StringHandleAtom sha = handle
+	ExpressionAtom atom = sha
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterOperatorInvoke : integer ophandle
+{
+	OperatorInvokeAtom oia = ophandle
+	ExpressionAtom atom = oia
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterAtomIdentifier : integer idhandle, integer idtype
+{
+	IdentifierAtom id = idhandle, idtype
+	ExpressionAtom atom = id
+	PlaceAtomInScratchExpression(atom)
+}
+
+
+ExpressionAtomIsSentinel : AtomSentinel 	ref sentinel    -> boolean ret = true
+ExpressionAtomIsSentinel : StringHandleAtom 	ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : IdentifierAtom 	ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer 		ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer16 		ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : boolean 		ref nonsentinel -> boolean ret = false
 
 
 AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
@@ -855,7 +949,7 @@ CodeGenEmitStatements : nothing
 CodeGenEmitSingleStatement : Statement ref s
 {
 	CodeGenEmitExpressionList(s.Parameters)
-	OnBytecodeInvoke(s.Name)
+	OnBytecodeInvoke(s.Name)			// TODO - other types of invoke may be needed depending on context!
 }
 
 
@@ -880,12 +974,45 @@ CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms
 
 CodeGenEmitExpressionAtoms : nothing
 
-CodeGenEmitSingleAtom : boolean literalboolean
+CodeGenEmitSingleAtom : integer ref literalinteger
+{
+	OnBytecodePushLiteralInteger(literalinteger)
+}
+
+CodeGenEmitSingleAtom : integer16 ref literalinteger16
+{
+	OnBytecodePushLiteralInteger16(literalinteger16)
+}
+
+CodeGenEmitSingleAtom : boolean ref literalboolean
 {
 	OnBytecodePushBoolean(literalboolean)
 }
 
-CodeGenEmitSingleAtom : AtomSentinel sentinel
+CodeGenEmitSingleAtom : StringHandleAtom ref atom
+{
+	OnBytecodePushLiteralString(atom.Handle)
+}
+
+CodeGenEmitSingleAtom : OperatorInvokeAtom ref atom
+{
+	OnBytecodeInvoke(atom.OperatorName)
+}
+
+CodeGenEmitSingleAtom : IdentifierAtom ref idatom
+{
+	// TODO - this is a totally sloppy hack
+	if(idatom.Type == 0x01000000)
+	{
+		OnBytecodePushLiteralString(idatom.Handle)
+	}
+	else
+	{
+		OnBytecodePushLocal(false, 0, 0, 4)
+	}
+}
+
+CodeGenEmitSingleAtom : AtomSentinel ref sentinel
 
 
 
