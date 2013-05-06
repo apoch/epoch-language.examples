@@ -57,8 +57,11 @@ RegisterFunc : string name, (funcptr : ) 						[external("EpochCompiler.dll", "R
 RegisterFunc : string name, (funcptr : integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : string) 						[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : boolean) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : real)	 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, string)					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, string, string)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, boolean)				[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer, integer, boolean)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
@@ -102,10 +105,15 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterLiteralBoolean", OnCodeGenRegisterLiteralBoolean)
 	RegisterFunc("PluginCodeGenRegisterLiteralInteger", OnCodeGenRegisterLiteralInteger)
 	RegisterFunc("PluginCodeGenRegisterLiteralString", OnCodeGenRegisterLiteralString)
+	RegisterFunc("PluginCodeGenRegisterLiteralReal", OnCodeGenRegisterLiteralReal)
 	RegisterFunc("PluginCodeGenRegisterAtomIdentifier", OnCodeGenRegisterAtomIdentifier)
 	RegisterFunc("PluginCodeGenRegisterAtomIdentifierReference", OnCodeGenRegisterAtomIdentifierReference)
 	RegisterFunc("PluginCodeGenRegisterOperatorInvoke", OnCodeGenRegisterOperatorInvoke)
 	RegisterFunc("PluginCodeGenRegisterTypeAnnotation", OnCodeGenRegisterTypeAnnotation)
+
+	RegisterFunc("PluginCodeGenRegisterFunctionTag", OnCodeGenRegisterFunctionTag)
+	RegisterFunc("PluginCodeGenRegisterFunctionTagParam", OnCodeGenRegisterFunctionTagParam)
+	RegisterFunc("PluginCodeGenRegisterFunctionInvokeTag", OnCodeGenRegisterFunctionInvokeTag)
 
 	RegisterFunc("PluginCodeGenRegisterStructureMemVar", OnCodeGenRegisterStructureMemVar)
 
@@ -114,7 +122,9 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterTypeMatchParam", OnCodeGenRegisterTypeMatchParam)
 
 	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
+	RegisterFunc("PluginCodeGenEnterFunctionReturn", OnCodeGenEnterFunctionReturn)
 	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
+	RegisterFunc("PluginCodeGenEnterSubStatement", OnCodeGenEnterSubStatement)
 	RegisterFunc("PluginCodeGenEnterAssignment", OnCodeGenEnterAssignment)
 	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
 	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
@@ -185,6 +195,11 @@ OnBytecodeEmitInteger16 : integer16 value
 	++HackSize
 }
 
+OnBytecodeEmitReal : real value
+{
+	writebuffer(Hack, HackSize, value)
+	HackSize = HackSize + 4
+}
 
 OnBytecodeEmitString : string value
 {
@@ -486,6 +501,14 @@ OnBytecodePushLiteralFunction : integer name
 	OnBytecodeEmitInteger(name)
 }
 
+OnBytecodePushLiteralReal : real value
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000004)		// Real type signature
+	OnBytecodeEmitReal(value)
+}
+
+
 
 //
 // Code generation
@@ -529,7 +552,11 @@ structure AtomSentinel :
 	integer dummy
 
 
-type ExpressionAtom : integer | integer16 | boolean | IdentifierAtom | StringHandleAtom | OperatorInvokeAtom | TypeAnnotationAtom | AtomSentinel
+type ExpressionAtom : 	integer | integer16 | boolean | real |
+			IdentifierAtom | StringHandleAtom | OperatorInvokeAtom | TypeAnnotationAtom |
+			Statement |
+			AtomSentinel
+
 
 structure Expression :
 	list<ExpressionAtom> Atoms
@@ -564,7 +591,9 @@ type OptionalCodeBlock : CodeBlock | nothing
 structure FunctionDefinition :
 	integer Name,
 	OptionalExpression Return,
-	OptionalCodeBlock Code
+	OptionalCodeBlock Code,
+	boolean AnonymousReturn,
+	integer InvokeTag
 
 
 structure Variable :
@@ -610,6 +639,11 @@ structure TypeMatcher :
 	list<FunctionSignature> Overloads
 
 
+structure FunctionTag :
+	integer FunctionName,
+	string TagName,
+	list<string> Parameters
+
 
 OnCodeGenProcessProgram :
 {
@@ -618,6 +652,7 @@ OnCodeGenProcessProgram :
 	// TODO - emit structures
 	CodeGenEmitSumTypes(SumTypes)
 	CodeGenEmitScopes(Scopes)
+	CodeGenEmitFunctionTags(FunctionTags)
 	CodeGenEmitFunctions(Functions)
 	CodeGenEmitTypeMatchers(TypeMatchers)
 	print("Done.")
@@ -713,7 +748,7 @@ StoreVariableInScope : nothing, integer scopename, integer varname, integer vart
 
 OnCodeGenRegisterFunction : integer funcname
 {
-	FunctionDefinition func = funcname, nothing, nothing
+	FunctionDefinition func = funcname, nothing, nothing, false, 0
 	prepend<FunctionDefinition>(Functions, func)
 }
 
@@ -723,6 +758,14 @@ OnCodeGenEnterFunctionBody : integer funcname
 	prepend<ContextStackEntry>(ContextStack, entry)
 }
 
+OnCodeGenEnterFunctionReturn : integer funcname, boolean anonymous
+{
+	ContextStackEntry entry = STACK_TYPE_FUNCRET, funcname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Functions.value.AnonymousReturn = anonymous
+}
+
 OnCodeGenExitContext :
 {
 	integer entrytype = ContextStack.value.EntryType
@@ -730,11 +773,27 @@ OnCodeGenExitContext :
 
 	if(entrytype == STACK_TYPE_STATEMENT)
 	{
-		FindCurrentStatementAndAppendExpression(Functions, ScratchExpression)
+		if(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
+		{
+			AppendExpressionToSubStatement(ScratchExpressions.value)
+		}
+		elseif(ContextStack.value.EntryType != STACK_TYPE_SUBSTATEMENT)
+		{
+			FindCurrentStatementAndAppendExpression(Functions, ScratchExpressions.value)
+		}
 	}
 	elseif(entrytype == STACK_TYPE_ASSIGNMENT)
 	{
-		FindCurrentAssignmentAndSetExpression(Functions, ScratchExpression)
+		FindCurrentAssignmentAndSetExpression(Functions, ScratchExpressions.value)
+	}
+	elseif(entrytype == STACK_TYPE_SUBSTATEMENT)
+	{
+		AppendExpressionToSubStatement(ScratchExpressions.value)
+		PopCurrentStatementAndAppendToScratchExpression(ScratchExpressions, ScratchExpressions.next)
+	}
+	elseif(entrytype == STACK_TYPE_FUNCRET)
+	{
+		SetReturnExpression(Functions.value, ScratchExpressions.value)
 	}
 }
 
@@ -748,6 +807,37 @@ PopContext : list<ContextStackEntry> ref stack, nothing
 	assert(false)
 }
 
+
+PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
+{
+	Statement stmt = SubStatements.value
+	ExpressionAtom atom = stmt
+
+	expressions = tail
+
+	PlaceAtomInScratchExpression(atom)
+	PopSubStatement(SubStatements, SubStatements.next)
+}
+
+SetReturnExpression : FunctionDefinition ref funcdef, Expression ref expr
+{
+	funcdef.Return = expr
+	ScratchExpressions.value = dummyexpression
+}
+
+PopSubStatement : list<Statement> ref statements, list<Statement> ref tail
+{
+	statements = tail
+}
+
+
+
+AppendExpressionToSubStatement : Expression ref expr
+{
+	AppendExpressionToStatement(SubStatements.value, expr)
+}
+
+
 OnCodeGenEnterTypeMatcher : integer matchername
 {
 	ContextStackEntry entry = STACK_TYPE_TYPEMATCH, matchername
@@ -760,14 +850,14 @@ OnCodeGenEnterTypeMatcher : integer matchername
 
 PlaceAtomInScratchExpression : ExpressionAtom ref atom
 {
-	if(ExpressionAtomIsSentinel(ScratchExpression.Atoms.value))
+	if(ExpressionAtomIsSentinel(ScratchExpressions.value.Atoms.value))
 	{
 		list<ExpressionAtom> atoms = atom, nothing
-		ScratchExpression = Expression(atoms)
+		ScratchExpressions.value = Expression(atoms)
 	}
 	else
 	{
-		AppendAtomToExpression(ScratchExpression.Atoms, ScratchExpression.Atoms.next, atom)
+		AppendAtomToExpression(ScratchExpressions.value.Atoms, ScratchExpressions.value.Atoms.next, atom)
 	}
 }
 
@@ -797,6 +887,12 @@ OnCodeGenRegisterLiteralString : integer handle
 {
 	StringHandleAtom sha = handle
 	ExpressionAtom atom = sha
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterLiteralReal : real value
+{
+	ExpressionAtom atom = value
 	PlaceAtomInScratchExpression(atom)
 }
 
@@ -837,6 +933,8 @@ ExpressionAtomIsSentinel : TypeAnnotationAtom 	ref nonsentinel -> boolean ret = 
 ExpressionAtomIsSentinel : integer 		ref nonsentinel -> boolean ret = false
 ExpressionAtomIsSentinel : integer16 		ref nonsentinel -> boolean ret = false
 ExpressionAtomIsSentinel : boolean 		ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : real 		ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : Statement		ref nonsentinel -> boolean ret = false
 
 
 AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
@@ -854,13 +952,26 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 OnCodeGenEnterStatement : integer statementname, integer statementtype
 {
 	Statement statement = statementname, nothing, statementtype
-	CodeBlockEntry cbe = statement
-	AppendEntryToCurrentCodeBlock(cbe)
+
+	if(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
+	{
+		CodeBlockEntry cbe = statement
+		AppendEntryToCurrentCodeBlock(cbe)
+	}
+	elseif(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
+	{
+		prepend<Statement>(SubStatements, statement)
+	}
+	elseif(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
+	{
+		prepend<Statement>(SubStatements, statement)
+	}
 
 	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpression = Expression(dummyatomlist)
+	Expression expr = dummyatomlist
+	prepend<Expression>(ScratchExpressions, expr)
 }
 
 OnCodeGenEnterAssignment : integer lhsname
@@ -872,7 +983,13 @@ OnCodeGenEnterAssignment : integer lhsname
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, lhsname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpression = Expression(dummyatomlist)
+	ScratchExpressions.value = Expression(dummyatomlist)
+}
+
+OnCodeGenEnterSubStatement :
+{
+	ContextStackEntry entry = STACK_TYPE_SUBSTATEMENT, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
 }
 
 
@@ -905,6 +1022,7 @@ FindCurrentFunctionAndAppendEntry : list<FunctionDefinition> ref functions, Code
 
 FindCurrentFunctionAndAppendEntry : nothing, CodeBlockEntry ref entry
 {
+	print("No function is being processed")
 	assert(false)
 }
 
@@ -1082,9 +1200,12 @@ CodeGenEmitScopes : nothing
 
 CodeGenEmitSingleScope : Scope ref scope
 {
-	integer varcount = CountScopeVariables(scope)
-	OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
-	CodeGenEmitVariables(scope.Variables)
+	if(scope.Name != 0)
+	{
+		integer varcount = CountScopeVariables(scope)
+		OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
+		CodeGenEmitVariables(scope.Variables)
+	}
 }
 
 
@@ -1139,10 +1260,55 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 	{
 		EmittingFunctionName = def.Name
 		OnBytecodeEnterFunction(def.Name)
+		CodeGenEmitFunctionReturn(def.Return)
+
+		if(def.InvokeTag != 0)
+		{
+			OnBytecodeInvoke(def.InvokeTag)
+		}
+
 		CodeGenEmitCodeBlock(def.Code)
+		if(def.AnonymousReturn)
+		{
+			CodeGenEmitReturnRegisterAnonymous(def.Return)
+		}
+		else
+		{
+			CodeGenEmitReturnRegister(def.Return)
+		}
 		OnBytecodeExitFunction()
 	}
 }
+
+CodeGenEmitFunctionReturn : Expression ref expr
+{
+	CodeGenEmitExpressionAtoms(expr.Atoms)
+}
+
+CodeGenEmitFunctionReturn : nothing
+
+
+CodeGenEmitReturnRegister : Expression ref expr
+{
+	integer index = FindReturnVariableIndex()
+	OnBytecodeSetReturnRegister(index)
+}
+
+CodeGenEmitReturnRegister : nothing
+
+
+CodeGenEmitReturnRegisterAnonymous : Expression ref expr
+{
+	integer index = FindReturnVariableIndex()
+
+	OnBytecodeBindReference(0, index)
+	OnBytecodeAssign()
+
+	OnBytecodeSetReturnRegister(index)
+}
+
+CodeGenEmitReturnRegisterAnonymous : nothing
+
 
 
 CodeGenEmitCodeBlock : CodeBlock ref block
@@ -1229,6 +1395,11 @@ CodeGenEmitSingleAtom : boolean ref literalboolean
 	OnBytecodePushBoolean(literalboolean)
 }
 
+CodeGenEmitSingleAtom : real ref literalreal
+{
+	OnBytecodePushLiteralReal(literalreal)
+}
+
 CodeGenEmitSingleAtom : StringHandleAtom ref atom
 {
 	OnBytecodePushLiteralString(atom.Handle)
@@ -1294,6 +1465,11 @@ CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom
 	OnBytecodePushTypeAnnotation(atom.Type)
 }
 
+CodeGenEmitSingleAtom : Statement ref atom
+{
+	CodeGenEmitSingleCodeBlockEntry(atom)
+}
+
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel
 
 
@@ -1308,10 +1484,13 @@ CodeGenEmitSumTypes : nothing
 
 CodeGenEmitSingleSumType : SumType ref sumtype
 {
-	OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
-	OnBytecodeEmitInteger(sumtype.Type)
-	OnBytecodeEmitInteger(CountSumTypeBases(sumtype.Bases))
-	CodeGenEmitSumTypeBase(sumtype.Bases)
+	if(sumtype.Type != 0)
+	{
+		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
+		OnBytecodeEmitInteger(sumtype.Type)
+		OnBytecodeEmitInteger(CountSumTypeBases(sumtype.Bases))
+		CodeGenEmitSumTypeBase(sumtype.Bases)
+	}
 }
 
 CountSumTypeBases : list<integer> ref bases -> integer count = 0
@@ -1406,6 +1585,7 @@ FindVariable : integer name, integer ref frames -> integer index = FindVariableI
 }
 
 
+
 FindVariableInScope : integer scopename, integer varname -> integer index = FindVariableInScopeList(Scopes, scopename, varname)
 
 FindVariableInScopeList : list<Scope> ref scopes, integer scopename, integer varname -> integer index = -1
@@ -1440,6 +1620,41 @@ FindVariableInSingleScope : nothing, integer varname, integer ref index
 {
 	index = -1
 }
+
+
+FindReturnVariableIndex : -> integer index = FindReturnVariableInScopeList(Scopes, EmittingFunctionName)
+
+FindReturnVariableInScopeList : list<Scope> ref scopes, integer scopename -> integer index = -1
+{
+	if(scopes.value.Name == scopename)
+	{
+		index = 0
+		FindReturnVariableInSingleScope(scopes.value.Variables, index)
+	}
+	else
+	{
+		index = FindReturnVariableInScopeList(scopes.next, scopename)
+	}
+}
+
+FindReturnVariableInSingleScope : list<Variable> ref vars, integer ref index
+{
+	if(vars.value.Origin != 2)		// VARIABLE_ORIGIN_RETURN
+	{
+		if(vars.value.Name != 0)
+		{
+			++index
+		}
+
+		FindReturnVariableInSingleScope(vars.next, index)
+	}
+}
+
+FindReturnVariableInSingleScope : nothing, integer ref index
+{
+	index = -1
+}
+
 
 
 FindVariableDataInScope : integer scopename, integer varname, Variable ref outvar 
@@ -1610,6 +1825,104 @@ CodeGenEmitTypeMatcherParams : nothing
 
 
 
+OnCodeGenRegisterFunctionInvokeTag : integer funcname, integer invoketarget
+{
+	FindFunctionAndSetInvokeTag(Functions, funcname, invoketarget)
+}
+
+FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer funcname, integer invoketarget
+{
+	if(functions.value.Name == funcname)
+	{
+		functions.value.InvokeTag = invoketarget
+	}
+	else
+	{
+		FindFunctionAndSetInvokeTag(functions.next, funcname, invoketarget)
+	}
+}
+
+FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
+{
+	assert(false)
+}
+
+OnCodeGenRegisterFunctionTag : integer funcname, string tagname
+{
+	FunctionTag tag = funcname, tagname, dummytagparams
+	prepend<FunctionTag>(FunctionTags, tag)
+}
+
+OnCodeGenRegisterFunctionTagParam : integer funcname, string tagname, string param
+{
+	// TODO - less lazy implementation (find function and tag)
+	AppendFunctionTagParam(FunctionTags.value.Parameters, FunctionTags.value.Parameters.next, param)
+}
+
+AppendFunctionTagParam : list<string> ref params, list<string> ref tail, string param
+{
+	AppendFunctionTagParam(tail, tail.next, param)
+}
+
+AppendFunctionTagParam : list<string> ref params, nothing, string param
+{
+	list<string> newlist = param, nothing
+	params.next = newlist
+}
+
+
+CodeGenEmitFunctionTags : list<FunctionTag> ref tags
+{
+	CodeGenEmitSingleFunctionTag(tags.value)
+	CodeGenEmitFunctionTags(tags.next)
+}
+
+CodeGenEmitFunctionTags : nothing
+
+
+CodeGenEmitSingleFunctionTag : FunctionTag ref tag
+{
+	if(tag.FunctionName != 0)
+	{
+		if(tag.TagName != "")
+		{
+			OnBytecodeEmitByte(0x1a)
+			OnBytecodeEmitInteger(tag.FunctionName)
+			OnBytecodeEmitInteger(CountTagParams(tag.Parameters))
+			OnBytecodeEmitString(tag.TagName)
+
+			CodeGenEmitFunctionTagParams(tag.Parameters)
+		}
+	}
+}
+
+
+CodeGenEmitFunctionTagParams : list<string> ref params
+{
+	if(params.value != "")
+	{
+		OnBytecodeEmitString(params.value)
+	}
+
+	CodeGenEmitFunctionTagParams(params.next)
+}
+
+CodeGenEmitFunctionTagParams : nothing
+
+
+CountTagParams : list<string> ref params -> integer count = 0
+{
+	count = CountTagParams(params.next)
+	if(params.value != "")
+	{
+		++count
+	}
+}
+
+CountTagParams : nothing -> integer count = 0
+
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -1626,7 +1939,7 @@ global
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
 
-	FunctionDefinition dummyfunc = 0, nothing, nothing
+	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
@@ -1642,13 +1955,18 @@ global
 	integer STACK_TYPE_STATEMENT = 3
 	integer STACK_TYPE_ASSIGNMENT = 4
 	integer STACK_TYPE_TYPEMATCH = 5
+	integer STACK_TYPE_SUBSTATEMENT = 6
+	integer STACK_TYPE_FUNCRET = 7
 
 	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
 	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
 
 	AtomSentinel dummysentinel = 0
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
-	Expression ScratchExpression = dummyatomlist
+	Expression dummyexpression = dummyatomlist
+	list<Expression> ScratchExpressions = dummyexpression, nothing
+	Statement dummystatement = 0, nothing, 0
+	list<Statement> SubStatements = dummystatement, nothing
 
 	Parameter dummyparam = 0, 0, false
 	list<Parameter> dummyparamlist = dummyparam, nothing
@@ -1656,6 +1974,11 @@ global
 	list<FunctionSignature> dummysignaturelist = dummysignature, nothing
 	TypeMatcher dummytypematch = 0, dummysignaturelist
 	list<TypeMatcher> TypeMatchers = dummytypematch, nothing
+
+
+	list<string> dummytagparams = "", nothing
+	FunctionTag dummytag = 0, "", dummytagparams
+	list<FunctionTag> FunctionTags = dummytag, nothing
 
 	integer EmittingFunctionName = 0
 }
