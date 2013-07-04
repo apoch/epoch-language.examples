@@ -66,6 +66,7 @@ RegisterFunc : string name, (funcptr : integer, integer, integer)			[external("E
 RegisterFunc : string name, (funcptr : integer, integer, integer, integer, boolean)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer, boolean, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : -> integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : -> buffer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
@@ -531,6 +532,8 @@ structure StructureMemberFunctionRef :
 type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
 
 structure StructureDefinition :
+	integer Name,
+	integer Type,
 	list<StructureMember> Members
 
 
@@ -649,7 +652,7 @@ OnCodeGenProcessProgram :
 {
 	print("Emitting program...")
 	CodeGenEmitStrings(GlobalStrings)
-	// TODO - emit structures
+	CodeGenEmitStructures(Structures)
 	CodeGenEmitSumTypes(SumTypes)
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
@@ -664,10 +667,55 @@ OnCodeGenRegisterString : integer handle, string data
 	prepend<StringTableEntry>(GlobalStrings, entry)
 }
 
-OnCodeGenRegisterStructureMemVar : integer structurename, integer membername, integer membertype
+OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer membertype
 {
-	// TODO - find structure and append member
+	StructureMemberVariable member = membername, membertype
+	StructureMember memwrap = member
+	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
+
+FindStructureAndAddMember : list<StructureDefinition> ref structures, integer structurename, integer structuretype, StructureMember ref member
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMember(structures.value.Members, structures.value.Members.next, member)
+	}
+	else
+	{
+		FindStructureAndAddMember(structures.next, structurename, structuretype, member)
+	}
+}
+
+FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
+{
+	list<StructureMember> members = member, nothing
+	StructureDefinition def = structurename, structuretype, members
+
+	AppendStructure(Structures, Structures.next, def)
+}
+
+AppendStructure : list<StructureDefinition> ref structures, list<StructureDefinition> ref tail, StructureDefinition ref def
+{
+	AppendStructure(tail, tail.next, def)
+}
+
+AppendStructure : list<StructureDefinition> ref structures, nothing, StructureDefinition ref def
+{
+	list<StructureDefinition> newtail = def, nothing
+	structures.next = newtail
+}
+
+AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member
+{
+	AppendStructureMember(tail, tail.next, member)
+}
+
+AppendStructureMember : list<StructureMember> ref members, nothing, StructureMember ref member
+{
+	list<StructureMember> newtail = member, nothing
+	members.next = newtail
+}
+
 
 
 OnCodeGenRegisterSumTypeBase : integer sumtypename, integer sumtypeid, integer basetypeid
@@ -1187,6 +1235,56 @@ CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be pass
 		OnBytecodePoolString(entry.Handle, entry.Data)
 	}
 }
+
+
+CodeGenEmitStructures : list<StructureDefinition> ref structures
+{
+	CodeGenEmitSingleStructure(structures.value)
+	CodeGenEmitStructures(structures.next)
+}
+
+CodeGenEmitStructures : nothing
+
+
+CodeGenEmitSingleStructure : StructureDefinition ref def
+{
+	if(def.Name != 0)
+	{
+		integer membercount = CountMembers(def.Members)
+		OnBytecodeDefineStructure(def.Type, membercount)
+		CodeGenEmitMembers(def.Members)
+	}
+}
+
+CodeGenEmitMembers : list<StructureMember> ref members
+{
+	CodeGenEmitMember(members.value)
+	CodeGenEmitMembers(members.next)
+}
+
+CodeGenEmitMembers : nothing
+
+CodeGenEmitMember : StructureMemberVariable ref memvar
+{
+	OnBytecodeStructureMember(memvar.Name, memvar.Type)
+}
+
+
+CountMembers : list<StructureMember> ref members -> integer count = 0
+{
+	CountMembers(members, count)
+}
+
+CountMembers : list<StructureMember> ref members, integer ref count
+{
+	++count
+	CountMembers(members.next, count)
+}
+
+CountMembers : nothing, integer ref count
+
+
+
 
 
 CodeGenEmitScopes : list<Scope> ref scopes
@@ -1946,6 +2044,12 @@ global
 	list<integer> dummybases = 0, nothing
 	SumType dummysumtype = 0, 0, dummybases
 	list<SumType> SumTypes = dummysumtype, nothing
+
+
+	StructureMemberVariable dummymember = 0, 0
+	list<StructureMember> dummymembers = dummymember, nothing
+	StructureDefinition dummystruct = 0, 0, dummymembers
+	list<StructureDefinition> Structures = dummystruct, nothing
 
 
 	// TODO - convert to an enumeration
