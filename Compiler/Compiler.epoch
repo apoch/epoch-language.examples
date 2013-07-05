@@ -65,6 +65,7 @@ RegisterFunc : string name, (funcptr : integer, boolean)				[external("EpochComp
 RegisterFunc : string name, (funcptr : integer, integer, integer)			[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer, integer, boolean)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, boolean, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : integer, integer, boolean, boolean)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer, boolean, integer)	[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
@@ -111,6 +112,7 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterAtomIdentifierReference", OnCodeGenRegisterAtomIdentifierReference)
 	RegisterFunc("PluginCodeGenRegisterOperatorInvoke", OnCodeGenRegisterOperatorInvoke)
 	RegisterFunc("PluginCodeGenRegisterTypeAnnotation", OnCodeGenRegisterTypeAnnotation)
+	RegisterFunc("PluginCodeGenRegisterRefBinding", OnCodeGenRegisterRefBinding)
 
 	RegisterFunc("PluginCodeGenRegisterFunctionTag", OnCodeGenRegisterFunctionTag)
 	RegisterFunc("PluginCodeGenRegisterFunctionTagParam", OnCodeGenRegisterFunctionTagParam)
@@ -122,11 +124,18 @@ RegisterCodeGenPlugin :
 
 	RegisterFunc("PluginCodeGenRegisterTypeMatchParam", OnCodeGenRegisterTypeMatchParam)
 
+	RegisterFunc("PluginCodeGenRegisterConstructors", OnCodeGenRegisterConstructors)
+
 	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
 	RegisterFunc("PluginCodeGenEnterFunctionReturn", OnCodeGenEnterFunctionReturn)
 	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
 	RegisterFunc("PluginCodeGenEnterSubStatement", OnCodeGenEnterSubStatement)
+
 	RegisterFunc("PluginCodeGenEnterAssignment", OnCodeGenEnterAssignment)
+	RegisterFunc("PluginCodeGenEnterAssignmentCompound", OnCodeGenEnterAssignmentCompound)
+	RegisterFunc("PluginCodeGenAssignmentCompoundMember", OnCodeGenAssignmentCompoundMember)
+	RegisterFunc("PluginCodeGenAssignmentCompoundEnd", OnCodeGenAssignmentCompoundEnd)
+
 	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
 	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
 
@@ -425,6 +434,12 @@ OnBytecodePopStack : integer bytes
 	OnBytecodeEmitInteger(bytes)
 }
 
+OnBytecodeBindRefByHandle : integer id
+{
+	OnBytecodeEmitByte(0x1d)
+	OnBytecodeEmitInteger(id)
+}
+
 OnBytecodeBindStructReference : integer membertype, integer memberoffset
 {
 	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
@@ -510,6 +525,20 @@ OnBytecodePushLiteralReal : real value
 }
 
 
+GetTypeSize : integer typeid -> integer size = 0
+{
+	if(typeid == 0x01000001)
+	{
+		size = 4
+	}
+	else
+	{
+		print("Undefined type for size retrieval")
+		assert(false)
+	}
+}
+
+
 
 //
 // Code generation
@@ -534,6 +563,9 @@ type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
 structure StructureDefinition :
 	integer Name,
 	integer Type,
+	integer ConstructorName,
+	integer AnonConstructorName,
+	integer CopyConstructorName,
 	list<StructureMember> Members
 
 
@@ -551,12 +583,18 @@ structure OperatorInvokeAtom :
 structure TypeAnnotationAtom :
 	integer Type
 
+structure RefBinding :
+	integer Identifier,
+	integer StructureName,
+	boolean IsReference,
+	boolean InputIsReference
+
 structure AtomSentinel :
 	integer dummy
 
 
-type ExpressionAtom : 	integer | integer16 | boolean | real |
-			IdentifierAtom | StringHandleAtom | OperatorInvokeAtom | TypeAnnotationAtom |
+type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
+			IdentifierAtom | OperatorInvokeAtom | TypeAnnotationAtom | RefBinding |
 			Statement |
 			AtomSentinel
 
@@ -581,8 +619,12 @@ structure Assignment :
 	integer LHSName,
 	Expression RHS
 
+structure AssignmentCompound :
+	list<integer> LHS,
+	Expression RHS
 
-type CodeBlockEntry : Statement | Assignment
+
+type CodeBlockEntry : Statement | Assignment | AssignmentCompound
 
 
 structure CodeBlock :
@@ -658,6 +700,7 @@ OnCodeGenProcessProgram :
 	CodeGenEmitFunctionTags(FunctionTags)
 	CodeGenEmitFunctions(Functions)
 	CodeGenEmitTypeMatchers(TypeMatchers)
+	CodeGenEmitConstructors(Structures)
 	print("Done.")
 }
 
@@ -689,7 +732,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
 {
 	list<StructureMember> members = member, nothing
-	StructureDefinition def = structurename, structuretype, members
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members
 
 	AppendStructure(Structures, Structures.next, def)
 }
@@ -715,6 +758,31 @@ AppendStructureMember : list<StructureMember> ref members, nothing, StructureMem
 	list<StructureMember> newtail = member, nothing
 	members.next = newtail
 }
+
+
+OnCodeGenRegisterConstructors : integer structurename, integer constructorname, integer anonname, integer copyname
+{
+	FindStructureAndSetConstructors(Structures, structurename, constructorname, anonname, copyname)
+	prepend<integer>(AutoGeneratedFunctionNames, constructorname)
+	prepend<integer>(AutoGeneratedFunctionNames, anonname)
+	prepend<integer>(AutoGeneratedFunctionNames, copyname)
+}
+
+FindStructureAndSetConstructors : list<StructureDefinition> ref structures, integer structurename, integer constructorname, integer anonname, integer copyname
+{
+	if(structures.value.Name == structurename)
+	{
+		structures.value.ConstructorName = constructorname
+		structures.value.AnonConstructorName = anonname
+		structures.value.CopyConstructorName = copyname
+	}
+	else
+	{
+		FindStructureAndSetConstructors(structures.next, structurename, constructorname, anonname, copyname)
+	}
+}
+
+FindStructureAndSetConstructors : nothing, integer structurename, integer constructorname, integer anonname, integer copyname
 
 
 
@@ -790,6 +858,7 @@ StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varnam
 
 StoreVariableInScope : nothing, integer scopename, integer varname, integer vartype, boolean isref, integer origin
 {
+	print("No scope available")
 	assert(false)
 }
 
@@ -852,6 +921,7 @@ PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
 
 PopContext : list<ContextStackEntry> ref stack, nothing
 {
+	print("No contexts available")
 	assert(false)
 }
 
@@ -968,21 +1038,30 @@ OnCodeGenRegisterAtomIdentifierReference : integer idhandle
 OnCodeGenRegisterTypeAnnotation : integer annotationtype
 {
 	TypeAnnotationAtom taa = annotationtype
-	ExpressionAtom  atom = taa
+	ExpressionAtom atom = taa
 	PlaceAtomInScratchExpression(atom)
 }
 
 
-ExpressionAtomIsSentinel : AtomSentinel 	ref sentinel    -> boolean ret = true
-ExpressionAtomIsSentinel : StringHandleAtom 	ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : IdentifierAtom 	ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : OperatorInvokeAtom 	ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : TypeAnnotationAtom 	ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer 		ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer16 		ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : boolean 		ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : real 		ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : Statement		ref nonsentinel -> boolean ret = false
+OnCodeGenRegisterRefBinding : integer id, integer structureid, boolean isref, boolean inputref
+{
+	RefBinding binding = id, structureid, isref, inputref
+	ExpressionAtom atom = binding
+	PlaceAtomInScratchExpression(atom)
+}
+
+
+ExpressionAtomIsSentinel : AtomSentinel 	  ref sentinel    -> boolean ret = true
+ExpressionAtomIsSentinel : StringHandleAtom 	  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : IdentifierAtom 	  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer 		  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer16 		  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : boolean 		  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : real 		  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : Statement		  ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : RefBinding             ref nonsentinel -> boolean ret = false
 
 
 AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
@@ -1034,6 +1113,29 @@ OnCodeGenEnterAssignment : integer lhsname
 	ScratchExpressions.value = Expression(dummyatomlist)
 }
 
+
+OnCodeGenEnterAssignmentCompound : integer lhsname
+{
+	list<integer> idlist = lhsname, nothing
+	AssignmentCompound assignment = idlist, Expression(dummyatomlist)
+	CodeBlockEntry cbe = assignment
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+OnCodeGenAssignmentCompoundMember : integer membername
+{
+	FindCurrentFunctionAndAppendCompoundMember(Functions, membername)
+}
+
+OnCodeGenAssignmentCompoundEnd :
+{
+	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	ScratchExpressions.value = Expression(dummyatomlist)	
+}
+
+
 OnCodeGenEnterSubStatement :
 {
 	ContextStackEntry entry = STACK_TYPE_SUBSTATEMENT, 0
@@ -1050,7 +1152,7 @@ AppendEntryToCurrentCodeBlock : CodeBlockEntry ref cbe
 	}
 	else
 	{
-		// TODO - support other code body types on context stack
+		print("TODO - support other code body types on context stack")
 		assert(false)
 	}
 }
@@ -1073,6 +1175,33 @@ FindCurrentFunctionAndAppendEntry : nothing, CodeBlockEntry ref entry
 	print("No function is being processed")
 	assert(false)
 }
+
+
+FindCurrentFunctionAndAppendCompoundMember : list<FunctionDefinition> ref functions, integer membername
+{
+	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
+	if(functions.value.Name == ContextStack.value.EntryName)
+	{
+		FindLastAssignmentAndAppendCompoundMemberHelper(functions.value.Code, membername)
+	}
+	else
+	{
+		FindCurrentFunctionAndAppendCompoundMember(functions.next, membername)
+	}	
+}
+
+FindCurrentFunctionAndAppendCompoundMember : nothing, integer membername
+{
+	print("No function is being processed")
+	assert(false)
+}
+
+
+FindLastAssignmentAndAppendCompoundMemberHelper : CodeBlock ref code, integer membername
+{
+	FindLastAssignmentAndAppendCompoundMember(code.Entries, code.Entries.next, membername)
+}
+
 
 
 AppendEntryToCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref code, CodeBlockEntry ref entry
@@ -1105,6 +1234,33 @@ AppendEntryToCodeBlock : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> 
 }
 
 
+FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
+{
+	FindLastAssignmentAndAppendCompoundMember(tail, tail.next, membername)
+}
+
+FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
+{
+	AppendCompoundMemberHelper(entries.value, membername)
+}
+
+AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
+{
+	AppendCompoundMember(a.LHS, a.LHS.next, membername)
+}
+
+AppendCompoundMember : list<integer> ref members, list<integer> ref tail, integer membername
+{
+	AppendCompoundMember(tail, tail.next, membername)
+}
+
+AppendCompoundMember : list<integer> ref members, nothing, integer membername
+{
+	list<integer> newtail = membername, nothing
+	members.next = newtail
+}
+
+
 
 FindCurrentStatementAndAppendExpression : list<FunctionDefinition> ref functions, Expression ref expression
 {
@@ -1121,6 +1277,7 @@ FindCurrentStatementAndAppendExpression : list<FunctionDefinition> ref functions
 
 FindCurrentStatementAndAppendExpression : nothing, Statement ref statement
 {
+	print("No function available")
 	assert(false)
 }
 
@@ -1140,6 +1297,7 @@ FindCurrentAssignmentAndSetExpression : list<FunctionDefinition> ref functions, 
 
 FindCurrentAssignmentAndSetExpression : nothing, Statement ref statement
 {
+	print("No function available")
 	assert(false)
 }
 
@@ -1205,6 +1363,11 @@ FindLastAssignmentAndSetExpression : list<CodeBlockEntry> ref codeblockentries, 
 }
 
 SetAssignmentExpression : Assignment ref assignment, Expression ref expression
+{
+	assignment.RHS = expression
+}
+
+SetAssignmentExpression : AssignmentCompound ref assignment, Expression ref expression
 {
 	assignment.RHS = expression
 }
@@ -1456,6 +1619,34 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 	OnBytecodeAssign()
 }
 
+CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
+{
+	CodeGenEmitExpressionAtoms(a.RHS.Atoms)
+
+	integer frames = 0
+	integer index = FindVariable(a.LHS.value, frames)
+	OnBytecodeBindReference(frames, index)
+
+
+	integer structurename = GetNameOfStructureByType(FindVariableType(a.LHS.value))
+	BindAssignmentMembers(a.LHS.next, structurename)
+	OnBytecodeAssign()
+}
+
+
+BindAssignmentMembers : list<integer> ref lhsmembers, integer structurename
+{
+	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
+	integer memberoffset = GetStructureMemberOffset(Structures, structurename, lhsmembers.value)
+	OnBytecodeBindStructReference(membertype, memberoffset)
+
+	// Recurse
+	BindAssignmentMembers(lhsmembers.next, GetNameOfType(membertype))
+}
+
+BindAssignmentMembers : nothing, integer structurename
+
+
 
 CodeGenEmitExpressionList : nothing
 
@@ -1473,10 +1664,30 @@ CodeGenEmitExpressionList : list<Expression> ref expressions
 CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms
 {
 	CodeGenEmitSingleAtom(atoms.value)
+	if(CodeGenCheckAtomForReadRef(atoms.value))
+	{
+		OnBytecodeReadReference()
+	}
 	CodeGenEmitExpressionAtoms(atoms.next)
 }
 
 CodeGenEmitExpressionAtoms : nothing
+
+
+CodeGenCheckAtomForReadRef : RefBinding ref atom -> true
+CodeGenCheckAtomForReadRef : integer ref atom -> false
+CodeGenCheckAtomForReadRef : integer16 ref atom -> false
+CodeGenCheckAtomForReadRef : boolean ref atom -> false
+CodeGenCheckAtomForReadRef : real ref atom -> false
+CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false
+CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false
+CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false
+CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false
+CodeGenCheckAtomForReadRef : Statement ref atom -> false
+CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
+
+
+
 
 CodeGenEmitSingleAtom : integer ref literalinteger
 {
@@ -1536,6 +1747,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom
 			Variable var = 0, 0, false, -1, -1
 			if(!FindVariableDataInScope(EmittingFunctionName, idatom.Handle, var))
 			{
+				print("Variable undefined")
 				assert(false)
 			}
 
@@ -1568,7 +1780,107 @@ CodeGenEmitSingleAtom : Statement ref atom
 	CodeGenEmitSingleCodeBlockEntry(atom)
 }
 
+CodeGenEmitSingleAtom : RefBinding ref atom
+{
+	integer memtype = GetStructureMemberType(Structures, atom.StructureName, atom.Identifier)
+	integer memoffset = GetStructureMemberOffset(Structures, atom.StructureName, atom.Identifier)
+	OnBytecodeBindStructReference(memtype, memoffset)
+}
+
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel
+
+
+GetNameOfStructureByType : integer typeid -> integer name = 0
+{
+	name = GetNameOfStructureByType(Structures, typeid)
+}
+
+GetNameOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer name = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		name = structures.value.Name
+	}
+	else
+	{
+		name = GetNameOfStructureByType(structures.next, typeid)
+	}
+}
+
+GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+GetStructureMemberType : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer rtype = 0
+{
+	if(structures.value.Name == structurename)
+	{
+		rtype = GetMemberType(structures.value.Members, membername)
+	}
+	else
+	{
+		rtype = GetStructureMemberType(structures.next, structurename, membername)
+	}
+}
+
+GetStructureMemberType : nothing, integer structurename, integer membername -> integer rtype = 0
+
+GetMemberType : list<StructureMember> ref members, integer membername -> integer rtype = 0
+{
+	if(GetMemberName(members.value) == membername)
+	{
+		rtype = GetMemberTypeDecompose(members.value)
+	}
+	else
+	{
+		rtype = GetMemberType(members.next, membername)
+	}
+}
+
+GetMemberType : nothing, integer membername -> integer rtype = 0
+
+GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
+
+
+GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
+
+
+GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0
+{
+	integer counter = 0
+	GetMemberOffset(members, membername, counter)
+	offset = counter
+}
+
+GetMemberOffset : list<StructureMember> ref members, integer membername, integer ref counter
+{
+	if(GetMemberName(members.value) != membername)
+	{
+		counter += GetMemberSize(members.value)
+		GetMemberOffset(members.next, membername, counter)
+	}
+}
+
+GetMemberOffset : nothing, integer membername, integer ref counter
+
+GetMemberSize : StructureMemberVariable ref memvar -> integer rtype = GetTypeSize(memvar.Type)
+
+
+
+
+GetStructureMemberOffset : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer offset = 0
+{
+	if(structures.value.Name == structurename)
+	{
+		offset = GetMemberOffset(structures.value.Members, membername)
+	}
+	else
+	{
+		offset = GetStructureMemberOffset(structures.next, structurename, membername)
+	}
+}
+
+GetStructureMemberOffset : nothing, integer structurename, integer membername -> 0
+
 
 
 CodeGenEmitSumTypes : list<SumType> ref sumtypes
@@ -1644,6 +1956,10 @@ FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 	{
 		ret = true
 	}
+	elseif(FunctionIsAutoGen(AutoGeneratedFunctionNames, funcname))
+	{
+		ret = true
+	}
 }
 
 FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean ret = false
@@ -1659,6 +1975,22 @@ FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean
 }
 
 FunctionExists : nothing, integer funcname -> boolean ret = false
+
+
+FunctionIsAutoGen : list<integer> ref genlist, integer target -> boolean ret = false
+{
+	if(genlist.value == target)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = FunctionIsAutoGen(genlist.next, target)
+	}
+}
+
+FunctionIsAutoGen : nothing, integer target -> boolean ret = false
+
 
 
 TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boolean ret = false
@@ -1754,6 +2086,13 @@ FindReturnVariableInSingleScope : nothing, integer ref index
 }
 
 
+FindVariableType : integer varname -> integer rettype = 0
+{
+	Variable var = 0, 0, false, 0, 0
+	FindVariableDataInScope(EmittingFunctionName, varname, var)
+	rettype = var.VarType
+}
+
 
 FindVariableDataInScope : integer scopename, integer varname, Variable ref outvar 
 	->
@@ -1832,6 +2171,7 @@ FindTypeMatcherAndAppendOverloadParameter : list<TypeMatcher> ref matchers, inte
 
 FindTypeMatcherAndAppendOverloadParameter : nothing, integer matchername, integer overloadname, Parameter ref p
 {
+	print("No type matcher available")
 	assert(false)
 }
 
@@ -1942,6 +2282,7 @@ FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer fu
 
 FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
 {
+	print("Cannot tag non-existent function")
 	assert(false)
 }
 
@@ -2020,6 +2361,121 @@ CountTagParams : list<string> ref params -> integer count = 0
 CountTagParams : nothing -> integer count = 0
 
 
+CodeGenEmitConstructors : list<StructureDefinition> ref structures
+{
+	if(structures.value.Name != 0)
+	{
+		EmitCtorTag(structures.value.ConstructorName)
+		EmitCtorTag(structures.value.AnonConstructorName)
+		EmitCtorTag(structures.value.CopyConstructorName)
+
+		EmitConstructor(structures.value)
+		//EmitAnonConstructor(structures.value)
+		//EmitCopyConstructor(structures.value)
+	}
+
+	CodeGenEmitConstructors(structures.next)
+}
+
+CodeGenEmitConstructors : nothing
+
+EmitCtorTag : integer funcname
+{
+	OnBytecodeEmitByte(0x1a)
+	OnBytecodeEmitInteger(funcname)
+	OnBytecodeEmitInteger(0)
+	OnBytecodeEmitString("@@autogen@constructor")
+}
+
+
+EmitConstructor : StructureDefinition ref def
+{
+	integer idhandle = FindString(GlobalStrings, "identifier")
+
+	OnBytecodeLexicalScope(def.ConstructorName, 0, CountMembers(def.Members) + 1)
+	OnBytecodeLexicalScopeEntry(idhandle, 0x01000000, true, 1)
+	EmitScopeEntriesForMembers(def.Members)
+
+	OnBytecodeEnterFunction(def.ConstructorName)
+	OnBytecodeAllocStructure(def.Type)
+	OnBytecodeBindReference(0, 0)
+	OnBytecodeAssign()
+
+	EmitMemberDataCopies(def.Members, idhandle)
+
+	OnBytecodeExitFunction()
+}
+
+EmitScopeEntriesForMembers : list<StructureMember> ref members
+{
+	EmitScopeEntryForMember(members.value)
+	EmitScopeEntriesForMembers(members.next)
+}
+
+EmitScopeEntriesForMembers : nothing
+
+
+EmitScopeEntryForMember : StructureMemberVariable ref memvar
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, false, 1)
+	}
+}
+
+
+EmitMemberDataCopies : list<StructureMember> ref members, integer idhandle
+{
+	EmitMemberDataCopy(members.value, idhandle)
+	EmitMemberDataCopies(members.next, idhandle)
+}
+
+EmitMemberDataCopies : nothing, integer idhandle
+
+EmitMemberDataCopy : StructureMemberVariable ref memvar, integer idhandle
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodePushVarValue(memvar.Name, memvar.Type)
+		OnBytecodeCopyToStructure(idhandle, memvar.Name)
+	}
+}
+
+
+FindString : list<StringTableEntry> ref strings, string target -> integer handle = 0
+{
+	if(strings.value.Data == target)
+	{
+		handle = strings.value.Handle
+	}
+	else
+	{
+		handle = FindString(strings.next, target)
+	}
+}
+
+FindString : nothing, string target -> integer handle = 0
+
+
+
+GetNameOfType : integer typeid -> integer name = 0
+{
+	if(typeid == 0x01000001)
+	{
+		name = FindString(GlobalStrings, "integer")
+	}
+	elseif(typeid == 0x02000000)
+	{
+		name = FindString(GlobalStrings, "string")
+	}
+	else
+	{
+		print("Unknown type")
+		assert(false)
+	}
+}
+
+
 
 //
 // Global state (just a hack while we bootstrap!)
@@ -2048,7 +2504,7 @@ global
 
 	StructureMemberVariable dummymember = 0, 0
 	list<StructureMember> dummymembers = dummymember, nothing
-	StructureDefinition dummystruct = 0, 0, dummymembers
+	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers
 	list<StructureDefinition> Structures = dummystruct, nothing
 
 
@@ -2085,5 +2541,8 @@ global
 	list<FunctionTag> FunctionTags = dummytag, nothing
 
 	integer EmittingFunctionName = 0
+
+
+	list<integer> AutoGeneratedFunctionNames = 0, nothing
 }
 
