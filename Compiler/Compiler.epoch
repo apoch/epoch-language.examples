@@ -151,6 +151,10 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenAssignmentCompoundMember", OnCodeGenAssignmentCompoundMember)
 	RegisterFunc("PluginCodeGenAssignmentCompoundEnd", OnCodeGenAssignmentCompoundEnd)
 
+	RegisterFunc("PluginCodeGenEnterChain", OnCodeGenEnterChain)
+	RegisterFunc("PluginCodeGenEnterEntity", OnCodeGenEnterEntity)
+	RegisterFunc("PluginCodeGenEnterEntityCode", OnCodeGenEnterEntityCode)
+
 	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
 	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
 
@@ -647,13 +651,28 @@ structure AssignmentCompound :
 	Expression RHS
 
 
-type CodeBlockEntry : Statement | Assignment | AssignmentCompound
-
+type CodeBlockEntry : Statement | Assignment | AssignmentCompound | EntityChain
 
 structure CodeBlock :
 	list<CodeBlockEntry> Entries
 
 type OptionalCodeBlock : CodeBlock | nothing
+
+structure Entity :
+	integer Tag,
+	integer PostfixTag,
+	OptionalExpression Param,
+	OptionalCodeBlock Code
+
+
+structure EntityList :
+	list<Entity> ActualList
+
+type OptionalEntityList : EntityList | nothing
+
+
+structure EntityChain :
+	OptionalEntityList Entries
 
 
 structure FunctionDefinition :
@@ -927,12 +946,12 @@ OnCodeGenExitContext :
 		}
 		elseif(ContextStack.value.EntryType != STACK_TYPE_SUBSTATEMENT)
 		{
-			FindCurrentStatementAndAppendExpression(Functions, ScratchExpressions.value)
+			FindCurrentStatementAndAppendExpression(ScratchExpressions.value)
 		}
 	}
 	elseif(entrytype == STACK_TYPE_ASSIGNMENT)
 	{
-		FindCurrentAssignmentAndSetExpression(Functions, ScratchExpressions.value)
+		FindCurrentAssignmentAndSetExpression(ScratchExpressions.value)
 	}
 	elseif(entrytype == STACK_TYPE_SUBSTATEMENT)
 	{
@@ -942,6 +961,25 @@ OnCodeGenExitContext :
 	elseif(entrytype == STACK_TYPE_FUNCRET)
 	{
 		SetReturnExpression(Functions.value, ScratchExpressions.value)
+	}
+	elseif(entrytype == STACK_TYPE_FUNCTION)
+	{
+		SetFunctionCodeBlock(Functions.value, CurrentCodeBlockStack.value)
+		PopCodeBlock(CurrentCodeBlockStack, CurrentCodeBlockStack.next)
+	}
+	elseif(entrytype == STACK_TYPE_ENTITY_CODE)
+	{
+		Entity entity = EntityStack.value.Tag, EntityStack.value.PostfixTag, EntityStack.value.Param, CurrentCodeBlockStack.value
+		PopCodeBlock(CurrentCodeBlockStack, CurrentCodeBlockStack.next)
+		AppendEntityToChain(ChainStack, entity)
+		PopEntityStack(EntityStack, EntityStack.next)
+	}
+	elseif(entrytype == STACK_TYPE_CHAIN)
+	{
+		EntityChain chain = ChainStack.value
+		CodeBlockEntry cbe = chain
+		AppendEntryToCurrentCodeBlock(cbe)
+		PopChain(ChainStack, ChainStack.next)
 	}
 }
 
@@ -955,6 +993,30 @@ PopContext : list<ContextStackEntry> ref stack, nothing
 	print("No contexts available")
 	assert(false)
 }
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref next
+{
+	stack = next
+}
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, nothing
+
+
+PopEntityStack : list<Entity> ref stack, list<Entity> ref next
+{
+	stack = next
+}
+
+PopEntityStack : list<Entity> ref stack, nothing
+
+
+PopChain : list<EntityChain> ref stack, list<EntityChain> ref next
+{
+	stack = next
+}
+
+PopChain : list<EntityChain> ref stack, nothing
+
 
 
 PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
@@ -1111,18 +1173,18 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype
 {
 	Statement statement = statementname, nothing, statementtype
 
-	if(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	{
-		CodeBlockEntry cbe = statement
-		AppendEntryToCurrentCodeBlock(cbe)
-	}
-	elseif(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
+	if(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
 	{
 		prepend<Statement>(SubStatements, statement)
 	}
 	elseif(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
 	{
 		prepend<Statement>(SubStatements, statement)
+	}
+	else
+	{
+		CodeBlockEntry cbe = statement
+		AppendEntryToCurrentCodeBlock(cbe)
 	}
 
 	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
@@ -1155,7 +1217,7 @@ OnCodeGenEnterAssignmentCompound : integer lhsname
 
 OnCodeGenAssignmentCompoundMember : integer membername
 {
-	FindCurrentFunctionAndAppendCompoundMember(Functions, membername)
+	FindCurrentFunctionAndAppendCompoundMember(membername)
 }
 
 OnCodeGenAssignmentCompoundEnd :
@@ -1177,55 +1239,26 @@ OnCodeGenEnterSubStatement :
 
 AppendEntryToCurrentCodeBlock : CodeBlockEntry ref cbe
 {
-	if(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	{
-		FindCurrentFunctionAndAppendEntry(Functions, cbe)
-	}
-	else
-	{
-		print("TODO - support other code body types on context stack")
-		assert(false)
-	}
+	AppendEntryToCurrentCodeBlockWorker(CurrentCodeBlockStack, cbe)
 }
 
-FindCurrentFunctionAndAppendEntry : list<FunctionDefinition> ref functions, CodeBlockEntry ref entry
+AppendEntryToCurrentCodeBlockWorker : list<OptionalCodeBlock> ref blockstack, CodeBlockEntry ref entry
 {
-	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	if(functions.value.Name == ContextStack.value.EntryName)
-	{
-		AppendEntryToCodeBlock(functions.value, functions.value.Code, entry)
-	}
-	else
-	{
-		FindCurrentFunctionAndAppendEntry(functions.next, entry)
-	}
+	AppendEntryToCodeBlock(blockstack, blockstack.value, entry)
 }
 
-FindCurrentFunctionAndAppendEntry : nothing, CodeBlockEntry ref entry
+AppendEntryToCurrentCodeBlockWorker : nothing, CodeBlockEntry ref entry
 {
-	print("No function is being processed")
+	print("No code block is being processed")
 	assert(false)
 }
 
 
-FindCurrentFunctionAndAppendCompoundMember : list<FunctionDefinition> ref functions, integer membername
+FindCurrentFunctionAndAppendCompoundMember : integer membername
 {
-	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	if(functions.value.Name == ContextStack.value.EntryName)
-	{
-		FindLastAssignmentAndAppendCompoundMemberHelper(functions.value.Code, membername)
-	}
-	else
-	{
-		FindCurrentFunctionAndAppendCompoundMember(functions.next, membername)
-	}	
+	FindLastAssignmentAndAppendCompoundMemberHelper(CurrentCodeBlockStack.value, membername)
 }
 
-FindCurrentFunctionAndAppendCompoundMember : nothing, integer membername
-{
-	print("No function is being processed")
-	assert(false)
-}
 
 
 FindLastAssignmentAndAppendCompoundMemberHelper : CodeBlock ref code, integer membername
@@ -1235,17 +1268,17 @@ FindLastAssignmentAndAppendCompoundMemberHelper : CodeBlock ref code, integer me
 
 
 
-AppendEntryToCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref code, CodeBlockEntry ref entry
+AppendEntryToCodeBlock : list<OptionalCodeBlock> ref stack, CodeBlock ref code, CodeBlockEntry ref entry
 {
 	AppendEntryToCodeBlock(code.Entries, entry)
 }
 
-AppendEntryToCodeBlock : FunctionDefinition ref funcdef, nothing, CodeBlockEntry ref entry
+AppendEntryToCodeBlock : list<OptionalCodeBlock> ref stack, nothing, CodeBlockEntry ref entry
 {
 	list<CodeBlockEntry> stmtlist = entry, nothing
 	CodeBlock block = stmtlist
-
-	SetFunctionCodeBlock(funcdef, block)
+	OptionalCodeBlock blockwrap = block
+	prepend<OptionalCodeBlock>(stack, blockwrap)
 }
 
 AppendEntryToCodeBlock : list<CodeBlockEntry> ref entries, CodeBlockEntry ref entry
@@ -1293,43 +1326,16 @@ AppendCompoundMember : list<integer> ref members, nothing, integer membername
 
 
 
-FindCurrentStatementAndAppendExpression : list<FunctionDefinition> ref functions, Expression ref expression
+FindCurrentStatementAndAppendExpression : Expression ref expression
 {
-	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	if(functions.value.Name == ContextStack.value.EntryName)
-	{
-		FindLastStatementInBlockAndAppendExpression(functions.value.Code, expression)
-	}
-	else
-	{
-		FindCurrentStatementAndAppendExpression(functions.next, expression)
-	}
-}
-
-FindCurrentStatementAndAppendExpression : nothing, Statement ref statement
-{
-	print("No function available")
-	assert(false)
+	FindLastStatementInBlockAndAppendExpression(CurrentCodeBlockStack.value, expression)
 }
 
 
-FindCurrentAssignmentAndSetExpression : list<FunctionDefinition> ref functions, Expression ref expression
-{
-	assert(ContextStack.value.EntryType == STACK_TYPE_FUNCTION)
-	if(functions.value.Name == ContextStack.value.EntryName)
-	{
-		FindLastAssignmentInBlockAndSetExpression(functions.value.Code, expression)
-	}
-	else
-	{
-		FindCurrentAssignmentAndSetExpression(functions.next, expression)
-	}
-}
 
-FindCurrentAssignmentAndSetExpression : nothing, Statement ref statement
+FindCurrentAssignmentAndSetExpression : Expression ref expression
 {
-	print("No function available")
-	assert(false)
+	FindLastAssignmentInBlockAndSetExpression(CurrentCodeBlockStack.value, expression)
 }
 
 
@@ -1405,16 +1411,24 @@ SetAssignmentExpression : AssignmentCompound ref assignment, Expression ref expr
 
 
 
-SetFunctionCodeBlock : FunctionDefinition ref funcdef, CodeBlock ref block
+SetFunctionCodeBlock : FunctionDefinition ref funcdef, OptionalCodeBlock ref optblock
+{
+	SetFunctionCodeBlockWorker(funcdef, optblock)
+}
+
+SetFunctionCodeBlock : nothing, OptionalCodeBlock ref optblock
+{
+	print("No function in flight")
+	assert(false)
+}
+
+SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, CodeBlock ref block
 {
 	funcdef.Code = block
 }
 
-SetFunctionCodeBlock : nothing, CodeBlock ref block
-{
-	print("Error - missing function definition")
-	assert(false)
-}
+SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, nothing
+
 
 
 CodeGenEmitStrings : list<StringTableEntry> ref table
@@ -1680,6 +1694,34 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 	OnBytecodeAssign()
 }
 
+CodeGenEmitSingleCodeBlockEntry : EntityChain ref chain
+{
+	OnBytecodeBeginChain()
+	CodeGenEmitEntityChain(chain.Entries)
+	OnBytecodeEndChain()
+}
+
+
+CodeGenEmitEntityChain : EntityList ref entities
+{
+	CodeGenEmitEntityList(entities.ActualList)
+}
+
+CodeGenEmitEntityList : list<Entity> ref thelist
+{
+	if(thelist.value.Tag != 0)
+	{
+		CodeGenEmitExpression(thelist.value.Param)
+		OnBytecodeEnterEntity(thelist.value.Tag, 0)
+		CodeGenEmitCodeBlock(thelist.value.Code)
+		OnBytecodeExitEntity()
+	}
+
+	CodeGenEmitEntityList(thelist.next)
+}
+
+CodeGenEmitEntityList : nothing
+
 
 BindAssignmentMembers : list<integer> ref lhsmembers, integer structurename
 {
@@ -1706,6 +1748,13 @@ CodeGenEmitExpressionList : list<Expression> ref expressions
 {
 	CodeGenEmitExpressionAtoms(expressions.value.Atoms)
 	CodeGenEmitExpressionList(expressions.next)
+}
+
+CodeGenEmitExpression : nothing
+
+CodeGenEmitExpression : Expression ref expr
+{
+	CodeGenEmitExpressionAtoms(expr.Atoms)
 }
 
 CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms
@@ -2732,6 +2781,58 @@ MissingDependency : list<integer> ref dependencies, list<integer> ref processed 
 MissingDependency : nothing, list<integer> ref processed -> boolean missing = false
 
 
+OnCodeGenEnterEntity : integer entityname, integer postfixtag
+{
+	ContextStackEntry entry = STACK_TYPE_ENTITY_PARAM, entityname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Entity entity = entityname, postfixtag, nothing, nothing
+	prepend<Entity>(EntityStack, entity)
+
+	ScratchExpressions.value = dummyexpression
+}
+
+OnCodeGenEnterEntityCode :
+{
+	ContextStackEntry entry = STACK_TYPE_ENTITY_CODE, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression expr = ScratchExpressions.value
+	EntityStack.value.Param = expr
+}
+
+OnCodeGenEnterChain :
+{
+	ContextStackEntry entry = STACK_TYPE_CHAIN, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	EntityChain newchain = dummychain
+	prepend<EntityChain>(ChainStack, newchain)
+}
+
+
+AppendEntityToChain : list<EntityChain> ref chainstack, Entity ref e
+{
+	AppendEntityToChainUnwrap(chainstack.value.Entries, e)
+}
+
+AppendEntityToChainUnwrap : EntityList ref entitylist, Entity ref e
+{
+	AppendEntityToChainWorker(entitylist.ActualList, entitylist.ActualList.next, e)
+}
+
+AppendEntityToChainWorker : list<Entity> ref chain, list<Entity> ref tail, Entity ref e
+{
+	AppendEntityToChainWorker(tail, tail.next, e)
+}
+
+AppendEntityToChainWorker : list<Entity> ref chain, nothing, Entity ref e
+{
+	list<Entity> newtail = e, nothing
+	chain.next = newtail
+}
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -2772,6 +2873,9 @@ global
 	integer STACK_TYPE_TYPEMATCH = 5
 	integer STACK_TYPE_SUBSTATEMENT = 6
 	integer STACK_TYPE_FUNCRET = 7
+	integer STACK_TYPE_ENTITY_PARAM = 8
+	integer STACK_TYPE_ENTITY_CODE = 9
+	integer STACK_TYPE_CHAIN = 10
 
 	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
 	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
@@ -2790,12 +2894,23 @@ global
 	TypeMatcher dummytypematch = 0, dummysignaturelist
 	list<TypeMatcher> TypeMatchers = dummytypematch, nothing
 
+	Entity dummyentity = 0, 0, nothing, nothing
+	list<Entity> EntityStack = dummyentity, nothing
+
 
 	list<string> dummytagparams = "", nothing
 	FunctionTag dummytag = 0, "", dummytagparams
 	list<FunctionTag> FunctionTags = dummytag, nothing
 
 	integer EmittingFunctionName = 0
+
+	list<OptionalCodeBlock> CurrentCodeBlockStack = nothing, nothing
+
+
+	list<Entity> chaincontents = dummyentity, nothing
+	OptionalEntityList chaincontentswrap = chaincontents
+	EntityChain dummychain = chaincontentswrap
+	list<EntityChain> ChainStack = dummychain, nothing
 
 
 	list<integer> AutoGeneratedFunctionNames = 0, nothing
