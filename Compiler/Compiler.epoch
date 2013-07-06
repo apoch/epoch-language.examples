@@ -49,6 +49,21 @@ append<type T> : list<T> ref thelist, T ref value
 }
 
 
+listcontains : list<integer> ref thelist, integer value -> boolean ret = false
+{
+	if(thelist.value == value)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = listcontains(thelist.next, value)
+	}
+}
+
+listcontains : nothing, integer value -> boolean contains = false
+
+
 
 //
 // API for registering plugins with the C++ compiler
@@ -527,13 +542,21 @@ OnBytecodePushLiteralReal : real value
 
 GetTypeSize : integer typeid -> integer size = 0
 {
-	if(typeid == 0x01000001)
+	if(typeid == 0x01000001)			// Integer
 	{
 		size = 4
 	}
+	elseif(typeid == 0x02000000)			// StringHandle
+	{
+		size = 4
+	}
+	elseif((typeid & 0xff000000) == 0x03000000)	// StructureHandle
+	{
+		size = 4		//GetSizeOfStructureByType(typeid)
+	}
 	else
 	{
-		print("Undefined type for size retrieval")
+		print("Undefined type for size retrieval - " ; cast(string, typeid))
 		assert(false)
 	}
 }
@@ -694,7 +717,10 @@ OnCodeGenProcessProgram :
 {
 	print("Emitting program...")
 	CodeGenEmitStrings(GlobalStrings)
+
+	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
+
 	CodeGenEmitSumTypes(SumTypes)
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
@@ -1402,8 +1428,8 @@ CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be pass
 
 CodeGenEmitStructures : list<StructureDefinition> ref structures
 {
-	CodeGenEmitSingleStructure(structures.value)
 	CodeGenEmitStructures(structures.next)
+	CodeGenEmitSingleStructure(structures.value)
 }
 
 CodeGenEmitStructures : nothing
@@ -1663,25 +1689,43 @@ CodeGenEmitExpressionList : list<Expression> ref expressions
 
 CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms
 {
-	CodeGenEmitSingleAtom(atoms.value)
-	if(CodeGenCheckAtomForReadRef(atoms.value))
+	boolean needsref = false
+	CodeGenEmitExpressionAtomsWorker(atoms, needsref)
+	if(needsref)
 	{
 		OnBytecodeReadReference()
 	}
-	CodeGenEmitExpressionAtoms(atoms.next)
 }
 
-CodeGenEmitExpressionAtoms : nothing
+CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean ref needsref
+{
+	boolean thisneedsref = CodeGenCheckAtomForReadRef(atoms.value)
+	if(thisneedsref)
+	{
+		needsref = true
+	}
+	elseif(needsref)
+	{
+		OnBytecodeReadReference()
+		needsref = false
+	}
+
+	CodeGenEmitSingleAtom(atoms.value)
+	CodeGenEmitExpressionAtomsWorker(atoms.next, needsref)
+}
+
+CodeGenEmitExpressionAtomsWorker : nothing, boolean ref needsref
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> true
+
 CodeGenCheckAtomForReadRef : integer ref atom -> false
 CodeGenCheckAtomForReadRef : integer16 ref atom -> false
 CodeGenCheckAtomForReadRef : boolean ref atom -> false
 CodeGenCheckAtomForReadRef : real ref atom -> false
+CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false
 CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false
 CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false
-CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false
 CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false
 CodeGenCheckAtomForReadRef : Statement ref atom -> false
 CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
@@ -1764,7 +1808,16 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom
 					isparam = true
 				}
 
-				OnBytecodePushLocal(isparam, frames, var.Offset, 0)	// TODO - actual size? Or does this param even make sense any more?
+				OnBytecodePushLocal(isparam, frames, var.Offset, 0)
+
+				if(idatom.Type == 0x02000001)
+				{
+					OnBytecodeCopyBuffer()
+				}
+				elseif((idatom.Type & 0xff000000) == 0x03000000)
+				{
+					OnBytecodeCopyStructure()
+				}
 			}
 		}
 	}
@@ -1808,6 +1861,36 @@ GetNameOfStructureByType : list<StructureDefinition> ref structures, integer typ
 }
 
 GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+
+GetSizeOfStructureByType : integer typeid -> integer size = 0
+{
+	size = GetSizeOfStructureByType(Structures, typeid)
+}
+
+GetSizeOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer size = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		size = GetTotalMemberSize(structures.value.Members)
+	}
+	else
+	{
+		size = GetSizeOfStructureByType(structures.next, typeid)
+	}
+}
+
+GetSizeOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+GetTotalMemberSize : list<StructureMember> ref members -> integer size = 0
+{
+	size = GetMemberSize(members.value) + GetTotalMemberSize(members.next)
+}
+
+GetTotalMemberSize : nothing -> integer size = 0
+
 
 
 GetStructureMemberType : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer rtype = 0
@@ -2470,11 +2553,112 @@ GetNameOfType : integer typeid -> integer name = 0
 	}
 	else
 	{
-		print("Unknown type")
-		assert(false)
+		name = GetNameOfStructureByType(typeid)
+		if(name == 0)
+		{
+			print("Unknown type")
+			assert(false)
+		}
 	}
 }
 
+
+
+// Rearrange structure list to avoid dependency issues on load
+CodeGenRearrangeStructures : list<StructureDefinition> ref thelist
+{
+	list<integer> processed = 0, nothing
+	boolean changed = CodeGenRearrangeStructuresRecurse(thelist, processed)
+
+	if(changed)
+	{
+		CodeGenRearrangeStructures(thelist)
+	}
+}
+
+CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<integer> ref processed -> boolean changed = false
+{
+	if(thelist.value.Name != 0)
+	{
+		list<integer> dependencies = 0, nothing
+		ParseStructDependencies(thelist.value.Members, dependencies)
+
+		if(MissingDependency(dependencies, processed))
+		{
+			SwapToTail(thelist, thelist.next)
+			changed = true
+		}
+
+		prepend<integer>(processed, thelist.value.Type)
+	}
+
+	if(!changed)
+	{
+		CodeGenRearrangeStructuresRecurse(thelist.next, processed)
+	}
+}
+
+CodeGenRearrangeStructuresRecurse : nothing, list<integer> ref processed -> false
+
+
+SwapToTail : list<StructureDefinition> ref thelist, list<StructureDefinition> ref tail
+{
+	StructureDefinition temp = tail.value
+	tail.value = thelist.value
+	thelist.value = temp
+}
+
+SwapToTail : list<StructureDefinition> ref thelist, nothing
+
+
+
+ParseStructDependencies : list<StructureMember> ref members, list<integer> ref out
+{
+	integer dependency = GetMemberDependency(members.value)
+	if(dependency != 0)
+	{
+		prepend<integer>(out, dependency)
+	}
+
+	ParseStructDependencies(members.next, out)
+}
+
+ParseStructDependencies : nothing, list<integer> ref out
+
+
+GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
+{
+	if(var.Name != 0)
+	{
+		if((var.Type & 0xff000000) == 0x03000000)
+		{
+			dep = var.Type
+		}
+	}
+}
+
+
+MissingDependency : list<integer> ref dependencies, list<integer> ref processed -> boolean missing = false
+{
+	// TODO - clean up this horrible code
+	if(dependencies.value != 0)
+	{
+		if(!listcontains(processed, dependencies.value))
+		{
+			missing = true
+		}
+		else
+		{
+			missing = MissingDependency(dependencies.next, processed)
+		}
+	}
+	else
+	{
+		missing = MissingDependency(dependencies.next, processed)
+	}
+}
+
+MissingDependency : nothing, list<integer> ref processed -> boolean missing = false
 
 
 //
