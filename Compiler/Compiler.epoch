@@ -864,6 +864,11 @@ StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varnam
 		integer offset = -1
 		if(origin == 1)			// VARIABLE_ORIGIN_PARAMETER
 		{
+			if(isref)
+			{
+				size = 8
+			}
+
 			offset = scopes.value.ParamOffset
 			scopes.value.ParamOffset = scopes.value.ParamOffset + size
 		}
@@ -1478,20 +1483,20 @@ CountMembers : nothing, integer ref count
 
 CodeGenEmitScopes : list<Scope> ref scopes
 {
-	CodeGenEmitSingleScope(scopes.value)
+	CodeGenEmitSingleScope(scopes.value, scopes.value.Name)
 	CodeGenEmitScopes(scopes.next)
 }
 
 CodeGenEmitScopes : nothing
 
 
-CodeGenEmitSingleScope : Scope ref scope
+CodeGenEmitSingleScope : Scope ref scope, integer funcname
 {
 	if(scope.Name != 0)
 	{
 		integer varcount = CountScopeVariables(scope)
 		OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
-		CodeGenEmitVariables(scope.Variables)
+		CodeGenEmitVariables(scope.Variables, funcname)
 	}
 }
 
@@ -1514,20 +1519,27 @@ CountScopeVariables : list<Variable> ref variables, integer ref count
 CountScopeVariables : nothing, integer ref count
 
 
-CodeGenEmitVariables : list<Variable> ref vars
+CodeGenEmitVariables : list<Variable> ref vars, integer funcname
 {
-	CodeGenEmitSingleVariable(vars.value)
-	CodeGenEmitVariables(vars.next)
+	CodeGenEmitSingleVariable(vars.value, funcname)
+	CodeGenEmitVariables(vars.next, funcname)
 }
 
-CodeGenEmitVariables : nothing
+CodeGenEmitVariables : nothing, integer funcname
 
 
-CodeGenEmitSingleVariable : Variable ref var
+CodeGenEmitSingleVariable : Variable ref var, integer funcname
 {
 	if(var.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(var.Name, var.VarType, var.IsReference, var.Origin)
+		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
+		{
+			OnBytecodeLexicalScopeEntry(var.Name, var.VarType, var.IsReference, 0)
+		}
+		else
+		{
+			OnBytecodeLexicalScopeEntry(var.Name, var.VarType, var.IsReference, var.Origin)
+		}
 	}
 }
 
@@ -1555,13 +1567,22 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 		}
 
 		CodeGenEmitCodeBlock(def.Code)
-		if(def.AnonymousReturn)
+		if(listcontains(CustomConstructors, def.Name))
 		{
-			CodeGenEmitReturnRegisterAnonymous(def.Return)
+			OnBytecodePushVarNoCopy(FindReturnVariableName())
+			OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
+			OnBytecodeAssign()
 		}
 		else
 		{
-			CodeGenEmitReturnRegister(def.Return)
+			if(def.AnonymousReturn)
+			{
+				CodeGenEmitReturnRegisterAnonymous(def.Return)
+			}
+			else
+			{
+				CodeGenEmitReturnRegister(def.Return)
+			}
 		}
 		OnBytecodeExitFunction()
 	}
@@ -1776,7 +1797,14 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom
 		// TODO - this is a totally sloppy hack
 		if(idatom.Type == 0x01000000)					// Identifier type signature
 		{
-			OnBytecodePushLiteralString(idatom.Handle)
+			if(!listcontains(CustomConstructors, EmittingFunctionName))
+			{
+				OnBytecodePushLiteralString(idatom.Handle)
+			}
+			else
+			{
+				OnBytecodeBindReference(0, FindReturnVariableIndex())
+			}
 		}
 		elseif(idatom.Type == 0x00000004)				// Nothing type signature
 		{
@@ -1788,37 +1816,8 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom
 		}
 		else
 		{
-			Variable var = 0, 0, false, -1, -1
-			if(!FindVariableDataInScope(EmittingFunctionName, idatom.Handle, var))
-			{
-				print("Variable undefined")
-				assert(false)
-			}
 
-			if(var.IsReference)
-			{
-				OnBytecodePushVarValue(idatom.Handle, idatom.Type)
-			}
-			else
-			{
-				integer frames = 0		// TODO - globals support
-				boolean isparam = false
-				if(var.Origin == 1)		// VARIABLE_ORIGIN_PARAMETER
-				{
-					isparam = true
-				}
-
-				OnBytecodePushLocal(isparam, frames, var.Offset, 0)
-
-				if(idatom.Type == 0x02000001)
-				{
-					OnBytecodeCopyBuffer()
-				}
-				elseif((idatom.Type & 0xff000000) == 0x03000000)
-				{
-					OnBytecodeCopyStructure()
-				}
-			}
+			OnBytecodePushVarValue(idatom.Handle, idatom.Type)
 		}
 	}
 }
@@ -2137,6 +2136,9 @@ FindVariableInSingleScope : nothing, integer varname, integer ref index
 
 FindReturnVariableIndex : -> integer index = FindReturnVariableInScopeList(Scopes, EmittingFunctionName)
 
+FindReturnVariableName: -> integer index = FindReturnVariableNameInScopeList(Scopes, EmittingFunctionName)
+
+
 FindReturnVariableInScopeList : list<Scope> ref scopes, integer scopename -> integer index = -1
 {
 	if(scopes.value.Name == scopename)
@@ -2167,6 +2169,37 @@ FindReturnVariableInSingleScope : nothing, integer ref index
 {
 	index = -1
 }
+
+
+FindReturnVariableNameInScopeList : list<Scope> ref scopes, integer scopename -> integer name = 0
+{
+	if(scopes.value.Name == scopename)
+	{
+		FindReturnVariableNameInSingleScope(scopes.value.Variables, name)
+	}
+	else
+	{
+		name = FindReturnVariableNameInScopeList(scopes.next, scopename)
+	}
+}
+
+FindReturnVariableNameInSingleScope : list<Variable> ref vars, integer ref name
+{
+	if(vars.value.Origin == 2)		// VARIABLE_ORIGIN_RETURN
+	{
+		name = vars.value.Name
+	}
+	else
+	{
+		FindReturnVariableNameInSingleScope(vars.next, name)
+	}
+}
+
+FindReturnVariableNameInSingleScope : nothing, integer ref name
+{
+	name = 0
+}
+
 
 
 FindVariableType : integer varname -> integer rettype = 0
@@ -2373,6 +2406,11 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname
 {
 	FunctionTag tag = funcname, tagname, dummytagparams
 	prepend<FunctionTag>(FunctionTags, tag)
+
+	if(tagname == "constructor")
+	{
+		prepend<integer>(CustomConstructors, funcname)
+	}
 }
 
 OnCodeGenRegisterFunctionTagParam : integer funcname, string tagname, string param
@@ -2453,8 +2491,8 @@ CodeGenEmitConstructors : list<StructureDefinition> ref structures
 		EmitCtorTag(structures.value.CopyConstructorName)
 
 		EmitConstructor(structures.value)
-		//EmitAnonConstructor(structures.value)
-		//EmitCopyConstructor(structures.value)
+		EmitAnonConstructor(structures.value)
+		EmitCopyConstructor(structures.value)
 	}
 
 	CodeGenEmitConstructors(structures.next)
@@ -2488,6 +2526,39 @@ EmitConstructor : StructureDefinition ref def
 
 	OnBytecodeExitFunction()
 }
+
+EmitAnonConstructor : StructureDefinition ref def
+{
+	integer membercount = CountMembers(def.Members)
+	OnBytecodeLexicalScope(def.AnonConstructorName, 0, membercount + 1)
+	EmitScopeEntriesForMembers(def.Members)
+	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, false, 2)
+
+	OnBytecodeEnterFunction(def.AnonConstructorName)
+	OnBytecodeAllocStructure(def.Type)
+	OnBytecodeBindReference(0, membercount)
+	OnBytecodeAssign()
+
+	EmitMemberDataCopies(def.Members, def.AnonConstructorName)
+
+	OnBytecodeSetReturnRegister(membercount)
+	OnBytecodeExitFunction()
+}
+
+EmitCopyConstructor : StructureDefinition ref def
+{
+	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x01000000, true, 1)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "value"), def.Type, false, 1)
+
+	OnBytecodeEnterFunction(def.CopyConstructorName)
+	OnBytecodePushVarNoCopy(FindString(GlobalStrings, "value"))
+	OnBytecodeCopyStructure()
+	OnBytecodeBindReference(0, 0)
+	OnBytecodeAssign()
+	OnBytecodeExitFunction()
+}
+
 
 EmitScopeEntriesForMembers : list<StructureMember> ref members
 {
@@ -2585,7 +2656,7 @@ CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<
 
 		if(MissingDependency(dependencies, processed))
 		{
-			SwapToTail(thelist, thelist.next)
+			SwapDown(thelist, thelist.next)
 			changed = true
 		}
 
@@ -2601,14 +2672,14 @@ CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<
 CodeGenRearrangeStructuresRecurse : nothing, list<integer> ref processed -> false
 
 
-SwapToTail : list<StructureDefinition> ref thelist, list<StructureDefinition> ref tail
+SwapDown : list<StructureDefinition> ref thelist, list<StructureDefinition> ref tail
 {
 	StructureDefinition temp = tail.value
 	tail.value = thelist.value
 	thelist.value = temp
 }
 
-SwapToTail : list<StructureDefinition> ref thelist, nothing
+SwapDown : list<StructureDefinition> ref thelist, nothing
 
 
 
@@ -2728,5 +2799,6 @@ global
 
 
 	list<integer> AutoGeneratedFunctionNames = 0, nothing
+	list<integer> CustomConstructors = 0, nothing
 }
 
