@@ -130,6 +130,7 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterTypeAnnotation", OnCodeGenRegisterTypeAnnotation)
 	RegisterFunc("PluginCodeGenRegisterRefBinding", OnCodeGenRegisterRefBinding)
 	RegisterFunc("PluginCodeGenRegisterParenthetical", OnCodeGenRegisterParenthetical)
+	RegisterFunc("PluginCodeGenSetExpressionType", OnCodeGenSetExpressionType)
 
 	RegisterFunc("PluginCodeGenRegisterFunctionTag", OnCodeGenRegisterFunctionTag)
 	RegisterFunc("PluginCodeGenRegisterFunctionTagParam", OnCodeGenRegisterFunctionTagParam)
@@ -160,6 +161,9 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenEnterEntityCode", OnCodeGenEnterEntityCode)
 
 	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
+
+	RegisterFunc("PluginCodeGenRegisterGlobalBlock", OnCodeGenRegisterGlobalBlock)
+
 	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
 
 	RegisterFunc("PluginCodeGenRegisterFunctionSignature", OnCodeGenRegisterFunctionSig)
@@ -358,6 +362,11 @@ OnBytecodeAllocStructure : integer typeid
 
 OnBytecodeBindReference : integer frameskip, integer index
 {
+	if(index < 0)
+	{
+		breakpoint()
+	}
+
 	OnBytecodeEmitByte(0x03)			// BindRef instruction
 	OnBytecodeEmitInteger(frameskip)
 	OnBytecodeEmitInteger(index)
@@ -580,13 +589,16 @@ GetTypeSize : integer typeid -> integer size = 0
 	{
 		size = 4		//GetSizeOfStructureByType(typeid)
 	}
+	elseif((typeid & 0xff000000) == 0x07000000)	// SumType
+	{
+		size = 4 + GetLargestSumTypeBaseSize(typeid)
+	}
 	else
 	{
 		print("Undefined type for size retrieval - " ; cast(string, typeid))
 		assert(false)
 	}
 }
-
 
 
 //
@@ -654,7 +666,8 @@ type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
 
 
 structure Expression :
-	list<ExpressionAtom> Atoms
+	list<ExpressionAtom> Atoms,
+	integer Type
 
 type OptionalExpression : Expression | nothing
 
@@ -790,7 +803,11 @@ OnCodeGenProcessProgram :
 
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
+
+	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
 	CodeGenEmitFunctions(Functions)
+	CodeGenEmitGlobalBlockEpilogue(GlobalCodeBlock)
+
 	CodeGenEmitTypeMatchers(TypeMatchers)
 	CodeGenEmitConstructors(Structures)
 	print("Done.")
@@ -960,6 +977,18 @@ StoreVariableInScope : nothing, integer scopename, integer varname, integer vart
 }
 
 
+OnCodeGenRegisterGlobalBlock : integer name
+{
+	ContextStackEntry entry = STACK_TYPE_GLOBAL, name
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	list<OptionalCodeBlock> newstack = nothing, nothing
+	CurrentCodeBlockStack = newstack
+
+	GlobalCodeBlockName = name
+}
+
+
 OnCodeGenRegisterFunction : integer funcname
 {
 	FunctionDefinition func = funcname, nothing, nothing, false, 0
@@ -1040,6 +1069,10 @@ OnCodeGenExitContext :
 		PopExpression(ScratchExpressions, ScratchExpressions.next)
 		PlaceAtomInScratchExpression(atom)
 	}
+	elseif(entrytype == STACK_TYPE_GLOBAL)
+	{
+		SetGlobalCodeBlock(CurrentCodeBlockStack.value)
+	}
 }
 
 PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
@@ -1104,6 +1137,11 @@ SetReturnExpression : FunctionDefinition ref funcdef, Expression ref expr
 	ScratchExpressions.value = dummyexpression
 }
 
+SetGlobalCodeBlock : CodeBlock ref block
+{
+	GlobalCodeBlock = block
+}
+
 PopSubStatement : list<Statement> ref statements, list<Statement> ref tail
 {
 	statements = tail
@@ -1132,7 +1170,7 @@ PlaceAtomInScratchExpression : ExpressionAtom ref atom
 	if(ExpressionAtomIsSentinel(ScratchExpressions.value.Atoms.value))
 	{
 		list<ExpressionAtom> atoms = atom, nothing
-		ScratchExpressions.value = Expression(atoms)
+		ScratchExpressions.value = Expression(atoms, 0)
 	}
 	else
 	{
@@ -1265,27 +1303,27 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype
 	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	Expression expr = dummyatomlist
+	Expression expr = dummyatomlist, 0
 	prepend<Expression>(ScratchExpressions, expr)
 }
 
 OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
 {
-	Assignment assignment = lhsname, lhstype, annotation, Expression(dummyatomlist)
+	Assignment assignment = lhsname, lhstype, annotation, Expression(dummyatomlist, 0)
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, lhsname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpressions.value = Expression(dummyatomlist)
+	ScratchExpressions.value = Expression(dummyatomlist, 0)
 }
 
 
 OnCodeGenEnterAssignmentCompound : integer lhsname, integer lhstype, integer annotation
 {
 	list<integer> idlist = lhsname, nothing
-	AssignmentCompound assignment = idlist, lhstype, annotation, Expression(dummyatomlist)
+	AssignmentCompound assignment = idlist, lhstype, annotation, Expression(dummyatomlist, 0)
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 }
@@ -1300,7 +1338,7 @@ OnCodeGenAssignmentCompoundEnd :
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpressions.value = Expression(dummyatomlist)	
+	ScratchExpressions.value = Expression(dummyatomlist, 0)
 }
 
 
@@ -1572,8 +1610,8 @@ CountMembers : nothing, integer ref count
 
 CodeGenEmitScopes : list<Scope> ref scopes
 {
-	CodeGenEmitSingleScope(scopes.value, scopes.value.Name)
 	CodeGenEmitScopes(scopes.next)
+	CodeGenEmitSingleScope(scopes.value, scopes.value.Name)
 }
 
 CodeGenEmitScopes : nothing
@@ -1686,7 +1724,7 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 
 CodeGenEmitFunctionReturn : Expression ref expr
 {
-	CodeGenEmitExpressionAtoms(expr.Atoms, false)
+	CodeGenEmitExpressionAtoms(expr.Atoms, false, false)
 }
 
 CodeGenEmitFunctionReturn : nothing
@@ -1735,7 +1773,19 @@ CodeGenEmitCodeBlockEntries : nothing
 CodeGenEmitSingleCodeBlockEntry : Statement ref s
 {
 	boolean sumtype = SumTypeExists(s.Name)
-	CodeGenEmitExpressionList(s.Parameters, sumtype)
+	boolean constructssumtype = false
+	if((s.Type & 0xff000000) == 0x07000000)
+	{
+		constructssumtype = true
+	}
+
+	boolean constructorcall = false
+	//if(GetTypeByName(s.Name) != 0)
+	//{
+	//	constructorcall = true
+	//}
+
+	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
 
 	Variable var = 0, 0, false, 0, 0
 	FindVariableDataInScope(EmittingFunctionName, s.Name, var)
@@ -1759,7 +1809,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 {
-	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false)
+	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
 
 	if(a.Annotation != 0)
 	{
@@ -1782,7 +1832,7 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 
 CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 {
-	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false)
+	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
 
 	if(a.Annotation != 0)
 	{
@@ -1858,7 +1908,7 @@ CodeGenEmitEntityList : list<Entity> ref thelist
 {
 	if(thelist.value.Tag != 0)
 	{
-		CodeGenEmitExpression(thelist.value.Param)
+		CodeGenEmitExpression(thelist.value.Param, false, false)
 		OnBytecodeEnterEntity(thelist.value.Tag, 0)
 		CodeGenEmitCodeBlock(thelist.value.Code)
 		OnBytecodeExitEntity()
@@ -1884,30 +1934,35 @@ BindAssignmentMembers : nothing, integer structurename
 
 
 
-CodeGenEmitExpressionList : nothing, boolean constructssumtype
+CodeGenEmitExpressionList : nothing, boolean constructssumtype, boolean constructorcall
 
-CodeGenEmitExpressionList : ExpressionList ref expressions, boolean constructssumtype
+CodeGenEmitExpressionList : ExpressionList ref expressions, boolean constructssumtype, boolean constructorcall
 {
-	CodeGenEmitExpressionList(expressions.Expressions, constructssumtype)
+	CodeGenEmitExpressionList(expressions.Expressions, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpressionList : list<Expression> ref expressions, boolean constructssumtype
+CodeGenEmitExpressionList : list<Expression> ref expressions, boolean constructssumtype, boolean constructorcall
 {
-	CodeGenEmitExpressionAtoms(expressions.value.Atoms, constructssumtype)
-	CodeGenEmitExpressionList(expressions.next, constructssumtype)
+	if((expressions.value.Type & 0xff000000) == 0x07000000)
+	{
+		constructssumtype = true
+	}
+
+	CodeGenEmitExpressionAtoms(expressions.value.Atoms, constructssumtype, constructorcall)
+	CodeGenEmitExpressionList(expressions.next, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpression : nothing
+CodeGenEmitExpression : nothing, boolean constructssumtype, boolean constructorcall
 
-CodeGenEmitExpression : Expression ref expr
+CodeGenEmitExpression : Expression ref expr, boolean constructssumtype, boolean constructorcall
 {
-	CodeGenEmitExpressionAtoms(expr.Atoms, false)
+	CodeGenEmitExpressionAtoms(expr.Atoms, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms, boolean constructssumtype
+CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean constructorcall
 {
 	boolean needsref = false
-	CodeGenEmitExpressionAtomsWorker(atoms, constructssumtype, needsref)
+	CodeGenEmitExpressionAtomsWorker(atoms, constructssumtype, needsref, constructorcall)
 	if(needsref)
 	{
 		if(constructssumtype)
@@ -1921,7 +1976,7 @@ CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms, boolean constructss
 	}
 }
 
-CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean ref needsref
+CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean ref needsref, boolean constructorcall
 {
 	boolean thisneedsref = CodeGenCheckAtomForReadRef(atoms.value)
 	if(thisneedsref)
@@ -1941,11 +1996,11 @@ CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean const
 		needsref = false
 	}
 
-	CodeGenEmitSingleAtom(atoms.value)
-	CodeGenEmitExpressionAtomsWorker(atoms.next, constructssumtype, needsref)
+	CodeGenEmitSingleAtom(atoms.value, constructorcall)
+	CodeGenEmitExpressionAtomsWorker(atoms.next, constructssumtype, needsref, constructorcall)
 }
 
-CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean ref needsref
+CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean ref needsref, boolean constructorcall
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
@@ -1965,97 +2020,111 @@ CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
 
 
 
-CodeGenEmitSingleAtom : integer ref literalinteger
+CodeGenEmitSingleAtom : integer ref literalinteger, boolean constructor
 {
 	OnBytecodePushLiteralInteger(literalinteger)
 }
 
-CodeGenEmitSingleAtom : integer16 ref literalinteger16
+CodeGenEmitSingleAtom : integer16 ref literalinteger16, boolean constructor
 {
 	OnBytecodePushLiteralInteger16(literalinteger16)
 }
 
-CodeGenEmitSingleAtom : boolean ref literalboolean
+CodeGenEmitSingleAtom : boolean ref literalboolean, boolean constructor
 {
 	OnBytecodePushBoolean(literalboolean)
 }
 
-CodeGenEmitSingleAtom : real ref literalreal
+CodeGenEmitSingleAtom : real ref literalreal, boolean constructor
 {
 	OnBytecodePushLiteralReal(literalreal)
 }
 
-CodeGenEmitSingleAtom : StringHandleAtom ref atom
+CodeGenEmitSingleAtom : StringHandleAtom ref atom, boolean constructor
 {
 	OnBytecodePushLiteralString(atom.Handle)
 }
 
-CodeGenEmitSingleAtom : OperatorInvokeAtom ref atom
+CodeGenEmitSingleAtom : OperatorInvokeAtom ref atom, boolean constructor
 {
 	OnBytecodeInvoke(atom.OperatorName)
 }
 
-CodeGenEmitSingleAtom : IdentifierAtom ref idatom
+CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 {
-	if(idatom.IsReference)
+	if(idatom.Type == 0x00000004)							// Nothing type signature
 	{
-		integer frames = 0
-		integer index = FindVariable(idatom.Handle, frames)
-		OnBytecodeBindReference(frames, index)
+		OnBytecodePushLiteralInteger(0)
 	}
 	else
 	{
-		// TODO - this is a totally sloppy hack
-		if(idatom.Type == 0x01000000)					// Identifier type signature
-		{
-			if(!listcontains(CustomConstructors, EmittingFunctionName))
-			{
-				OnBytecodePushLiteralString(idatom.Handle)
-			}
-			else
-			{
-				OnBytecodeBindReference(0, FindReturnVariableIndex())
-			}
-		}
-		elseif(idatom.Type == 0x00000004)				// Nothing type signature
-		{
-			OnBytecodePushLiteralInteger(0)
-		}
-		elseif((idatom.Type & 0xff000000) == 0x09000000)		// Function type family signature
+		if(FunctionIsAutoGenOrHasIR(idatom.Handle))
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
+		elseif(GetTypeByName(idatom.Handle) != 0)
+		{
+			OnBytecodePushLiteralString(idatom.Handle)
+		}	
 		else
 		{
-
-			OnBytecodePushVarValue(idatom.Handle, idatom.Type)
+			if(idatom.Type == 0x01000000)					// Identifier type signature
+			{
+				if(!constructor)
+				{
+					OnBytecodePushLiteralString(idatom.Handle)
+				}
+				else
+				{
+					integer frames = 0
+					integer index = FindVariable(idatom.Handle, frames)
+					OnBytecodeBindReference(frames, index)
+				}
+			}
+			elseif((idatom.Type & 0xff000000) == 0x09000000)		// Function type family signature
+			{
+				OnBytecodePushLiteralFunction(idatom.Handle)
+			}
+			else
+			{
+				if(idatom.IsReference)
+				{
+					integer frames = 0
+					integer index = FindVariable(idatom.Handle, frames)
+					OnBytecodeBindReference(frames, index)
+				}
+				else
+				{
+					OnBytecodePushVarValue(idatom.Handle, idatom.Type)
+				}
+			}
 		}
 	}
 }
 
-CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom
+CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom, boolean constructor
 {
 	OnBytecodePushTypeAnnotation(atom.Type)
 }
 
-CodeGenEmitSingleAtom : Statement ref atom
+CodeGenEmitSingleAtom : Statement ref atom, boolean constructor
 {
 	CodeGenEmitSingleCodeBlockEntry(atom)
 }
 
-CodeGenEmitSingleAtom : RefBinding ref atom
+CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
 {
 	integer memtype = GetStructureMemberType(Structures, atom.StructureName, atom.Identifier)
 	integer memoffset = GetStructureMemberOffset(Structures, atom.StructureName, atom.Identifier)
 	OnBytecodeBindStructReference(memtype, memoffset)
 }
 
-CodeGenEmitSingleAtom : ParentheticalExpression ref expr
+CodeGenEmitSingleAtom : ParentheticalExpression ref expr, boolean constructor
 {
-	CodeGenEmitExpression(expr.Inner)
+	CodeGenEmitExpression(expr.Inner, false, false)
 }
 
-CodeGenEmitSingleAtom : AtomSentinel ref sentinel
+CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
 
 
 GetNameOfStructureByType : integer typeid -> integer name = 0
@@ -2326,7 +2395,11 @@ TypeMatcherExists : nothing, integer matchername -> boolean ret = false
 
 FindVariable : integer name, integer ref frames -> integer index = FindVariableInScope(EmittingFunctionName, name)
 {
-	// TODO - check parent aka global scope; set frames
+	if(index < 0)
+	{
+		index = FindVariableInScope(GlobalCodeBlockName, name)
+		frames = -1
+	}
 }
 
 
@@ -2874,6 +2947,45 @@ GetNameOfType : integer typeid -> integer name = 0
 	}
 }
 
+GetTypeByName : integer name -> integer typeid = 0
+{
+	if(name == FindString(GlobalStrings, "integer"))
+	{
+		typeid = 0x01000001
+	}
+	elseif(name == FindString(GlobalStrings, "string"))
+	{
+		typeid = 0x02000000
+	}
+	elseif(name == FindString(GlobalStrings, "nothing"))
+	{
+		typeid = 0x00000004
+	}
+	else
+	{
+		integer structurename = GetStructureTypeByName(Structures, name)
+		if(structurename != 0)
+		{
+			typeid = structurename
+		}
+	}
+}
+
+
+GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0
+{
+	if(structures.value.Name == name)
+	{
+		typeid = structures.value.Type
+	}
+	else
+	{
+		typeid = GetStructureTypeByName(structures.next, name)
+	}
+}
+
+GetStructureTypeByName : nothing, integer name -> 0
+
 
 
 // Rearrange structure list to avoid dependency issues on load
@@ -3122,6 +3234,68 @@ OnCodeGenRegisterPostOpStatement : integer operator, integer operand
 }
 
 
+GetLargestSumTypeBaseSize : integer typeid -> integer size = FindSumTypeAndGetBaseMaxSize(SumTypes, typeid)
+
+FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> integer size = 0
+{
+	if(sumtypes.value.Type == typeid)
+	{
+		GetBaseMaxSize(sumtypes.value.Bases, size)
+	}
+	else
+	{
+		size = FindSumTypeAndGetBaseMaxSize(sumtypes.next, typeid)
+	}
+}
+
+FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0
+
+
+GetBaseMaxSize : list<integer> ref basetypes, integer ref outsize
+{
+	if(basetypes.value != 0)
+	{
+		integer thissize = GetTypeSize(basetypes.value)
+		if(thissize > outsize)
+		{
+			outsize = thissize
+		}
+	}
+
+	GetBaseMaxSize(basetypes.next, outsize)
+}
+
+GetBaseMaxSize : nothing, integer ref outsize
+
+
+
+OnCodeGenSetExpressionType : integer typeid
+{
+	ScratchExpressions.value.Type = typeid
+}
+
+
+CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
+{
+	if(GlobalCodeBlockName != 0)
+	{
+		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
+		CodeGenEmitCodeBlock(block)
+		OnBytecodeInvokeOffset(FindString(GlobalStrings, "entrypoint"))
+		OnBytecodeHalt()
+	}
+}
+
+CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
+{
+	if(GlobalCodeBlockName != 0)
+	{
+		OnBytecodeExitEntity()
+	}
+}
+
+
+
 
 //
 // Global state (just a hack while we bootstrap!)
@@ -3173,7 +3347,7 @@ global
 
 	AtomSentinel dummysentinel = 0
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
-	Expression dummyexpression = dummyatomlist
+	Expression dummyexpression = dummyatomlist, 0
 	list<Expression> ScratchExpressions = dummyexpression, nothing
 	Statement dummystatement = 0, nothing, 0
 	list<Statement> SubStatements = dummystatement, nothing
@@ -3197,6 +3371,9 @@ global
 
 	list<OptionalCodeBlock> CurrentCodeBlockStack = nothing, nothing
 
+	list<CodeBlockEntry> dummyblockentries = dummystatement, nothing
+	CodeBlock GlobalCodeBlock = dummyblockentries
+	integer GlobalCodeBlockName = 0
 
 	list<Entity> chaincontents = dummyentity, nothing
 	OptionalEntityList chaincontentswrap = chaincontents
