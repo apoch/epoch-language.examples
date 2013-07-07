@@ -3062,14 +3062,14 @@ GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
 }
 
 
-MissingDependency : list<integer> ref dependencies, list<integer> ref processed -> boolean missing = false
+MissingDependency : list<integer> ref dependencies, list<integer> ref processed -> boolean missing = true
 {
 	// TODO - clean up this horrible code
 	if(dependencies.value != 0)
 	{
-		if(!listcontains(processed, dependencies.value))
+		if(listcontains(processed, dependencies.value))
 		{
-			missing = true
+			missing = false
 		}
 		else
 		{
@@ -3082,7 +3082,7 @@ MissingDependency : list<integer> ref dependencies, list<integer> ref processed 
 	}
 }
 
-MissingDependency : nothing, list<integer> ref processed -> boolean missing = false
+MissingDependency : nothing, list<integer> ref processed -> boolean missing = true
 
 
 OnCodeGenEnterEntity : integer entityname, integer postfixtag
