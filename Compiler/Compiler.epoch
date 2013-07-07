@@ -159,6 +159,10 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
 	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
 
+	RegisterFunc("PluginCodeGenRegisterFunctionSignature", OnCodeGenRegisterFunctionSig)
+	RegisterFunc("PluginCodeGenRegisterFunctionSigParam", OnCodeGenRegisterFunctionSigParam)
+	RegisterFunc("PluginCodeGenRegisterFunctionSignatureEnd", OnCodeGenRegisterFunctionSigEnd)
+
 	print("Epoch Compiler - code generation plugin registered")
 }
 
@@ -544,6 +548,20 @@ OnBytecodePushLiteralReal : real value
 	OnBytecodeEmitReal(value)
 }
 
+OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount
+{
+	OnBytecodeEmitByte(0x28)			// FuncSig instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(rettype)
+	OnBytecodeEmitInteger(paramcount)
+}
+
+OnBytecodeEmitFunctionSigParam : integer paramtype, boolean isref
+{
+	OnBytecodeEmitInteger(paramtype)
+	OnBytecodeEmitBoolean(isref)
+}
+
 
 GetTypeSize : integer typeid -> integer size = 0
 {
@@ -750,6 +768,8 @@ OnCodeGenProcessProgram :
 
 	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
+
+	CodeGenEmitFunctionSignatures(FunctionSignatures)
 
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
@@ -1682,8 +1702,13 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 	boolean sumtype = SumTypeExists(s.Name)
 	CodeGenEmitExpressionList(s.Parameters, sumtype)
 
-	// TODO - other types of invoke may be needed depending on context!
-	if(sumtype)
+	Variable var = 0, 0, false, 0, 0
+	FindVariableDataInScope(EmittingFunctionName, s.Name, var)
+	if((var.Name != 0) && ((var.VarType & 0xff000000) == 0x09000000))
+	{
+		OnBytecodeInvokeIndirect(s.Name)
+	}
+	elseif(sumtype)
 	{
 		OnBytecodeConstructSumType()
 	}
@@ -2947,6 +2972,56 @@ OnCodeGenRegisterAlias : integer aliastype, integer base
 }
 
 
+
+OnCodeGenRegisterFunctionSig : integer sigtype, integer rettype
+{
+	FunctionSignature sig = sigtype, dummyparamlist, rettype
+	prepend<FunctionSignature>(FunctionSignatures, sig)
+}
+
+OnCodeGenRegisterFunctionSigParam : integer paramtype, boolean isref
+{
+	Parameter param = 1, paramtype, isref
+	AppendParameter(FunctionSignatures.value.Parameters, param)
+}
+
+OnCodeGenRegisterFunctionSigEnd :
+{
+	// TODO - dead code?
+}
+
+
+CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
+{
+	CodeGenEmitSingleFunctionSignature(thelist.value)
+	CodeGenEmitFunctionSignatures(thelist.next)
+}
+
+CodeGenEmitFunctionSignatures : nothing
+
+
+CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
+{
+	if(signature.Name != 0)
+	{
+		OnBytecodeEmitFunctionSignature(signature.Name, signature.ReturnType, CountParameters(signature.Parameters))
+	}
+	CodeGenEmitFunctionSigParams(signature.Parameters)
+}
+
+CodeGenEmitFunctionSigParams : list<Parameter> ref params
+{
+	CodeGenEmitFunctionSigParams(params.next)
+	if(params.value.Type != 0)
+	{
+		OnBytecodeEmitFunctionSigParam(params.value.Type, params.value.IsReference)
+	}
+}
+
+CodeGenEmitFunctionSigParams : nothing
+
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -3032,5 +3107,7 @@ global
 
 	TypeAlias dummyalias = 0, 0
 	list<TypeAlias> TypeAliases = dummyalias, nothing
+
+	list<FunctionSignature> FunctionSignatures = dummysignature, nothing
 }
 
