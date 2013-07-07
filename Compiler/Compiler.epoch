@@ -581,6 +581,10 @@ GetTypeSize : integer typeid -> integer size = 0
 	{
 		size = 4
 	}
+	elseif(typeid == 0x01000003)			// Boolean
+	{
+		size = 1
+	}
 	elseif(typeid == 0x02000000)			// StringHandle
 	{
 		size = 4
@@ -2794,11 +2798,19 @@ CodeGenEmitConstructors : list<StructureDefinition> ref structures
 	{
 		EmitCtorTag(structures.value.ConstructorName)
 		EmitCtorTag(structures.value.AnonConstructorName)
-		EmitCtorTag(structures.value.CopyConstructorName)
+
+		if(structures.value.CopyConstructorName != 0)
+		{
+			EmitCtorTag(structures.value.CopyConstructorName)
+		}
 
 		EmitConstructor(structures.value)
 		EmitAnonConstructor(structures.value)
-		EmitCopyConstructor(structures.value)
+
+		if(structures.value.CopyConstructorName != 0)
+		{
+			EmitCopyConstructor(structures.value)
+		}
 	}
 
 	CodeGenEmitConstructors(structures.next)
