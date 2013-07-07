@@ -129,6 +129,7 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterOperatorInvoke", OnCodeGenRegisterOperatorInvoke)
 	RegisterFunc("PluginCodeGenRegisterTypeAnnotation", OnCodeGenRegisterTypeAnnotation)
 	RegisterFunc("PluginCodeGenRegisterRefBinding", OnCodeGenRegisterRefBinding)
+	RegisterFunc("PluginCodeGenRegisterParenthetical", OnCodeGenRegisterParenthetical)
 
 	RegisterFunc("PluginCodeGenRegisterFunctionTag", OnCodeGenRegisterFunctionTag)
 	RegisterFunc("PluginCodeGenRegisterFunctionTagParam", OnCodeGenRegisterFunctionTagParam)
@@ -146,6 +147,8 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenEnterFunctionReturn", OnCodeGenEnterFunctionReturn)
 	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
 	RegisterFunc("PluginCodeGenEnterSubStatement", OnCodeGenEnterSubStatement)
+	RegisterFunc("PluginCodeGenRegisterPreOpStatement", OnCodeGenRegisterPreOpStatement)
+	RegisterFunc("PluginCodeGenRegisterPostOpStatement", OnCodeGenRegisterPostOpStatement)
 
 	RegisterFunc("PluginCodeGenEnterAssignment", OnCodeGenEnterAssignment)
 	RegisterFunc("PluginCodeGenEnterAssignmentCompound", OnCodeGenEnterAssignmentCompound)
@@ -646,6 +649,7 @@ structure AtomSentinel :
 type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
 			IdentifierAtom | OperatorInvokeAtom | TypeAnnotationAtom | RefBinding |
 			Statement |
+			ParentheticalExpression |
 			AtomSentinel
 
 
@@ -658,6 +662,10 @@ structure ExpressionList :
 	list<Expression> Expressions
 
 type OptionalExpressionList : ExpressionList | nothing
+
+
+structure ParentheticalExpression :
+	Expression Inner
 
 
 structure Statement :
@@ -677,8 +685,17 @@ structure AssignmentCompound :
 	integer Annotation,
 	Expression RHS
 
+structure PreOpStatement :
+	integer Operator,
+	list<integer> Operand
 
-type CodeBlockEntry : Statement | Assignment | AssignmentCompound | EntityChain
+structure PostOpStatement :
+	integer Operator,
+	list<integer> Operand
+
+
+type CodeBlockEntry : Statement | PreOpStatement | PostOpStatement |
+		      Assignment | AssignmentCompound | EntityChain
 
 structure CodeBlock :
 	list<CodeBlockEntry> Entries
@@ -1016,6 +1033,13 @@ OnCodeGenExitContext :
 		AppendEntryToCurrentCodeBlock(cbe)
 		PopChain(ChainStack, ChainStack.next)
 	}
+	elseif(entrytype == STACK_TYPE_PARENTHETICAL)
+	{
+		ParentheticalExpression parenthetical = ScratchExpressions.value
+		ExpressionAtom atom = parenthetical
+		PopExpression(ScratchExpressions, ScratchExpressions.next)
+		PlaceAtomInScratchExpression(atom)
+	}
 }
 
 PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
@@ -1028,6 +1052,15 @@ PopContext : list<ContextStackEntry> ref stack, nothing
 	print("No contexts available")
 	assert(false)
 }
+
+PopExpression : list<Expression> ref thelist, list<Expression> ref next
+{
+	thelist = next
+}
+
+PopExpression : list<Expression> ref thelist, nothing
+
+
 
 PopCodeBlock : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref next
 {
@@ -1184,17 +1217,19 @@ OnCodeGenRegisterRefBinding : integer id, integer structureid, boolean isref, bo
 }
 
 
-ExpressionAtomIsSentinel : AtomSentinel 	  ref sentinel    -> boolean ret = true
-ExpressionAtomIsSentinel : StringHandleAtom 	  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : IdentifierAtom 	  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : OperatorInvokeAtom 	  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : TypeAnnotationAtom 	  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer 		  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer16 		  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : boolean 		  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : real 		  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : Statement		  ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : RefBinding             ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> boolean ret = true
+ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : real 		   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> boolean ret = false
+
 
 
 AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
@@ -1772,6 +1807,40 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 	}
 }
 
+
+CodeGenEmitBindingsForOperand : list<integer> ref operand
+{
+	integer frames = 0
+	integer index = FindVariable(operand.value, frames)
+	OnBytecodeBindReference(frames, index)
+
+	integer structurename = GetNameOfStructureByType(FindVariableType(operand.value))
+	BindAssignmentMembers(operand.next, structurename)
+}
+
+
+CodeGenEmitSingleCodeBlockEntry : PreOpStatement ref preop
+{
+	CodeGenEmitBindingsForOperand(preop.Operand)
+	OnBytecodeReadReference()
+	OnBytecodeInvoke(preop.Operator)
+	CodeGenEmitBindingsForOperand(preop.Operand)
+	OnBytecodeAssign()
+	// TODO - push extra copy of value LAST if in a parenthetical
+}
+
+CodeGenEmitSingleCodeBlockEntry : PostOpStatement ref postop
+{
+	// TODO - push extra copy of value FIRST if in a parenthetical
+	CodeGenEmitBindingsForOperand(postop.Operand)
+	OnBytecodeReadReference()
+	OnBytecodeInvoke(postop.Operator)
+	CodeGenEmitBindingsForOperand(postop.Operand)
+	OnBytecodeAssign()
+}
+
+
+
 CodeGenEmitSingleCodeBlockEntry : EntityChain ref chain
 {
 	OnBytecodeBeginChain()
@@ -1890,6 +1959,7 @@ CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false
 CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false
 CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false
 CodeGenCheckAtomForReadRef : Statement ref atom -> false
+CodeGenCheckAtomForReadRef : ParentheticalExpression ref atom -> false
 CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
 
 
@@ -1978,6 +2048,11 @@ CodeGenEmitSingleAtom : RefBinding ref atom
 	integer memtype = GetStructureMemberType(Structures, atom.StructureName, atom.Identifier)
 	integer memoffset = GetStructureMemberOffset(Structures, atom.StructureName, atom.Identifier)
 	OnBytecodeBindStructReference(memtype, memoffset)
+}
+
+CodeGenEmitSingleAtom : ParentheticalExpression ref expr
+{
+	CodeGenEmitExpression(expr.Inner)
 }
 
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel
@@ -3021,6 +3096,32 @@ CodeGenEmitFunctionSigParams : list<Parameter> ref params
 CodeGenEmitFunctionSigParams : nothing
 
 
+OnCodeGenRegisterParenthetical : 
+{
+	ContextStackEntry entry = STACK_TYPE_PARENTHETICAL, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	prepend<Expression>(ScratchExpressions, dummyexpression)
+}
+
+
+OnCodeGenRegisterPreOpStatement : integer operator, integer operand
+{
+	list<integer> operandlist = operand, nothing
+	PreOpStatement preop = operator, operandlist
+	CodeBlockEntry cbe = preop
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+OnCodeGenRegisterPostOpStatement : integer operator, integer operand
+{
+	list<integer> operandlist = operand, nothing
+	PostOpStatement postop = operator, operandlist
+	CodeBlockEntry cbe = postop
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+
 
 //
 // Global state (just a hack while we bootstrap!)
@@ -3065,6 +3166,7 @@ global
 	integer STACK_TYPE_ENTITY_PARAM = 8
 	integer STACK_TYPE_ENTITY_CODE = 9
 	integer STACK_TYPE_CHAIN = 10
+	integer STACK_TYPE_PARENTHETICAL = 11
 
 	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
 	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
