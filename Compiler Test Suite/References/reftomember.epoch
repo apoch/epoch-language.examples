@@ -12,7 +12,7 @@ structure foo :
 
 entrypoint :
 {
-	foo test = 41, "Test"
+	foo test = 40, "Test"
 	mutate(test.a)
 
 	assert(test.a == 42)
@@ -23,6 +23,7 @@ entrypoint :
 mutate : integer ref a
 {
 	++a
+	a++
 }
 
 
