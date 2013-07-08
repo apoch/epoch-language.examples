@@ -7,6 +7,12 @@
 // Support for separate compilation is desirable so this file is less of a mess.
 //
 
+
+
+//
+// Singly linked list data structure
+//
+
 type listnode<type T> : list<T> | nothing
 
 structure list<type T> :
@@ -14,22 +20,15 @@ structure list<type T> :
 	listnode<T> next
 
 
+//
+// List manipulation functions
+//
+
 prepend<type T> : list<T> ref thelist, T ref value
 {
 	list<T> newlist = value, thelist
 	thelist = newlist
 }
-
-map<type T> : list<T> ref thelist, (func : T)
-{
-	func(thelist.value)
-	map<T>(thelist.next, func)
-}
-
-map<type T> : nothing, (func : T)
-{
-}
-
 
 append_recurse<type T> : list<T> ref thelist, nothing, T ref value
 {
@@ -46,6 +45,21 @@ append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T ref value
 append<type T> : list<T> ref thelist, T ref value
 {
 	append_recurse<T>(thelist, thelist.next, value)
+}
+
+
+//
+// List traversal/inspection functions
+//
+
+map<type T> : list<T> ref thelist, (func : T)
+{
+	func(thelist.value)
+	map<T>(thelist.next, func)
+}
+
+map<type T> : nothing, (func : T)
+{
 }
 
 
@@ -68,6 +82,7 @@ listcontains : nothing, integer value -> boolean contains = false
 //
 // API for registering plugins with the C++ compiler
 //
+
 RegisterFunc : string name, (funcptr : ) 						[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : string) 						[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
@@ -94,6 +109,7 @@ RegisterFunc : string name, (funcptr : -> buffer) 					[external("EpochCompiler.
 //
 // Performs function registration with the C++ compiler
 //
+
 entrypoint :
 {
 	RegisterFunc("PluginOnCompileStart", OnCompileStart)
@@ -103,6 +119,11 @@ entrypoint :
 }
 
 
+
+//
+// Register the bytecode inspection callbacks with the host infrastructure
+//
+
 RegisterBytecodePlugin :
 {
 	RegisterFunc("PluginBytecodeGetBuffer", OnBytecodeGetBuffer)
@@ -110,6 +131,11 @@ RegisterBytecodePlugin :
 
 	print("Epoch Compiler - bytecode emitter plugin registered")
 }
+
+
+//
+// Register code generation callbacks with the host infrastructure
+//
 
 RegisterCodeGenPlugin :
 {
@@ -137,6 +163,8 @@ RegisterCodeGenPlugin :
 	RegisterFunc("PluginCodeGenRegisterFunctionInvokeTag", OnCodeGenRegisterFunctionInvokeTag)
 
 	RegisterFunc("PluginCodeGenRegisterStructureMemVar", OnCodeGenRegisterStructureMemVar)
+	RegisterFunc("PluginCodeGenRegisterStructureMemFuncSig", OnCodeGenRegisterStructureMemFuncSig)
+	RegisterFunc("PluginCodeGenRegisterStructureMemFuncSigParam", OnCodeGenRegisterStructureMemFuncSigParam)
 
 	RegisterFunc("PluginCodeGenRegisterSumTypeBase", OnCodeGenRegisterSumTypeBase)
 
@@ -174,9 +202,11 @@ RegisterCodeGenPlugin :
 }
 
 
+
 //
 // Callback for when compilation on a program begins
 //
+
 OnCompileStart :
 {
 	print("Epoch Compiler - compilation started")
@@ -186,15 +216,18 @@ OnCompileStart :
 //
 // Callback used to emit a byte to a bytecode stream
 //
+
 OnBytecodeEmitByte : integer b
 {
 	writebuffer(Hack, HackSize, b)
 	++HackSize
 }
 
+
 //
 // Callback used to emit a series of bytes to a bytecode stream
 //
+
 OnBytecodeEmitBytes : integer bytes, integer size
 {
 	writebuffer(Hack, HackSize, bytes, size)
@@ -205,12 +238,14 @@ OnBytecodeEmitBytes : integer bytes, integer size
 //
 // Callback used to retrieve a bytecode stream's pointer
 //
+
 OnBytecodeGetBuffer : -> buffer ret = Hack
 
 
 //
 // Callback used to retrieve the size of a bytecode stream
 //
+
 OnBytecodeGetSize : -> integer size = HackSize
 
 
@@ -591,7 +626,7 @@ GetTypeSize : integer typeid -> integer size = 0
 	}
 	elseif((typeid & 0xff000000) == 0x03000000)	// StructureHandle
 	{
-		size = 4		//GetSizeOfStructureByType(typeid)
+		size = 4
 	}
 	elseif((typeid & 0xff000000) == 0x07000000)	// SumType
 	{
@@ -606,9 +641,8 @@ GetTypeSize : integer typeid -> integer size = 0
 
 
 //
-// Code generation
+// Data structures for holding the internal representation of a compiled program
 //
-
 
 structure StringTableEntry :
 	integer Handle,
@@ -622,9 +656,9 @@ structure StructureMemberVariable :
 	integer Name,
 	integer Type
 
-// TODO - support for function signatures
 structure StructureMemberFunctionRef :
-	integer Name
+	integer Name,
+	FunctionSignature Signature
 
 
 type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
@@ -793,9 +827,16 @@ structure FunctionTag :
 	list<string> Parameters
 
 
+
+
+//
+// Callback invoked when the code generation process can begin
+//
+
 OnCodeGenProcessProgram :
 {
 	print("Emitting program...")
+
 	CodeGenEmitStrings(GlobalStrings)
 
 	CodeGenEmitSumTypes(SumTypes)
@@ -814,6 +855,7 @@ OnCodeGenProcessProgram :
 
 	CodeGenEmitTypeMatchers(TypeMatchers)
 	CodeGenEmitConstructors(Structures)
+
 	print("Done.")
 }
 
@@ -829,6 +871,21 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 	StructureMember memwrap = member
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
+
+OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettype
+{
+	FunctionSignature signature = name, dummyparamlist, rettype
+	StructureMemberFunctionRef m = name, signature
+	StructureMember memwrap = m
+	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
+}
+
+OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer structuretype, integer membername, integer paramtype, boolean isref
+{
+	Parameter param = 1, paramtype, isref
+	FindStructureAndAddMemberParam(Structures, structurename, structuretype, membername, param)
+}
+
 
 FindStructureAndAddMember : list<StructureDefinition> ref structures, integer structurename, integer structuretype, StructureMember ref member
 {
@@ -871,6 +928,40 @@ AppendStructureMember : list<StructureMember> ref members, nothing, StructureMem
 	list<StructureMember> newtail = member, nothing
 	members.next = newtail
 }
+
+
+FindStructureAndAddMemberParam : list<StructureDefinition> ref structures, integer structurename, integer structuretype, integer membername, Parameter ref param
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMemberParam(structures.value.Members, membername, param)
+	}
+	else
+	{
+		FindStructureAndAddMemberParam(structures.next, structurename, structuretype, membername, param)
+	}
+}
+
+AppendStructureMemberParam : list<StructureMember> ref members, integer membername, Parameter ref param
+{
+	boolean match = CheckMemberForAddingParam(members.value, membername, param)
+	if(!match)
+	{
+		AppendStructureMemberParam(members.next, membername, param)
+	}
+}
+
+CheckMemberForAddingParam : StructureMemberVariable ref member, integer membername, Parameter ref param -> false
+
+CheckMemberForAddingParam : StructureMemberFunctionRef ref member, integer membername, Parameter ref param -> boolean ret = false
+{
+	if(member.Name == membername)
+	{
+		AppendParameter(member.Signature.Parameters, param)
+		ret = true
+	}
+}
+
 
 
 OnCodeGenRegisterConstructors : integer structurename, integer constructorname, integer anonname, integer copyname
@@ -1594,6 +1685,11 @@ CodeGenEmitMember : StructureMemberVariable ref memvar
 	OnBytecodeStructureMember(memvar.Name, memvar.Type)
 }
 
+CodeGenEmitMember : StructureMemberFunctionRef ref member
+{
+	OnBytecodeStructureMember(member.Name, 0x09000000)
+}
+
 
 CountMembers : list<StructureMember> ref members -> integer count = 0
 {
@@ -2211,8 +2307,13 @@ GetMemberType : nothing, integer membername -> integer rtype = 0
 
 GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
 
+GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = 0x09000000
+
+
 
 GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
+
+GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name
 
 
 GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0
@@ -2235,6 +2336,7 @@ GetMemberOffset : nothing, integer membername, integer ref counter
 
 GetMemberSize : StructureMemberVariable ref memvar -> integer rtype = GetTypeSize(memvar.Type)
 
+GetMemberSize : StructureMemberFunctionRef ref member -> 4
 
 
 
@@ -2895,6 +2997,15 @@ EmitScopeEntryForMember : StructureMemberVariable ref memvar
 	}
 }
 
+EmitScopeEntryForMember : StructureMemberFunctionRef ref memvar
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodeLexicalScopeEntry(memvar.Name, 0x09000000, false, 1)
+	}
+}
+
+
 
 EmitMemberDataCopies : list<StructureMember> ref members, integer idhandle
 {
@@ -2910,6 +3021,15 @@ EmitMemberDataCopy : StructureMemberVariable ref memvar, integer idhandle
 	{
 		OnBytecodePushVarValue(memvar.Name, memvar.Type)
 		OnBytecodeCopyToStructure(idhandle, memvar.Name)
+	}
+}
+
+EmitMemberDataCopy : StructureMemberFunctionRef ref member, integer idhandle
+{
+	if(member.Name != 0)
+	{
+		OnBytecodePushVarValue(member.Name, 0x09000000)
+		OnBytecodeCopyToStructure(idhandle, member.Name)
 	}
 }
 
@@ -3072,6 +3192,8 @@ GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
 		}
 	}
 }
+
+GetMemberDependency : StructureMemberFunctionRef ref member -> 0
 
 
 MissingDependency : list<integer> ref dependencies, list<integer> ref processed -> boolean missing = true
