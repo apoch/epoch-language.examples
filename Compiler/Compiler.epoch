@@ -1350,18 +1350,18 @@ OnCodeGenRegisterRefBinding : integer id, integer structureid, boolean isref, bo
 }
 
 
-ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> boolean ret = true
-ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : real 		   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> boolean ret = false
-ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> boolean ret = false
+ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> true
+ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false
+ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false
 
 
 
@@ -3437,7 +3437,7 @@ CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
 
 global
 {
-	buffer Hack = 102400
+	buffer Hack = 204800
 	integer HackSize = 0
 
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
