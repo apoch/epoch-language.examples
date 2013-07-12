@@ -616,21 +616,33 @@ GetTypeSize : integer typeid -> integer size = 0
 	{
 		size = 4
 	}
+	elseif(typeid == 0x01000002)			// Integer16
+	{
+		size = 2
+	}
 	elseif(typeid == 0x01000003)			// Boolean
 	{
 		size = 1
+	}
+	elseif(typeid == 0x01000004)			// Real
+	{
+		size = 4
 	}
 	elseif(typeid == 0x02000000)			// StringHandle
 	{
 		size = 4
 	}
-	elseif((typeid & 0xff000000) == 0x03000000)	// StructureHandle
+	elseif(IsStructureType(typeid))			// StructureHandle
 	{
 		size = 4
 	}
 	elseif((typeid & 0xff000000) == 0x07000000)	// SumType
 	{
 		size = 4 + GetLargestSumTypeBaseSize(typeid)
+	}
+	elseif(typeid == 0x00000004)			// Nothing
+	{
+		size = 0
 	}
 	else
 	{
@@ -2993,7 +3005,7 @@ EmitScopeEntryForMember : StructureMemberVariable ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, false, 1)
+		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, IsStructureType(memvar.Type), 1)
 	}
 }
 
@@ -3056,6 +3068,18 @@ GetNameOfType : integer typeid -> integer name = 0
 	{
 		name = FindString(GlobalStrings, "integer")
 	}
+	elseif(typeid == 0x01000002)
+	{
+		name = FindString(GlobalStrings, "integer16")
+	}
+	elseif(typeid == 0x01000003)
+	{
+		name = FindString(GlobalStrings, "boolean")
+	}
+	elseif(typeid == 0x01000004)
+	{
+		name = FindString(GlobalStrings, "real")
+	}
 	elseif(typeid == 0x02000000)
 	{
 		name = FindString(GlobalStrings, "string")
@@ -3064,7 +3088,7 @@ GetNameOfType : integer typeid -> integer name = 0
 	{
 		name = FindString(GlobalStrings, "nothing")
 	}
-	elseif((typeid & 0xff000000) == 0x03000000)
+	elseif(IsStructureType(typeid))
 	{
 		name = GetNameOfStructureByType(typeid)
 	}
@@ -3429,6 +3453,18 @@ CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
 }
 
 
+IsStructureType : integer typeid -> boolean ret = false
+{
+	if((typeid & 0xff000000) == 0x03000000)
+	{
+		ret = true
+	}
+	elseif((typeid & 0xff000000) == 0x08000000)
+	{
+		ret = true
+	}
+}
+
 
 
 //
@@ -3437,7 +3473,7 @@ CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
 
 global
 {
-	buffer Hack = 204800
+	buffer Hack = 8192000
 	integer HackSize = 0
 
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
