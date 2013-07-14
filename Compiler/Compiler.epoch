@@ -1952,8 +1952,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 	integer index = FindVariable(a.LHS.value, frames)
 	OnBytecodeBindReference(frames, index)
 
-
-	integer structurename = GetNameOfStructureByType(FindVariableType(a.LHS.value))
+	integer structurename = GetNameOfStructureByType(MakeNonReferenceType(FindVariableType(a.LHS.value)))
 	BindAssignmentMembers(a.LHS.next, structurename)
 
 	if((a.LHSType & 0xff000000) == 0x07000000)
