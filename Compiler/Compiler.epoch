@@ -98,6 +98,7 @@ RegisterFunc : string name, (funcptr : integer, integer, integer, integer)		[ext
 RegisterFunc : string name, (funcptr : boolean, integer, integer, integer)		[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : -> integer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 RegisterFunc : string name, (funcptr : -> buffer) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
+RegisterFunc : string name, (funcptr : -> boolean) 					[external("EpochCompiler.dll", "RegisterPluginFunction", "stdcall")]
 
 
 
@@ -113,6 +114,7 @@ entrypoint :
 
 	RegisterBytecodePlugin()
 	RegisterCodeGenPlugin()
+	RegisterSemanticIRPlugin()
 }
 
 
@@ -138,65 +140,34 @@ RegisterCodeGenPlugin :
 {
 	RegisterFunc("PluginCodeGenProcessProgram", OnCodeGenProcessProgram)
 
-	RegisterFunc("PluginCodeGenShiftParameter", OnCodeGenShiftParameter)
 	RegisterFunc("PluginCodeGenRegisterString", OnCodeGenRegisterString)
-	RegisterFunc("PluginCodeGenRegisterAlias", OnCodeGenRegisterAlias)
-	RegisterFunc("PluginCodeGenRegisterScope", OnCodeGenRegisterScope)
-	RegisterFunc("PluginCodeGenRegisterVariable", OnCodeGenRegisterVariable)
-	RegisterFunc("PluginCodeGenRegisterFunction", OnCodeGenRegisterFunction)
-	RegisterFunc("PluginCodeGenRegisterLiteralBoolean", OnCodeGenRegisterLiteralBoolean)
-	RegisterFunc("PluginCodeGenRegisterLiteralInteger", OnCodeGenRegisterLiteralInteger)
-	RegisterFunc("PluginCodeGenRegisterLiteralString", OnCodeGenRegisterLiteralString)
-	RegisterFunc("PluginCodeGenRegisterLiteralReal", OnCodeGenRegisterLiteralReal)
-	RegisterFunc("PluginCodeGenRegisterAtomIdentifier", OnCodeGenRegisterAtomIdentifier)
-	RegisterFunc("PluginCodeGenRegisterAtomIdentifierReference", OnCodeGenRegisterAtomIdentifierReference)
-	RegisterFunc("PluginCodeGenRegisterOperatorInvoke", OnCodeGenRegisterOperatorInvoke)
-	RegisterFunc("PluginCodeGenRegisterTypeAnnotation", OnCodeGenRegisterTypeAnnotation)
-	RegisterFunc("PluginCodeGenRegisterRefBinding", OnCodeGenRegisterRefBinding)
-	RegisterFunc("PluginCodeGenRegisterParenthetical", OnCodeGenRegisterParenthetical)
-	RegisterFunc("PluginCodeGenSetExpressionType", OnCodeGenSetExpressionType)
-
-	RegisterFunc("PluginCodeGenRegisterFunctionTag", OnCodeGenRegisterFunctionTag)
-	RegisterFunc("PluginCodeGenRegisterFunctionTagParam", OnCodeGenRegisterFunctionTagParam)
-	RegisterFunc("PluginCodeGenRegisterFunctionInvokeTag", OnCodeGenRegisterFunctionInvokeTag)
-
-	RegisterFunc("PluginCodeGenRegisterStructureMemVar", OnCodeGenRegisterStructureMemVar)
-	RegisterFunc("PluginCodeGenRegisterStructureMemFuncSig", OnCodeGenRegisterStructureMemFuncSig)
-	RegisterFunc("PluginCodeGenRegisterStructureMemFuncSigParam", OnCodeGenRegisterStructureMemFuncSigParam)
-
-	RegisterFunc("PluginCodeGenRegisterSumTypeBase", OnCodeGenRegisterSumTypeBase)
-
-	RegisterFunc("PluginCodeGenRegisterTypeMatchParam", OnCodeGenRegisterTypeMatchParam)
-
-	RegisterFunc("PluginCodeGenRegisterConstructors", OnCodeGenRegisterConstructors)
-
-	RegisterFunc("PluginCodeGenEnterFunctionBody", OnCodeGenEnterFunctionBody)
-	RegisterFunc("PluginCodeGenEnterFunctionReturn", OnCodeGenEnterFunctionReturn)
-	RegisterFunc("PluginCodeGenEnterStatement", OnCodeGenEnterStatement)
-	RegisterFunc("PluginCodeGenEnterSubStatement", OnCodeGenEnterSubStatement)
-	RegisterFunc("PluginCodeGenRegisterPreOpStatement", OnCodeGenRegisterPreOpStatement)
-	RegisterFunc("PluginCodeGenRegisterPostOpStatement", OnCodeGenRegisterPostOpStatement)
-
-	RegisterFunc("PluginCodeGenEnterAssignment", OnCodeGenEnterAssignment)
-	RegisterFunc("PluginCodeGenEnterAssignmentCompound", OnCodeGenEnterAssignmentCompound)
-	RegisterFunc("PluginCodeGenAssignmentCompoundMember", OnCodeGenAssignmentCompoundMember)
-	RegisterFunc("PluginCodeGenAssignmentCompoundEnd", OnCodeGenAssignmentCompoundEnd)
-
-	RegisterFunc("PluginCodeGenEnterChain", OnCodeGenEnterChain)
-	RegisterFunc("PluginCodeGenEnterEntity", OnCodeGenEnterEntity)
-	RegisterFunc("PluginCodeGenEnterEntityCode", OnCodeGenEnterEntityCode)
-
-	RegisterFunc("PluginCodeGenEnterTypeMatcher", OnCodeGenEnterTypeMatcher)
-
-	RegisterFunc("PluginCodeGenRegisterGlobalBlock", OnCodeGenRegisterGlobalBlock)
-
-	RegisterFunc("PluginCodeGenExit", OnCodeGenExitContext)
-
-	RegisterFunc("PluginCodeGenRegisterFunctionSignature", OnCodeGenRegisterFunctionSig)
-	RegisterFunc("PluginCodeGenRegisterFunctionSigParam", OnCodeGenRegisterFunctionSigParam)
-	RegisterFunc("PluginCodeGenRegisterFunctionSignatureEnd", OnCodeGenRegisterFunctionSigEnd)
 
 	print("Epoch Compiler - code generation plugin registered")
+}
+
+
+//
+// Register functionality for semantic validation IR
+//
+RegisterSemanticIRPlugin :
+{
+	RegisterFunc("PluginCompileTimeCodeExecution", IRCompileTimeCodeExecution)
+	RegisterFunc("PluginTypeInference", IRTypeInference)
+	RegisterFunc("PluginValidate", IRValidate)
+
+	RegisterFunc("PluginIREnterProgram", IREnterProgram)
+	RegisterFunc("PluginIRExitProgram", IRExitProgram)
+
+	RegisterFunc("PluginIREnterFunction", IREnterFunction)
+	RegisterFunc("PluginIRExitFunction", IRExitFunction)
+
+	RegisterFunc("PluginIREnterCodeBlock", IREnterCodeBlock)
+	RegisterFunc("PluginIRExitCodeBlock", IRExitCodeBlock)
+
+	RegisterFunc("PluginIREnterStatement", IREnterStatement)
+	RegisterFunc("PluginIRExitStatement", IRExitStatement)
+
+	print("Epoch Compiler - semantic validation plugin registered")
 }
 
 
@@ -882,6 +853,11 @@ OnCodeGenRegisterString : integer handle, string data
 {
 	StringTableEntry entry = handle, data
 	prepend<StringTableEntry>(GlobalStrings, entry)
+
+	if(handle > CurrentStringHandle)
+	{
+		CurrentStringHandle = handle
+	}
 }
 
 OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer membertype
@@ -3583,6 +3559,75 @@ CodeBlockDepth : nothing -> 0
 
 
 
+
+IRCompileTimeCodeExecution : -> true
+
+IRTypeInference : -> true
+
+IRValidate : -> true
+
+
+
+PoolString : string s -> integer handle = FindString(GlobalStrings, s)
+{
+	if(handle == 0)
+	{
+		++CurrentStringHandle
+		OnCodeGenRegisterString(CurrentStringHandle, s)
+		handle = CurrentStringHandle
+	}
+}
+
+
+
+IREnterProgram :
+{
+}
+
+IRExitProgram :
+{
+}
+
+
+IREnterFunction : string funcname
+{
+	integer namehandle = PoolString(funcname)
+	OnCodeGenRegisterFunction(namehandle)
+	OnCodeGenRegisterScope(namehandle, 0)
+
+	// TODO - hack
+	OnCodeGenEnterFunctionBody(namehandle)
+}
+
+IRExitFunction :
+{
+	OnCodeGenExitContext()
+}
+
+IREnterCodeBlock :
+{
+	// TODO
+}
+
+IRExitCodeBlock :
+{
+	//OnCodeGenExitContext()
+}
+
+
+IREnterStatement : string funcname
+{
+	integer namehandle = PoolString(funcname)
+	OnCodeGenEnterStatement(namehandle, 0)
+}
+
+IRExitStatement :
+{
+	OnCodeGenExitContext()
+}
+
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -3676,5 +3721,7 @@ global
 	list<FunctionSignature> FunctionSignatures = dummysignature, nothing
 
 	boolean InFuncRetHack = false
+
+	integer CurrentStringHandle = 0
 }
 
