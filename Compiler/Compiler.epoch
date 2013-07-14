@@ -881,7 +881,8 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 
 OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettype
 {
-	FunctionSignature signature = name, dummyparamlist, rettype
+	list<Parameter> p = dummyparam, nothing
+	FunctionSignature signature = name, p, rettype
 	StructureMemberFunctionRef m = name, signature
 	StructureMember memwrap = m
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
@@ -1026,7 +1027,8 @@ FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer
 
 OnCodeGenRegisterScope : integer scopename, integer parentname
 {
-	Scope scope = scopename, parentname, dummyvarlist, 0, 0
+	list<Variable> v = dummyvar, nothing
+	Scope scope = scopename, parentname, v, 0, 0
 	prepend<Scope>(Scopes, scope)
 }
 
@@ -1111,7 +1113,8 @@ OnCodeGenEnterFunctionReturn : integer funcname, boolean anonymous
 	ContextStackEntry entry = STACK_TYPE_FUNCRET, funcname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpressions.value = dummyexpression
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
 
 	Functions.value.AnonymousReturn = anonymous
 }
@@ -1236,7 +1239,9 @@ PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressio
 SetReturnExpression : FunctionDefinition ref funcdef, Expression ref expr
 {
 	funcdef.Return = expr
-	ScratchExpressions.value = dummyexpression
+
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
 }
 
 SetGlobalCodeBlock : CodeBlock ref block
@@ -1262,7 +1267,8 @@ OnCodeGenEnterTypeMatcher : integer matchername
 	ContextStackEntry entry = STACK_TYPE_TYPEMATCH, matchername
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	TypeMatcher matcher = matchername, dummysignaturelist
+	list<FunctionSignature> dsl = dummysignature, nothing
+	TypeMatcher matcher = matchername, dsl
 	prepend<TypeMatcher>(TypeMatchers, matcher)
 }
 
@@ -2828,7 +2834,8 @@ FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
 
 OnCodeGenRegisterFunctionTag : integer funcname, string tagname
 {
-	FunctionTag tag = funcname, tagname, dummytagparams
+	list<string> dtp = "", nothing
+	FunctionTag tag = funcname, tagname, dtp
 	prepend<FunctionTag>(FunctionTags, tag)
 
 	if(tagname == "constructor")
@@ -3321,7 +3328,8 @@ OnCodeGenRegisterAlias : integer aliastype, integer base
 
 OnCodeGenRegisterFunctionSig : integer sigtype, integer rettype
 {
-	FunctionSignature sig = sigtype, dummyparamlist, rettype
+	list<Parameter> d = dummyparam, nothing
+	FunctionSignature sig = sigtype, d, rettype
 	prepend<FunctionSignature>(FunctionSignatures, sig)
 }
 
@@ -3351,8 +3359,8 @@ CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
 	if(signature.Name != 0)
 	{
 		OnBytecodeEmitFunctionSignature(signature.Name, signature.ReturnType, CountParameters(signature.Parameters))
+		CodeGenEmitFunctionSigParams(signature.Parameters)
 	}
-	CodeGenEmitFunctionSigParams(signature.Parameters)
 }
 
 CodeGenEmitFunctionSigParams : list<Parameter> ref params
