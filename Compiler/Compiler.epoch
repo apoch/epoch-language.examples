@@ -511,7 +511,7 @@ OnBytecodeBindRefByHandle : integer id
 OnBytecodeBindStructReference : integer membertype, integer memberoffset
 {
 	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
-	OnBytecodeEmitInteger(membertype)
+	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
 	OnBytecodeEmitInteger(memberoffset)
 }
 
@@ -2033,6 +2033,7 @@ BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurenam
 {
 	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
 	integer memberoffset = GetStructureMemberOffset(Structures, structurename, lhsmembers.value)
+
 	OnBytecodeBindStructReference(membertype, memberoffset)
 
 	// Recurse
@@ -2336,14 +2337,17 @@ GetMemberOffset : list<StructureMember> ref members, integer membername, integer
 {
 	if(GetMemberName(members.value) != membername)
 	{
-		counter += GetMemberSize(members.value)
+		if(GetMemberName(members.value) != 0)
+		{
+			counter += GetMemberSize(members.value)
+		}
 		GetMemberOffset(members.next, membername, counter)
 	}
 }
 
 GetMemberOffset : nothing, integer membername, integer ref counter
 
-GetMemberSize : StructureMemberVariable ref memvar -> integer rtype = GetTypeSize(memvar.Type)
+GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type)
 
 GetMemberSize : StructureMemberFunctionRef ref member -> 4
 
@@ -3061,6 +3065,7 @@ FindString : nothing, string target -> integer handle = 0
 
 GetNameOfType : integer typeid -> integer name = 0
 {
+	typeid = MakeNonReferenceType(typeid)
 	if(typeid == 0x01000001)
 	{
 		name = FindString(GlobalStrings, "integer")
