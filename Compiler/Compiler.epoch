@@ -3403,11 +3403,11 @@ CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
 
 CodeGenEmitFunctionSigParams : list<Parameter> ref params
 {
-	CodeGenEmitFunctionSigParams(params.next)
 	if(params.value.Type != 0)
 	{
 		OnBytecodeEmitFunctionSigParam(params.value.Type)
 	}
+	CodeGenEmitFunctionSigParams(params.next)
 }
 
 CodeGenEmitFunctionSigParams : nothing
