@@ -1,0 +1,29 @@
+//
+// REFMEMBER.EPOCH
+//
+// Basic test of structure members of reference types
+//
+
+
+structure base :
+	integer foo,
+	string bar
+
+structure container :
+	base ref alpha,
+	base ref beta
+
+
+
+entrypoint :
+{
+	base b = 42, "Test"
+	container c = b, b
+
+	c.beta.foo = 666
+	assert(c.alpha.foo == 666)
+
+	passtest()
+}
+
+
