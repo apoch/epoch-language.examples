@@ -2196,7 +2196,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 			}
 			else
 			{
-				if(IsReferenceType(idatom.Type))
+				if(idatom.IsReference)
 				{
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
@@ -2792,7 +2792,7 @@ CodeGenEmitTypeMatcherParams : list<Parameter> ref params
 		}
 
 		OnBytecodeEmitByte(refflag)
-		OnBytecodeEmitInteger(params.value.Type)
+		OnBytecodeEmitInteger(MakeNonReferenceType(params.value.Type))
 	}
 }
 
@@ -3470,6 +3470,7 @@ IsReferenceType : integer typeid -> boolean ret = false
 	}
 }
 
+MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff)
 
 
 append_recurse : list<Variable> ref thelist, nothing, Variable ref value
