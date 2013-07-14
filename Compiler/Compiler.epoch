@@ -10,13 +10,20 @@
 
 
 //
-// Singly linked list data structure
+// Singly linked list data structures
 //
+
+type simplelistnode<type T> : simplelist<T> | nothing
+
+structure simplelist<type T> :
+	T value,
+	simplelistnode<T> next
+
 
 type listnode<type T> : list<T> | nothing
 
 structure list<type T> :
-	T value,
+	T ref value,
 	listnode<T> next
 
 
@@ -24,28 +31,18 @@ structure list<type T> :
 // List manipulation functions
 //
 
+simpleprepend<type T> : simplelist<T> ref thelist, T value
+{
+	simplelist<T> newlist = value, thelist
+	thelist = newlist
+}
+
 prepend<type T> : list<T> ref thelist, T ref value
 {
 	list<T> newlist = value, thelist
 	thelist = newlist
 }
 
-append_recurse<type T> : list<T> ref thelist, nothing, T ref value
-{
-	list<T> newlist = value, nothing
-	thelist.next = newlist
-}
-
-append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T ref value
-{
-	append_recurse<T>(tail, tail.next, value)
-}
-
-
-append<type T> : list<T> ref thelist, T ref value
-{
-	append_recurse<T>(thelist, thelist.next, value)
-}
 
 
 //
@@ -63,7 +60,7 @@ map<type T> : nothing, (func : T)
 }
 
 
-listcontains : list<integer> ref thelist, integer value -> boolean ret = false
+listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = false
 {
 	if(thelist.value == value)
 	{
@@ -305,12 +302,12 @@ OnBytecodeLexicalScope : integer name, integer parent, integer count
 	OnBytecodeEmitInteger(count)
 }
 
-OnBytecodeLexicalScopeEntry : integer varname, integer vartype, boolean isreference, integer origin
+OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin
 {
 	OnBytecodeEmitInteger(varname)
 	OnBytecodeEmitInteger(vartype)
 	OnBytecodeEmitInteger(origin)
-	OnBytecodeEmitBoolean(isreference)
+	OnBytecodeEmitBoolean(false)
 }
 
 OnBytecodeInvokeOffset : integer name
@@ -603,10 +600,10 @@ OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer param
 	OnBytecodeEmitInteger(paramcount)
 }
 
-OnBytecodeEmitFunctionSigParam : integer paramtype, boolean isref
+OnBytecodeEmitFunctionSigParam : integer paramtype
 {
 	OnBytecodeEmitInteger(paramtype)
-	OnBytecodeEmitBoolean(isref)
+	OnBytecodeEmitBoolean(false)
 }
 
 
@@ -670,7 +667,7 @@ structure StructureMemberVariable :
 
 structure StructureMemberFunctionRef :
 	integer Name,
-	FunctionSignature Signature
+	FunctionSignature ref Signature
 
 
 type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
@@ -681,7 +678,7 @@ structure StructureDefinition :
 	integer ConstructorName,
 	integer AnonConstructorName,
 	integer CopyConstructorName,
-	list<StructureMember> Members
+	list<StructureMember> ref Members
 
 
 structure IdentifierAtom :
@@ -716,19 +713,19 @@ type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
 
 
 structure Expression :
-	list<ExpressionAtom> Atoms,
+	list<ExpressionAtom> ref Atoms,
 	integer Type
 
 type OptionalExpression : Expression | nothing
 
 structure ExpressionList :
-	list<Expression> Expressions
+	list<Expression> ref Expressions
 
 type OptionalExpressionList : ExpressionList | nothing
 
 
 structure ParentheticalExpression :
-	Expression Inner
+	Expression ref Inner
 
 
 structure Statement :
@@ -740,28 +737,28 @@ structure Assignment :
 	integer LHSName,
 	integer LHSType,
 	integer Annotation,
-	Expression RHS
+	Expression ref RHS
 
 structure AssignmentCompound :
-	list<integer> LHS,
+	simplelist<integer> ref LHS,
 	integer LHSType,
 	integer Annotation,
-	Expression RHS
+	Expression ref RHS
 
 structure PreOpStatement :
 	integer Operator,
-	list<integer> Operand
+	simplelist<integer> ref Operand
 
 structure PostOpStatement :
 	integer Operator,
-	list<integer> Operand
+	simplelist<integer> ref Operand
 
 
 type CodeBlockEntry : Statement | PreOpStatement | PostOpStatement |
 		      Assignment | AssignmentCompound | EntityChain
 
 structure CodeBlock :
-	list<CodeBlockEntry> Entries
+	list<CodeBlockEntry> ref Entries
 
 type OptionalCodeBlock : CodeBlock | nothing
 
@@ -773,7 +770,7 @@ structure Entity :
 
 
 structure EntityList :
-	list<Entity> ActualList
+	list<Entity> ref ActualList
 
 type OptionalEntityList : EntityList | nothing
 
@@ -793,7 +790,6 @@ structure FunctionDefinition :
 structure Variable :
 	integer Name,
 	integer VarType,
-	boolean IsReference,
 	integer Origin,
 	integer Offset
 
@@ -814,29 +810,28 @@ structure ContextStackEntry :
 structure SumType :
 	integer Name,
 	integer Type,
-	list<integer> Bases
+	simplelist<integer> Bases
 
 
 structure Parameter :
 	integer Name,
-	integer Type,
-	boolean IsReference
+	integer Type
 
 
 structure FunctionSignature :
 	integer Name,
-	list<Parameter> Parameters,
+	list<Parameter> ref Parameters,
 	integer ReturnType
 
 structure TypeMatcher :
 	integer Name,
-	list<FunctionSignature> Overloads
+	list<FunctionSignature> ref Overloads
 
 
 structure FunctionTag :
 	integer FunctionName,
 	string TagName,
-	list<string> Parameters
+	list<string> ref Parameters
 
 
 
@@ -892,9 +887,9 @@ OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuret
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
 
-OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer structuretype, integer membername, integer paramtype, boolean isref
+OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer structuretype, integer membername, integer paramtype
 {
-	Parameter param = 1, paramtype, isref
+	Parameter param = 1, paramtype
 	FindStructureAndAddMemberParam(Structures, structurename, structuretype, membername, param)
 }
 
@@ -979,9 +974,9 @@ CheckMemberForAddingParam : StructureMemberFunctionRef ref member, integer membe
 OnCodeGenRegisterConstructors : integer structurename, integer constructorname, integer anonname, integer copyname
 {
 	FindStructureAndSetConstructors(Structures, structurename, constructorname, anonname, copyname)
-	prepend<integer>(AutoGeneratedFunctionNames, constructorname)
-	prepend<integer>(AutoGeneratedFunctionNames, anonname)
-	prepend<integer>(AutoGeneratedFunctionNames, copyname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, constructorname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, anonname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, copyname)
 }
 
 FindStructureAndSetConstructors : list<StructureDefinition> ref structures, integer structurename, integer constructorname, integer anonname, integer copyname
@@ -1012,7 +1007,7 @@ FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer
 {
 	if(sumtypes.value.Type == sumtypeid)
 	{
-		prepend<integer>(sumtypes.value.Bases, basetypeid)
+		simpleprepend<integer>(sumtypes.value.Bases, basetypeid)
 	}
 	else
 	{
@@ -1022,7 +1017,7 @@ FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer
 
 FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer basetypeid
 {
-	list<integer> bases = basetypeid, nothing
+	simplelist<integer> bases = basetypeid, nothing
 	SumType st = sumtypename, sumtypeid, bases
 	prepend<SumType>(SumTypes, st)
 }
@@ -1035,9 +1030,9 @@ OnCodeGenRegisterScope : integer scopename, integer parentname
 	prepend<Scope>(Scopes, scope)
 }
 
-OnCodeGenRegisterVariable : integer scopename, integer varname, integer vartype, boolean isref, integer origin
+OnCodeGenRegisterVariable : integer scopename, integer varname, integer vartype, integer origin
 {
-	StoreVariableInScope(Scopes, scopename, varname, vartype, isref, origin)
+	StoreVariableInScope(Scopes, scopename, varname, vartype, false, origin)
 }
 
 StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varname, integer vartype, boolean isref, integer origin
@@ -1068,8 +1063,8 @@ StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varnam
 			scopes.value.LocalOffset = scopes.value.LocalOffset + size
 		}
 
-		Variable var = varname, vartype, isref, origin, offset
-		append<Variable>(scopes.value.Variables, var)
+		Variable var = varname, vartype, origin, offset
+		append(scopes.value.Variables, var)
 	}
 	else
 	{
@@ -1416,7 +1411,8 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype
 
 OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
 {
-	Assignment assignment = lhsname, lhstype, annotation, Expression(dummyatomlist, 0)
+	Expression tempexpr = dummyatomlist, 0
+	Assignment assignment = lhsname, lhstype, annotation, tempexpr
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 
@@ -1429,8 +1425,9 @@ OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
 
 OnCodeGenEnterAssignmentCompound : integer lhsname, integer lhstype, integer annotation
 {
-	list<integer> idlist = lhsname, nothing
-	AssignmentCompound assignment = idlist, lhstype, annotation, Expression(dummyatomlist, 0)
+	simplelist<integer> idlist = lhsname, nothing
+	Expression tempexpr = dummyatomlist, 0
+	AssignmentCompound assignment = idlist, lhstype, annotation, tempexpr
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 }
@@ -1533,14 +1530,14 @@ AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
 	AppendCompoundMember(a.LHS, a.LHS.next, membername)
 }
 
-AppendCompoundMember : list<integer> ref members, list<integer> ref tail, integer membername
+AppendCompoundMember : simplelist<integer> ref members, simplelist<integer> ref tail, integer membername
 {
 	AppendCompoundMember(tail, tail.next, membername)
 }
 
-AppendCompoundMember : list<integer> ref members, nothing, integer membername
+AppendCompoundMember : simplelist<integer> ref members, nothing, integer membername
 {
-	list<integer> newtail = membername, nothing
+	simplelist<integer> newtail = membername, nothing
 	members.next = newtail
 }
 
@@ -1780,11 +1777,11 @@ CodeGenEmitSingleVariable : Variable ref var, integer funcname
 
 		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
 		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.IsReference, 0)
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
 		}
 		else
 		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.IsReference, var.Origin)
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
 		}
 	}
 }
@@ -1899,7 +1896,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
 
-	Variable var = 0, 0, false, 0, 0
+	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(EmittingFunctionName, s.Name, var)
 	if((var.Name != 0) && ((var.VarType & 0xff000000) == 0x09000000))
 	{
@@ -1970,7 +1967,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 }
 
 
-CodeGenEmitBindingsForOperand : list<integer> ref operand
+CodeGenEmitBindingsForOperand : simplelist<integer> ref operand
 {
 	integer frames = 0
 	integer index = FindVariable(operand.value, frames)
@@ -2032,7 +2029,7 @@ CodeGenEmitEntityList : list<Entity> ref thelist
 CodeGenEmitEntityList : nothing
 
 
-BindAssignmentMembers : list<integer> ref lhsmembers, integer structurename
+BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurename
 {
 	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
 	integer memberoffset = GetStructureMemberOffset(Structures, structurename, lhsmembers.value)
@@ -2199,7 +2196,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 			}
 			else
 			{
-				if(idatom.IsReference)
+				if(IsReferenceType(idatom.Type))
 				{
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
@@ -2388,7 +2385,7 @@ CodeGenEmitSingleSumType : SumType ref sumtype
 	}
 }
 
-CountSumTypeBases : list<integer> ref bases -> integer count = 0
+CountSumTypeBases : simplelist<integer> ref bases -> integer count = 0
 {
 	count = CountSumTypeBases(bases.next)
 
@@ -2400,7 +2397,7 @@ CountSumTypeBases : list<integer> ref bases -> integer count = 0
 
 CountSumTypeBases : nothing -> integer count = 0
 
-CodeGenEmitSumTypeBase : list<integer> ref bases
+CodeGenEmitSumTypeBase : simplelist<integer> ref bases
 {
 	CodeGenEmitSumTypeBase(bases.next)
 
@@ -2479,7 +2476,7 @@ FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean
 FunctionExists : nothing, integer funcname -> boolean ret = false
 
 
-FunctionIsAutoGen : list<integer> ref genlist, integer target -> boolean ret = false
+FunctionIsAutoGen : simplelist<integer> ref genlist, integer target -> boolean ret = false
 {
 	if(genlist.value == target)
 	{
@@ -2628,7 +2625,7 @@ FindReturnVariableNameInSingleScope : nothing, integer ref name
 
 FindVariableType : integer varname -> integer rettype = 0
 {
-	Variable var = 0, 0, false, 0, 0
+	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(EmittingFunctionName, varname, var)
 	rettype = var.VarType
 }
@@ -2691,9 +2688,9 @@ CodeGenEmitSingleTypeMatcher : TypeMatcher ref matcher
 }
 
 
-OnCodeGenRegisterTypeMatchParam : integer matchername, integer overloadname, integer varname, integer vartype, boolean isref
+OnCodeGenRegisterTypeMatchParam : integer matchername, integer overloadname, integer varname, integer vartype
 {
-	Parameter p = varname, vartype, isref
+	Parameter p = varname, vartype
 	FindTypeMatcherAndAppendOverloadParameter(TypeMatchers, matchername, overloadname, p)
 }
 
@@ -2789,7 +2786,7 @@ CodeGenEmitTypeMatcherParams : list<Parameter> ref params
 	if(params.value.Name != 0)
 	{
 		integer refflag = 0
-		if(params.value.IsReference)
+		if(IsReferenceType(params.value.Type))
 		{
 			refflag = 1
 		}
@@ -2833,7 +2830,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname
 
 	if(tagname == "constructor")
 	{
-		prepend<integer>(CustomConstructors, funcname)
+		simpleprepend<integer>(CustomConstructors, funcname)
 	}
 }
 
@@ -2946,7 +2943,7 @@ EmitConstructor : StructureDefinition ref def
 	integer idhandle = FindString(GlobalStrings, "identifier")
 
 	OnBytecodeLexicalScope(def.ConstructorName, 0, CountMembers(def.Members) + 1)
-	OnBytecodeLexicalScopeEntry(idhandle, 0x01000000, true, 1)
+	OnBytecodeLexicalScopeEntry(idhandle, 0x81000000, 1)
 	EmitScopeEntriesForMembers(def.Members)
 
 	OnBytecodeEnterFunction(def.ConstructorName)
@@ -2964,7 +2961,7 @@ EmitAnonConstructor : StructureDefinition ref def
 	integer membercount = CountMembers(def.Members)
 	OnBytecodeLexicalScope(def.AnonConstructorName, 0, membercount + 1)
 	EmitScopeEntriesForMembers(def.Members)
-	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, false, 2)
+	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, 2)
 
 	OnBytecodeEnterFunction(def.AnonConstructorName)
 	OnBytecodeAllocStructure(def.Type)
@@ -2980,8 +2977,8 @@ EmitAnonConstructor : StructureDefinition ref def
 EmitCopyConstructor : StructureDefinition ref def
 {
 	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
-	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x01000000, true, 1)
-	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "value"), def.Type, false, 1)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x81000000, 1)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "value"), def.Type, 1)
 
 	OnBytecodeEnterFunction(def.CopyConstructorName)
 	OnBytecodePushVarNoCopy(FindString(GlobalStrings, "value"))
@@ -3005,7 +3002,7 @@ EmitScopeEntryForMember : StructureMemberVariable ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, IsStructureType(memvar.Type), 1)
+		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, 1)
 	}
 }
 
@@ -3013,7 +3010,7 @@ EmitScopeEntryForMember : StructureMemberFunctionRef ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, 0x09000000, false, 1)
+		OnBytecodeLexicalScopeEntry(memvar.Name, 0x09000000, 1)
 	}
 }
 
@@ -3147,7 +3144,7 @@ GetStructureTypeByName : nothing, integer name -> 0
 // Rearrange structure list to avoid dependency issues on load
 CodeGenRearrangeStructures : list<StructureDefinition> ref thelist
 {
-	list<integer> processed = 0, nothing
+	simplelist<integer> processed = 0, nothing
 	boolean changed = CodeGenRearrangeStructuresRecurse(thelist, processed)
 
 	if(changed)
@@ -3156,11 +3153,11 @@ CodeGenRearrangeStructures : list<StructureDefinition> ref thelist
 	}
 }
 
-CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<integer> ref processed -> boolean changed = false
+CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, simplelist<integer> ref processed -> boolean changed = false
 {
 	if(thelist.value.Name != 0)
 	{
-		list<integer> dependencies = 0, nothing
+		simplelist<integer> dependencies = 0, nothing
 		ParseStructDependencies(thelist.value.Members, dependencies)
 
 		if(MissingDependency(dependencies, processed))
@@ -3169,7 +3166,7 @@ CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<
 			changed = true
 		}
 
-		prepend<integer>(processed, thelist.value.Type)
+		simpleprepend<integer>(processed, thelist.value.Type)
 	}
 
 	if(!changed)
@@ -3178,7 +3175,7 @@ CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, list<
 	}
 }
 
-CodeGenRearrangeStructuresRecurse : nothing, list<integer> ref processed -> false
+CodeGenRearrangeStructuresRecurse : nothing, simplelist<integer> ref processed -> false
 
 
 SwapDown : list<StructureDefinition> ref thelist, list<StructureDefinition> ref tail
@@ -3192,18 +3189,18 @@ SwapDown : list<StructureDefinition> ref thelist, nothing
 
 
 
-ParseStructDependencies : list<StructureMember> ref members, list<integer> ref out
+ParseStructDependencies : list<StructureMember> ref members, simplelist<integer> ref out
 {
 	integer dependency = GetMemberDependency(members.value)
 	if(dependency != 0)
 	{
-		prepend<integer>(out, dependency)
+		simpleprepend<integer>(out, dependency)
 	}
 
 	ParseStructDependencies(members.next, out)
 }
 
-ParseStructDependencies : nothing, list<integer> ref out
+ParseStructDependencies : nothing, simplelist<integer> ref out
 
 
 GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
@@ -3220,7 +3217,7 @@ GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
 GetMemberDependency : StructureMemberFunctionRef ref member -> 0
 
 
-MissingDependency : list<integer> ref dependencies, list<integer> ref processed -> boolean missing = true
+MissingDependency : simplelist<integer> ref dependencies, simplelist<integer> ref processed -> boolean missing = true
 {
 	// TODO - clean up this horrible code
 	if(dependencies.value != 0)
@@ -3240,7 +3237,7 @@ MissingDependency : list<integer> ref dependencies, list<integer> ref processed 
 	}
 }
 
-MissingDependency : nothing, list<integer> ref processed -> boolean missing = true
+MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = true
 
 
 OnCodeGenEnterEntity : integer entityname, integer postfixtag
@@ -3324,9 +3321,9 @@ OnCodeGenRegisterFunctionSig : integer sigtype, integer rettype
 	prepend<FunctionSignature>(FunctionSignatures, sig)
 }
 
-OnCodeGenRegisterFunctionSigParam : integer paramtype, boolean isref
+OnCodeGenRegisterFunctionSigParam : integer paramtype
 {
-	Parameter param = 1, paramtype, isref
+	Parameter param = 1, paramtype
 	AppendParameter(FunctionSignatures.value.Parameters, param)
 }
 
@@ -3359,7 +3356,7 @@ CodeGenEmitFunctionSigParams : list<Parameter> ref params
 	CodeGenEmitFunctionSigParams(params.next)
 	if(params.value.Type != 0)
 	{
-		OnBytecodeEmitFunctionSigParam(params.value.Type, params.value.IsReference)
+		OnBytecodeEmitFunctionSigParam(params.value.Type)
 	}
 }
 
@@ -3377,7 +3374,7 @@ OnCodeGenRegisterParenthetical :
 
 OnCodeGenRegisterPreOpStatement : integer operator, integer operand
 {
-	list<integer> operandlist = operand, nothing
+	simplelist<integer> operandlist = operand, nothing
 	PreOpStatement preop = operator, operandlist
 	CodeBlockEntry cbe = preop
 	AppendEntryToCurrentCodeBlock(cbe)
@@ -3385,7 +3382,7 @@ OnCodeGenRegisterPreOpStatement : integer operator, integer operand
 
 OnCodeGenRegisterPostOpStatement : integer operator, integer operand
 {
-	list<integer> operandlist = operand, nothing
+	simplelist<integer> operandlist = operand, nothing
 	PostOpStatement postop = operator, operandlist
 	CodeBlockEntry cbe = postop
 	AppendEntryToCurrentCodeBlock(cbe)
@@ -3409,7 +3406,7 @@ FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> int
 FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0
 
 
-GetBaseMaxSize : list<integer> ref basetypes, integer ref outsize
+GetBaseMaxSize : simplelist<integer> ref basetypes, integer ref outsize
 {
 	if(basetypes.value != 0)
 	{
@@ -3455,14 +3452,41 @@ CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
 
 IsStructureType : integer typeid -> boolean ret = false
 {
-	if((typeid & 0xff000000) == 0x03000000)
+	if((typeid & 0x7f000000) == 0x03000000)
 	{
 		ret = true
 	}
-	elseif((typeid & 0xff000000) == 0x08000000)
+	elseif((typeid & 0x7f000000) == 0x08000000)
 	{
 		ret = true
 	}
+}
+
+IsReferenceType : integer typeid -> boolean ret = false
+{
+	if((typeid & 0x80000000) != 0)
+	{
+		ret = true
+	}
+}
+
+
+
+append_recurse : list<Variable> ref thelist, nothing, Variable ref value
+{
+	list<Variable> newlist = value, nothing
+	thelist.next = newlist
+}
+
+append_recurse : list<Variable> ref thelist, list<Variable> ref tail, Variable ref value
+{
+	append_recurse(tail, tail.next, value)
+}
+
+
+append : list<Variable> ref thelist, Variable ref value
+{
+	append_recurse(thelist, thelist.next, value)
 }
 
 
@@ -3478,7 +3502,7 @@ global
 
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
 
-	Variable dummyvar = 0, 0, false, 0, 0
+	Variable dummyvar = 0, 0, 0, 0
 	list<Variable> dummyvarlist = dummyvar, nothing
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
@@ -3487,7 +3511,7 @@ global
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
-	list<integer> dummybases = 0, nothing
+	simplelist<integer> dummybases = 0, nothing
 	SumType dummysumtype = 0, 0, dummybases
 	list<SumType> SumTypes = dummysumtype, nothing
 
@@ -3522,7 +3546,7 @@ global
 	Statement dummystatement = 0, nothing, 0
 	list<Statement> SubStatements = dummystatement, nothing
 
-	Parameter dummyparam = 0, 0, false
+	Parameter dummyparam = 0, 0
 	list<Parameter> dummyparamlist = dummyparam, nothing
 	FunctionSignature dummysignature = 0, dummyparamlist, 0
 	list<FunctionSignature> dummysignaturelist = dummysignature, nothing
@@ -3551,8 +3575,8 @@ global
 	list<EntityChain> ChainStack = dummychain, nothing
 
 
-	list<integer> AutoGeneratedFunctionNames = 0, nothing
-	list<integer> CustomConstructors = 0, nothing
+	simplelist<integer> AutoGeneratedFunctionNames = 0, nothing
+	simplelist<integer> CustomConstructors = 0, nothing
 
 	TypeAlias dummyalias = 0, 0
 	list<TypeAlias> TypeAliases = dummyalias, nothing
