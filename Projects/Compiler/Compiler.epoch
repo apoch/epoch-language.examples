@@ -248,6 +248,10 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
+	elseif(c == "=")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
 }
 
 
@@ -275,6 +279,15 @@ PopToken :
 	PopTokenFromStream(TokenStream, TokenStream.next)
 }
 
+PopTokens : integer count
+{
+	while(count > 0)
+	{
+		--count
+		PopToken()
+	}
+}
+
 PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail
 {
 	tokens = tail
@@ -300,12 +313,11 @@ PeekTokenInStream : nothing, integer displacement -> ""
 
 
 
-ExpectToken : string expected -> boolean found = false
+PeekWithExpectation : integer displacement, string expected -> boolean found = false
 {
-	string token = PeekToken(0)
+	string token = PeekToken(displacement)
 	if(token == expected)
 	{
-		PopToken()
 		found = true
 	}
 }
@@ -314,20 +326,21 @@ ExpectToken : string expected -> boolean found = false
 ParseFunction :
 {
 	string functionname = PeekToken(0)
-	PopToken()
 
 	print("IREnterFunction " ; functionname)
 
-	if(!ExpectToken(":"))
+	if(!PeekWithExpectation(1, ":"))
 	{
 		return()
 	}
 
-	if(!ExpectToken("{"))
+	if(!PeekWithExpectation(2, "{"))
 	{
 		return()
 	}
 
+	PopTokens(3)
+	
 	string token = PeekToken(0)
 	while(token != "}")
 	{
@@ -337,7 +350,12 @@ ParseFunction :
 			return()
 		}
 
-		ParseStatement()
+		if(ParseStatement())
+		{
+		}
+		elseif(ParseAssignment())
+		{
+		}
 
 		token = PeekToken(0)
 	}
@@ -347,23 +365,42 @@ ParseFunction :
 }
 
 
-ParseStatement :
+ParseStatement : -> boolean matched = false
 {
 	string statementname = PeekToken(0)
-	PopToken()
+
+	if(!PeekWithExpectation(1, "("))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, ")"))
+	{
+		return()
+	}
 
 	print("IREnterStatement " ; statementname)
-
-	if(!ExpectToken("("))
-	{
-		return()
-	}
-
-	if(!ExpectToken(")"))
-	{
-		return()
-	}
-
 	print("IRExitStatement")
+	PopTokens(3)
+	matched = true
 }
+
+ParseAssignment : -> boolean matched = false
+{
+	string typename = PeekToken(0)
+	string varname = PeekToken(1)
+
+	if(PeekToken(2) != "=")
+	{
+		return()
+	}
+
+	PopTokens(2)
+
+	print("IREnterAssignment " ; typename ; " variable " ; varname)
+	PopTokens(2)		// HACK!
+	print("IRExitAssignment")
+	matched = true
+}
+
 
