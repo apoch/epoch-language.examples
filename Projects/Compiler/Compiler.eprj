@@ -1,0 +1,8 @@
+[source]
+Compiler.epoch
+
+[output]
+output-file EpochCompiler.exe
+
+[options]
+use-console

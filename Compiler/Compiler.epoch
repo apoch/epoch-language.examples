@@ -3607,6 +3607,7 @@ CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
 
 structure InferenceContext :
 	integer ScopeName,
+	integer StatementName,
 	simplelist<integer> ref ExpectedTypes
 
 structure TypePossibilityList :
@@ -3622,7 +3623,7 @@ structure InferencePossibility :
 IRTypeInference : -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext context = 0, temp
+	InferenceContext context = 0, 0, temp
 
 	if(!TypeInference(Functions, context))
 	{
@@ -3648,7 +3649,7 @@ TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref con
 TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext innercontext = func.Name, temp
+	InferenceContext innercontext = func.Name, 0, temp
 
 	// TODO - inference on return value
 	// TODO - inference on parameters
@@ -3682,13 +3683,15 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes
+
 	integer vartype = GetTypeByName(statement.Name)
 	if(vartype != 0)
 	{
 		ConstructVariableFromStatement(statement, context.ScopeName, vartype)
 	}
 
-	if(!TypeInference(statement.Parameters, context))
+	if(!TypeInference(statement.Parameters, newcontext))
 	{
 		success = false
 		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
@@ -3709,20 +3712,8 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-
-	////// HACK - force expected types
-	if(paramindex == 1)
-	{
-		simpleprepend<integer>(temp, 0x01000001)
-	}
-	else
-	{
-		simpleprepend<integer>(temp, 0x01000000)
-		simpleprepend<integer>(temp, 0x01000003)
-	}
-	////// END HACK
-
-	InferenceContext newcontext = context.ScopeName, temp
+	GetExpectedParameterTypes(context.StatementName, paramindex, temp)
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
@@ -3834,19 +3825,18 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 
 	if(!IsOperatorInvoke(atoms.value))
 	{
-		assert(counter > 0)
-
+		++counter
 		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname)
-		
-		--counter
-		if(counter == 0)
+
+		if(counter > 1)
 		{
-			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, 2)
+			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, counter)
+			++counter
 		}
 	}
 	else
 	{
-		GetAtomTypeOperator(atoms.value, possibilities, counter)
+		GetAtomTypeOperator(atoms.value, possibilities)
 	}
 }
 
@@ -3879,7 +3869,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossib
 {
 	if(IsOperatorInvoke(atoms.value))
 	{
-		GetAtomTypeOperator(atoms.value, possibilities, counter)
+		GetAtomTypeOperator(atoms.value, possibilities)
 	}
 	else
 	{
@@ -3965,12 +3955,9 @@ GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref
 	// TODO - type inference on parentheticals
 }
 
-GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities, integer ref counter
+GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities
 {
-	// TODO - add actual types that the operator overload might return
-	AddBinaryPossibility(possibilities, 37, 0x01000001, 0x01000001, 0x01000003)
-	AddBinaryPossibility(possibilities, 40, 0x01000003, 0x01000003, 0x01000003)
-	counter += 2
+	AddPossibilityPerOperatorOverload(atom.OperatorName, possibilities)
 }
 
 GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname
@@ -4007,7 +3994,7 @@ IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
 AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 {
 	simpleprepend<integer>(possibilities, paramtype)
-} 
+}
 
 AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
 {
@@ -4135,7 +4122,22 @@ ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
 }
 
 
-GetOperatorPrecedence : OperatorInvokeAtom ref atom -> 1		// TODO - real precedences!
+GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
+{
+	string basename = GetPooledString(GlobalStrings, atom.OperatorName)
+	if(basename == "==")
+	{
+		precedence = 0
+	}
+	elseif(basename == "+")
+	{
+		precedence = 5
+	}
+	elseif(basename == "*")
+	{
+		precedence = 9
+	}
+}
 
 
 ConstructVariableFromStatement : Statement ref statement, integer scopename, integer vartype
@@ -4317,6 +4319,45 @@ DumpAtom : Statement		   ref nonsentinel { print("Statement") }
 DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
 DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
 
+
+
+AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossibility> ref possibilities
+{
+	string basename = GetPooledString(GlobalStrings, basenamehandle)
+	if(basename == "==")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer"), 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@boolean"), 0x01000003, 0x01000003, 0x01000003)
+	}
+	elseif(basename == "+")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basename == "*")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "*@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	else
+	{
+		print("Unrecognized operator")
+	}
+}
+
+
+GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	////// HACK - force expected types
+	if(paramindex == 1)
+	{
+		simpleprepend<integer>(types, 0x01000001)
+	}
+	else
+	{
+		simpleprepend<integer>(types, 0x01000000)
+		simpleprepend<integer>(types, 0x01000003)
+	}
+	////// END HACK
+}
 
 
 //
