@@ -167,6 +167,16 @@ RegisterSemanticIRPlugin :
 	RegisterFunc("PluginIREnterStatement", IREnterStatement)
 	RegisterFunc("PluginIRExitStatement", IRExitStatement)
 
+	RegisterFunc("PluginIREnterExpression", IREnterExpression)
+	RegisterFunc("PluginIRExitExpression", IRExitExpression)
+
+	RegisterFunc("PluginIRAddOperator", IRAddOperator)
+	RegisterFunc("PluginIRAddLiteralString", IRAddLiteralString)
+	RegisterFunc("PluginIRAddLiteralBoolean", IRAddLiteralBoolean)
+	RegisterFunc("PluginIRAddLiteralReal", IRAddLiteralReal)
+	RegisterFunc("PluginIRAddLiteralInteger", IRAddLiteralInteger)
+	RegisterFunc("PluginIRAddLiteralIdentifier", IRAddLiteralIdentifier)
+
 	print("Epoch Compiler - semantic validation plugin registered")
 }
 
@@ -3560,9 +3570,609 @@ CodeBlockDepth : nothing -> 0
 
 
 
-IRCompileTimeCodeExecution : -> true
+IRCompileTimeCodeExecution : -> boolean success = true
+{
+	if(!CompileTimeCodeExecution(Functions))
+	{
+		success = false
+	}
+}
 
-IRTypeInference : -> true
+
+
+CompileTimeCodeExecution : nothing -> true
+
+
+CompileTimeCodeExecution : list<FunctionDefinition> ref functions -> boolean success = true
+{
+	if(!CompileTimeCodeExecution(functions.value))
+	{
+		success = false
+	}
+	
+	if(!CompileTimeCodeExecution(functions.next))
+	{
+		success = false
+	}
+}
+
+
+CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
+{
+	// TODO
+}
+
+
+
+
+structure InferenceContext :
+	integer ScopeName,
+	simplelist<integer> ref ExpectedTypes
+
+structure TypePossibilityList :
+	simplelist<integer> ref Types
+
+structure InferencePossibility :
+	integer FunctionName,
+	list<TypePossibilityList> ref ParameterTypes,
+	TypePossibilityList ref ReturnType
+
+
+
+IRTypeInference : -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+	InferenceContext context = 0, temp
+
+	if(!TypeInference(Functions, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : nothing, InferenceContext ref context -> true
+
+TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(functions.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(functions.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+	InferenceContext innercontext = func.Name, temp
+
+	// TODO - inference on return value
+	// TODO - inference on parameters
+
+	if(!TypeInference(func.Code, innercontext))
+	{
+		success = false
+	}
+}
+
+TypeInference : CodeBlock ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.Entries, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(code.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
+{
+	integer vartype = GetTypeByName(statement.Name)
+	if(vartype != 0)
+	{
+		ConstructVariableFromStatement(statement, context.ScopeName, vartype)
+	}
+
+	if(!TypeInference(statement.Parameters, context))
+	{
+		success = false
+		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+	}
+
+	// TODO - overload resolution
+}
+
+
+TypeInference : ExpressionList ref parameters, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0))
+	{
+		success = false
+	}
+}
+
+TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+
+	////// HACK - force expected types
+	if(paramindex == 1)
+	{
+		simpleprepend<integer>(temp, 0x01000001)
+	}
+	else
+	{
+		simpleprepend<integer>(temp, 0x01000000)
+		simpleprepend<integer>(temp, 0x01000003)
+	}
+	////// END HACK
+
+	InferenceContext newcontext = context.ScopeName, temp
+
+	if(!TypeInference(parameters.value, newcontext))
+	{
+		success = false
+	}
+
+	if(!TypeInferenceExpressionList(parameters.next, context, paramindex + 1))
+	{
+		success = false
+	}
+}
+
+TypeInferenceExpressionList : nothing, InferenceContext ref context, integer paramindex -> boolean success = true
+
+
+TypeInference : Expression ref expression, InferenceContext ref context -> boolean success = true
+{
+	if(expression.Type != 0)
+	{
+		return()
+	}
+
+	if(ExpressionAtomIsSentinel(expression.Atoms.value))
+	{
+		expression.Type = 0x00000002
+		return()
+	}
+
+	ShuntingYard(expression.Atoms)
+
+	InferencePossibility temp = scratchpossibility
+	list<InferencePossibility> possibilities = temp, nothing
+
+	integer counter = 0
+	integer scopename = context.ScopeName
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename)
+
+	integer possibilitycount = CountPossibilities(possibilities)
+	if(possibilitycount == 1)
+	{
+		simplelist<integer> types = 0, nothing
+		EliminateImpossibleType(possibilities.value.ReturnType.Types, context.ExpectedTypes, types)
+
+		integer typecount = countnonzero(types)
+		if(typecount == 1)
+		{
+			expression.Type = types.value
+		}
+		elseif(typecount > 1)
+		{
+			print("Multiple types possible")
+		}
+		else
+		{
+			print("All types ruled out")
+		}
+	}
+	else
+	{
+		// TODO - error context!
+		if(possibilitycount > 0)
+		{
+			print("Multiple overloads possible")
+		}
+		else
+		{
+			print("No type satisfies the requirements")
+		}
+	}
+
+	if(expression.Type == 0)
+	{
+		success = false
+	}
+}
+
+
+
+CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
+{
+	count = CountPossibilities(thelist.next)
+
+	if(thelist.value.FunctionName != 0)
+	{
+		++count
+	}
+}
+
+CountPossibilities : nothing -> 0
+
+
+countnonzero : simplelist<integer> ref thelist -> integer count = 0
+{
+	count = countnonzero(thelist.next)
+
+	if(thelist.value != 0)
+	{
+		++count
+	}
+}
+
+countnonzero : nothing -> 0
+
+
+
+WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+{
+	WalkAtomsForType(tail, tail.next, possibilities, counter, funcname)
+
+	if(!IsOperatorInvoke(atoms.value))
+	{
+		assert(counter > 0)
+
+		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname)
+		
+		--counter
+		if(counter == 0)
+		{
+			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, 2)
+		}
+	}
+	else
+	{
+		GetAtomTypeOperator(atoms.value, possibilities, counter)
+	}
+}
+
+ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname
+{
+	if(possibilities.value.FunctionName != 0)
+	{
+		TypePossibilityList poss = scratchparams
+		GetAtomType(atom, poss, funcname)
+
+		simplelist<integer> out = 0, nothing
+
+		ConsumeParameter(possibilities.value.ParameterTypes, poss.Types, out)
+
+		poss.Types = out
+
+		if(countnonzero(out) == 0)
+		{
+			PopPossibility(possibilities, possibilities.next)
+		}
+	}
+
+	ConsumeParameterForAllPossibleOverloads(possibilities.next, atom, funcname)
+}
+
+ConsumeParameterForAllPossibleOverloads : nothing, ExpressionAtom ref atom, integer funcname
+
+
+WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+{
+	if(IsOperatorInvoke(atoms.value))
+	{
+		GetAtomTypeOperator(atoms.value, possibilities, counter)
+	}
+	else
+	{
+		TypePossibilityList poss = scratchparams
+		GetAtomType(atoms.value, poss, funcname)
+
+		InferencePossibility newpossibility = -1, scratchparampossibles, poss
+		prepend<InferencePossibility>(possibilities, newpossibility)
+	}
+}
+
+
+SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
+{
+	if(count == 0)
+	{
+		ChangeOperator(atoms.value, overloadname)
+	}
+	else
+	{
+		SetOperatorAtomToOverload(atoms.next, overloadname, count - 1)
+	}
+}
+
+ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
+{
+	atom.OperatorName = overloadname
+}
+
+
+ConsumeParameter : list<TypePossibilityList> ref parameterlist, simplelist<integer> ref parampossibles, simplelist<integer> ref out
+{
+	EliminateImpossibleType(parameterlist.value.Types, parampossibles, out)
+	PopTypePossibility(parameterlist, parameterlist.next)
+}
+
+EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out
+{
+	EliminateImpossibleType(possibles.next, filter, out)
+
+	if((possibles.value != 0) && listcontains(filter, possibles.value))
+	{
+		simpleprepend<integer>(out, possibles.value)
+	}
+}
+
+EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
+
+
+PopTypePossibility : list<TypePossibilityList> ref list, list<TypePossibilityList> ref tail
+{
+	list = tail
+}
+
+PopTypePossibility : list<TypePossibilityList> ref list, nothing
+
+
+PopPossibility : list<InferencePossibility> ref list, list<InferencePossibility> ref tail -> true
+{
+	list = tail
+}
+
+PopPossibility : list<InferencePossibility> ref thelist, nothing -> false
+
+
+GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
+GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x02000000) }
+GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000002) }
+GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000003) }
+GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000004) }
+
+GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname
+{
+	// TODO - type inference on inner statement
+}
+
+GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname
+
+GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname
+{
+	// TODO - type inference on parentheticals
+}
+
+GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities, integer ref counter
+{
+	// TODO - add actual types that the operator overload might return
+	AddBinaryPossibility(possibilities, 37, 0x01000001, 0x01000001, 0x01000003)
+	AddBinaryPossibility(possibilities, 40, 0x01000003, 0x01000003, 0x01000003)
+	counter += 2
+}
+
+GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname
+{
+	AddPossibleParameter(possibilities.Types, 0x01000000)
+
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(funcname, atom.Handle, var)
+	if(var.Name != 0)
+	{
+		AddPossibleParameter(possibilities.Types, var.VarType)
+	}
+}
+
+
+IsOperatorInvoke : OperatorInvokeAtom 	   ref nonsentinel -> true
+
+IsOperatorInvoke : AtomSentinel 	   ref sentinel    -> false
+IsOperatorInvoke : StringHandleAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : IdentifierAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : TypeAnnotationAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : integer 		   ref nonsentinel -> false
+IsOperatorInvoke : integer16 		   ref nonsentinel -> false
+IsOperatorInvoke : boolean 		   ref nonsentinel -> false
+IsOperatorInvoke : real 		   ref nonsentinel -> false
+IsOperatorInvoke : Statement		   ref nonsentinel -> false
+IsOperatorInvoke : RefBinding              ref nonsentinel -> false
+IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
+
+
+
+
+
+AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
+{
+	simpleprepend<integer>(possibilities, paramtype)
+} 
+
+AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
+{
+	simplelist<integer> p1t = param1type, nothing
+	simplelist<integer> p2t = param2type, nothing
+
+	TypePossibilityList param1options = p1t
+	TypePossibilityList param2options = p2t
+
+	list<TypePossibilityList> paramtypes = scratchparams, nothing
+	prepend<TypePossibilityList>(paramtypes, param2options)
+	prepend<TypePossibilityList>(paramtypes, param1options)
+
+	simplelist<integer> rt = rettype, nothing
+	TypePossibilityList rettypelist = rt
+
+	InferencePossibility possibility = functionname, paramtypes, rettypelist
+	prepend<InferencePossibility>(possibilities, possibility)
+}
+
+
+
+ShuntingYard : list<ExpressionAtom> ref atoms
+{
+	AtomSentinel sentinel = 0
+
+	list<ExpressionAtom> outputqueue = sentinel, nothing
+	list<ExpressionAtom> opstack = sentinel, nothing
+
+	ShuntingYardWalk(atoms, outputqueue, opstack)
+	ShuntingYardFlush(outputqueue, opstack)
+
+	atoms = outputqueue
+}
+
+ShuntingYardWalk : nothing, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+
+ShuntingYardWalk : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	ShuntingYardVisit(atoms.value, outputqueue, opstack)
+	ShuntingYardWalk(atoms.next, outputqueue, opstack)
+}
+
+ShuntingYardVisit : AtomSentinel            ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+ShuntingYardVisit : StringHandleAtom        ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : IdentifierAtom          ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : TypeAnnotationAtom      ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : integer                 ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : integer16               ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : boolean                 ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : real                    ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : Statement               ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : RefBinding              ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : ParentheticalExpression ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+
+ShuntingYardVisit : OperatorInvokeAtom ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	if(false)			// TODO - check if atom is a member access
+	{
+		ExpressionAtom wrap = atom
+		PlaceAtomInList(outputqueue, wrap)
+	}
+	else
+	{
+		integer opprec = GetOperatorPrecedence(atom)
+		boolean continueops = true
+
+		while(continueops && (!ExpressionAtomIsSentinel(opstack.value)))
+		{
+			ExpressionAtom opatom2 = opstack.value
+			integer op2prec = GetOperatorPrecedence(opatom2)
+
+			// TODO - this whole section is hacky. Replace with break() calls and >= operator.
+
+			if(false)		// TODO - check for unary operators
+			{
+				if(opprec > op2prec)
+				{
+					continueops = false
+				}
+				elseif(opprec == op2prec)
+				{
+					continueops = false
+				}
+			}
+			else
+			{
+				if(opprec > op2prec)
+				{
+					continueops = false
+				}
+			}
+
+			if(continueops)
+			{
+				PlaceAtomInList(outputqueue, opatom2)
+				ShuntingYardPopStack(opstack, opstack.next)
+			}
+		}
+
+		ExpressionAtom wrap = atom
+		prepend<ExpressionAtom>(opstack, wrap)
+	}
+}
+
+ShuntingYardFlush : list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	while(!ExpressionAtomIsSentinel(opstack.value))
+	{
+		PlaceAtomInList(outputqueue, opstack.value)
+		ShuntingYardPopStack(opstack, opstack.next)
+	}
+}
+
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, list<ExpressionAtom> ref tail
+{
+	opstack = tail
+}
+
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
+{
+	AtomSentinel sentinel = 0
+	list<ExpressionAtom> newlist = sentinel, nothing
+	opstack = newlist
+}
+
+
+GetOperatorPrecedence : OperatorInvokeAtom ref atom -> 1		// TODO - real precedences!
+
+
+ConstructVariableFromStatement : Statement ref statement, integer scopename, integer vartype
+{
+	integer varname = ExtractConstructorIdentifier(statement.Parameters)
+	if(varname != 0)
+	{
+		StoreVariableInScope(Scopes, scopename, varname, vartype, false, 0)		// VARIABLE_ORIGIN_LOCAL
+	}
+}
+
+ExtractConstructorIdentifier : ExpressionList ref parameters -> integer varname = ExtractConstructorIdentifier(parameters.Expressions)
+ExtractConstructorIdentifier : list<Expression> ref parameters -> integer varname = ExtractIdentifier(parameters.value)
+ExtractConstructorIdentifier : nothing -> 0
+
+ExtractIdentifier : Expression ref expression -> integer id = ExtractIdentifier(expression.Atoms.value)
+
+ExtractIdentifier : IdentifierAtom ref atom -> atom.Handle
+{
+	atom.Type = 0x81000000		// HACK - reference to identifier
+}
+
+
+PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
+{
+	if(ExpressionAtomIsSentinel(atoms.value))
+	{
+		list<ExpressionAtom> newatoms = atom, nothing
+		atoms = newatoms
+	}
+	else
+	{
+		AppendAtomToExpression(atoms, atoms.next, atom)
+	}
+}
+
+
 
 IRValidate : -> true
 
@@ -3625,6 +4235,87 @@ IRExitStatement :
 {
 	OnCodeGenExitContext()
 }
+
+
+IREnterExpression :
+{
+	++IRExpressionDepth		// TODO - this should be a stack so we can have nested statements
+}
+
+IRExitExpression :
+{
+	--IRExpressionDepth
+
+	if(IRExpressionDepth == 0)
+	{
+		OnCodeGenShiftParameter()
+	}
+}
+
+
+IRAddOperator : string operatorname
+{
+	OnCodeGenRegisterOperatorInvoke(PoolString(operatorname))
+}
+
+IRAddLiteralString : string literal
+{
+	OnCodeGenRegisterLiteralString(PoolString(literal))
+}
+
+IRAddLiteralBoolean : boolean literal
+{
+	OnCodeGenRegisterLiteralBoolean(literal)
+}
+
+IRAddLiteralReal : real literal
+{
+	OnCodeGenRegisterLiteralReal(literal)
+}
+
+IRAddLiteralInteger : integer literal
+{
+	OnCodeGenRegisterLiteralInteger(literal, 0x01000001)		// We can demote the integer later
+}
+
+IRAddLiteralIdentifier : string token
+{
+	OnCodeGenRegisterAtomIdentifier(PoolString(token), 0)
+}
+
+
+
+GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = ""
+{
+	if(strings.value.Handle == handle)
+	{
+		pooled = strings.value.Data
+	}
+	else
+	{
+		pooled = GetPooledString(strings.next, handle)
+	}
+}
+
+GetPooledString : nothing, integer handle -> ""
+{
+	print("String handle not pooled!")
+	assert(false)
+}
+
+
+DumpAtom : AtomSentinel 	   ref sentinel    { print("Sentinel") }
+DumpAtom : StringHandleAtom 	   ref nonsentinel { print("String handle " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : IdentifierAtom 	   ref nonsentinel { print("Identifier " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : OperatorInvokeAtom 	   ref nonsentinel { print("Operator " ; cast(string, nonsentinel.OperatorName)) }
+DumpAtom : TypeAnnotationAtom 	   ref nonsentinel { print("Type annotation") }
+DumpAtom : integer 		   ref nonsentinel { print("integer " ; cast(string, nonsentinel)) }
+DumpAtom : integer16 		   ref nonsentinel { print("integer16") }
+DumpAtom : boolean 		   ref nonsentinel { print("boolean") }
+DumpAtom : real 		   ref nonsentinel { print("real " ; cast(string, nonsentinel)) }
+DumpAtom : Statement		   ref nonsentinel { print("Statement") }
+DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
+DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
 
 
 
@@ -3723,5 +4414,13 @@ global
 	boolean InFuncRetHack = false
 
 	integer CurrentStringHandle = 0
+
+	simplelist<integer> scratchpossibletypes = 0, nothing
+	TypePossibilityList scratchreturns = scratchpossibletypes
+	TypePossibilityList scratchparams = scratchpossibletypes
+	list<TypePossibilityList> scratchparampossibles = scratchparams, nothing
+	InferencePossibility scratchpossibility = 0, scratchparampossibles, scratchreturns
+
+	integer IRExpressionDepth = 0
 }
 
