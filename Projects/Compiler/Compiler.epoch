@@ -1,6 +1,50 @@
 //
-// ninja!
+// Epoch Compiler
+// Compiler.epoch
 //
+// Monolithic self-hosting compiler
+//
+// Support for separate compilation is desirable so this file is less of a mess.
+//
+
+
+
+//
+// Singly linked list data structures
+//
+
+type simplelistnode<type T> : simplelist<T> | nothing
+
+structure simplelist<type T> :
+	T value,
+	simplelistnode<T> next
+
+
+type listnode<type T> : list<T> | nothing
+
+structure list<type T> :
+	T ref value,
+	listnode<T> next
+
+
+//
+// List manipulation functions
+//
+
+simpleprepend<type T> : simplelist<T> ref thelist, T value
+{
+	simplelist<T> newlist = value, thelist
+	thelist = newlist
+}
+
+prepend<type T> : list<T> ref thelist, T ref value
+{
+	list<T> newlist = value, thelist
+	thelist = newlist
+}
+
+
+
 
 
 CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
@@ -11,18 +55,11 @@ UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "
 GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
 
 
-type simplelistnode<type T> : simplelist<T> | nothing
-
-structure simplelist<type T> :
-	T value,
-	simplelistnode<T> next
+timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")]
 
 
-simpleprepend<type T> : simplelist<T> ref thelist, T value
-{
-	simplelist<T> newlist = value, thelist
-	thelist = newlist
-}
+ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll", "ExecuteByteCodeDeferred", "stdcall")]
+
 
 
 simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value
@@ -43,28 +80,157 @@ simple_append<type T> : simplelist<T> ref thelist, T value
 }
 
 
-global
-{
-	simplelist<string> TokenStream = "", nothing
-
-	integer CHARACTER_CLASS_WHITE = 0
-	integer CHARACTER_CLASS_IDENTIFIER = 1
-	integer CHARACTER_CLASS_PUNCTUATION = 2
-}
-
 
 entrypoint :
 {
+	print("Epoch Language Project")
+	print("Command line compiler and tools interface")
+	print("")
+
 	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
 	{
+		string filename = cmdlineget(1)
+
+		print("Executing: " ; filename)
+		print("")
+
 		integer len = 0
-		string contents = ReadFile(cmdlineget(1), len)
+		string contents = ReadFile(filename, len)
+
+		PrepareStringTable()
+
+		integer startparsems = timeGetTime()
 		Parse(contents, len)
+		integer durationparsems = timeGetTime() - startparsems
+
+		print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
+
+		integer startprocessms = timeGetTime()
+		IRProcess()
+		integer durationprocessms = timeGetTime() - startprocessms
+
+		print("Semantic analysis completed in " ; cast(string, durationprocessms) ; " milliseconds")
+
+		integer startcodegenms = timeGetTime()
+		OnCodeGenProcessProgram()
+		integer durationcodegenms = timeGetTime() - startcodegenms
+
+		print("Code generation completed in " ; cast(string, durationcodegenms) ; " milliseconds")
+		print("")
+
+		ExecuteByteCodeBuffer(Hack, HackSize)
 	}
 	else
 	{
 		print("Please specify a program to execute!")
 	}
+}
+
+
+PrepareStringTable :
+{
+	OnCodeGenRegisterString(1, "+")
+	OnCodeGenRegisterString(2, "-")
+	OnCodeGenRegisterString(3, "*")
+	OnCodeGenRegisterString(4, "/")
+	OnCodeGenRegisterString(5, "+=@@real")
+	OnCodeGenRegisterString(6, "+@@real")
+	OnCodeGenRegisterString(7, "-=@@real")
+	OnCodeGenRegisterString(8, "-@@real")
+	OnCodeGenRegisterString(9, "*@@real")
+	OnCodeGenRegisterString(10, "/@@real")
+	OnCodeGenRegisterString(11, "+=@@integer")
+	OnCodeGenRegisterString(12, "+@@integer")
+	OnCodeGenRegisterString(13, "-=@@integer")
+	OnCodeGenRegisterString(14, "-@@integer")
+	OnCodeGenRegisterString(15, "*@@integer")
+	OnCodeGenRegisterString(16, "/@@integer")
+	OnCodeGenRegisterString(17, "++@@integer")
+	OnCodeGenRegisterString(18, "--@@integer")
+	OnCodeGenRegisterString(19, "!@@integer")
+	OnCodeGenRegisterString(20, "++@@real")
+	OnCodeGenRegisterString(21, "--@@real")
+	OnCodeGenRegisterString(22, "+=")
+	OnCodeGenRegisterString(23, "-=")
+	OnCodeGenRegisterString(24, "!")
+	OnCodeGenRegisterString(25, "++")
+	OnCodeGenRegisterString(26, "--")
+	OnCodeGenRegisterString(27, "&")
+	OnCodeGenRegisterString(28, "&&")
+	OnCodeGenRegisterString(29, "!@@boolean")
+	OnCodeGenRegisterString(30, "cmdlineisvalid")
+	OnCodeGenRegisterString(31, "cmdlinegetcount")
+	OnCodeGenRegisterString(32, "cmdlineget")
+	OnCodeGenRegisterString(33, "==")
+	OnCodeGenRegisterString(34, "!=")
+	OnCodeGenRegisterString(35, ">")
+	OnCodeGenRegisterString(36, "<")
+	OnCodeGenRegisterString(37, "==@@integer")
+	OnCodeGenRegisterString(38, "==@@integer16")
+	OnCodeGenRegisterString(39, "!=@@integer")
+	OnCodeGenRegisterString(40, "==@@boolean")
+	OnCodeGenRegisterString(41, "!=@@boolean")
+	OnCodeGenRegisterString(42, "==@@string")
+	OnCodeGenRegisterString(43, "!=@@string")
+	OnCodeGenRegisterString(44, "==@@real")
+	OnCodeGenRegisterString(45, ">@@integer")
+	OnCodeGenRegisterString(46, "<@@integer")
+	OnCodeGenRegisterString(47, ">@@real")
+	OnCodeGenRegisterString(48, "<@@real")
+	OnCodeGenRegisterString(49, "print")
+	OnCodeGenRegisterString(50, "read")
+	OnCodeGenRegisterString(51, "assert")
+	OnCodeGenRegisterString(52, "passtest")
+	OnCodeGenRegisterString(53, "sqrt")
+	OnCodeGenRegisterString(54, "plotpixel")
+	OnCodeGenRegisterString(55, "breakpoint")
+	OnCodeGenRegisterString(56, "if")
+	OnCodeGenRegisterString(57, "elseif")
+	OnCodeGenRegisterString(58, "else")
+	OnCodeGenRegisterString(59, "while")
+	OnCodeGenRegisterString(60, "do")
+	OnCodeGenRegisterString(61, "return")
+	OnCodeGenRegisterString(62, "constructor")
+	OnCodeGenRegisterString(63, "external")
+	OnCodeGenRegisterString(64, "@@external")
+	OnCodeGenRegisterString(65, "sizeof")
+	OnCodeGenRegisterString(66, "marshalstructure")
+	OnCodeGenRegisterString(67, "writebuffer")
+	OnCodeGenRegisterString(68, "writebuffer@@string")
+	OnCodeGenRegisterString(69, "writebuffer@@multiple")
+	OnCodeGenRegisterString(70, "writebuffer@@real")
+	OnCodeGenRegisterString(71, "unescape")
+	OnCodeGenRegisterString(72, "substring")
+	OnCodeGenRegisterString(73, "substring@@withlength")
+	OnCodeGenRegisterString(74, "substring@@nolength")
+	OnCodeGenRegisterString(75, ";")
+	OnCodeGenRegisterString(76, "length")
+	OnCodeGenRegisterString(77, "narrowstring")
+	OnCodeGenRegisterString(78, "widenfromptr")
+	OnCodeGenRegisterString(79, "string")
+	OnCodeGenRegisterString(80, "integer")
+	OnCodeGenRegisterString(81, "integer16")
+	OnCodeGenRegisterString(82, "real")
+	OnCodeGenRegisterString(83, "cast@@integer_to_string")
+	OnCodeGenRegisterString(84, "cast@@string_to_integer")
+	OnCodeGenRegisterString(85, "cast@@real_to_integer")
+	OnCodeGenRegisterString(86, "cast@@integer_to_real")
+	OnCodeGenRegisterString(87, "cast@@boolean_to_string")
+	OnCodeGenRegisterString(88, "cast@@real_to_string")
+	OnCodeGenRegisterString(89, "cast@@buffer_to_string")
+	OnCodeGenRegisterString(90, "cast@@boolean_to_integer")
+	OnCodeGenRegisterString(91, "cast@@integer_to_integer16")
+	OnCodeGenRegisterString(92, "cast@@integer16_to_integer")
+	OnCodeGenRegisterString(93, "boolean")
+	OnCodeGenRegisterString(94, "buffer")
+	OnCodeGenRegisterString(95, "nothing")
+	OnCodeGenRegisterString(96, "buffer@@copy")
+	OnCodeGenRegisterString(97, "cast")
+	OnCodeGenRegisterString(98, ".")
+	OnCodeGenRegisterString(99, "identifier")
+	OnCodeGenRegisterString(100, "function")
+
+	CurrentStringHandle = 101
 }
 
 
@@ -121,7 +287,7 @@ Parse : string code, integer len
 	// Discard the dummy token
 	PopToken()
 
-	print("IREnterProgram")
+	IREnterProgram()
 
 	string token = PeekToken(0)
 	while(token != "")
@@ -131,7 +297,7 @@ Parse : string code, integer len
 		token = PeekToken(0)
 	}
 
-	print("IRExitProgram")
+	IRExitProgram()
 }
 
 
@@ -252,6 +418,10 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
+	elseif(c == ",")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
 }
 
 
@@ -327,7 +497,7 @@ ParseFunction :
 {
 	string functionname = PeekToken(0)
 
-	print("IREnterFunction " ; functionname)
+	IREnterFunction(functionname)
 
 	if(!PeekWithExpectation(1, ":"))
 	{
@@ -361,7 +531,7 @@ ParseFunction :
 	}
 
 	PopToken()
-	print("IRExitFunction")
+	IRExitFunction()
 }
 
 
@@ -374,14 +544,25 @@ ParseStatement : -> boolean matched = false
 		return()
 	}
 
-	if(!PeekWithExpectation(2, ")"))
+	IREnterStatement(statementname)
+	PopTokens(2)
+
+	string token = PeekToken(0)
+	while(token != ")")
 	{
-		return()
+		if(token == "")
+		{
+			print("Error: missing a )")
+			return()
+		}
+
+		ParseExpression()
+
+		token = PeekToken(0)
 	}
 
-	print("IREnterStatement " ; statementname)
-	print("IRExitStatement")
-	PopTokens(3)
+	PopToken()
+	IRExitStatement()
 	matched = true
 }
 
@@ -395,12 +576,4336 @@ ParseAssignment : -> boolean matched = false
 		return()
 	}
 
-	PopTokens(2)
+	PopTokens(3)
 
-	print("IREnterAssignment " ; typename ; " variable " ; varname)
-	PopTokens(2)		// HACK!
-	print("IRExitAssignment")
+	IREnterStatement(typename)
+	IREnterExpression()
+	IRAddLiteralIdentifier(varname)
+	IRExitExpression()
+
 	matched = true
 }
 
+
+ParseExpression :
+{
+	string id = PeekToken(0)
+	if(id != ")")
+	{
+		PopToken()
+	}
+}
+
+
+
+//
+// List traversal/inspection functions
+//
+
+map<type T> : list<T> ref thelist, (func : T)
+{
+	func(thelist.value)
+	map<T>(thelist.next, func)
+}
+
+map<type T> : nothing, (func : T)
+{
+}
+
+
+listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = false
+{
+	if(thelist.value == value)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = listcontains(thelist.next, value)
+	}
+}
+
+listcontains : nothing, integer value -> boolean contains = false
+
+
+
+
+//
+// Callback used to emit a byte to a bytecode stream
+//
+
+OnBytecodeEmitByte : integer b
+{
+	writebuffer(Hack, HackSize, b)
+	++HackSize
+}
+
+
+//
+// Callback used to emit a series of bytes to a bytecode stream
+//
+
+OnBytecodeEmitBytes : integer bytes, integer size
+{
+	writebuffer(Hack, HackSize, bytes, size)
+	HackSize += size
+}
+
+
+//
+// Callback used to retrieve a bytecode stream's pointer
+//
+
+OnBytecodeGetBuffer : -> buffer ret = Hack
+
+
+//
+// Callback used to retrieve the size of a bytecode stream
+//
+
+OnBytecodeGetSize : -> integer size = HackSize
+
+
+
+OnBytecodeEmitInteger : integer value
+{
+	writebuffer(Hack, HackSize, (value) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x100) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x10000) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x1000000) & 0xff)
+	++HackSize
+}
+
+OnBytecodeEmitInteger16 : integer16 value
+{
+	integer v = cast(integer, value)
+	writebuffer(Hack, HackSize, (v) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (v / 0x100) & 0xff)
+	++HackSize
+}
+
+OnBytecodeEmitReal : real value
+{
+	writebuffer(Hack, HackSize, value)
+	HackSize = HackSize + 4
+}
+
+OnBytecodeEmitString : string value
+{
+	integer len = (length(value) + 1) * 2
+	writebuffer(Hack, HackSize, value, len)
+	HackSize += len
+}
+
+OnBytecodeEmitBoolean : boolean value
+{
+	OnBytecodeEmitByte(cast(integer, value))
+}
+
+
+OnBytecodePoolString : integer handle, string data
+{
+	OnBytecodeEmitByte(0x10)			// PoolString instruction
+	OnBytecodeEmitInteger(handle)
+	OnBytecodeEmitString(data)
+}
+
+OnBytecodeLexicalScope : integer name, integer parent, integer count
+{
+	OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(parent)
+	OnBytecodeEmitInteger(count)
+}
+
+OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin
+{
+	OnBytecodeEmitInteger(varname)
+	OnBytecodeEmitInteger(vartype)
+	OnBytecodeEmitInteger(origin)
+	OnBytecodeEmitBoolean(false)
+}
+
+OnBytecodeInvokeOffset : integer name
+{
+	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(0)
+}
+
+OnBytecodeHalt :
+{
+	OnBytecodeEmitByte(0x00)			// Halt instruction
+}
+
+OnBytecodeEnterFunction : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitFunction :
+{
+	OnBytecodeEmitByte(0x09)			// Return instruction
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeInvoke : integer target
+{
+	OnBytecodeEmitByte(0x07)			// Invoke instruction
+	OnBytecodeEmitInteger(target)
+}
+
+OnBytecodeEnterEntity : integer tag, integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(tag)
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitEntity :
+{
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeBeginChain :
+{
+	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
+}
+
+OnBytecodeEndChain :
+{
+	OnBytecodeEmitByte(0x0e)			// EndChain instruction
+}
+
+OnBytecodeDefineStructure : integer typeid, integer nummembers
+{
+	OnBytecodeEmitByte(0x14)			// DefineStructure instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(nummembers)
+}
+
+OnBytecodeStructureMember : integer name, integer typeid
+{
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeReadReference :
+{
+	OnBytecodeEmitByte(0x17)			// ReadRef instruction
+}
+
+OnBytecodeReadReferenceAnnotated :
+{
+	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
+}
+
+OnBytecodeAllocStructure : integer typeid
+{
+	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeBindReference : integer frameskip, integer index
+{
+	if(index < 0)
+	{
+		breakpoint()
+	}
+
+	OnBytecodeEmitByte(0x03)			// BindRef instruction
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(index)
+}
+
+OnBytecodeAssign :
+{
+	OnBytecodeEmitByte(0x06)			// Assign instruction
+}
+
+OnBytecodePushVarValue : integer name, integer typeid
+{
+	OnBytecodeEmitByte(0x05)			// Read instruction
+	OnBytecodeEmitInteger(name)
+
+	integer family = typeid & 0x7f000000
+
+	if(typeid == 0x02000001)			// Buffer type signature
+	{
+		OnBytecodeCopyBuffer()
+	}
+	//elseif(family == 0x03000000)			// Structure family signature
+	//{
+	//	OnBytecodeCopyStructure()
+	//}
+	//elseif(family == 0x08000000)			// Template instance family signature
+	//{
+	//	OnBytecodeCopyStructure()
+	//}
+}
+
+OnBytecodeCopyBuffer :
+{
+	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
+}
+
+OnBytecodeCopyStructure :
+{
+	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
+}
+
+OnBytecodeCopyToStructure : integer structurename, integer membername
+{
+	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
+	OnBytecodeEmitInteger(structurename)
+	OnBytecodeEmitInteger(membername)
+}
+
+OnBytecodeSetReturnRegister : integer varindex
+{
+	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
+	OnBytecodeEmitInteger(varindex)
+}
+
+OnBytecodePushVarNoCopy : integer varname
+{
+	OnBytecodeEmitByte(0x05)			// Read instruction
+	OnBytecodeEmitInteger(varname)
+}
+
+OnBytecodeInvokeIndirect : integer varname
+{
+	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
+	OnBytecodeEmitInteger(varname)
+}
+
+OnBytecodeEnterPatternResolver : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x02)			// EntityTags::PatternMatchingResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitPatternResolver :
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeConstructSumType :
+{
+	OnBytecodeEmitByte(0x21)			// ConstructSumType instruction
+}
+
+OnBytecodeEnterTypeResolver : integer name
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x05)			// EntityTags::TypeResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitTypeResolver :
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodePopStack : integer bytes
+{
+	OnBytecodeEmitByte(0x04)			// Pop instruction
+	OnBytecodeEmitInteger(bytes)
+}
+
+OnBytecodeBindRefByHandle : integer id
+{
+	OnBytecodeEmitByte(0x1d)
+	OnBytecodeEmitInteger(id)
+}
+
+OnBytecodeBindStructReference : integer membertype, integer memberoffset
+{
+	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
+	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
+	OnBytecodeEmitInteger(memberoffset)
+}
+
+OnBytecodePushType : integer typeid
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeAssignSumType :
+{
+	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
+}
+
+OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, integer size
+{
+	if(isparam)
+	{
+		OnBytecodeEmitByte(0x26)		// ReadParam instruction
+	}
+	else
+	{
+		OnBytecodeEmitByte(0x25)		// ReadStack instruction
+	}
+
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(offset)
+	OnBytecodeEmitInteger(size)
+}
+
+OnBytecodePushBoolean : boolean literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
+	OnBytecodeEmitBoolean(literal)
+}
+
+OnBytecodePushLiteralString : integer literalhandle
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x02000000)		// String type signature
+	OnBytecodeEmitInteger(literalhandle)
+}
+
+OnBytecodePushLiteralInteger : integer literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(literal)
+}
+
+OnBytecodePushLiteralInteger16 : integer16 literal
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000002)		// Integer16 type signature
+	OnBytecodeEmitInteger16(literal)
+}
+
+OnBytecodePushTypeAnnotation : integer annotation
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(annotation)
+}
+
+OnBytecodePushLiteralFunction : integer name
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x09000000)		// Function family signature (N.B. not the actual function type!)
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodePushLiteralReal : real value
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000004)		// Real type signature
+	OnBytecodeEmitReal(value)
+}
+
+OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount
+{
+	OnBytecodeEmitByte(0x28)			// FuncSig instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(rettype)
+	OnBytecodeEmitInteger(paramcount)
+}
+
+OnBytecodeEmitFunctionSigParam : integer paramtype
+{
+	OnBytecodeEmitInteger(paramtype)
+	OnBytecodeEmitBoolean(false)
+}
+
+
+GetTypeSize : integer typeid -> integer size = 0
+{
+	if(typeid == 0x01000001)			// Integer
+	{
+		size = 4
+	}
+	elseif(typeid == 0x01000002)			// Integer16
+	{
+		size = 2
+	}
+	elseif(typeid == 0x01000003)			// Boolean
+	{
+		size = 1
+	}
+	elseif(typeid == 0x01000004)			// Real
+	{
+		size = 4
+	}
+	elseif(typeid == 0x02000000)			// StringHandle
+	{
+		size = 4
+	}
+	elseif(IsStructureType(typeid))			// StructureHandle
+	{
+		size = 4
+	}
+	elseif((typeid & 0xff000000) == 0x07000000)	// SumType
+	{
+		size = 4 + GetLargestSumTypeBaseSize(typeid)
+	}
+	elseif(typeid == 0x00000004)			// Nothing
+	{
+		size = 0
+	}
+	else
+	{
+		print("Undefined type for size retrieval - " ; cast(string, typeid))
+		assert(false)
+	}
+}
+
+
+//
+// Data structures for holding the internal representation of a compiled program
+//
+
+structure StringTableEntry :
+	integer Handle,
+	string Data
+
+structure TypeAlias :
+	integer Alias,
+	integer Base
+
+structure StructureMemberVariable :
+	integer Name,
+	integer Type
+
+structure StructureMemberFunctionRef :
+	integer Name,
+	FunctionSignature ref Signature
+
+
+type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
+
+structure StructureDefinition :
+	integer Name,
+	integer Type,
+	integer ConstructorName,
+	integer AnonConstructorName,
+	integer CopyConstructorName,
+	list<StructureMember> ref Members
+
+
+structure IdentifierAtom :
+	integer Handle,
+	integer Type,
+	boolean IsReference
+
+structure StringHandleAtom :
+	integer Handle
+
+structure OperatorInvokeAtom :
+	integer OperatorName
+
+structure TypeAnnotationAtom :
+	integer Type
+
+structure RefBinding :
+	integer Identifier,
+	integer StructureName,
+	boolean IsReference,
+	boolean InputIsReference
+
+structure AtomSentinel :
+	integer dummy
+
+
+type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
+			IdentifierAtom | OperatorInvokeAtom | TypeAnnotationAtom | RefBinding |
+			Statement |
+			ParentheticalExpression |
+			AtomSentinel
+
+
+structure Expression :
+	list<ExpressionAtom> ref Atoms,
+	integer Type
+
+type OptionalExpression : Expression | nothing
+
+structure ExpressionList :
+	list<Expression> ref Expressions
+
+type OptionalExpressionList : ExpressionList | nothing
+
+
+structure ParentheticalExpression :
+	Expression ref Inner
+
+
+structure Statement :
+	integer Name,
+	OptionalExpressionList Parameters,
+	integer Type
+
+structure Assignment :
+	integer LHSName,
+	integer LHSType,
+	integer Annotation,
+	Expression ref RHS
+
+structure AssignmentCompound :
+	simplelist<integer> ref LHS,
+	integer LHSType,
+	integer Annotation,
+	Expression ref RHS
+
+structure PreOpStatement :
+	integer Operator,
+	simplelist<integer> ref Operand
+
+structure PostOpStatement :
+	integer Operator,
+	simplelist<integer> ref Operand
+
+
+type CodeBlockEntry : Statement | PreOpStatement | PostOpStatement |
+		      Assignment | AssignmentCompound | EntityChain
+
+structure CodeBlock :
+	list<CodeBlockEntry> ref Entries
+
+type OptionalCodeBlock : CodeBlock | nothing
+
+structure Entity :
+	integer Tag,
+	integer PostfixTag,
+	OptionalExpression Param,
+	OptionalCodeBlock Code
+
+
+structure EntityList :
+	list<Entity> ref ActualList
+
+type OptionalEntityList : EntityList | nothing
+
+
+structure EntityChain :
+	OptionalEntityList Entries
+
+
+structure FunctionDefinition :
+	integer Name,
+	OptionalExpression Return,
+	OptionalCodeBlock Code,
+	boolean AnonymousReturn,
+	integer InvokeTag
+
+
+structure Variable :
+	integer Name,
+	integer VarType,
+	integer Origin,
+	integer Offset
+
+structure Scope :
+	integer Name,
+	integer ParentName,
+	list<Variable> Variables,
+	integer ParamOffset,
+	integer LocalOffset
+
+
+
+structure ContextStackEntry :
+	integer EntryType,
+	integer EntryName
+
+
+structure SumType :
+	integer Name,
+	integer Type,
+	simplelist<integer> Bases
+
+
+structure Parameter :
+	integer Name,
+	integer Type
+
+
+structure FunctionSignature :
+	integer Name,
+	list<Parameter> ref Parameters,
+	integer ReturnType
+
+structure TypeMatcher :
+	integer Name,
+	list<FunctionSignature> ref Overloads
+
+
+structure FunctionTag :
+	integer FunctionName,
+	string TagName,
+	list<string> ref Parameters
+
+
+
+
+//
+// Callback invoked when the code generation process can begin
+//
+
+OnCodeGenProcessProgram :
+{
+	CodeGenEmitStrings(GlobalStrings)
+	CodeGenEmitSumTypes(SumTypes)
+	CodeGenRearrangeStructures(Structures)
+	CodeGenEmitStructures(Structures)
+	CodeGenEmitFunctionSignatures(FunctionSignatures)
+	CodeGenEmitScopes(Scopes)
+	CodeGenEmitFunctionTags(FunctionTags)
+	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
+	CodeGenEmitFunctions(Functions)
+	CodeGenEmitGlobalBlockEpilogue(GlobalCodeBlock)
+	CodeGenEmitTypeMatchers(TypeMatchers)
+	CodeGenEmitConstructors(Structures)
+}
+
+OnCodeGenRegisterString : integer handle, string data
+{
+	StringTableEntry entry = handle, data
+	prepend<StringTableEntry>(GlobalStrings, entry)
+
+	if(handle > CurrentStringHandle)
+	{
+		CurrentStringHandle = handle
+	}
+}
+
+OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer membertype
+{
+	StructureMemberVariable member = membername, membertype
+	StructureMember memwrap = member
+	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
+}
+
+OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettype
+{
+	list<Parameter> p = dummyparam, nothing
+	FunctionSignature signature = name, p, rettype
+	StructureMemberFunctionRef m = name, signature
+	StructureMember memwrap = m
+	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
+}
+
+OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer structuretype, integer membername, integer paramtype
+{
+	Parameter param = 1, paramtype
+	FindStructureAndAddMemberParam(Structures, structurename, structuretype, membername, param)
+}
+
+
+FindStructureAndAddMember : list<StructureDefinition> ref structures, integer structurename, integer structuretype, StructureMember ref member
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMember(structures.value.Members, structures.value.Members.next, member)
+	}
+	else
+	{
+		FindStructureAndAddMember(structures.next, structurename, structuretype, member)
+	}
+}
+
+FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
+{
+	list<StructureMember> members = member, nothing
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members
+
+	AppendStructure(Structures, Structures.next, def)
+}
+
+AppendStructure : list<StructureDefinition> ref structures, list<StructureDefinition> ref tail, StructureDefinition ref def
+{
+	AppendStructure(tail, tail.next, def)
+}
+
+AppendStructure : list<StructureDefinition> ref structures, nothing, StructureDefinition ref def
+{
+	list<StructureDefinition> newtail = def, nothing
+	structures.next = newtail
+}
+
+AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member
+{
+	AppendStructureMember(tail, tail.next, member)
+}
+
+AppendStructureMember : list<StructureMember> ref members, nothing, StructureMember ref member
+{
+	list<StructureMember> newtail = member, nothing
+	members.next = newtail
+}
+
+
+FindStructureAndAddMemberParam : list<StructureDefinition> ref structures, integer structurename, integer structuretype, integer membername, Parameter ref param
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMemberParam(structures.value.Members, membername, param)
+	}
+	else
+	{
+		FindStructureAndAddMemberParam(structures.next, structurename, structuretype, membername, param)
+	}
+}
+
+AppendStructureMemberParam : list<StructureMember> ref members, integer membername, Parameter ref param
+{
+	boolean match = CheckMemberForAddingParam(members.value, membername, param)
+	if(!match)
+	{
+		AppendStructureMemberParam(members.next, membername, param)
+	}
+}
+
+CheckMemberForAddingParam : StructureMemberVariable ref member, integer membername, Parameter ref param -> false
+
+CheckMemberForAddingParam : StructureMemberFunctionRef ref member, integer membername, Parameter ref param -> boolean ret = false
+{
+	if(member.Name == membername)
+	{
+		AppendParameter(member.Signature.Parameters, param)
+		ret = true
+	}
+}
+
+
+
+OnCodeGenRegisterConstructors : integer structurename, integer constructorname, integer anonname, integer copyname
+{
+	FindStructureAndSetConstructors(Structures, structurename, constructorname, anonname, copyname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, constructorname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, anonname)
+	simpleprepend<integer>(AutoGeneratedFunctionNames, copyname)
+}
+
+FindStructureAndSetConstructors : list<StructureDefinition> ref structures, integer structurename, integer constructorname, integer anonname, integer copyname
+{
+	if(structures.value.Name == structurename)
+	{
+		structures.value.ConstructorName = constructorname
+		structures.value.AnonConstructorName = anonname
+		structures.value.CopyConstructorName = copyname
+	}
+	else
+	{
+		FindStructureAndSetConstructors(structures.next, structurename, constructorname, anonname, copyname)
+	}
+}
+
+FindStructureAndSetConstructors : nothing, integer structurename, integer constructorname, integer anonname, integer copyname
+
+
+
+OnCodeGenRegisterSumTypeBase : integer sumtypename, integer sumtypeid, integer basetypeid
+{
+	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid)
+}
+
+
+FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid
+{
+	if(sumtypes.value.Type == sumtypeid)
+	{
+		simpleprepend<integer>(sumtypes.value.Bases, basetypeid)
+	}
+	else
+	{
+		FindSumTypeAndAddBase(sumtypes.next, sumtypename, sumtypeid, basetypeid)
+	}
+}
+
+FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer basetypeid
+{
+	simplelist<integer> bases = basetypeid, nothing
+	SumType st = sumtypename, sumtypeid, bases
+	prepend<SumType>(SumTypes, st)
+}
+
+
+
+OnCodeGenRegisterScope : integer scopename, integer parentname
+{
+	list<Variable> v = dummyvar, nothing
+	Scope scope = scopename, parentname, v, 0, 0
+	prepend<Scope>(Scopes, scope)
+}
+
+OnCodeGenRegisterVariable : integer scopename, integer varname, integer vartype, integer origin
+{
+	StoreVariableInScope(Scopes, scopename, varname, vartype, false, origin)
+}
+
+StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varname, integer vartype, boolean isref, integer origin
+{
+	if(scopes.value.Name == scopename)
+	{
+		integer size = 4		// TODO - actual variable sizes
+
+		if((vartype & 0xff000000) == 0x07000000)		// Sum type family signature
+		{
+			size = 8
+		}
+
+		integer offset = -1
+		if(origin == 1)			// VARIABLE_ORIGIN_PARAMETER
+		{
+			if(isref)
+			{
+				size = 8
+			}
+
+			offset = scopes.value.ParamOffset
+			scopes.value.ParamOffset = scopes.value.ParamOffset + size
+		}
+		else
+		{
+			offset = scopes.value.LocalOffset
+			scopes.value.LocalOffset = scopes.value.LocalOffset + size
+		}
+
+		Variable var = varname, vartype, origin, offset
+		append(scopes.value.Variables, var)
+	}
+	else
+	{
+		StoreVariableInScope(scopes.next, scopename, varname, vartype, isref, origin)
+	}
+}
+
+StoreVariableInScope : nothing, integer scopename, integer varname, integer vartype, boolean isref, integer origin
+{
+	print("No scope available")
+	assert(false)
+}
+
+
+OnCodeGenRegisterGlobalBlock : integer name
+{
+	ContextStackEntry entry = STACK_TYPE_GLOBAL, name
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	list<OptionalCodeBlock> newstack = nothing, nothing
+	CurrentCodeBlockStack = newstack
+
+	GlobalCodeBlockName = name
+}
+
+
+OnCodeGenRegisterFunction : integer funcname
+{
+	FunctionDefinition func = funcname, nothing, nothing, false, 0
+	prepend<FunctionDefinition>(Functions, func)
+
+	list<OptionalCodeBlock> newstack = nothing, nothing
+	CurrentCodeBlockStack = newstack
+}
+
+OnCodeGenEnterFunctionBody : integer funcname
+{
+	ContextStackEntry entry = STACK_TYPE_FUNCTION, funcname
+	prepend<ContextStackEntry>(ContextStack, entry)
+}
+
+OnCodeGenEnterFunctionReturn : integer funcname, boolean anonymous
+{
+	ContextStackEntry entry = STACK_TYPE_FUNCRET, funcname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
+
+	Functions.value.AnonymousReturn = anonymous
+	InFuncRetHack = true
+}
+
+OnCodeGenExitContext :
+{
+	integer entrytype = ContextStack.value.EntryType
+	PopContext(ContextStack, ContextStack.next)
+
+	if(entrytype == STACK_TYPE_STATEMENT)
+	{
+		if(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
+		{
+			AppendExpressionToSubStatement(ScratchExpressions.value)
+		}
+		elseif(ContextStack.value.EntryType != STACK_TYPE_SUBSTATEMENT)
+		{
+			FindCurrentStatementAndAppendExpression(ScratchExpressions.value)
+		}
+	}
+	elseif(entrytype == STACK_TYPE_ASSIGNMENT)
+	{
+		FindCurrentAssignmentAndSetExpression(ScratchExpressions.value)
+	}
+	elseif(entrytype == STACK_TYPE_SUBSTATEMENT)
+	{
+		AppendExpressionToSubStatement(ScratchExpressions.value)
+		PopCurrentStatementAndAppendToScratchExpression(ScratchExpressions, ScratchExpressions.next)
+	}
+	elseif(entrytype == STACK_TYPE_FUNCRET)
+	{
+		SetReturnExpression(Functions.value, ScratchExpressions.value)
+		InFuncRetHack = false
+	}
+	elseif(entrytype == STACK_TYPE_FUNCTION)
+	{
+		assert(CodeBlockDepth(CurrentCodeBlockStack) == 1)
+		SetFunctionCodeBlock(Functions.value, CurrentCodeBlockStack.value)
+	}
+	elseif(entrytype == STACK_TYPE_ENTITY_CODE)
+	{
+		Entity entity = EntityStack.value.Tag, EntityStack.value.PostfixTag, EntityStack.value.Param, CurrentCodeBlockStack.value
+		AppendEntityToChain(ChainStack, entity)
+		PopEntityStack(EntityStack, EntityStack.next)
+		PopCodeBlock(CurrentCodeBlockStack, CurrentCodeBlockStack.next)
+	}
+	elseif(entrytype == STACK_TYPE_CHAIN)
+	{
+		EntityChain chain = ChainStack.value
+		CodeBlockEntry cbe = chain
+		AppendEntryToCurrentCodeBlock(cbe)
+		PopChain(ChainStack, ChainStack.next)
+	}
+	elseif(entrytype == STACK_TYPE_PARENTHETICAL)
+	{
+		ParentheticalExpression parenthetical = ScratchExpressions.value
+		ExpressionAtom atom = parenthetical
+		PopExpression(ScratchExpressions, ScratchExpressions.next)
+		PlaceAtomInScratchExpression(atom)
+	}
+	elseif(entrytype == STACK_TYPE_GLOBAL)
+	{
+		SetGlobalCodeBlock(CurrentCodeBlockStack.value)
+	}
+}
+
+PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
+{
+	stack = next
+}
+
+PopContext : list<ContextStackEntry> ref stack, nothing
+{
+	print("No contexts available")
+	assert(false)
+}
+
+PopExpression : list<Expression> ref thelist, list<Expression> ref next
+{
+	thelist = next
+}
+
+PopExpression : list<Expression> ref thelist, nothing
+
+
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref next
+{
+	stack = next
+}
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, nothing
+{
+	list<OptionalCodeBlock> newlist = nothing, nothing
+	stack = newlist
+}
+
+
+PopEntityStack : list<Entity> ref stack, list<Entity> ref next
+{
+	stack = next
+}
+
+PopEntityStack : list<Entity> ref stack, nothing
+
+
+PopChain : list<EntityChain> ref stack, list<EntityChain> ref next
+{
+	stack = next
+}
+
+PopChain : list<EntityChain> ref stack, nothing
+
+
+
+PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
+{
+	Statement stmt = SubStatements.value
+	ExpressionAtom atom = stmt
+
+	expressions = tail
+
+	PlaceAtomInScratchExpression(atom)
+	PopSubStatement(SubStatements, SubStatements.next)
+}
+
+SetReturnExpression : FunctionDefinition ref funcdef, Expression ref expr
+{
+	funcdef.Return = expr
+
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
+}
+
+SetGlobalCodeBlock : CodeBlock ref block
+{
+	GlobalCodeBlock = block
+}
+
+SetGlobalCodeBlock : nothing
+
+
+PopSubStatement : list<Statement> ref statements, list<Statement> ref tail
+{
+	statements = tail
+}
+
+
+
+AppendExpressionToSubStatement : Expression ref expr
+{
+	AppendExpressionToStatement(SubStatements.value, expr)
+}
+
+
+OnCodeGenEnterTypeMatcher : integer matchername
+{
+	ContextStackEntry entry = STACK_TYPE_TYPEMATCH, matchername
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	list<FunctionSignature> dsl = dummysignature, nothing
+	TypeMatcher matcher = matchername, dsl
+	prepend<TypeMatcher>(TypeMatchers, matcher)
+}
+
+
+PlaceAtomInScratchExpression : ExpressionAtom ref atom
+{
+	if(ExpressionAtomIsSentinel(ScratchExpressions.value.Atoms.value))
+	{
+		list<ExpressionAtom> atoms = atom, nothing
+		ScratchExpressions.value = Expression(atoms, 0)
+	}
+	else
+	{
+		AppendAtomToExpression(ScratchExpressions.value.Atoms, ScratchExpressions.value.Atoms.next, atom)
+	}
+}
+
+
+OnCodeGenRegisterLiteralBoolean : boolean value
+{
+	ExpressionAtom atom = value
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterLiteralInteger : integer value, integer literaltype
+{
+	while((literaltype & 0xff000000) == 0x05000000)
+	{
+		literaltype = FindTypeAliasBase(TypeAliases, literaltype)
+	}
+
+	if(literaltype == 0x01000001)		// Integer32 type signature
+	{
+		ExpressionAtom atom = value
+		PlaceAtomInScratchExpression(atom)
+	}
+	else
+	{
+		integer16 i16value = cast(integer16, value)
+		ExpressionAtom atom = i16value
+		PlaceAtomInScratchExpression(atom)
+	}
+}
+
+OnCodeGenRegisterLiteralString : integer handle
+{
+	StringHandleAtom sha = handle
+	ExpressionAtom atom = sha
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterLiteralReal : real value
+{
+	ExpressionAtom atom = value
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterOperatorInvoke : integer ophandle
+{
+	OperatorInvokeAtom oia = ophandle
+	ExpressionAtom atom = oia
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterAtomIdentifier : integer idhandle, integer idtype
+{
+	IdentifierAtom id = idhandle, idtype, false
+	ExpressionAtom atom = id
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterAtomIdentifierReference : integer idhandle
+{
+	IdentifierAtom id = idhandle, 0, true
+	ExpressionAtom atom = id
+	PlaceAtomInScratchExpression(atom)
+}
+
+OnCodeGenRegisterTypeAnnotation : integer annotationtype
+{
+	TypeAnnotationAtom taa = annotationtype
+	ExpressionAtom atom = taa
+	PlaceAtomInScratchExpression(atom)
+}
+
+
+OnCodeGenRegisterRefBinding : integer id, integer structureid, boolean isref, boolean inputref
+{
+	RefBinding binding = id, structureid, isref, inputref
+	ExpressionAtom atom = binding
+	PlaceAtomInScratchExpression(atom)
+}
+
+
+ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> true
+ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> false
+ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false
+ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false
+ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false
+
+
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
+{
+	AppendAtomToExpression(tail, tail.next, atom)
+}
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom ref atom
+{
+	list<ExpressionAtom> newatoms = atom, nothing
+	atoms.next = newatoms
+}
+
+
+OnCodeGenEnterStatement : integer statementname, integer statementtype
+{
+	Statement statement = statementname, nothing, statementtype
+
+	if(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
+	{
+		prepend<Statement>(SubStatements, statement)
+	}
+	elseif(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
+	{
+		prepend<Statement>(SubStatements, statement)
+	}
+	else
+	{
+		CodeBlockEntry cbe = statement
+		AppendEntryToCurrentCodeBlock(cbe)
+	}
+
+	ContextStackEntry entry = STACK_TYPE_STATEMENT, statementname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression expr = dummyatomlist, 0
+	prepend<Expression>(ScratchExpressions, expr)
+}
+
+OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
+{
+	Expression tempexpr = dummyatomlist, 0
+	Assignment assignment = lhsname, lhstype, annotation, tempexpr
+	CodeBlockEntry cbe = assignment
+	AppendEntryToCurrentCodeBlock(cbe)
+
+	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, lhsname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	ScratchExpressions.value = Expression(dummyatomlist, 0)
+}
+
+
+OnCodeGenEnterAssignmentCompound : integer lhsname, integer lhstype, integer annotation
+{
+	simplelist<integer> idlist = lhsname, nothing
+	Expression tempexpr = dummyatomlist, 0
+	AssignmentCompound assignment = idlist, lhstype, annotation, tempexpr
+	CodeBlockEntry cbe = assignment
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+OnCodeGenAssignmentCompoundMember : integer membername
+{
+	FindCurrentFunctionAndAppendCompoundMember(membername)
+}
+
+OnCodeGenAssignmentCompoundEnd :
+{
+	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	ScratchExpressions.value = Expression(dummyatomlist, 0)
+}
+
+
+OnCodeGenEnterSubStatement :
+{
+	ContextStackEntry entry = STACK_TYPE_SUBSTATEMENT, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+}
+
+
+
+AppendEntryToCurrentCodeBlock : CodeBlockEntry ref cbe
+{
+	AppendEntryToCurrentCodeBlockWorker(CurrentCodeBlockStack, cbe)
+}
+
+AppendEntryToCurrentCodeBlockWorker : list<OptionalCodeBlock> ref blockstack, CodeBlockEntry ref entry
+{
+	AppendEntryToCodeBlock(blockstack, blockstack.value, entry)
+}
+
+AppendEntryToCurrentCodeBlockWorker : nothing, CodeBlockEntry ref entry
+{
+	print("No code block is being processed")
+	assert(false)
+}
+
+
+FindCurrentFunctionAndAppendCompoundMember : integer membername
+{
+	FindLastAssignmentAndAppendCompoundMemberHelper(CurrentCodeBlockStack.value, membername)
+}
+
+
+
+FindLastAssignmentAndAppendCompoundMemberHelper : CodeBlock ref code, integer membername
+{
+	FindLastAssignmentAndAppendCompoundMember(code.Entries, code.Entries.next, membername)
+}
+
+
+
+AppendEntryToCodeBlock : list<OptionalCodeBlock> ref stack, CodeBlock ref code, CodeBlockEntry ref entry
+{
+	AppendEntryToCodeBlock(code.Entries, entry)
+}
+
+AppendEntryToCodeBlock : list<OptionalCodeBlock> ref stack, nothing, CodeBlockEntry ref entry
+{
+	list<CodeBlockEntry> stmtlist = entry, nothing
+	CodeBlock block = stmtlist
+	OptionalCodeBlock blockwrap = block
+	stack.value = blockwrap
+}
+
+AppendEntryToCodeBlock : list<CodeBlockEntry> ref entries, CodeBlockEntry ref entry
+{
+	AppendEntryToCodeBlock(entries, entries.next, entry)
+}
+
+AppendEntryToCodeBlock : list<CodeBlockEntry> ref entries, nothing, CodeBlockEntry ref entry
+{
+	list<CodeBlockEntry> newlist = entry, nothing
+	entries.next = newlist
+}
+
+AppendEntryToCodeBlock : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, CodeBlockEntry ref value
+{
+	AppendEntryToCodeBlock(tail, tail.next, value)
+}
+
+
+FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
+{
+	FindLastAssignmentAndAppendCompoundMember(tail, tail.next, membername)
+}
+
+FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
+{
+	AppendCompoundMemberHelper(entries.value, membername)
+}
+
+AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
+{
+	AppendCompoundMember(a.LHS, a.LHS.next, membername)
+}
+
+AppendCompoundMember : simplelist<integer> ref members, simplelist<integer> ref tail, integer membername
+{
+	AppendCompoundMember(tail, tail.next, membername)
+}
+
+AppendCompoundMember : simplelist<integer> ref members, nothing, integer membername
+{
+	simplelist<integer> newtail = membername, nothing
+	members.next = newtail
+}
+
+
+
+FindCurrentStatementAndAppendExpression : Expression ref expression
+{
+	FindLastStatementInBlockAndAppendExpression(CurrentCodeBlockStack.value, expression)
+}
+
+FindCurrentStatementAndAppendExpression : nothing
+
+
+FindCurrentAssignmentAndSetExpression : Expression ref expression
+{
+	FindLastAssignmentInBlockAndSetExpression(CurrentCodeBlockStack.value, expression)
+}
+
+
+
+FindLastStatementInBlockAndAppendExpression : CodeBlock ref codeblock, Expression ref expression
+{
+	FindLastStatementAndAppendExpression(codeblock.Entries, codeblock.Entries.next, expression)
+}
+
+FindLastStatementInBlockAndAppendExpression : nothing, Expression ref expression
+{
+	print("Not processing an active code block!")
+	assert(false)
+}
+
+
+FindLastStatementAndAppendExpression : list<CodeBlockEntry> ref codeblockentries, list<CodeBlockEntry> ref tail, Expression ref expression
+{
+	FindLastStatementAndAppendExpression(tail, tail.next, expression)
+}
+
+FindLastStatementAndAppendExpression : list<CodeBlockEntry> ref codeblockentries, nothing, Expression ref expression
+{
+	AppendExpressionToStatement(codeblockentries.value, expression)
+}
+
+
+AppendExpressionToStatement : Statement ref statement, Expression ref expression
+{
+	AppendExpressionToStatementParams(statement, statement.Parameters, expression)
+}
+
+AppendExpressionToStatementParams : Statement ref statement, ExpressionList ref parameters, Expression ref expression
+{
+	AppendExpression(parameters.Expressions, parameters.Expressions.next, expression)
+}
+
+AppendExpressionToStatementParams : Statement ref statement, nothing, Expression ref expression
+{
+	list<Expression> newlist = expression, nothing
+	ExpressionList params = newlist
+	statement.Parameters = params
+}
+
+AppendExpression : list<Expression> ref expressions, list<Expression> ref tail, Expression ref expression
+{
+	AppendExpression(tail, tail.next, expression)
+}
+
+AppendExpression : list<Expression> ref expressions, nothing, Expression ref expression
+{
+	list<Expression> newlist = expression, nothing
+	expressions.next = newlist
+}
+
+
+FindLastAssignmentInBlockAndSetExpression : CodeBlock ref codeblock, Expression ref expression
+{
+	FindLastAssignmentAndSetExpression(codeblock.Entries, codeblock.Entries.next, expression)
+}
+
+FindLastAssignmentAndSetExpression : list<CodeBlockEntry> ref codeblockentries, list<CodeBlockEntry> ref tail, Expression ref expression
+{
+	FindLastAssignmentAndSetExpression(tail, tail.next, expression)
+}
+
+FindLastAssignmentAndSetExpression : list<CodeBlockEntry> ref codeblockentries, nothing, Expression ref expression
+{
+	SetAssignmentExpression(codeblockentries.value, expression)
+}
+
+SetAssignmentExpression : Assignment ref assignment, Expression ref expression
+{
+	assignment.RHS = expression
+}
+
+SetAssignmentExpression : AssignmentCompound ref assignment, Expression ref expression
+{
+	assignment.RHS = expression
+}
+
+
+
+SetFunctionCodeBlock : FunctionDefinition ref funcdef, OptionalCodeBlock ref optblock
+{
+	SetFunctionCodeBlockWorker(funcdef, optblock)
+}
+
+SetFunctionCodeBlock : nothing, OptionalCodeBlock ref optblock
+{
+	print("No function in flight")
+	assert(false)
+}
+
+SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, CodeBlock ref block
+{
+	funcdef.Code = block
+}
+
+SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, nothing
+
+
+
+CodeGenEmitStrings : list<StringTableEntry> ref table
+{
+	map<StringTableEntry>(table, CodeGenEmitSingleString)
+}
+
+CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be passed by ref
+{
+	if(entry.Handle != 0)
+	{
+		OnBytecodePoolString(entry.Handle, entry.Data)
+	}
+}
+
+
+CodeGenEmitStructures : list<StructureDefinition> ref structures
+{
+	CodeGenEmitStructures(structures.next)
+	CodeGenEmitSingleStructure(structures.value)
+}
+
+CodeGenEmitStructures : nothing
+
+
+CodeGenEmitSingleStructure : StructureDefinition ref def
+{
+	if(def.Name != 0)
+	{
+		integer membercount = CountMembers(def.Members)
+		OnBytecodeDefineStructure(def.Type, membercount)
+		CodeGenEmitMembers(def.Members)
+	}
+}
+
+CodeGenEmitMembers : list<StructureMember> ref members
+{
+	CodeGenEmitMember(members.value)
+	CodeGenEmitMembers(members.next)
+}
+
+CodeGenEmitMembers : nothing
+
+CodeGenEmitMember : StructureMemberVariable ref memvar
+{
+	OnBytecodeStructureMember(memvar.Name, memvar.Type)
+}
+
+CodeGenEmitMember : StructureMemberFunctionRef ref member
+{
+	OnBytecodeStructureMember(member.Name, 0x09000000)
+}
+
+
+CountMembers : list<StructureMember> ref members -> integer count = 0
+{
+	CountMembers(members, count)
+}
+
+CountMembers : list<StructureMember> ref members, integer ref count
+{
+	++count
+	CountMembers(members.next, count)
+}
+
+CountMembers : nothing, integer ref count
+
+
+
+
+
+CodeGenEmitScopes : list<Scope> ref scopes
+{
+	CodeGenEmitScopes(scopes.next)
+	CodeGenEmitSingleScope(scopes.value, scopes.value.Name)
+}
+
+CodeGenEmitScopes : nothing
+
+
+CodeGenEmitSingleScope : Scope ref scope, integer funcname
+{
+	if(scope.Name != 0)
+	{
+		integer varcount = CountScopeVariables(scope)
+		OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
+		CodeGenEmitVariables(scope.Variables, funcname)
+	}
+}
+
+
+CountScopeVariables : Scope ref scope -> integer count = 0
+{
+	CountScopeVariables(scope.Variables, count)
+}
+
+CountScopeVariables : list<Variable> ref variables, integer ref count
+{
+	if(variables.value.Name != 0)
+	{
+		++count
+	}
+
+	CountScopeVariables(variables.next, count)
+}
+
+CountScopeVariables : nothing, integer ref count
+
+
+CodeGenEmitVariables : list<Variable> ref vars, integer funcname
+{
+	CodeGenEmitSingleVariable(vars.value, funcname)
+	CodeGenEmitVariables(vars.next, funcname)
+}
+
+CodeGenEmitVariables : nothing, integer funcname
+
+
+CodeGenEmitSingleVariable : Variable ref var, integer funcname
+{
+	if(var.Name != 0)
+	{
+		integer basetype = var.VarType
+		while((basetype & 0x7f000000) == 0x05000000)
+		{
+			basetype = FindTypeAliasBase(TypeAliases, basetype)
+		}
+
+
+		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
+		{
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
+		}
+		else
+		{
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
+		}
+	}
+}
+
+
+CodeGenEmitFunctions : list<FunctionDefinition> ref table
+{
+	CodeGenEmitSingleFunction(table.value)
+	CodeGenEmitFunctions(table.next)
+}
+
+CodeGenEmitFunctions : nothing
+
+
+CodeGenEmitSingleFunction : FunctionDefinition ref def
+{
+	if(def.Name != 0)
+	{
+		EmittingFunctionName = def.Name
+		OnBytecodeEnterFunction(def.Name)
+		CodeGenEmitFunctionReturn(def.Return)
+
+		if(def.InvokeTag != 0)
+		{
+			OnBytecodeInvoke(def.InvokeTag)
+		}
+
+		CodeGenEmitCodeBlock(def.Code)
+		if(listcontains(CustomConstructors, def.Name))
+		{
+			OnBytecodePushVarNoCopy(FindReturnVariableName())
+			OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
+			OnBytecodeAssign()
+		}
+		else
+		{
+			if(def.AnonymousReturn)
+			{
+				CodeGenEmitReturnRegisterAnonymous(def.Return)
+			}
+			else
+			{
+				CodeGenEmitReturnRegister(def.Return)
+			}
+		}
+		OnBytecodeExitFunction()
+	}
+}
+
+CodeGenEmitFunctionReturn : Expression ref expr
+{
+	CodeGenEmitExpressionAtoms(expr.Atoms, false, false)
+}
+
+CodeGenEmitFunctionReturn : nothing
+
+
+CodeGenEmitReturnRegister : Expression ref expr
+{
+	integer index = FindReturnVariableIndex()
+	OnBytecodeSetReturnRegister(index)
+}
+
+CodeGenEmitReturnRegister : nothing
+
+
+CodeGenEmitReturnRegisterAnonymous : Expression ref expr
+{
+	integer index = FindReturnVariableIndex()
+
+	OnBytecodeBindReference(0, index)
+	OnBytecodeAssign()
+
+	OnBytecodeSetReturnRegister(index)
+}
+
+CodeGenEmitReturnRegisterAnonymous : nothing
+
+
+
+CodeGenEmitCodeBlock : CodeBlock ref block
+{
+	CodeGenEmitCodeBlockEntries(block.Entries)
+}
+
+CodeGenEmitCodeBlock : nothing
+
+
+CodeGenEmitCodeBlockEntries : list<CodeBlockEntry> ref entries
+{
+	CodeGenEmitSingleCodeBlockEntry(entries.value)
+	CodeGenEmitCodeBlockEntries(entries.next)
+}
+
+CodeGenEmitCodeBlockEntries : nothing
+
+
+CodeGenEmitSingleCodeBlockEntry : Statement ref s
+{
+	boolean sumtype = SumTypeExists(s.Name)
+	boolean constructssumtype = false
+	if((s.Type & 0x7f000000) == 0x07000000)
+	{
+		constructssumtype = true
+	}
+
+	boolean constructorcall = false
+
+	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
+
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(EmittingFunctionName, s.Name, var)
+	if((var.Name != 0) && ((var.VarType & 0xff000000) == 0x09000000))
+	{
+		OnBytecodeInvokeIndirect(s.Name)
+	}
+	elseif(sumtype)
+	{
+		OnBytecodeConstructSumType()
+	}
+	elseif(FunctionIsAutoGenOrHasIR(s.Name))
+	{
+		OnBytecodeInvokeOffset(s.Name)
+	}
+	else
+	{
+		OnBytecodeInvoke(s.Name)
+	}
+}
+
+CodeGenEmitSingleCodeBlockEntry : Assignment ref a
+{
+	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+
+	if(a.Annotation != 0)
+	{
+		OnBytecodePushTypeAnnotation(a.Annotation)
+	}
+
+	integer frames = 0
+	integer index = FindVariable(a.LHSName, frames)
+	OnBytecodeBindReference(frames, index)
+
+	if((a.LHSType & 0xff000000) == 0x07000000)
+	{
+		OnBytecodeAssignSumType()
+	}
+	else
+	{
+		OnBytecodeAssign()
+	}
+}
+
+CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
+{
+	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+
+	if(a.Annotation != 0)
+	{
+		OnBytecodePushTypeAnnotation(a.Annotation)
+	}
+
+	integer frames = 0
+	integer index = FindVariable(a.LHS.value, frames)
+	OnBytecodeBindReference(frames, index)
+
+	integer typeid = MakeNonReferenceType(FindVariableType(a.LHS.value))
+
+	integer structurename = GetNameOfStructureByType(typeid)
+	BindAssignmentMembers(a.LHS.next, structurename)
+
+	if((a.LHSType & 0xff000000) == 0x07000000)
+	{
+		OnBytecodeAssignSumType()	
+	}
+	else
+	{
+		OnBytecodeAssign()
+	}
+}
+
+
+CodeGenEmitBindingsForOperand : simplelist<integer> ref operand
+{
+	integer frames = 0
+	integer index = FindVariable(operand.value, frames)
+	OnBytecodeBindReference(frames, index)
+
+	integer structurename = GetNameOfStructureByType(FindVariableType(operand.value))
+	BindAssignmentMembers(operand.next, structurename)
+}
+
+
+CodeGenEmitSingleCodeBlockEntry : PreOpStatement ref preop
+{
+	CodeGenEmitBindingsForOperand(preop.Operand)
+	OnBytecodeReadReference()
+	OnBytecodeInvoke(preop.Operator)
+	CodeGenEmitBindingsForOperand(preop.Operand)
+	OnBytecodeAssign()
+	// TODO - push extra copy of value LAST if in a parenthetical
+}
+
+CodeGenEmitSingleCodeBlockEntry : PostOpStatement ref postop
+{
+	// TODO - push extra copy of value FIRST if in a parenthetical
+	CodeGenEmitBindingsForOperand(postop.Operand)
+	OnBytecodeReadReference()
+	OnBytecodeInvoke(postop.Operator)
+	CodeGenEmitBindingsForOperand(postop.Operand)
+	OnBytecodeAssign()
+}
+
+
+
+CodeGenEmitSingleCodeBlockEntry : EntityChain ref chain
+{
+	OnBytecodeBeginChain()
+	CodeGenEmitEntityChain(chain.Entries)
+	OnBytecodeEndChain()
+}
+
+
+CodeGenEmitEntityChain : EntityList ref entities
+{
+	CodeGenEmitEntityList(entities.ActualList)
+}
+
+CodeGenEmitEntityList : list<Entity> ref thelist
+{
+	if(thelist.value.Tag != 0)
+	{
+		CodeGenEmitExpression(thelist.value.Param, false, false)
+		OnBytecodeEnterEntity(thelist.value.Tag, 0)
+		CodeGenEmitCodeBlock(thelist.value.Code)
+		OnBytecodeExitEntity()
+	}
+
+	CodeGenEmitEntityList(thelist.next)
+}
+
+CodeGenEmitEntityList : nothing
+
+
+BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurename
+{
+	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
+	integer memberoffset = GetStructureMemberOffset(Structures, structurename, lhsmembers.value)
+
+	OnBytecodeBindStructReference(membertype, memberoffset)
+
+	// Recurse
+	BindAssignmentMembers(lhsmembers.next, GetNameOfType(membertype))
+}
+
+BindAssignmentMembers : nothing, integer structurename
+
+
+
+CodeGenEmitExpressionList : nothing, boolean constructssumtype, boolean constructorcall
+
+CodeGenEmitExpressionList : ExpressionList ref expressions, boolean constructssumtype, boolean constructorcall
+{
+	CodeGenEmitExpressionList(expressions.Expressions, constructssumtype, constructorcall)
+}
+
+CodeGenEmitExpressionList : list<Expression> ref expressions, boolean constructssumtype, boolean constructorcall
+{
+	boolean constructssumtypetemp = constructssumtype
+	if((expressions.value.Type & 0x7f000000) == 0x07000000)
+	{
+		constructssumtypetemp = true
+	}
+
+	CodeGenEmitExpressionAtoms(expressions.value.Atoms, constructssumtypetemp, constructorcall)
+	CodeGenEmitExpressionList(expressions.next, constructssumtype, constructorcall)
+}
+
+CodeGenEmitExpression : nothing, boolean constructssumtype, boolean constructorcall
+
+CodeGenEmitExpression : Expression ref expr, boolean constructssumtype, boolean constructorcall
+{
+	CodeGenEmitExpressionAtoms(expr.Atoms, constructssumtype, constructorcall)
+}
+
+CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean constructorcall
+{
+	boolean needsref = false
+	CodeGenEmitExpressionAtomsWorker(atoms, constructssumtype, needsref, constructorcall)
+	if(needsref)
+	{
+		if(constructssumtype)
+		{
+			OnBytecodeReadReferenceAnnotated()
+		}
+		else
+		{
+			OnBytecodeReadReference()
+		}
+	}
+}
+
+CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean ref needsref, boolean constructorcall
+{
+	boolean thisneedsref = CodeGenCheckAtomForReadRef(atoms.value)
+	if(thisneedsref)
+	{
+		needsref = true
+	}
+	elseif(needsref)
+	{
+		if(constructssumtype)
+		{
+			OnBytecodeReadReferenceAnnotated()
+		}
+		else
+		{
+			OnBytecodeReadReference()
+		}
+		needsref = false
+	}
+
+	CodeGenEmitSingleAtom(atoms.value, constructorcall)
+	CodeGenEmitExpressionAtomsWorker(atoms.next, constructssumtype, needsref, constructorcall)
+}
+
+CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean ref needsref, boolean constructorcall
+
+
+CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
+
+CodeGenCheckAtomForReadRef : integer ref atom -> false
+CodeGenCheckAtomForReadRef : integer16 ref atom -> false
+CodeGenCheckAtomForReadRef : boolean ref atom -> false
+CodeGenCheckAtomForReadRef : real ref atom -> false
+CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false
+CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false
+CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false
+CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false
+CodeGenCheckAtomForReadRef : Statement ref atom -> false
+CodeGenCheckAtomForReadRef : ParentheticalExpression ref atom -> false
+CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
+
+
+
+
+CodeGenEmitSingleAtom : integer ref literalinteger, boolean constructor
+{
+	OnBytecodePushLiteralInteger(literalinteger)
+}
+
+CodeGenEmitSingleAtom : integer16 ref literalinteger16, boolean constructor
+{
+	OnBytecodePushLiteralInteger16(literalinteger16)
+}
+
+CodeGenEmitSingleAtom : boolean ref literalboolean, boolean constructor
+{
+	OnBytecodePushBoolean(literalboolean)
+}
+
+CodeGenEmitSingleAtom : real ref literalreal, boolean constructor
+{
+	OnBytecodePushLiteralReal(literalreal)
+}
+
+CodeGenEmitSingleAtom : StringHandleAtom ref atom, boolean constructor
+{
+	OnBytecodePushLiteralString(atom.Handle)
+}
+
+CodeGenEmitSingleAtom : OperatorInvokeAtom ref atom, boolean constructor
+{
+	OnBytecodeInvoke(atom.OperatorName)
+}
+
+CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
+{
+	integer atomtype = MakeNonReferenceType(idatom.Type)
+
+	if(atomtype == 0x00000004)							// Nothing type signature
+	{
+		OnBytecodePushLiteralInteger(0)
+	}
+	else
+	{
+		if(FunctionIsAutoGenOrHasIR(idatom.Handle))
+		{
+			OnBytecodePushLiteralFunction(idatom.Handle)
+		}
+		elseif(GetTypeByName(idatom.Handle) != 0)
+		{
+			OnBytecodePushLiteralString(idatom.Handle)
+		}	
+		else
+		{
+			if(atomtype == 0x01000000)					// Identifier type signature
+			{
+				if(!constructor)
+				{
+					OnBytecodePushLiteralString(idatom.Handle)
+				}
+				else
+				{
+					integer frames = 0
+					integer index = FindVariable(idatom.Handle, frames)
+					OnBytecodeBindReference(frames, index)
+				}
+			}
+			elseif((atomtype & 0x7f000000) == 0x09000000)			// Function type family signature
+			{
+				OnBytecodePushLiteralFunction(idatom.Handle)
+			}
+			else
+			{
+				if(idatom.IsReference)
+				{
+					integer frames = 0
+					integer index = FindVariable(idatom.Handle, frames)
+					OnBytecodeBindReference(frames, index)
+				}
+				else
+				{
+					OnBytecodePushVarValue(idatom.Handle, atomtype)
+				}
+			}
+		}
+	}
+}
+
+CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom, boolean constructor
+{
+	OnBytecodePushTypeAnnotation(atom.Type)
+}
+
+CodeGenEmitSingleAtom : Statement ref atom, boolean constructor
+{
+	CodeGenEmitSingleCodeBlockEntry(atom)
+}
+
+CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
+{
+	integer memtype = GetStructureMemberType(Structures, atom.StructureName, atom.Identifier)
+	integer memoffset = GetStructureMemberOffset(Structures, atom.StructureName, atom.Identifier)
+	OnBytecodeBindStructReference(memtype, memoffset)
+}
+
+CodeGenEmitSingleAtom : ParentheticalExpression ref expr, boolean constructor
+{
+	CodeGenEmitExpression(expr.Inner, false, false)
+}
+
+CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
+
+
+GetNameOfStructureByType : integer typeid -> integer name = 0
+{
+	name = GetNameOfStructureByType(Structures, typeid)
+}
+
+GetNameOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer name = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		name = structures.value.Name
+	}
+	else
+	{
+		name = GetNameOfStructureByType(structures.next, typeid)
+	}
+}
+
+GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+
+GetSizeOfStructureByType : integer typeid -> integer size = 0
+{
+	size = GetSizeOfStructureByType(Structures, typeid)
+}
+
+GetSizeOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer size = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		size = GetTotalMemberSize(structures.value.Members)
+	}
+	else
+	{
+		size = GetSizeOfStructureByType(structures.next, typeid)
+	}
+}
+
+GetSizeOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+GetTotalMemberSize : list<StructureMember> ref members -> integer size = 0
+{
+	size = GetMemberSize(members.value) + GetTotalMemberSize(members.next)
+}
+
+GetTotalMemberSize : nothing -> integer size = 0
+
+
+
+GetStructureMemberType : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer rtype = 0
+{
+	if(structures.value.Name == structurename)
+	{
+		rtype = GetMemberType(structures.value.Members, membername)
+	}
+	else
+	{
+		rtype = GetStructureMemberType(structures.next, structurename, membername)
+	}
+}
+
+GetStructureMemberType : nothing, integer structurename, integer membername -> integer rtype = 0
+
+GetMemberType : list<StructureMember> ref members, integer membername -> integer rtype = 0
+{
+	if(GetMemberName(members.value) == membername)
+	{
+		rtype = GetMemberTypeDecompose(members.value)
+	}
+	else
+	{
+		rtype = GetMemberType(members.next, membername)
+	}
+}
+
+GetMemberType : nothing, integer membername -> integer rtype = 0
+
+GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
+
+GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = 0x09000000
+
+
+
+GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
+
+GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name
+
+
+GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0
+{
+	integer counter = 0
+	GetMemberOffset(members, membername, counter)
+	offset = counter
+}
+
+GetMemberOffset : list<StructureMember> ref members, integer membername, integer ref counter
+{
+	if(GetMemberName(members.value) != membername)
+	{
+		if(GetMemberName(members.value) != 0)
+		{
+			counter += GetMemberSize(members.value)
+		}
+		GetMemberOffset(members.next, membername, counter)
+	}
+}
+
+GetMemberOffset : nothing, integer membername, integer ref counter
+
+GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type)
+
+GetMemberSize : StructureMemberFunctionRef ref member -> 4
+
+
+
+GetStructureMemberOffset : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer offset = 0
+{
+	if(structures.value.Name == structurename)
+	{
+		offset = GetMemberOffset(structures.value.Members, membername)
+	}
+	else
+	{
+		offset = GetStructureMemberOffset(structures.next, structurename, membername)
+	}
+}
+
+GetStructureMemberOffset : nothing, integer structurename, integer membername -> 0
+
+
+
+CodeGenEmitSumTypes : list<SumType> ref sumtypes
+{
+	CodeGenEmitSingleSumType(sumtypes.value)
+	CodeGenEmitSumTypes(sumtypes.next)
+}
+
+CodeGenEmitSumTypes : nothing
+
+
+CodeGenEmitSingleSumType : SumType ref sumtype
+{
+	if(sumtype.Type != 0)
+	{
+		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
+		OnBytecodeEmitInteger(sumtype.Type)
+		OnBytecodeEmitInteger(CountSumTypeBases(sumtype.Bases))
+		CodeGenEmitSumTypeBase(sumtype.Bases)
+	}
+}
+
+CountSumTypeBases : simplelist<integer> ref bases -> integer count = 0
+{
+	count = CountSumTypeBases(bases.next)
+
+	if(bases.value != 0)	
+	{
+		++count
+	}
+}
+
+CountSumTypeBases : nothing -> integer count = 0
+
+CodeGenEmitSumTypeBase : simplelist<integer> ref bases
+{
+	CodeGenEmitSumTypeBase(bases.next)
+
+	if(bases.value != 0)
+	{
+		OnBytecodeEmitInteger(bases.value)
+	}
+}
+
+CodeGenEmitSumTypeBase : nothing
+
+
+SumTypeExists : integer typename -> boolean exists = SumTypeExists(SumTypes, typename)
+
+SumTypeExists : list<SumType> ref sumtypes, integer typename -> boolean exists = false
+{
+	if(sumtypes.value.Name == typename)
+	{
+		exists = true
+	}
+	else
+	{
+		exists = SumTypeExists(sumtypes.next, typename)
+	}
+}
+
+SumTypeExists : nothing, integer typename -> boolean exists = false
+
+
+FindSumTypeName : integer typeid -> integer name = FindSumTypeName(SumTypes, typeid)
+
+FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0
+{
+	if(sumtypes.value.Type == typeid)
+	{
+		name = sumtypes.value.Name
+	}
+	else
+	{
+		name = FindSumTypeName(sumtypes.next, typeid)
+	}
+}
+
+FindSumTypeName : nothing, integer typeid -> 0
+
+
+
+FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
+{
+	if(FunctionExists(Functions, funcname))
+	{
+		ret = true
+	}
+	elseif(TypeMatcherExists(TypeMatchers, funcname))
+	{
+		ret = true
+	}
+	elseif(FunctionIsAutoGen(AutoGeneratedFunctionNames, funcname))
+	{
+		ret = true
+	}
+}
+
+FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean ret = false
+{
+	if(funcs.value.Name == funcname)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = FunctionExists(funcs.next, funcname)
+	}
+}
+
+FunctionExists : nothing, integer funcname -> boolean ret = false
+
+
+FunctionIsAutoGen : simplelist<integer> ref genlist, integer target -> boolean ret = false
+{
+	if(genlist.value == target)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = FunctionIsAutoGen(genlist.next, target)
+	}
+}
+
+FunctionIsAutoGen : nothing, integer target -> boolean ret = false
+
+
+
+TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boolean ret = false
+{
+	if(matchers.value.Name == matchername)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = TypeMatcherExists(matchers.next, matchername)
+	}
+}
+
+TypeMatcherExists : nothing, integer matchername -> boolean ret = false
+
+
+
+FindVariable : integer name, integer ref frames -> integer index = FindVariableInScope(EmittingFunctionName, name)
+{
+	if(index < 0)
+	{
+		index = FindVariableInScope(GlobalCodeBlockName, name)
+		frames = -1
+	}
+}
+
+
+
+FindVariableInScope : integer scopename, integer varname -> integer index = FindVariableInScopeList(Scopes, scopename, varname)
+
+FindVariableInScopeList : list<Scope> ref scopes, integer scopename, integer varname -> integer index = -1
+{
+	if(scopes.value.Name == scopename)
+	{
+		index = 0
+		FindVariableInSingleScope(scopes.value.Variables, varname, index)
+	}
+	else
+	{
+		index = FindVariableInScopeList(scopes.next, scopename, varname)
+	}
+}
+
+FindVariableInScopeList : nothing, integer scopename, integer varname -> integer index = -1
+
+FindVariableInSingleScope : list<Variable> ref vars, integer varname, integer ref index
+{
+	if(vars.value.Name != varname)
+	{
+		if(vars.value.Name != 0)
+		{
+			++index
+		}
+
+		FindVariableInSingleScope(vars.next, varname, index)
+	}
+}
+
+FindVariableInSingleScope : nothing, integer varname, integer ref index
+{
+	index = -1
+}
+
+
+FindReturnVariableIndex : -> integer index = FindReturnVariableInScopeList(Scopes, EmittingFunctionName)
+
+FindReturnVariableName: -> integer index = FindReturnVariableNameInScopeList(Scopes, EmittingFunctionName)
+
+
+FindReturnVariableInScopeList : list<Scope> ref scopes, integer scopename -> integer index = -1
+{
+	if(scopes.value.Name == scopename)
+	{
+		index = 0
+		FindReturnVariableInSingleScope(scopes.value.Variables, index)
+	}
+	else
+	{
+		index = FindReturnVariableInScopeList(scopes.next, scopename)
+	}
+}
+
+FindReturnVariableInSingleScope : list<Variable> ref vars, integer ref index
+{
+	if(vars.value.Origin != 2)		// VARIABLE_ORIGIN_RETURN
+	{
+		if(vars.value.Name != 0)
+		{
+			++index
+		}
+
+		FindReturnVariableInSingleScope(vars.next, index)
+	}
+}
+
+FindReturnVariableInSingleScope : nothing, integer ref index
+{
+	index = -1
+}
+
+
+FindReturnVariableNameInScopeList : list<Scope> ref scopes, integer scopename -> integer name = 0
+{
+	if(scopes.value.Name == scopename)
+	{
+		FindReturnVariableNameInSingleScope(scopes.value.Variables, name)
+	}
+	else
+	{
+		name = FindReturnVariableNameInScopeList(scopes.next, scopename)
+	}
+}
+
+FindReturnVariableNameInSingleScope : list<Variable> ref vars, integer ref name
+{
+	if(vars.value.Origin == 2)		// VARIABLE_ORIGIN_RETURN
+	{
+		name = vars.value.Name
+	}
+	else
+	{
+		FindReturnVariableNameInSingleScope(vars.next, name)
+	}
+}
+
+FindReturnVariableNameInSingleScope : nothing, integer ref name
+{
+	name = 0
+}
+
+
+
+FindVariableType : integer varname -> integer rettype = 0
+{
+	Variable var = 0, 0, 0, 0
+	if(!FindVariableDataInScope(EmittingFunctionName, varname, var))
+	{
+		FindVariableDataInScope(GlobalCodeBlockName, varname, var)
+	}
+	rettype = var.VarType
+}
+
+
+FindVariableDataInScope : integer scopename, integer varname, Variable ref outvar 
+	->
+	boolean found = FindVariableDataInScopeList(Scopes, scopename, varname, outvar)
+
+FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer varname, Variable ref outvar -> boolean found = false
+{
+	if(scopes.value.Name == scopename)
+	{
+		found = FindVariableDataInSingleScope(scopes.value.Variables, varname, outvar)
+	}
+	else
+	{
+		found = FindVariableDataInScopeList(scopes.next, scopename, varname, outvar)
+	}
+}
+
+FindVariableDataInScopeList : nothing, integer scopename, integer varname, Variable ref outvar -> boolean found = false
+
+FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variable ref outvar -> boolean found = false
+{
+	if(vars.value.Name == varname)
+	{
+		outvar = vars.value
+		found = true
+	}
+	else
+	{
+		found = FindVariableDataInSingleScope(vars.next, varname, outvar)
+	}
+}
+
+FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar -> boolean found = false
+
+
+
+CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
+{
+	if(matchers.value.Name != 0)
+	{
+		CodeGenEmitSingleTypeMatcher(matchers.value)
+	}
+
+	CodeGenEmitTypeMatchers(matchers.next)
+}
+
+CodeGenEmitTypeMatchers : nothing
+
+
+CodeGenEmitSingleTypeMatcher : TypeMatcher ref matcher
+{
+	OnBytecodeLexicalScope(matcher.Name, 0, 0)
+	OnBytecodeEnterTypeResolver(matcher.Name)
+	CodeGenEmitTypeMatcherOverloads(matcher.Overloads)
+	OnBytecodeExitTypeResolver()
+}
+
+
+OnCodeGenRegisterTypeMatchParam : integer matchername, integer overloadname, integer varname, integer vartype
+{
+	Parameter p = varname, vartype
+	FindTypeMatcherAndAppendOverloadParameter(TypeMatchers, matchername, overloadname, p)
+}
+
+FindTypeMatcherAndAppendOverloadParameter : list<TypeMatcher> ref matchers, integer matchername, integer overloadname, Parameter ref p
+{
+	if(matchers.value.Name == matchername)
+	{
+		FindTMOverloadAndAppendParameter(matchers.value.Overloads, matchers.value.Overloads, overloadname, p)
+	}
+	else
+	{
+		FindTypeMatcherAndAppendOverloadParameter(matchers.next, matchername, overloadname, p)
+	}
+}
+
+FindTypeMatcherAndAppendOverloadParameter : nothing, integer matchername, integer overloadname, Parameter ref p
+{
+	print("No type matcher available")
+	assert(false)
+}
+
+FindTMOverloadAndAppendParameter : list<FunctionSignature> ref originallist, list<FunctionSignature> ref signatures, integer overloadname, Parameter ref p
+{
+	if(signatures.value.Name == overloadname)
+	{
+		AppendParameter(signatures.value.Parameters, p)
+	}
+	else
+	{
+		FindTMOverloadAndAppendParameter(originallist, signatures.next, overloadname, p)
+	}
+}
+
+FindTMOverloadAndAppendParameter : list<FunctionSignature> ref originallist, nothing, integer overloadname, Parameter ref p
+{
+	list<Parameter> paramlist = p, nothing
+	FunctionSignature sig = overloadname, paramlist, 0
+	prepend<FunctionSignature>(originallist, sig)
+}
+
+AppendParameter : list<Parameter> ref params, Parameter ref p
+{
+	AppendParameterRecurse(params, params.next, p)
+}
+
+AppendParameterRecurse : list<Parameter> ref params, list<Parameter> ref tail, Parameter ref p
+{
+	AppendParameterRecurse(tail, tail.next, p)
+}
+
+AppendParameterRecurse : list<Parameter> ref params, nothing, Parameter ref p
+{
+	list<Parameter> newlist = p, nothing
+	params.next = newlist
+}
+
+
+CodeGenEmitTypeMatcherOverloads : list<FunctionSignature> ref signatures
+{
+	CodeGenEmitTypeMatcherOverloads(signatures.next)
+
+	if(signatures.value.Name != 0)
+	{
+		OnBytecodeEmitByte(0x20)				// TypeMatch instruction
+		OnBytecodeEmitInteger(signatures.value.Name)
+		OnBytecodeEmitInteger(0)
+		OnBytecodeEmitInteger(CountParameters(signatures.value.Parameters))
+		
+		CodeGenEmitTypeMatcherParams(signatures.value.Parameters)
+	}
+}
+
+CodeGenEmitTypeMatcherOverloads : nothing
+
+
+CountParameters : list<Parameter> ref params -> integer count = 0
+{
+	count = CountParameters(params.next)
+
+	if(params.value.Name != 0)
+	{
+		++count
+	}
+}
+
+CountParameters : nothing -> integer count = 0
+
+
+CodeGenEmitTypeMatcherParams : list<Parameter> ref params
+{
+	CodeGenEmitTypeMatcherParams(params.next)
+
+	if(params.value.Name != 0)
+	{
+		integer refflag = 0
+		if(IsReferenceType(params.value.Type))
+		{
+			refflag = 1
+		}
+
+		OnBytecodeEmitByte(refflag)
+		OnBytecodeEmitInteger(MakeNonReferenceType(params.value.Type))
+	}
+}
+
+CodeGenEmitTypeMatcherParams : nothing
+
+
+
+OnCodeGenRegisterFunctionInvokeTag : integer funcname, integer invoketarget
+{
+	FindFunctionAndSetInvokeTag(Functions, funcname, invoketarget)
+}
+
+FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer funcname, integer invoketarget
+{
+	if(functions.value.Name == funcname)
+	{
+		functions.value.InvokeTag = invoketarget
+	}
+	else
+	{
+		FindFunctionAndSetInvokeTag(functions.next, funcname, invoketarget)
+	}
+}
+
+FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
+{
+	print("Cannot tag non-existent function")
+	assert(false)
+}
+
+OnCodeGenRegisterFunctionTag : integer funcname, string tagname
+{
+	list<string> dtp = "", nothing
+	FunctionTag tag = funcname, tagname, dtp
+	prepend<FunctionTag>(FunctionTags, tag)
+
+	if(tagname == "constructor")
+	{
+		simpleprepend<integer>(CustomConstructors, funcname)
+	}
+}
+
+OnCodeGenRegisterFunctionTagParam : integer funcname, string tagname, string param
+{
+	// TODO - less lazy implementation (find function and tag)
+	AppendFunctionTagParam(FunctionTags.value.Parameters, FunctionTags.value.Parameters.next, param)
+}
+
+AppendFunctionTagParam : list<string> ref params, list<string> ref tail, string param
+{
+	AppendFunctionTagParam(tail, tail.next, param)
+}
+
+AppendFunctionTagParam : list<string> ref params, nothing, string param
+{
+	list<string> newlist = param, nothing
+	params.next = newlist
+}
+
+
+CodeGenEmitFunctionTags : list<FunctionTag> ref tags
+{
+	CodeGenEmitSingleFunctionTag(tags.value)
+	CodeGenEmitFunctionTags(tags.next)
+}
+
+CodeGenEmitFunctionTags : nothing
+
+
+CodeGenEmitSingleFunctionTag : FunctionTag ref tag
+{
+	if(tag.FunctionName != 0)
+	{
+		if(tag.TagName != "")
+		{
+			OnBytecodeEmitByte(0x1a)
+			OnBytecodeEmitInteger(tag.FunctionName)
+			OnBytecodeEmitInteger(CountTagParams(tag.Parameters))
+			OnBytecodeEmitString(tag.TagName)
+
+			CodeGenEmitFunctionTagParams(tag.Parameters)
+		}
+	}
+}
+
+
+CodeGenEmitFunctionTagParams : list<string> ref params
+{
+	if(params.value != "")
+	{
+		OnBytecodeEmitString(params.value)
+	}
+
+	CodeGenEmitFunctionTagParams(params.next)
+}
+
+CodeGenEmitFunctionTagParams : nothing
+
+
+CountTagParams : list<string> ref params -> integer count = 0
+{
+	count = CountTagParams(params.next)
+	if(params.value != "")
+	{
+		++count
+	}
+}
+
+CountTagParams : nothing -> integer count = 0
+
+
+CodeGenEmitConstructors : list<StructureDefinition> ref structures
+{
+	if(structures.value.Name != 0)
+	{
+		EmitCtorTag(structures.value.ConstructorName)
+		EmitCtorTag(structures.value.AnonConstructorName)
+
+		if(structures.value.CopyConstructorName != 0)
+		{
+			EmitCtorTag(structures.value.CopyConstructorName)
+		}
+
+		EmitConstructor(structures.value)
+		EmitAnonConstructor(structures.value)
+
+		if(structures.value.CopyConstructorName != 0)
+		{
+			EmitCopyConstructor(structures.value)
+		}
+	}
+
+	CodeGenEmitConstructors(structures.next)
+}
+
+CodeGenEmitConstructors : nothing
+
+EmitCtorTag : integer funcname
+{
+	OnBytecodeEmitByte(0x1a)
+	OnBytecodeEmitInteger(funcname)
+	OnBytecodeEmitInteger(0)
+	OnBytecodeEmitString("@@autogen@constructor")
+}
+
+
+EmitConstructor : StructureDefinition ref def
+{
+	integer idhandle = FindString(GlobalStrings, "identifier")
+
+	OnBytecodeLexicalScope(def.ConstructorName, 0, CountMembers(def.Members) + 1)
+	OnBytecodeLexicalScopeEntry(idhandle, 0x81000000, 1)
+	EmitScopeEntriesForMembers(def.Members)
+
+	OnBytecodeEnterFunction(def.ConstructorName)
+	OnBytecodeAllocStructure(def.Type)
+	OnBytecodeBindReference(0, 0)
+	OnBytecodeAssign()
+
+	EmitMemberDataCopies(def.Members, idhandle)
+
+	OnBytecodeExitFunction()
+}
+
+EmitAnonConstructor : StructureDefinition ref def
+{
+	integer membercount = CountMembers(def.Members)
+	OnBytecodeLexicalScope(def.AnonConstructorName, 0, membercount + 1)
+	EmitScopeEntriesForMembers(def.Members)
+	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, 2)
+
+	OnBytecodeEnterFunction(def.AnonConstructorName)
+	OnBytecodeAllocStructure(def.Type)
+	OnBytecodeBindReference(0, membercount)
+	OnBytecodeAssign()
+
+	EmitMemberDataCopies(def.Members, def.AnonConstructorName)
+
+	OnBytecodeSetReturnRegister(membercount)
+	OnBytecodeExitFunction()
+}
+
+EmitCopyConstructor : StructureDefinition ref def
+{
+	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x81000000, 1)
+	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "value"), def.Type, 1)
+
+	OnBytecodeEnterFunction(def.CopyConstructorName)
+	OnBytecodePushVarNoCopy(FindString(GlobalStrings, "value"))
+	OnBytecodeCopyStructure()
+	OnBytecodeBindReference(0, 0)
+	OnBytecodeAssign()
+	OnBytecodeExitFunction()
+}
+
+
+EmitScopeEntriesForMembers : list<StructureMember> ref members
+{
+	EmitScopeEntryForMember(members.value)
+	EmitScopeEntriesForMembers(members.next)
+}
+
+EmitScopeEntriesForMembers : nothing
+
+
+EmitScopeEntryForMember : StructureMemberVariable ref memvar
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, 1)
+	}
+}
+
+EmitScopeEntryForMember : StructureMemberFunctionRef ref memvar
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodeLexicalScopeEntry(memvar.Name, 0x09000000, 1)
+	}
+}
+
+
+
+EmitMemberDataCopies : list<StructureMember> ref members, integer idhandle
+{
+	EmitMemberDataCopy(members.value, idhandle)
+	EmitMemberDataCopies(members.next, idhandle)
+}
+
+EmitMemberDataCopies : nothing, integer idhandle
+
+EmitMemberDataCopy : StructureMemberVariable ref memvar, integer idhandle
+{
+	if(memvar.Name != 0)
+	{
+		OnBytecodePushVarValue(memvar.Name, memvar.Type)
+		OnBytecodeCopyToStructure(idhandle, memvar.Name)
+	}
+}
+
+EmitMemberDataCopy : StructureMemberFunctionRef ref member, integer idhandle
+{
+	if(member.Name != 0)
+	{
+		OnBytecodePushVarValue(member.Name, 0x09000000)
+		OnBytecodeCopyToStructure(idhandle, member.Name)
+	}
+}
+
+
+FindString : list<StringTableEntry> ref strings, string target -> integer handle = 0
+{
+	if(strings.value.Data == target)
+	{
+		handle = strings.value.Handle
+	}
+	else
+	{
+		handle = FindString(strings.next, target)
+	}
+}
+
+FindString : nothing, string target -> integer handle = 0
+
+
+
+GetNameOfType : integer typeid -> integer name = 0
+{
+	typeid = MakeNonReferenceType(typeid)
+	if(typeid == 0x01000001)
+	{
+		name = FindString(GlobalStrings, "integer")
+	}
+	elseif(typeid == 0x01000002)
+	{
+		name = FindString(GlobalStrings, "integer16")
+	}
+	elseif(typeid == 0x01000003)
+	{
+		name = FindString(GlobalStrings, "boolean")
+	}
+	elseif(typeid == 0x01000004)
+	{
+		name = FindString(GlobalStrings, "real")
+	}
+	elseif(typeid == 0x02000000)
+	{
+		name = FindString(GlobalStrings, "string")
+	}
+	elseif(typeid == 0x00000004)
+	{
+		name = FindString(GlobalStrings, "nothing")
+	}
+	elseif(IsStructureType(typeid))
+	{
+		name = GetNameOfStructureByType(typeid)
+	}
+	elseif((typeid & 0xff000000) == 0x07000000)
+	{
+		name = FindSumTypeName(typeid)
+	}
+	else
+	{
+		print("Unknown type " ; cast(string, typeid))
+		assert(false)
+	}
+}
+
+GetTypeByName : integer name -> integer typeid = 0
+{
+	if(name == FindString(GlobalStrings, "integer"))
+	{
+		typeid = 0x01000001
+	}
+	elseif(name == FindString(GlobalStrings, "string"))
+	{
+		typeid = 0x02000000
+	}
+	elseif(name == FindString(GlobalStrings, "nothing"))
+	{
+		typeid = 0x00000004
+	}
+	else
+	{
+		integer structurename = GetStructureTypeByName(Structures, name)
+		if(structurename != 0)
+		{
+			typeid = structurename
+		}
+	}
+}
+
+
+GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0
+{
+	if(structures.value.Name == name)
+	{
+		typeid = structures.value.Type
+	}
+	else
+	{
+		typeid = GetStructureTypeByName(structures.next, name)
+	}
+}
+
+GetStructureTypeByName : nothing, integer name -> 0
+
+
+
+// Rearrange structure list to avoid dependency issues on load
+CodeGenRearrangeStructures : list<StructureDefinition> ref thelist
+{
+	simplelist<integer> processed = 0, nothing
+	boolean changed = CodeGenRearrangeStructuresRecurse(thelist, processed)
+
+	if(changed)
+	{
+		CodeGenRearrangeStructures(thelist)
+	}
+}
+
+CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, simplelist<integer> ref processed -> boolean changed = false
+{
+	if(thelist.value.Name != 0)
+	{
+		simplelist<integer> dependencies = 0, nothing
+		ParseStructDependencies(thelist.value.Members, dependencies)
+
+		if(MissingDependency(dependencies, processed))
+		{
+			SwapDown(thelist, thelist.next)
+			changed = true
+		}
+
+		simpleprepend<integer>(processed, thelist.value.Type)
+	}
+
+	if(!changed)
+	{
+		CodeGenRearrangeStructuresRecurse(thelist.next, processed)
+	}
+}
+
+CodeGenRearrangeStructuresRecurse : nothing, simplelist<integer> ref processed -> false
+
+
+SwapDown : list<StructureDefinition> ref thelist, list<StructureDefinition> ref tail
+{
+	StructureDefinition temp = tail.value
+	tail.value = thelist.value
+	thelist.value = temp
+}
+
+SwapDown : list<StructureDefinition> ref thelist, nothing
+
+
+
+ParseStructDependencies : list<StructureMember> ref members, simplelist<integer> ref out
+{
+	integer dependency = GetMemberDependency(members.value)
+	if(dependency != 0)
+	{
+		simpleprepend<integer>(out, dependency)
+	}
+
+	ParseStructDependencies(members.next, out)
+}
+
+ParseStructDependencies : nothing, simplelist<integer> ref out
+
+
+GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
+{
+	if(var.Name != 0)
+	{
+		if((var.Type & 0xff000000) == 0x03000000)
+		{
+			dep = var.Type
+		}
+	}
+}
+
+GetMemberDependency : StructureMemberFunctionRef ref member -> 0
+
+
+MissingDependency : simplelist<integer> ref dependencies, simplelist<integer> ref processed -> boolean missing = true
+{
+	// TODO - clean up this horrible code
+	if(dependencies.value != 0)
+	{
+		if(listcontains(processed, dependencies.value))
+		{
+			missing = false
+		}
+		else
+		{
+			missing = MissingDependency(dependencies.next, processed)
+		}
+	}
+	else
+	{
+		missing = MissingDependency(dependencies.next, processed)
+	}
+}
+
+MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = true
+
+
+OnCodeGenEnterEntity : integer entityname, integer postfixtag
+{
+	ContextStackEntry entry = STACK_TYPE_ENTITY_PARAM, entityname
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Entity entity = entityname, postfixtag, nothing, nothing
+	prepend<Entity>(EntityStack, entity)
+
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
+}
+
+OnCodeGenEnterEntityCode :
+{
+	ContextStackEntry entry = STACK_TYPE_ENTITY_CODE, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression expr = ScratchExpressions.value
+	EntityStack.value.Param = expr
+
+	OptionalCodeBlock block = nothing
+	prepend<OptionalCodeBlock>(CurrentCodeBlockStack, block)
+}
+
+OnCodeGenEnterChain :
+{
+	ContextStackEntry entry = STACK_TYPE_CHAIN, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	EntityChain newchain = dummychain
+	prepend<EntityChain>(ChainStack, newchain)
+}
+
+
+AppendEntityToChain : list<EntityChain> ref chainstack, Entity ref e
+{
+	AppendEntityToChainUnwrap(chainstack.value.Entries, e)
+}
+
+AppendEntityToChainUnwrap : EntityList ref entitylist, Entity ref e
+{
+	AppendEntityToChainWorker(entitylist.ActualList, entitylist.ActualList.next, e)
+}
+
+AppendEntityToChainWorker : list<Entity> ref chain, list<Entity> ref tail, Entity ref e
+{
+	AppendEntityToChainWorker(tail, tail.next, e)
+}
+
+AppendEntityToChainWorker : list<Entity> ref chain, nothing, Entity ref e
+{
+	list<Entity> newtail = e, nothing
+	chain.next = newtail
+}
+
+
+FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer basetype = 0
+{
+	if(aliases.value.Alias == aliastype)
+	{
+		basetype = aliases.value.Base
+	}
+	else
+	{
+		basetype = FindTypeAliasBase(aliases.next, aliastype)
+	}
+}
+
+FindTypeAliasBase : nothing, integer aliastype -> integer basetype = 0
+
+
+OnCodeGenRegisterAlias : integer aliastype, integer base
+{
+	TypeAlias newalias = aliastype, base
+	prepend<TypeAlias>(TypeAliases, newalias)
+}
+
+
+
+OnCodeGenRegisterFunctionSig : integer sigtype, integer rettype
+{
+	list<Parameter> d = dummyparam, nothing
+	FunctionSignature sig = sigtype, d, rettype
+	prepend<FunctionSignature>(FunctionSignatures, sig)
+}
+
+OnCodeGenRegisterFunctionSigParam : integer paramtype
+{
+	Parameter param = 1, paramtype
+	AppendParameter(FunctionSignatures.value.Parameters, param)
+}
+
+OnCodeGenRegisterFunctionSigEnd :
+{
+	// TODO - dead code?
+}
+
+
+CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
+{
+	CodeGenEmitSingleFunctionSignature(thelist.value)
+	CodeGenEmitFunctionSignatures(thelist.next)
+}
+
+CodeGenEmitFunctionSignatures : nothing
+
+
+CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
+{
+	if(signature.Name != 0)
+	{
+		OnBytecodeEmitFunctionSignature(signature.Name, signature.ReturnType, CountParameters(signature.Parameters))
+		CodeGenEmitFunctionSigParams(signature.Parameters)
+	}
+}
+
+CodeGenEmitFunctionSigParams : list<Parameter> ref params
+{
+	if(params.value.Type != 0)
+	{
+		OnBytecodeEmitFunctionSigParam(params.value.Type)
+	}
+	CodeGenEmitFunctionSigParams(params.next)
+}
+
+CodeGenEmitFunctionSigParams : nothing
+
+
+OnCodeGenRegisterParenthetical : 
+{
+	ContextStackEntry entry = STACK_TYPE_PARENTHETICAL, 0
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression d = dummyexpression
+	prepend<Expression>(ScratchExpressions, d)
+}
+
+
+OnCodeGenRegisterPreOpStatement : integer operator, integer operand
+{
+	simplelist<integer> operandlist = operand, nothing
+	PreOpStatement preop = operator, operandlist
+	CodeBlockEntry cbe = preop
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+OnCodeGenRegisterPostOpStatement : integer operator, integer operand
+{
+	simplelist<integer> operandlist = operand, nothing
+	PostOpStatement postop = operator, operandlist
+	CodeBlockEntry cbe = postop
+	AppendEntryToCurrentCodeBlock(cbe)
+}
+
+
+GetLargestSumTypeBaseSize : integer typeid -> integer size = FindSumTypeAndGetBaseMaxSize(SumTypes, typeid)
+
+FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> integer size = 0
+{
+	if(sumtypes.value.Type == typeid)
+	{
+		GetBaseMaxSize(sumtypes.value.Bases, size)
+	}
+	else
+	{
+		size = FindSumTypeAndGetBaseMaxSize(sumtypes.next, typeid)
+	}
+}
+
+FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0
+
+
+GetBaseMaxSize : simplelist<integer> ref basetypes, integer ref outsize
+{
+	if(basetypes.value != 0)
+	{
+		integer thissize = GetTypeSize(basetypes.value)
+		if(thissize > outsize)
+		{
+			outsize = thissize
+		}
+	}
+
+	GetBaseMaxSize(basetypes.next, outsize)
+}
+
+GetBaseMaxSize : nothing, integer ref outsize
+
+
+
+OnCodeGenSetExpressionType : integer typeid
+{
+	ScratchExpressions.value.Type = typeid
+}
+
+OnCodeGenShiftParameter :
+{
+	if(InFuncRetHack)
+	{
+		AppendExpressionToSubStatement(ScratchExpressions.value)
+	}
+	elseif(PeekContext(ContextStack, 1) != STACK_TYPE_SUBSTATEMENT)
+	{
+		FindCurrentStatementAndAppendExpression(ScratchExpressions.value)
+	}
+	else
+	{
+		AppendExpressionToSubStatement(ScratchExpressions.value)
+	}
+
+	Expression d = dummyexpression
+	ScratchExpressions.value = d
+}
+
+PeekContext : list<ContextStackEntry> ref stack, integer depth -> integer peek = STACK_TYPE_GLOBAL
+{
+	if(depth == 0)
+	{
+		peek = stack.value.EntryType
+	}
+	else
+	{
+		peek = PeekContext(stack.next, depth - 1)
+	}
+}
+
+
+CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
+{
+	if(GlobalCodeBlockName != 0)
+	{
+		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
+		CodeGenEmitCodeBlock(block)
+		OnBytecodeInvokeOffset(FindString(GlobalStrings, "entrypoint"))
+		OnBytecodeHalt()
+	}
+}
+
+CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
+{
+	if(GlobalCodeBlockName != 0)
+	{
+		OnBytecodeExitEntity()
+	}
+}
+
+
+IsStructureType : integer typeid -> boolean ret = false
+{
+	if((typeid & 0x7f000000) == 0x03000000)
+	{
+		ret = true
+	}
+	elseif((typeid & 0x7f000000) == 0x08000000)
+	{
+		ret = true
+	}
+}
+
+IsReferenceType : integer typeid -> boolean ret = false
+{
+	if((typeid & 0x80000000) != 0)
+	{
+		ret = true
+	}
+}
+
+MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff)
+
+
+append_recurse : list<Variable> ref thelist, nothing, Variable ref value
+{
+	list<Variable> newlist = value, nothing
+	thelist.next = newlist
+}
+
+append_recurse : list<Variable> ref thelist, list<Variable> ref tail, Variable ref value
+{
+	append_recurse(tail, tail.next, value)
+}
+
+
+append : list<Variable> ref thelist, Variable ref value
+{
+	append_recurse(thelist, thelist.next, value)
+}
+
+
+
+CodeBlockDepth : list<OptionalCodeBlock> ref stack -> integer count = 0
+{
+	count = CodeBlockDepth(stack.next) + 1
+}
+
+CodeBlockDepth : nothing -> 0
+
+
+
+IRProcess : -> boolean success = true
+{
+	if(!IRCompileTimeCodeExecution())
+	{
+		success = false
+		return()
+	}
+
+	if(!IRTypeInference())
+	{
+		success = false
+		return()
+	}
+
+	if(!IRValidate())
+	{
+		success = false
+		return()
+	}
+}
+
+
+IRCompileTimeCodeExecution : -> boolean success = true
+{
+	if(!CompileTimeCodeExecution(Functions))
+	{
+		success = false
+	}
+}
+
+
+
+CompileTimeCodeExecution : nothing -> true
+
+
+CompileTimeCodeExecution : list<FunctionDefinition> ref functions -> boolean success = true
+{
+	if(!CompileTimeCodeExecution(functions.value))
+	{
+		success = false
+	}
+	
+	if(!CompileTimeCodeExecution(functions.next))
+	{
+		success = false
+	}
+}
+
+
+CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
+{
+	// TODO
+}
+
+
+
+
+structure InferenceContext :
+	integer ScopeName,
+	integer StatementName,
+	simplelist<integer> ref ExpectedTypes
+
+structure TypePossibilityList :
+	simplelist<integer> ref Types
+
+structure InferencePossibility :
+	integer FunctionName,
+	list<TypePossibilityList> ref ParameterTypes,
+	TypePossibilityList ref ReturnType
+
+
+
+IRTypeInference : -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+	InferenceContext context = 0, 0, temp
+
+	if(!TypeInference(Functions, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : nothing, InferenceContext ref context -> true
+
+TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(functions.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(functions.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+	InferenceContext innercontext = func.Name, 0, temp
+
+	// TODO - inference on return value
+	// TODO - inference on parameters
+
+	if(!TypeInference(func.Code, innercontext))
+	{
+		success = false
+	}
+}
+
+TypeInference : CodeBlock ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.Entries, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(code.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
+{
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes
+
+	integer vartype = GetTypeByName(statement.Name)
+	if(vartype != 0)
+	{
+		ConstructVariableFromStatement(statement, context.ScopeName, vartype)
+	}
+
+	if(!TypeInference(statement.Parameters, newcontext))
+	{
+		success = false
+		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+	}
+
+	// TODO - overload resolution
+}
+
+
+TypeInference : ExpressionList ref parameters, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0))
+	{
+		success = false
+	}
+}
+
+TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex -> boolean success = true
+{
+	simplelist<integer> temp = 0, nothing
+	GetExpectedParameterTypes(context.StatementName, paramindex, temp)
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp
+
+	if(!TypeInference(parameters.value, newcontext))
+	{
+		success = false
+	}
+
+	if(!TypeInferenceExpressionList(parameters.next, context, paramindex + 1))
+	{
+		success = false
+	}
+}
+
+TypeInferenceExpressionList : nothing, InferenceContext ref context, integer paramindex -> boolean success = true
+
+
+TypeInference : Expression ref expression, InferenceContext ref context -> boolean success = true
+{
+	if(expression.Type != 0)
+	{
+		return()
+	}
+
+	if(ExpressionAtomIsSentinel(expression.Atoms.value))
+	{
+		expression.Type = 0x00000002
+		return()
+	}
+
+	ShuntingYard(expression.Atoms)
+
+	InferencePossibility temp = scratchpossibility
+	list<InferencePossibility> possibilities = temp, nothing
+
+	integer counter = 0
+	integer scopename = context.ScopeName
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename)
+
+	integer possibilitycount = CountPossibilities(possibilities)
+	if(possibilitycount == 1)
+	{
+		simplelist<integer> types = 0, nothing
+		EliminateImpossibleType(possibilities.value.ReturnType.Types, context.ExpectedTypes, types)
+
+		integer typecount = countnonzero(types)
+		if(typecount == 1)
+		{
+			expression.Type = types.value
+		}
+		elseif(typecount > 1)
+		{
+			print("Multiple types possible")
+		}
+		else
+		{
+			print("All types ruled out")
+		}
+	}
+	else
+	{
+		// TODO - error context!
+		if(possibilitycount > 0)
+		{
+			print("Multiple overloads possible")
+		}
+		else
+		{
+			print("No type satisfies the requirements")
+		}
+	}
+
+	if(expression.Type == 0)
+	{
+		success = false
+	}
+}
+
+
+
+CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
+{
+	count = CountPossibilities(thelist.next)
+
+	if(thelist.value.FunctionName != 0)
+	{
+		++count
+	}
+}
+
+CountPossibilities : nothing -> 0
+
+
+countnonzero : simplelist<integer> ref thelist -> integer count = 0
+{
+	count = countnonzero(thelist.next)
+
+	if(thelist.value != 0)
+	{
+		++count
+	}
+}
+
+countnonzero : nothing -> 0
+
+
+
+WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+{
+	WalkAtomsForType(tail, tail.next, possibilities, counter, funcname)
+
+	if(!IsOperatorInvoke(atoms.value))
+	{
+		++counter
+		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname)
+
+		if(counter > 1)
+		{
+			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, counter)
+			++counter
+		}
+	}
+	else
+	{
+		GetAtomTypeOperator(atoms.value, possibilities)
+	}
+}
+
+ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname
+{
+	if(possibilities.value.FunctionName != 0)
+	{
+		TypePossibilityList poss = scratchparams
+		GetAtomType(atom, poss, funcname)
+
+		simplelist<integer> out = 0, nothing
+
+		ConsumeParameter(possibilities.value.ParameterTypes, poss.Types, out)
+
+		poss.Types = out
+
+		if(countnonzero(out) == 0)
+		{
+			PopPossibility(possibilities, possibilities.next)
+		}
+	}
+
+	ConsumeParameterForAllPossibleOverloads(possibilities.next, atom, funcname)
+}
+
+ConsumeParameterForAllPossibleOverloads : nothing, ExpressionAtom ref atom, integer funcname
+
+
+WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+{
+	if(IsOperatorInvoke(atoms.value))
+	{
+		GetAtomTypeOperator(atoms.value, possibilities)
+	}
+	else
+	{
+		TypePossibilityList poss = scratchparams
+		GetAtomType(atoms.value, poss, funcname)
+
+		InferencePossibility newpossibility = -1, scratchparampossibles, poss
+		prepend<InferencePossibility>(possibilities, newpossibility)
+	}
+}
+
+
+SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
+{
+	if(count == 0)
+	{
+		ChangeOperator(atoms.value, overloadname)
+	}
+	else
+	{
+		SetOperatorAtomToOverload(atoms.next, overloadname, count - 1)
+	}
+}
+
+ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
+{
+	atom.OperatorName = overloadname
+}
+
+
+ConsumeParameter : list<TypePossibilityList> ref parameterlist, simplelist<integer> ref parampossibles, simplelist<integer> ref out
+{
+	EliminateImpossibleType(parameterlist.value.Types, parampossibles, out)
+	PopTypePossibility(parameterlist, parameterlist.next)
+}
+
+EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out
+{
+	EliminateImpossibleType(possibles.next, filter, out)
+
+	if((possibles.value != 0) && listcontains(filter, possibles.value))
+	{
+		simpleprepend<integer>(out, possibles.value)
+	}
+}
+
+EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
+
+
+PopTypePossibility : list<TypePossibilityList> ref list, list<TypePossibilityList> ref tail
+{
+	list = tail
+}
+
+PopTypePossibility : list<TypePossibilityList> ref list, nothing
+
+
+PopPossibility : list<InferencePossibility> ref list, list<InferencePossibility> ref tail -> true
+{
+	list = tail
+}
+
+PopPossibility : list<InferencePossibility> ref thelist, nothing -> false
+
+
+GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
+GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x02000000) }
+GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000002) }
+GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000003) }
+GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000004) }
+
+GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname
+{
+	// TODO - type inference on inner statement
+}
+
+GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname
+
+GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname
+{
+	// TODO - type inference on parentheticals
+}
+
+GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities
+{
+	AddPossibilityPerOperatorOverload(atom.OperatorName, possibilities)
+}
+
+GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname
+{
+	AddPossibleParameter(possibilities.Types, 0x01000000)
+
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(funcname, atom.Handle, var)
+	if(var.Name != 0)
+	{
+		AddPossibleParameter(possibilities.Types, var.VarType)
+	}
+}
+
+
+IsOperatorInvoke : OperatorInvokeAtom 	   ref nonsentinel -> true
+
+IsOperatorInvoke : AtomSentinel 	   ref sentinel    -> false
+IsOperatorInvoke : StringHandleAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : IdentifierAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : TypeAnnotationAtom 	   ref nonsentinel -> false
+IsOperatorInvoke : integer 		   ref nonsentinel -> false
+IsOperatorInvoke : integer16 		   ref nonsentinel -> false
+IsOperatorInvoke : boolean 		   ref nonsentinel -> false
+IsOperatorInvoke : real 		   ref nonsentinel -> false
+IsOperatorInvoke : Statement		   ref nonsentinel -> false
+IsOperatorInvoke : RefBinding              ref nonsentinel -> false
+IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
+
+
+
+
+
+AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
+{
+	simpleprepend<integer>(possibilities, paramtype)
+}
+
+AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
+{
+	simplelist<integer> p1t = param1type, nothing
+	simplelist<integer> p2t = param2type, nothing
+
+	TypePossibilityList param1options = p1t
+	TypePossibilityList param2options = p2t
+
+	list<TypePossibilityList> paramtypes = scratchparams, nothing
+	prepend<TypePossibilityList>(paramtypes, param2options)
+	prepend<TypePossibilityList>(paramtypes, param1options)
+
+	simplelist<integer> rt = rettype, nothing
+	TypePossibilityList rettypelist = rt
+
+	InferencePossibility possibility = functionname, paramtypes, rettypelist
+	prepend<InferencePossibility>(possibilities, possibility)
+}
+
+
+
+ShuntingYard : list<ExpressionAtom> ref atoms
+{
+	AtomSentinel sentinel = 0
+
+	list<ExpressionAtom> outputqueue = sentinel, nothing
+	list<ExpressionAtom> opstack = sentinel, nothing
+
+	ShuntingYardWalk(atoms, outputqueue, opstack)
+	ShuntingYardFlush(outputqueue, opstack)
+
+	atoms = outputqueue
+}
+
+ShuntingYardWalk : nothing, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+
+ShuntingYardWalk : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	ShuntingYardVisit(atoms.value, outputqueue, opstack)
+	ShuntingYardWalk(atoms.next, outputqueue, opstack)
+}
+
+ShuntingYardVisit : AtomSentinel            ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+ShuntingYardVisit : StringHandleAtom        ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : IdentifierAtom          ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : TypeAnnotationAtom      ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : integer                 ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : integer16               ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : boolean                 ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : real                    ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : Statement               ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : RefBinding              ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : ParentheticalExpression ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+
+ShuntingYardVisit : OperatorInvokeAtom ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	if(false)			// TODO - check if atom is a member access
+	{
+		ExpressionAtom wrap = atom
+		PlaceAtomInList(outputqueue, wrap)
+	}
+	else
+	{
+		integer opprec = GetOperatorPrecedence(atom)
+		boolean continueops = true
+
+		while(continueops && (!ExpressionAtomIsSentinel(opstack.value)))
+		{
+			ExpressionAtom opatom2 = opstack.value
+			integer op2prec = GetOperatorPrecedence(opatom2)
+
+			// TODO - this whole section is hacky. Replace with break() calls and >= operator.
+
+			if(false)		// TODO - check for unary operators
+			{
+				if(opprec > op2prec)
+				{
+					continueops = false
+				}
+				elseif(opprec == op2prec)
+				{
+					continueops = false
+				}
+			}
+			else
+			{
+				if(opprec > op2prec)
+				{
+					continueops = false
+				}
+			}
+
+			if(continueops)
+			{
+				PlaceAtomInList(outputqueue, opatom2)
+				ShuntingYardPopStack(opstack, opstack.next)
+			}
+		}
+
+		ExpressionAtom wrap = atom
+		prepend<ExpressionAtom>(opstack, wrap)
+	}
+}
+
+ShuntingYardFlush : list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
+{
+	while(!ExpressionAtomIsSentinel(opstack.value))
+	{
+		PlaceAtomInList(outputqueue, opstack.value)
+		ShuntingYardPopStack(opstack, opstack.next)
+	}
+}
+
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, list<ExpressionAtom> ref tail
+{
+	opstack = tail
+}
+
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
+{
+	AtomSentinel sentinel = 0
+	list<ExpressionAtom> newlist = sentinel, nothing
+	opstack = newlist
+}
+
+
+GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
+{
+	string basename = GetPooledString(GlobalStrings, atom.OperatorName)
+	if(basename == "==")
+	{
+		precedence = 0
+	}
+	elseif(basename == "+")
+	{
+		precedence = 5
+	}
+	elseif(basename == "*")
+	{
+		precedence = 9
+	}
+}
+
+
+ConstructVariableFromStatement : Statement ref statement, integer scopename, integer vartype
+{
+	integer varname = ExtractConstructorIdentifier(statement.Parameters)
+	if(varname != 0)
+	{
+		StoreVariableInScope(Scopes, scopename, varname, vartype, false, 0)		// VARIABLE_ORIGIN_LOCAL
+	}
+}
+
+ExtractConstructorIdentifier : ExpressionList ref parameters -> integer varname = ExtractConstructorIdentifier(parameters.Expressions)
+ExtractConstructorIdentifier : list<Expression> ref parameters -> integer varname = ExtractIdentifier(parameters.value)
+ExtractConstructorIdentifier : nothing -> 0
+
+ExtractIdentifier : Expression ref expression -> integer id = ExtractIdentifier(expression.Atoms.value)
+
+ExtractIdentifier : IdentifierAtom ref atom -> atom.Handle
+{
+	atom.Type = 0x81000000		// HACK - reference to identifier
+}
+
+
+PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
+{
+	if(ExpressionAtomIsSentinel(atoms.value))
+	{
+		list<ExpressionAtom> newatoms = atom, nothing
+		atoms = newatoms
+	}
+	else
+	{
+		AppendAtomToExpression(atoms, atoms.next, atom)
+	}
+}
+
+
+
+IRValidate : -> true
+
+
+
+PoolString : string s -> integer handle = FindString(GlobalStrings, s)
+{
+	if(handle == 0)
+	{
+		++CurrentStringHandle
+		OnCodeGenRegisterString(CurrentStringHandle, s)
+		handle = CurrentStringHandle
+	}
+}
+
+
+
+IREnterProgram :
+{
+}
+
+IRExitProgram :
+{
+}
+
+
+IREnterFunction : string funcname
+{
+	integer namehandle = PoolString(funcname)
+	OnCodeGenRegisterFunction(namehandle)
+	OnCodeGenRegisterScope(namehandle, 0)
+
+	// TODO - hack
+	OnCodeGenEnterFunctionBody(namehandle)
+}
+
+IRExitFunction :
+{
+	OnCodeGenExitContext()
+}
+
+IREnterCodeBlock :
+{
+	// TODO
+}
+
+IRExitCodeBlock :
+{
+	//OnCodeGenExitContext()
+}
+
+
+IREnterStatement : string funcname
+{
+	integer namehandle = PoolString(funcname)
+	OnCodeGenEnterStatement(namehandle, 0)
+}
+
+IRExitStatement :
+{
+	OnCodeGenExitContext()
+}
+
+
+IREnterExpression :
+{
+	++IRExpressionDepth		// TODO - this should be a stack so we can have nested statements
+}
+
+IRExitExpression :
+{
+	--IRExpressionDepth
+
+	if(IRExpressionDepth == 0)
+	{
+		OnCodeGenShiftParameter()
+	}
+}
+
+
+IRAddOperator : string operatorname
+{
+	OnCodeGenRegisterOperatorInvoke(PoolString(operatorname))
+}
+
+IRAddLiteralString : string literal
+{
+	OnCodeGenRegisterLiteralString(PoolString(literal))
+}
+
+IRAddLiteralBoolean : boolean literal
+{
+	OnCodeGenRegisterLiteralBoolean(literal)
+}
+
+IRAddLiteralReal : real literal
+{
+	OnCodeGenRegisterLiteralReal(literal)
+}
+
+IRAddLiteralInteger : integer literal
+{
+	OnCodeGenRegisterLiteralInteger(literal, 0x01000001)		// We can demote the integer later
+}
+
+IRAddLiteralIdentifier : string token
+{
+	OnCodeGenRegisterAtomIdentifier(PoolString(token), 0)
+}
+
+
+
+GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = ""
+{
+	if(strings.value.Handle == handle)
+	{
+		pooled = strings.value.Data
+	}
+	else
+	{
+		pooled = GetPooledString(strings.next, handle)
+	}
+}
+
+GetPooledString : nothing, integer handle -> ""
+{
+	print("String handle not pooled!")
+	assert(false)
+}
+
+
+DumpAtom : AtomSentinel 	   ref sentinel    { print("Sentinel") }
+DumpAtom : StringHandleAtom 	   ref nonsentinel { print("String handle " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : IdentifierAtom 	   ref nonsentinel { print("Identifier " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : OperatorInvokeAtom 	   ref nonsentinel { print("Operator " ; cast(string, nonsentinel.OperatorName)) }
+DumpAtom : TypeAnnotationAtom 	   ref nonsentinel { print("Type annotation") }
+DumpAtom : integer 		   ref nonsentinel { print("integer " ; cast(string, nonsentinel)) }
+DumpAtom : integer16 		   ref nonsentinel { print("integer16") }
+DumpAtom : boolean 		   ref nonsentinel { print("boolean") }
+DumpAtom : real 		   ref nonsentinel { print("real " ; cast(string, nonsentinel)) }
+DumpAtom : Statement		   ref nonsentinel { print("Statement") }
+DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
+DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
+
+
+
+AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossibility> ref possibilities
+{
+	string basename = GetPooledString(GlobalStrings, basenamehandle)
+	if(basename == "==")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer"), 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@boolean"), 0x01000003, 0x01000003, 0x01000003)
+	}
+	elseif(basename == "+")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basename == "*")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "*@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	else
+	{
+		print("Unrecognized operator")
+	}
+}
+
+
+GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	////// HACK - force expected types
+	if(paramindex == 1)
+	{
+		simpleprepend<integer>(types, 0x01000001)
+	}
+	else
+	{
+		simpleprepend<integer>(types, 0x01000000)
+		simpleprepend<integer>(types, 0x01000003)
+	}
+	////// END HACK
+}
+
+
+//
+// Global state (just a hack while we bootstrap!)
+//
+
+global
+{
+	buffer Hack = 8192000
+	integer HackSize = 0
+
+	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
+
+	Variable dummyvar = 0, 0, 0, 0
+	list<Variable> dummyvarlist = dummyvar, nothing
+	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
+	list<Scope> Scopes = dummyscope, nothing
+
+	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0
+	list<FunctionDefinition> Functions = dummyfunc, nothing
+
+
+	simplelist<integer> dummybases = 0, nothing
+	SumType dummysumtype = 0, 0, dummybases
+	list<SumType> SumTypes = dummysumtype, nothing
+
+
+	StructureMemberVariable dummymember = 0, 0
+	list<StructureMember> dummymembers = dummymember, nothing
+	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers
+	list<StructureDefinition> Structures = dummystruct, nothing
+
+
+	// TODO - convert to an enumeration
+	integer STACK_TYPE_GLOBAL = 0
+	integer STACK_TYPE_FUNCTION = 1
+	integer STACK_TYPE_CODEBLOCK = 2
+	integer STACK_TYPE_STATEMENT = 3
+	integer STACK_TYPE_ASSIGNMENT = 4
+	integer STACK_TYPE_TYPEMATCH = 5
+	integer STACK_TYPE_SUBSTATEMENT = 6
+	integer STACK_TYPE_FUNCRET = 7
+	integer STACK_TYPE_ENTITY_PARAM = 8
+	integer STACK_TYPE_ENTITY_CODE = 9
+	integer STACK_TYPE_CHAIN = 10
+	integer STACK_TYPE_PARENTHETICAL = 11
+
+	ContextStackEntry GlobalStackEntry = STACK_TYPE_GLOBAL, 0
+	list<ContextStackEntry> ContextStack = GlobalStackEntry, nothing
+
+	AtomSentinel dummysentinel = 0
+	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
+	Expression dummyexpression = dummyatomlist, 0
+	list<Expression> ScratchExpressions = dummyexpression, nothing
+	Statement dummystatement = 0, nothing, 0
+	list<Statement> SubStatements = dummystatement, nothing
+
+	Parameter dummyparam = 0, 0
+	list<Parameter> dummyparamlist = dummyparam, nothing
+	FunctionSignature dummysignature = 0, dummyparamlist, 0
+	list<FunctionSignature> dummysignaturelist = dummysignature, nothing
+	TypeMatcher dummytypematch = 0, dummysignaturelist
+	list<TypeMatcher> TypeMatchers = dummytypematch, nothing
+
+	Entity dummyentity = 0, 0, nothing, nothing
+	list<Entity> EntityStack = dummyentity, nothing
+
+
+	list<string> dummytagparams = "", nothing
+	FunctionTag dummytag = 0, "", dummytagparams
+	list<FunctionTag> FunctionTags = dummytag, nothing
+
+	integer EmittingFunctionName = 0
+
+	list<OptionalCodeBlock> CurrentCodeBlockStack = nothing, nothing
+
+	list<CodeBlockEntry> dummyblockentries = dummystatement, nothing
+	CodeBlock GlobalCodeBlock = dummyblockentries
+	integer GlobalCodeBlockName = 0
+
+	list<Entity> chaincontents = dummyentity, nothing
+	OptionalEntityList chaincontentswrap = chaincontents
+	EntityChain dummychain = chaincontentswrap
+	list<EntityChain> ChainStack = dummychain, nothing
+
+
+	simplelist<integer> AutoGeneratedFunctionNames = 0, nothing
+	simplelist<integer> CustomConstructors = 0, nothing
+
+	TypeAlias dummyalias = 0, 0
+	list<TypeAlias> TypeAliases = dummyalias, nothing
+
+	list<FunctionSignature> FunctionSignatures = dummysignature, nothing
+
+	boolean InFuncRetHack = false
+
+	integer CurrentStringHandle = 0
+
+	simplelist<integer> scratchpossibletypes = 0, nothing
+	TypePossibilityList scratchreturns = scratchpossibletypes
+	TypePossibilityList scratchparams = scratchpossibletypes
+	list<TypePossibilityList> scratchparampossibles = scratchparams, nothing
+	InferencePossibility scratchpossibility = 0, scratchparampossibles, scratchreturns
+
+	integer IRExpressionDepth = 0
+
+	simplelist<string> TokenStream = "", nothing
+
+	integer CHARACTER_CLASS_WHITE = 0
+	integer CHARACTER_CLASS_IDENTIFIER = 1
+	integer CHARACTER_CLASS_PUNCTUATION = 2
+}
 

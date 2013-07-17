@@ -1,0 +1,445 @@
+//
+// ninja!
+//
+
+
+CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
+CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
+CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
+MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
+UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
+GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
+
+
+type simplelistnode<type T> : simplelist<T> | nothing
+
+structure simplelist<type T> :
+	T value,
+	simplelistnode<T> next
+
+
+simpleprepend<type T> : simplelist<T> ref thelist, T value
+{
+	simplelist<T> newlist = value, thelist
+	thelist = newlist
+}
+
+
+simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value
+{
+	simplelist<T> newlist = value, nothing
+	thelist.next = newlist
+}
+
+simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tail, T value
+{
+	simple_append_recurse<T>(tail, tail.next, value)
+}
+
+
+simple_append<type T> : simplelist<T> ref thelist, T value
+{
+	simple_append_recurse<T>(thelist, thelist.next, value)
+}
+
+
+global
+{
+	simplelist<string> TokenStream = "", nothing
+
+	integer CHARACTER_CLASS_WHITE = 0
+	integer CHARACTER_CLASS_IDENTIFIER = 1
+	integer CHARACTER_CLASS_PUNCTUATION = 2
+}
+
+
+entrypoint :
+{
+	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
+	{
+		integer len = 0
+		string contents = ReadFile(cmdlineget(1), len)
+		Parse(contents, len)
+	}
+	else
+	{
+		print("Please specify a program to execute!")
+	}
+}
+
+
+ReadFile : string filename, integer ref len -> string contents = ""
+{
+	integer INVALID_HANDLE_VALUE = 0xffffffff
+	integer FILE_SHARE_READ = 0x01
+	integer OPEN_EXISTING = 3
+	integer GENERIC_READ = 0x80000000
+
+	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	if(filehandle != INVALID_HANDLE_VALUE)
+	{
+		integer PAGE_READONLY = 0x02
+		
+		len = GetFileSize(filehandle, 0)
+
+		if(len > 0)
+		{
+			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			if(mappinghandle != 0)
+			{
+				integer FILE_MAP_READ = 0x04
+				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
+
+				if(ptr != 0)
+				{
+					contents = widenfromptr(ptr, len)
+				}
+				CloseHandle(mappinghandle)
+			}
+			else
+			{
+				print("Failed to map file!")
+			}
+		}
+		else
+		{
+			contents = ""
+		}
+		CloseHandle(filehandle)
+	}
+	else
+	{
+		print("Couldn't open that file!")
+	}
+}
+
+
+Parse : string code, integer len
+{
+	Lex(code, len)
+
+	// Discard the dummy token
+	PopToken()
+
+	print("IREnterProgram")
+
+	string token = PeekToken(0)
+	while(token != "")
+	{
+		ParseFunction()
+
+		token = PeekToken(0)
+	}
+
+	print("IRExitProgram")
+}
+
+
+Lex : string code, integer len
+{
+	integer index = 0
+	integer lasttokenstart = 0
+
+	integer state = CHARACTER_CLASS_WHITE
+	integer prevstate = CHARACTER_CLASS_WHITE
+
+	while(index < len)
+	{
+		string c = charat(code, index)
+
+		if(state == CHARACTER_CLASS_WHITE)
+		{
+			if(!IsWhitespace(c))
+			{
+				state = Classify(c)
+				lasttokenstart = index
+			}
+		}
+		elseif(state == CHARACTER_CLASS_IDENTIFIER)
+		{
+			boolean notidentifier = false
+			if(IsWhitespace(c))
+			{
+				notidentifier = true
+				state = CHARACTER_CLASS_WHITE
+			}
+			elseif(Classify(c) != CHARACTER_CLASS_IDENTIFIER)
+			{
+				notidentifier = true
+				state = Classify(c)
+			}
+
+			if(notidentifier)
+			{
+				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+			}
+		}
+		elseif(state == CHARACTER_CLASS_PUNCTUATION)
+		{
+			if(IsWhitespace(c))
+			{
+				state = CHARACTER_CLASS_WHITE
+			}
+			elseif(Classify(c) != CHARACTER_CLASS_PUNCTUATION)
+			{
+				state = Classify(c)
+			}
+
+			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+			lasttokenstart = index
+		}
+
+
+		if(state != prevstate)
+		{
+			lasttokenstart = index
+		}
+
+		prevstate = state
+		++index
+	}
+
+	if((lasttokenstart < len) && (state != CHARACTER_CLASS_WHITE))
+	{
+		PushToken(substring(code, lasttokenstart, len - lasttokenstart))
+	}
+}
+
+
+IsWhitespace : string c -> boolean white = false
+{
+	if(c == " ")
+	{
+		white = true
+	}
+	elseif(c == unescape("\r"))
+	{
+		white = true
+	}
+	elseif(c == unescape("\n"))
+	{
+		white = true
+	}
+	elseif(c == unescape("\t"))
+	{
+		white = true
+	}
+}
+
+Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
+{
+	if(c == "{")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "}")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == ":")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "(")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == ")")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "=")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == ",")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+}
+
+
+// TODO - replace with better option
+charat : string in, integer index -> string c = substring(in, index, 1)
+
+
+PushToken : string token
+{
+	simple_append<string>(TokenStream, token)
+}
+
+
+DumpStream : simplelist<string> ref tokens
+{
+	print(tokens.value)
+	DumpStream(tokens.next)
+}
+
+DumpStream : nothing
+
+
+PopToken :
+{
+	PopTokenFromStream(TokenStream, TokenStream.next)
+}
+
+PopTokens : integer count
+{
+	while(count > 0)
+	{
+		--count
+		PopToken()
+	}
+}
+
+PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail
+{
+	tokens = tail
+}
+
+PopTokenFromStream : simplelist<string> ref tokens, nothing
+{
+	tokens.value = ""
+}
+
+
+PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement)
+
+PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value
+{
+	if(displacement > 0)
+	{
+		token = PeekTokenInStream(tokens.next, displacement - 1)
+	}
+}
+
+PeekTokenInStream : nothing, integer displacement -> ""
+
+
+
+PeekWithExpectation : integer displacement, string expected -> boolean found = false
+{
+	string token = PeekToken(displacement)
+	if(token == expected)
+	{
+		found = true
+	}
+}
+
+
+ParseFunction :
+{
+	string functionname = PeekToken(0)
+
+	print("IREnterFunction " ; functionname)
+
+	if(!PeekWithExpectation(1, ":"))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, "{"))
+	{
+		return()
+	}
+
+	PopTokens(3)
+	
+	string token = PeekToken(0)
+	while(token != "}")
+	{
+		if(token == "")
+		{
+			print("Error: missing a }")
+			return()
+		}
+
+		if(ParseStatement())
+		{
+		}
+		elseif(ParseAssignment())
+		{
+		}
+
+		token = PeekToken(0)
+	}
+
+	PopToken()
+	print("IRExitFunction")
+}
+
+
+ParseStatement : -> boolean matched = false
+{
+	string statementname = PeekToken(0)
+
+	if(!PeekWithExpectation(1, "("))
+	{
+		return()
+	}
+
+	print("IREnterStatement " ; statementname)
+	PopTokens(2)
+
+	string token = PeekToken(0)
+	while(token != ")")
+	{
+		if(token == "")
+		{
+			print("Error: missing a )")
+			return()
+		}
+
+		ParseExpression()
+
+		token = PeekToken(0)
+	}
+
+	PopToken()
+	print("IRExitStatement")
+	matched = true
+}
+
+ParseAssignment : -> boolean matched = false
+{
+	string typename = PeekToken(0)
+	string varname = PeekToken(1)
+
+	if(PeekToken(2) != "=")
+	{
+		return()
+	}
+
+	PopTokens(3)
+
+	print("IREnterAssignment " ; typename ; " variable " ; varname)
+
+	string value = PeekToken(0)
+	print("  With intitializing value " ; value)
+	PopToken()
+	
+	while(PeekToken(0) == ",")
+	{
+		value = PeekToken(1)
+		PopTokens(2)
+
+		print("  With intitializing value " ; value)
+	}
+
+	print("IRExitAssignment")
+	matched = true
+}
+
+
+ParseExpression :
+{
+	string id = PeekToken(0)
+	if(id != ")")
+	{
+		PopToken()
+		print("   Expr " ; id)
+	}
+}
+
+
+
