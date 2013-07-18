@@ -153,6 +153,12 @@ GetSaveFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdl
 GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError", "stdcall")]
 
 
+SetFocus : integer targethwnd -> integer hwndret = 0 [external("User32.dll", "SetFocus", "stdcall")]
+
+
+LoadAccelerators : integer hinstance, integer tableid -> integer tablehandle = 0 [external("User32.dll", "LoadAcceleratorsW", "stdcall")]
+TranslateAccelerator : integer hwnd, integer accelerators, MessageInfo ref msg -> integer ret = 0 [external("User32.dll", "TranslateAcceleratorW", "stdcall")]
+
 
 
 structure ParseCallbacks :
@@ -252,6 +258,10 @@ entrypoint :
 	SetScintillaLexer(ScintillaHWND)
 	ScintillaColorize(ScintillaHWND)
 
+
+	integer accelerators = LoadAccelerators(hInstance, 9000)
+	
+
 	ShowWindow(hwnd, SW_SHOW)
 
 	if(cmdlinegetcount() > 1)
@@ -266,8 +276,11 @@ entrypoint :
 
 	while(GetMessage(msg, 0, 0, 0))
 	{
-		TranslateMessage(msg)
-		DispatchMessage(msg)
+		if(TranslateAccelerator(hwnd, accelerators, msg) == 0)
+		{
+			TranslateMessage(msg)
+			DispatchMessage(msg)
+		}
 	}
 }
 
@@ -281,6 +294,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	integer WM_CLOSE = 0x10
 	integer WM_NOTIFY = 0x4e
 	integer WM_TIMER = 0x113
+	integer WM_ACTIVATE = 0x06
 
 	integer GW_CHILD = 5
 
@@ -323,6 +337,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	}
 	elseif(message == WM_COMMAND)
 	{
+		wparam = wparam & 0xffff
 		if(wparam == 1001)
 		{
 			boolean clear = true
@@ -432,6 +447,11 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		ParseCallbacks callbacks = ParseOK, ParseStructure
 		ParseSource(output, callbacks)
 		ScintillaColorize(scintillahwnd)
+	}
+	elseif(message == WM_ACTIVATE)
+	{
+		ret = DefWindowProc(hwnd, message, wparam, lparam)
+		SetFocus(GetDlgItem(hwnd, WNDID_SCINTILLA))
 	}
 	else
 	{

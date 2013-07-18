@@ -28,3 +28,10 @@ language 1033
 	}
 }
 
+[accelerators]
+id 9000
+language 1033
+{
+	CTRL S 1003
+}
+
