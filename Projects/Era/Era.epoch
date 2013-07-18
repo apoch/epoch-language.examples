@@ -252,8 +252,6 @@ entrypoint :
 	SetScintillaLexer(ScintillaHWND)
 	ScintillaColorize(ScintillaHWND)
 
-	UDTListAppend(narrowstring("WindowClass"))
-
 	ShowWindow(hwnd, SW_SHOW)
 
 	if(cmdlinegetcount() > 1)
