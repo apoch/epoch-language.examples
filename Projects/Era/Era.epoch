@@ -158,10 +158,28 @@ SetFocus : integer targethwnd -> integer hwndret = 0 [external("User32.dll", "Se
 InvalidateRect : integer hwnd, Rect ref rect, boolean erase -> boolean ret = false [external("User32.dll", "InvalidateRect", "stdcall")]
 DrawEdge : integer hdc, Rect ref rect, integer edge, integer flags -> boolean ret = false [external("User32.dll", "DrawEdge", "stdcall")]
 DrawText : integer hdc, string text, integer charcount, Rect ref rect, integer format -> integer ret = 0 [external("User32.dll", "DrawTextW", "stdcall")]
+SetBkMode : integer hdc, integer mode -> integer ret = 0 [external("Gdi32.dll", "SetBkMode", "stdcall")]
+SelectObject : integer hdc, integer object -> integer oldobject = 0 [external("Gdi32.dll", "SelectObject", "stdcall")]
+FillRect : integer hdc, Rect ref rect, integer brush -> integer ret = 0 [external("User32.dll", "FillRect", "stdcall")]
+
+CreateSolidBrush : integer color -> integer brush = 0 [external("Gdi32.dll", "CreateSolidBrush", "stdcall")]
 
 LoadAccelerators : integer hinstance, integer tableid -> integer tablehandle = 0 [external("User32.dll", "LoadAcceleratorsW", "stdcall")]
 TranslateAccelerator : integer hwnd, integer accelerators, MessageInfo ref msg -> integer ret = 0 [external("User32.dll", "TranslateAcceleratorW", "stdcall")]
 
+
+CreateFont : integer height, integer width, integer escapement, integer orientation,
+             integer weight, integer italic, integer underline, integer strikeout, integer charset,
+             integer outprecision, integer clipprecision, integer quality, integer pitchfamily, string facename
+          ->
+             integer fonthandle = 0
+          [external("Gdi32.dll", "CreateFontW", "stdcall")]
+
+
+SetWindowText : integer hwnd, string text -> boolean success = false [external("User32.dll", "SetWindowTextW", "stdcall")]
+
+GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer formatstrptr, buffer ref outbuffer, integer buffersize -> integer ret = 0 [external("Kernel32.dll", "GetTimeFormatEx", "stdcall")]
+GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer formatstrptr, integer bufferptr, integer buffersize -> integer ret = 0 [external("Kernel32.dll", "GetTimeFormatEx", "stdcall")]
 
 
 structure ParseCallbacks :
@@ -185,6 +203,7 @@ global
 	integer MB_ICONEXCLAMATION = 0x30
 
 	integer WNDID_SCINTILLA = 0x001
+	integer WNDID_STATUS_HISTORY = 0x002
 
 	integer SCN_MARGINCLICK = 2010
 
@@ -214,6 +233,13 @@ global
 	integer SC_MARK_PLUS = 8
 	integer SC_MARK_MINUS = 7
 	integer SC_MARK_EMPTY = 5
+
+
+	integer FontUIDefault = 0
+	integer FontMonospace = 0
+	
+	integer BrushBackground = 0
+	integer BrushActiveTab = 0
 }
 
 
@@ -230,11 +256,16 @@ entrypoint :
 	integer COLOR_BTNFACE = 15
 	integer WS_OVERLAPPEDWINDOW = 13565952
 	integer CW_USEDEFAULT = -2147483648
-	integer SW_SHOW = 5
+	integer SW_SHOWMAXIMIZED = 3
+	integer ES_READONLY = 0x800
+	integer WM_SETFONT = 0x30
 
 	integer hInstance = GetModuleHandle(0)
+	
+	BrushBackground = CreateSolidBrush(0xffaa9e)
+	BrushActiveTab = CreateSolidBrush(0xffccc6)
 
-	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, LoadIcon(hInstance, IDI_ICON), LoadCursor(0, IDC_ARROW), COLOR_BTNFACE, "", "ERAClass", 0
+	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, LoadIcon(hInstance, IDI_ICON), LoadCursor(0, IDC_ARROW), BrushBackground, "", "ERAClass", 0
 	integer16 fail = 0
 	if(RegisterClassEx(wc) == fail)
 	{
@@ -256,17 +287,25 @@ entrypoint :
 	GetClientRect(hwnd, client)
 
 	integer ScintillaModule = LoadLibrary("SciLexer.DLL")
-	integer ScintillaHWND = CreateWindowEx(0, "Scintilla", "", 1375797248, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, WNDID_SCINTILLA, hInstance, 0)
+	integer ScintillaHWND = CreateWindowEx(0, "Scintilla", "", 0x52810000, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, WNDID_SCINTILLA, hInstance, 0)
 
 	SetScintillaFont(ScintillaHWND, "Consolas", 10)
 	SetScintillaLexer(ScintillaHWND)
 	ScintillaColorize(ScintillaHWND)
+	
+	
+	FontUIDefault = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Segoe UI")
+	FontMonospace = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Consolas")
+
+	integer HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50800000 + ES_READONLY, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
+	PostMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
+	SetWindowText(HistoryHWND, GetCurrentTimeFormatted() ; ": Era IDE Started")
 
 
 	integer accelerators = LoadAccelerators(hInstance, 9000)
 	
 
-	ShowWindow(hwnd, SW_SHOW)
+	ShowWindow(hwnd, SW_SHOWMAXIMIZED)
 
 	if(cmdlinegetcount() > 1)
 	{
@@ -304,26 +343,54 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 	if(message == WM_PAINT)
 	{
+		integer BDR_RAISED = 0x5
 		integer BF_TOP = 0x2
+		integer BF_RECT = 0xf
 		integer EDGE_ETCHED = 0x6
+		integer DT_RIGHT = 0x2
+		integer TRANSPARENT = 1
 
 		Rect prect = 0, 0, 0, 0
 		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
 
 		integer hdc = BeginPaint(hwnd, ps)
+		
+		SetBkMode(hdc, TRANSPARENT)
+		SelectObject(hdc, FontUIDefault)
 
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
 		Rect status = client.left, client.bottom - 24, client.right, client.bottom
 
+		FillRect(hdc, status, BrushActiveTab)
 		DrawEdge(hdc, status, EDGE_ETCHED, BF_TOP)
+		
+		Rect tab = client.left + 250, client.top, client.left + 400, client.top + 32
+				
+		string fn = TrimPath(OpenFileName)
+		
+		Rect textsize = 0, 0, 5000, 5000
+		DrawText(hdc, fn, -1, textsize, 0x420)
+
+		tab.right = tab.left + (textsize.right - textsize.left) + 6
+
+		FillRect(hdc, tab, BrushActiveTab)
+		
+		DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
+		
+		tab.top = tab.top + 3
+		tab.left = tab.left + 3
+		tab.bottom = tab.bottom - 3
+		tab.right = tab.right - 3
+		
+		DrawText(hdc, fn, -1, tab, 0x24)
 
 		status.top = status.top + 3
 
 		integer line = 0
 		integer col = 0
 		GetScintillaPosition(GetDlgItem(hwnd, WNDID_SCINTILLA), line, col)
-		DrawText(hdc, "Line: " ; cast(string, line + 1) ; " Column: " ; cast(string, col + 1), -1, status, 0)
+		DrawText(hdc, "Line: " ; cast(string, line + 1) ; " Column: " ; cast(string, col + 1) ; " ", -1, status, DT_RIGHT)
 
 		EndPaint(hwnd, ps)
 	}
@@ -350,10 +417,14 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
 
-		Rect editor = client.left, client.top, client.right, client.bottom - 24
+		Rect editor = client.left + 250, client.top + 32, client.right, client.bottom - 150 - 24 - 3
+		Rect history = client.left, client.bottom - 150 - 24, client.right, client.bottom - 24
 
 		integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
 		MoveWindow(scintillahwnd, editor.left, editor.top, editor.right - editor.left, editor.bottom - editor.top, true)
+		
+		integer historyhwnd = GetDlgItem(hwnd, WNDID_STATUS_HISTORY)
+		MoveWindow(historyhwnd, history.left, history.top, history.right - history.left, history.bottom - history.top, true)
 
 		integer width = client.right - client.left
 		SetScintillaScrolling(scintillahwnd, width - 64)
@@ -847,4 +918,40 @@ PerformAutoUnindent : integer hwnd
 	}
 }
 
+
+TrimPath : string fullpath -> string filename = ""
+{
+	integer lastslashpos = 0
+	integer pos = 0
+	
+	while(pos < length(fullpath))
+	{
+		string ch = substring(fullpath, pos, 1)
+		
+		if(ch == "\")
+		{
+			lastslashpos = pos + 1
+		}
+		elseif(ch == "/")
+		{
+			lastslashpos = pos + 1
+		}
+		
+		++pos
+	}
+	
+	filename = substring(fullpath, lastslashpos)
+}
+
+
+GetCurrentTimeFormatted : -> string ret = ""
+{
+	integer reqlen = GetTimeFormatEx(0, 0, 0, 0, 0, 0) + 1
+	buffer timestr = reqlen
+	
+	GetTimeFormatEx(0, 0, 0, 0, timestr, reqlen - 1)
+	
+	ret = cast(string, timestr)
+	ret = substring(ret, 0, length(ret) - 2)
+}
 
