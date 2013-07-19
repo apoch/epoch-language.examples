@@ -14,17 +14,17 @@ language 1033
 {
 	popup "&File"
 	{
-		item 1001 "&New"
+		item 1001 "&New	F2"
 		separator
-		item 1002 "&Open..."
-		item 1003 "&Save"
+		item 1002 "&Open...	Ctrl+O"
+		item 1003 "&Save	Ctrl+S"
 		item 1004 "Save &As..."
 		separator
 		item 1005 "E&xit"
 	}
 	popup "&Help"
 	{
-		item 1101 "&About..."
+		item 1101 "&About...	F1"
 	}
 }
 
@@ -32,6 +32,9 @@ language 1033
 id 9000
 language 1033
 {
+	VK F2 1001
+	CTRL O 1002
 	CTRL S 1003
+	VK F1 1101
 }
 
