@@ -104,6 +104,28 @@ structure ScintillaNotification :
 	integer token,
 	integer annotationlinesadded
 
+structure TreeViewItem :
+	integer mask,
+	integer handle,
+	integer state,
+	integer statemask,
+	string text,
+	integer textmax,
+	integer image,
+	integer selectedimage,
+	integer children,
+	integer lparam,
+	integer integral,
+	integer stateex,
+	integer hwnd,
+	integer expandedimage,
+	integer reserved
+
+
+structure TreeViewInsert :
+	integer parent,
+	integer insertafter,
+	TreeViewItem item
 
 
 CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
@@ -133,6 +155,8 @@ PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> int
 
 SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+
 
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
 MessageBox : integer hwnd, buffer message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
@@ -182,6 +206,15 @@ GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer
 GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer formatstrptr, integer bufferptr, integer buffersize -> integer ret = 0 [external("Kernel32.dll", "GetTimeFormatEx", "stdcall")]
 
 
+
+structure CommonControlInit :
+	integer size,
+	integer flags
+
+
+InitCommonControlsEx : CommonControlInit ref init -> boolean ret = false [external("Comctl32.dll", "InitCommonControlsEx", "stdcall")]
+
+
 structure ParseCallbacks :
 	(ParseOKFunc : ),
 	(ParseStructureFunc : string)
@@ -194,16 +227,25 @@ ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.d
 
 
 
+structure OpenTab :
+	integer ContentsHWND,
+	string FileName,
+	string TabTitle
+
+
+
 global
 {
-	string OpenFileName = ""
-
+	OpenTab OnlyTab = 0, "", ""
+	
 	string FileTypeFilters = unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0")
 
 	integer MB_ICONEXCLAMATION = 0x30
 
-	integer WNDID_SCINTILLA = 0x001
+	integer WNDID_PROJECT_TREEVIEW = 0x001
 	integer WNDID_STATUS_HISTORY = 0x002
+
+	integer WNDID_TAB_START = 0x1000
 
 	integer SCN_MARGINCLICK = 2010
 
@@ -259,6 +301,7 @@ entrypoint :
 	integer SW_SHOWMAXIMIZED = 3
 	integer ES_READONLY = 0x800
 	integer WM_SETFONT = 0x30
+	integer ICC_TREEVIEW_CLASSES = 0x2
 
 	integer hInstance = GetModuleHandle(0)
 	
@@ -287,11 +330,16 @@ entrypoint :
 	GetClientRect(hwnd, client)
 
 	integer ScintillaModule = LoadLibrary("SciLexer.DLL")
-	integer ScintillaHWND = CreateWindowEx(0, "Scintilla", "", 0x52810000, client.left, client.top, client.right - client.left, client.bottom - client.top, hwnd, WNDID_SCINTILLA, hInstance, 0)
 
-	SetScintillaFont(ScintillaHWND, "Consolas", 10)
-	SetScintillaLexer(ScintillaHWND)
-	ScintillaColorize(ScintillaHWND)
+	
+	if(cmdlinegetcount() > 1)
+	{
+		CreateEditorTab(hwnd, cmdlineget(1))
+	}
+	else
+	{
+		CreateEditorTab(hwnd, "")
+	}
 	
 	
 	FontUIDefault = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Segoe UI")
@@ -300,17 +348,28 @@ entrypoint :
 	integer HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50800000 + ES_READONLY, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
 	PostMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
 	SetWindowText(HistoryHWND, GetCurrentTimeFormatted() ; ": Era IDE Started")
+	
+	
+	CommonControlInit ccinit = sizeof(ccinit), ICC_TREEVIEW_CLASSES
+	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
+	
+	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project")
+	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code")
+	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resources")
+	integer optionsroot = TreeViewAddItem(ProjectHWND, projectroot, "Options")
+	
+	TreeViewAddItem(ProjectHWND, coderoot, "Foo.epoch")
+	TreeViewAddItem(ProjectHWND, resourceroot, "Bar.erc")
+
+	TreeViewExpand(ProjectHWND, projectroot)
+	TreeViewExpand(ProjectHWND, coderoot)
+	TreeViewExpand(ProjectHWND, resourceroot)
 
 
 	integer accelerators = LoadAccelerators(hInstance, 9000)
 	
 
 	ShowWindow(hwnd, SW_SHOWMAXIMIZED)
-
-	if(cmdlinegetcount() > 1)
-	{
-		Open(hwnd, ScintillaHWND, cmdlineget(1))
-	}
 
 	SetTimer(hwnd, 1, 1000, 0)
 
@@ -344,8 +403,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	if(message == WM_PAINT)
 	{
 		integer BDR_RAISED = 0x5
-		integer BF_TOP = 0x2
 		integer BF_RECT = 0xf
+		integer BF_TOP = 0x2
 		integer EDGE_ETCHED = 0x6
 		integer DT_RIGHT = 0x2
 		integer TRANSPARENT = 1
@@ -364,32 +423,14 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 		FillRect(hdc, status, BrushActiveTab)
 		DrawEdge(hdc, status, EDGE_ETCHED, BF_TOP)
-		
-		Rect tab = client.left + 250, client.top, client.left + 400, client.top + 32
-				
-		string fn = TrimPath(OpenFileName)
-		
-		Rect textsize = 0, 0, 5000, 5000
-		DrawText(hdc, fn, -1, textsize, 0x420)
 
-		tab.right = tab.left + (textsize.right - textsize.left) + 6
-
-		FillRect(hdc, tab, BrushActiveTab)
-		
-		DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
-		
-		tab.top = tab.top + 3
-		tab.left = tab.left + 3
-		tab.bottom = tab.bottom - 3
-		tab.right = tab.right - 3
-		
-		DrawText(hdc, fn, -1, tab, 0x24)
+		DrawTab(OnlyTab, client, client.left + 250 + 3, hdc)
 
 		status.top = status.top + 3
 
 		integer line = 0
 		integer col = 0
-		GetScintillaPosition(GetDlgItem(hwnd, WNDID_SCINTILLA), line, col)
+		GetScintillaPosition(GetActiveEditorHwnd(), line, col)
 		DrawText(hdc, "Line: " ; cast(string, line + 1) ; " Column: " ; cast(string, col + 1) ; " ", -1, status, DT_RIGHT)
 
 		EndPaint(hwnd, ps)
@@ -397,7 +438,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	elseif(message == WM_CLOSE)
 	{
 		boolean exit = true
-		integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+		integer scintillahwnd = GetActiveEditorHwnd()
 		if(GetScintillaDirty(scintillahwnd))
 		{
 			exit = PromptToSave(hwnd, scintillahwnd)
@@ -417,14 +458,18 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
 
-		Rect editor = client.left + 250, client.top + 32, client.right, client.bottom - 150 - 24 - 3
+		Rect editor = client.left + 250 + 3, client.top + 28, client.right, client.bottom - 150 - 24 - 3
 		Rect history = client.left, client.bottom - 150 - 24, client.right, client.bottom - 24
+		Rect project = client.left, client.top, client.left + 250, client.bottom - 150 - 24 - 3
 
-		integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+		integer scintillahwnd = GetActiveEditorHwnd()
 		MoveWindow(scintillahwnd, editor.left, editor.top, editor.right - editor.left, editor.bottom - editor.top, true)
 		
 		integer historyhwnd = GetDlgItem(hwnd, WNDID_STATUS_HISTORY)
 		MoveWindow(historyhwnd, history.left, history.top, history.right - history.left, history.bottom - history.top, true)
+		
+		integer projecthwnd = GetDlgItem(hwnd, WNDID_PROJECT_TREEVIEW)
+		MoveWindow(projecthwnd, project.left, project.top, project.right - project.left, project.bottom - project.top, true)
 
 		integer width = client.right - client.left
 		SetScintillaScrolling(scintillahwnd, width - 64)
@@ -437,7 +482,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		if(wparam == 1001)
 		{
 			boolean clear = true
-			integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+			integer scintillahwnd = GetActiveEditorHwnd()
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				clear = PromptToSave(hwnd, scintillahwnd)
@@ -447,13 +492,14 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			{
 				ClearScintillaText(scintillahwnd)
 				SetScintillaNonDirty(scintillahwnd)
-				OpenFileName = ""
+				OnlyTab.FileName = ""
+				OnlyTab.TabTitle = "(Untitled)"
 			}
 		}
 		elseif(wparam == 1002)
 		{
 			boolean open = true
-			integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+			integer scintillahwnd = GetActiveEditorHwnd()
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				open = PromptToSave(hwnd, scintillahwnd)
@@ -485,18 +531,18 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 1003)
 		{
-			integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+			integer scintillahwnd = GetActiveEditorHwnd()
 			SaveDocument(hwnd, scintillahwnd)
 		}
 		elseif(wparam == 1004)
 		{
-			integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+			integer scintillahwnd = GetActiveEditorHwnd()
 			SaveDocumentAs(hwnd, scintillahwnd)
 		}
 		elseif(wparam == 1005)
 		{
 			boolean exit = true
-			integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+			integer scintillahwnd = GetActiveEditorHwnd()
 			if(GetScintillaDirty(scintillahwnd))
 			{
 				exit = PromptToSave(hwnd, scintillahwnd)
@@ -517,7 +563,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		NotifyMessageHeader nmhdr = 0, 0, 0
 		marshalstructure(nmhdr, lparam)
 		
-		if(nmhdr.childid == WNDID_SCINTILLA)
+		if(nmhdr.childid == GetActiveEditorChildCode())
 		{
 			integer SCN_UPDATEUI = 2007
 			integer SCN_CHARADDED = 2001
@@ -529,7 +575,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 				if(scn.margin == 1)
 				{
-					integer scintillawnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+					integer scintillawnd = GetActiveEditorHwnd()
 					integer linenumber = SendMessage(scintillawnd, SCI_LINEFROMPOSITION, scn.position, 0)
 					PostMessage(scintillawnd, SCI_TOGGLEFOLD, linenumber, 0)
 				}
@@ -549,18 +595,18 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 				if(scn.ch == 10)		// Linefeed
 				{
-					PerformAutoIndent(GetDlgItem(hwnd, WNDID_SCINTILLA))
+					PerformAutoIndent(GetActiveEditorHwnd())
 				}
 				elseif(scn.ch == 0x7d)		// Right curly brace
 				{
-					PerformAutoUnindent(GetDlgItem(hwnd, WNDID_SCINTILLA))
+					PerformAutoUnindent(GetActiveEditorHwnd())
 				}
 			}
 		}
 	}
 	elseif(message == WM_TIMER)
 	{
-		integer scintillahwnd = GetDlgItem(hwnd, WNDID_SCINTILLA)
+		integer scintillahwnd = GetActiveEditorHwnd()
 		integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
 		buffer output = doclength
 		SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
@@ -572,7 +618,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	elseif(message == WM_ACTIVATE)
 	{
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
-		SetFocus(GetDlgItem(hwnd, WNDID_SCINTILLA))
+		SetFocus(GetActiveEditorHwnd())
 	}
 	else
 	{
@@ -704,7 +750,9 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 
 				if(ptr != 0)
 				{
-					OpenFileName = filename
+					OnlyTab.FileName = filename
+					OnlyTab.TabTitle = TrimFilePath(filename)
+					
 					SetScintillaText(ScintillaHWND, ptr, len)
 					SetScintillaNonDirty(ScintillaHWND)
 					UnmapViewOfFile(ptr)
@@ -718,7 +766,9 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 		}
 		else
 		{
-			OpenFileName = filename
+			OnlyTab.FileName = filename
+			OnlyTab.TabTitle = TrimFilePath(filename)
+
 			ClearScintillaText(ScintillaHWND)
 			SetScintillaNonDirty(ScintillaHWND)
 		}
@@ -737,7 +787,7 @@ DoSave : integer hwnd
 	integer CREATE_ALWAYS = 2
 	integer MB_ICONSTOP = 0x10
 
-	integer filehandle = CreateFile(OpenFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
+	integer filehandle = CreateFile(OnlyTab.FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == 0)
 	{
 		MessageBox(hwnd, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)
@@ -758,7 +808,7 @@ DoSave : integer hwnd
 
 SaveDocument : integer hwnd, integer scintillahwnd
 {
-	if(length(OpenFileName) == 0)
+	if(length(OnlyTab.FileName) == 0)
 	{
 		SaveDocumentAs(hwnd, scintillahwnd)
 	}
@@ -788,7 +838,8 @@ SaveDocumentAs : integer hwnd, integer scintillahwnd
 	integer ofnret = GetSaveFileName(ofn)
 	if(ofnret != 0)
 	{
-		OpenFileName = cast(string, ofn.file)
+		OnlyTab.FileName = cast(string, ofn.file)
+		OnlyTab.TabTitle = TrimFilePath(OnlyTab.FileName)
 		DoSave(scintillahwnd)
 	}
 }
@@ -919,7 +970,7 @@ PerformAutoUnindent : integer hwnd
 }
 
 
-TrimPath : string fullpath -> string filename = ""
+TrimFilePath : string fullpath -> string filename = ""
 {
 	integer lastslashpos = 0
 	integer pos = 0
@@ -954,4 +1005,82 @@ GetCurrentTimeFormatted : -> string ret = ""
 	ret = cast(string, timestr)
 	ret = substring(ret, 0, length(ret) - 2)
 }
+
+
+	
+TreeViewAddItem : integer tvhwnd, integer hparent, string text -> integer newhandle = 0
+{
+	integer TVIF_TEXT = 0x01
+	integer TVIM_INSERTITEM = 0x1100 + 50
+	
+	TreeViewItem item = TVIF_TEXT, 0, 0, 0, text, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	TreeViewInsert insert = hparent, 0, item
+	
+	newhandle = SendMessage(tvhwnd, TVIM_INSERTITEM, 0, insert)
+}
+
+
+TreeViewExpand : integer tvhwnd, integer node
+{
+	integer TVM_EXPAND = 0x1100 + 2
+	integer TVE_EXPAND = 0x2
+	SendMessage(tvhwnd, TVM_EXPAND, TVE_EXPAND, node)
+}
+
+
+CountOpenTabs : -> integer count = 0
+
+
+CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
+{
+	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 100, 100, parenthwnd, WNDID_TAB_START + CountOpenTabs(), GetHInstance(), 0)
+	SetScintillaFont(editorhwnd, "Consolas", 10)
+	SetScintillaLexer(editorhwnd)
+	ScintillaColorize(editorhwnd)
+
+	OnlyTab.ContentsHWND = editorhwnd
+	OnlyTab.FileName = filename
+	OnlyTab.TabTitle = TrimFilePath(filename)
+
+	if(length(filename) == 0)
+	{
+		OnlyTab.TabTitle = "(Untitled)"
+	}
+	else
+	{
+		Open(parenthwnd, editorhwnd, filename)
+	}
+}
+
+
+GetHInstance : -> integer hinstance = GetModuleHandle(0)
+
+
+DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc
+{
+	integer BDR_RAISED = 0x5
+	integer BF_RECT = 0xf
+
+	Rect tab = left, client.top, left + 400, client.top + 28
+
+	Rect textsize = 0, 0, 5000, 5000
+	DrawText(hdc, thetab.TabTitle, -1, textsize, 0x420)
+
+	tab.right = tab.left + (textsize.right - textsize.left) + 6
+
+	FillRect(hdc, tab, BrushActiveTab)
+
+	DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
+
+	tab.top = tab.top + 3
+	tab.left = tab.left + 3
+	tab.bottom = tab.bottom - 3
+	tab.right = tab.right - 3
+
+	DrawText(hdc, thetab.TabTitle, -1, tab, 0x24)
+}
+
+GetActiveEditorHwnd : -> integer hwnd = OnlyTab.ContentsHWND
+
+GetActiveEditorChildCode : -> WNDID_TAB_START + 0
 
