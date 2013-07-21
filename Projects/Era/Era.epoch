@@ -6,6 +6,20 @@
 //
 
 
+type listnode<type T> : list<T> | nothing
+
+structure list<type T> :
+	T ref value,
+	listnode<T> next
+
+
+type simplelistnode<type T> : simplelist<T> | nothing
+
+structure simplelist<type T> :
+	T value,
+	simplelistnode<T> next
+
+
 structure WindowClass :
 	integer Size,
 	integer Style,
@@ -149,6 +163,8 @@ GetDlgItem : integer hwnd, integer childid -> integer windowhandle = 0 [external
 LoadLibrary : string dllname -> integer libraryhandle = 0 [external("Kernel32.dll", "LoadLibraryW", "stdcall")]
 SetTimer : integer hwnd, integer eventid, integer time, integer func -> integer ret = 0 [external("User32.dll", "SetTimer", "stdcall")]
 
+GetParent : integer hwnd -> integer parenthwnd = 0 [external("User32.dll", "GetParent", "stdcall")]
+
 PostMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 PostMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
@@ -206,6 +222,9 @@ GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer
 GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer formatstrptr, integer bufferptr, integer buffersize -> integer ret = 0 [external("Kernel32.dll", "GetTimeFormatEx", "stdcall")]
 
 
+SetCapture : integer hwnd -> integer prevhwnd = 0 [external("User32.dll", "SetCapture", "stdcall")]
+ReleaseCapture : -> boolean success = false [external("User32.dll", "ReleaseCapture", "stdcall")]
+
 
 structure CommonControlInit :
 	integer size,
@@ -228,15 +247,50 @@ ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.d
 
 
 structure OpenTab :
+	integer ContentsType,
 	integer ContentsHWND,
 	string FileName,
 	string TabTitle
 
 
+prepend<type T> : list<T> ref thelist, T ref value
+{
+	list<T> newlist = value, thelist
+	thelist = newlist
+}
+
+simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value
+{
+	simplelist<T> newlist = value, nothing
+	thelist.next = newlist
+}
+
+simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tail, T value
+{
+	simple_append_recurse<T>(tail, tail.next, value)
+}
+
+
+simple_append<type T> : simplelist<T> ref thelist, T value
+{
+	simple_append_recurse<T>(thelist, thelist.next, value)
+}
+
+
 
 global
 {
-	OpenTab OnlyTab = 0, "", ""
+	integer TAB_TYPE_SENTINEL = 0
+	integer TAB_TYPE_EDITOR = 1
+	integer TAB_TYPE_RESOURCES = 2
+	integer TAB_TYPE_OPTIONS = 3
+	
+	OpenTab SentinelTab = TAB_TYPE_SENTINEL, 0, "", ""
+	list<OpenTab> CurrentTabs = SentinelTab, nothing
+	simplelist<integer> TabEdges = 0, nothing
+
+	integer ActiveTabIndex = 0
+	integer HighlightTabIndex = -1
 	
 	string FileTypeFilters = unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0")
 
@@ -282,6 +336,11 @@ global
 	
 	integer BrushBackground = 0
 	integer BrushActiveTab = 0
+
+	integer SW_SHOW = 5
+	integer SW_HIDE = 0
+
+	integer WM_SIZE = 5
 }
 
 
@@ -391,12 +450,13 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 {
 	integer WM_PAINT = 15
 	integer WM_DESTROY = 2
-	integer WM_SIZE = 5
 	integer WM_COMMAND = 273
 	integer WM_CLOSE = 0x10
 	integer WM_NOTIFY = 0x4e
 	integer WM_TIMER = 0x113
 	integer WM_ACTIVATE = 0x06
+	integer WM_MOUSEMOVE = 0x200
+	integer WM_LBUTTONUP = 0x202
 
 	integer GW_CHILD = 5
 
@@ -424,7 +484,9 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		FillRect(hdc, status, BrushActiveTab)
 		DrawEdge(hdc, status, EDGE_ETCHED, BF_TOP)
 
-		DrawTab(OnlyTab, client, client.left + 250 + 3, hdc)
+		simplelist<integer> newedges = 0, nothing
+		TabEdges = newedges
+		DrawTabList(CurrentTabs, client, client.left + 250 + 3, hdc, 0)
 
 		status.top = status.top + 3
 
@@ -481,20 +543,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		wparam = wparam & 0xffff
 		if(wparam == 1001)
 		{
-			boolean clear = true
-			integer scintillahwnd = GetActiveEditorHwnd()
-			if(GetScintillaDirty(scintillahwnd))
-			{
-				clear = PromptToSave(hwnd, scintillahwnd)
-			}
-
-			if(clear)
-			{
-				ClearScintillaText(scintillahwnd)
-				SetScintillaNonDirty(scintillahwnd)
-				OnlyTab.FileName = ""
-				OnlyTab.TabTitle = "(Untitled)"
-			}
+			CreateEditorTab(hwnd, "")
 		}
 		elseif(wparam == 1002)
 		{
@@ -619,6 +668,56 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	{
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
 		SetFocus(GetActiveEditorHwnd())
+	}
+	elseif(message == WM_MOUSEMOVE)
+	{
+		Rect client = 0, 0, 0, 0
+		GetClientRect(hwnd, client)
+		Rect tabbar = client.left + 250 + 3, client.top, client.right, client.top + 24
+
+		integer xcoord = lparam & 0xffff
+		integer ycoord = (lparam & 0xffff0000) / 0x10000
+		
+		if(ycoord < tabbar.top)
+		{
+			HighlightTabIndex = -1
+		}
+		elseif(ycoord > tabbar.bottom)
+		{
+			HighlightTabIndex = -1
+		}
+		elseif(xcoord < tabbar.left)
+		{
+			HighlightTabIndex = -1
+		}
+		elseif(xcoord > tabbar.right)
+		{
+			HighlightTabIndex = -1
+		}
+		else
+		{
+			HighlightTabIndex = TestForMouseOverTab(TabEdges, xcoord)
+		}
+
+		InvalidateRect(hwnd, tabbar, true)
+		
+		if(HighlightTabIndex < 0)
+		{
+			ReleaseCapture()
+		}
+		else
+		{
+			SetCapture(hwnd)
+		}
+	}
+	elseif(message == WM_LBUTTONUP)
+	{
+		integer xcoord = lparam & 0xffff
+		integer newtabindex = TestForMouseOverTab(TabEdges, xcoord)
+		if(!(newtabindex < 0))
+		{
+			SetActiveTab(newtabindex)
+		}
 	}
 	else
 	{
@@ -750,8 +849,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 
 				if(ptr != 0)
 				{
-					OnlyTab.FileName = filename
-					OnlyTab.TabTitle = TrimFilePath(filename)
+					SetActiveTabInfo(filename, TrimFilePath(filename))
 					
 					SetScintillaText(ScintillaHWND, ptr, len)
 					SetScintillaNonDirty(ScintillaHWND)
@@ -766,8 +864,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 		}
 		else
 		{
-			OnlyTab.FileName = filename
-			OnlyTab.TabTitle = TrimFilePath(filename)
+			SetActiveTabInfo(filename, TrimFilePath(filename))
 
 			ClearScintillaText(ScintillaHWND)
 			SetScintillaNonDirty(ScintillaHWND)
@@ -787,7 +884,10 @@ DoSave : integer hwnd
 	integer CREATE_ALWAYS = 2
 	integer MB_ICONSTOP = 0x10
 
-	integer filehandle = CreateFile(OnlyTab.FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
+	OpenTab tab = 0, 0, "", ""
+	FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
+
+	integer filehandle = CreateFile(tab.FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == 0)
 	{
 		MessageBox(hwnd, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)
@@ -808,7 +908,10 @@ DoSave : integer hwnd
 
 SaveDocument : integer hwnd, integer scintillahwnd
 {
-	if(length(OnlyTab.FileName) == 0)
+	OpenTab tab = 0, 0, "", ""
+	FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
+	
+	if(length(tab.FileName) == 0)
 	{
 		SaveDocumentAs(hwnd, scintillahwnd)
 	}
@@ -838,8 +941,8 @@ SaveDocumentAs : integer hwnd, integer scintillahwnd
 	integer ofnret = GetSaveFileName(ofn)
 	if(ofnret != 0)
 	{
-		OnlyTab.FileName = cast(string, ofn.file)
-		OnlyTab.TabTitle = TrimFilePath(OnlyTab.FileName)
+		string filename = cast(string, ofn.file)
+		SetActiveTabInfo(filename, TrimFilePath(filename))
 		DoSave(scintillahwnd)
 	}
 }
@@ -1028,35 +1131,117 @@ TreeViewExpand : integer tvhwnd, integer node
 }
 
 
-CountOpenTabs : -> integer count = 0
+CountTabs : list<OpenTab> ref tabs -> integer ret = 0
+{
+	if(tabs.value.ContentsType != TAB_TYPE_SENTINEL)
+	{
+		++ret
+	}
+
+	ret += CountTabs(tabs.next)
+}
+
+CountTabs : nothing -> 0
 
 
 CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
 {
-	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 100, 100, parenthwnd, WNDID_TAB_START + CountOpenTabs(), GetHInstance(), 0)
+	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
 	SetScintillaFont(editorhwnd, "Consolas", 10)
 	SetScintillaLexer(editorhwnd)
 	ScintillaColorize(editorhwnd)
 
-	OnlyTab.ContentsHWND = editorhwnd
-	OnlyTab.FileName = filename
-	OnlyTab.TabTitle = TrimFilePath(filename)
+	OpenTab tab = TAB_TYPE_EDITOR, editorhwnd, filename, TrimFilePath(filename)
 
 	if(length(filename) == 0)
 	{
-		OnlyTab.TabTitle = "(Untitled)"
+		tab.TabTitle = "(Untitled)"
 	}
 	else
 	{
 		Open(parenthwnd, editorhwnd, filename)
 	}
+	
+	AppendTab(CurrentTabs, CurrentTabs.next, tab, 0)
 }
 
 
 GetHInstance : -> integer hinstance = GetModuleHandle(0)
 
 
-DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc
+
+AppendTab : list<OpenTab> ref tabs, list<OpenTab> ref tail, OpenTab ref tab, integer counter
+{
+	if(tabs.value.ContentsType == TAB_TYPE_SENTINEL)
+	{
+		tabs.value = tab
+		SetActiveTab(counter)
+	}
+	else
+	{
+		++counter
+		AppendTab(tail, tail.next, tab, counter)
+	}
+}
+
+AppendTab : list<OpenTab> ref tabs, nothing, OpenTab ref tab, integer counter
+{
+	if(tabs.value.ContentsType == TAB_TYPE_SENTINEL)
+	{
+		tabs.value = tab
+		SetActiveTab(counter)
+	}
+	else
+	{
+		list<OpenTab> newlist = tab, nothing
+		tabs.next = newlist
+		SetActiveTab(counter + 1)
+	}
+}
+
+
+
+SetActiveTab : integer counter
+{
+	ActiveTabIndex = counter
+	ShowOnlyTab(CurrentTabs, counter)
+}
+
+ShowOnlyTab : list<OpenTab> ref tabs, integer counter
+{
+	if(counter == 0)
+	{
+		ShowWindow(tabs.value.ContentsHWND, SW_SHOW)
+		SendMessage(GetParent(tabs.value.ContentsHWND), WM_SIZE, 0, 0)
+		ShowOnlyTab(tabs.next, -1)
+	}
+	else
+	{
+		ShowWindow(tabs.value.ContentsHWND, SW_HIDE)
+		ShowOnlyTab(tabs.next, counter - 1)
+	}
+}
+
+ShowOnlyTab : nothing, integer counter
+
+
+
+DrawTabList : list<OpenTab> ref tabs, Rect ref client, integer left, integer hdc, integer counter
+{
+	if(tabs.value.ContentsType != TAB_TYPE_SENTINEL)
+	{
+		left = DrawTab(tabs.value, client, left, hdc, counter)
+
+		simple_append<integer>(TabEdges, left)
+	}
+	
+	DrawTabList(tabs.next, client, left, hdc, counter + 1)
+}
+
+DrawTabList : nothing, Rect ref client, integer left, integer hdc, integer counter
+
+
+DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, integer index -> integer right = 0
 {
 	integer BDR_RAISED = 0x5
 	integer BF_RECT = 0xf
@@ -1068,9 +1253,21 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc
 
 	tab.right = tab.left + (textsize.right - textsize.left) + 6
 
-	FillRect(hdc, tab, BrushActiveTab)
-
-	DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
+	if(index == ActiveTabIndex)
+	{
+		FillRect(hdc, tab, BrushActiveTab)
+		DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
+	}
+	elseif(index == HighlightTabIndex)
+	{
+		FillRect(hdc, tab, BrushActiveTab)
+	}
+	else
+	{
+		FillRect(hdc, tab, BrushBackground)
+	}
+	
+	right = tab.right
 
 	tab.top = tab.top + 3
 	tab.left = tab.left + 3
@@ -1080,7 +1277,58 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc
 	DrawText(hdc, thetab.TabTitle, -1, tab, 0x24)
 }
 
-GetActiveEditorHwnd : -> integer hwnd = OnlyTab.ContentsHWND
+GetActiveEditorHwnd : -> integer hwnd = 0
+{
+	OpenTab tab = 0, 0, "", ""
+	FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
+	hwnd = tab.ContentsHWND
+}
 
-GetActiveEditorChildCode : -> WNDID_TAB_START + 0
+GetActiveEditorChildCode : -> WNDID_TAB_START + ActiveTabIndex
+
+
+FindTabAtIndex : list<OpenTab> ref tabs, integer offset, OpenTab ref out
+{
+	if(offset == 0)
+	{
+		out = tabs.value
+		return()
+	}
+	
+	FindTabAtIndex(tabs.next, offset - 1, out)
+}
+
+SetActiveTabInfo : string filename, string tabtitle
+{
+	FindTabAndSetInfo(CurrentTabs, ActiveTabIndex, filename, tabtitle)
+}
+
+FindTabAndSetInfo : list<OpenTab> ref tabs, integer offset, string filename, string tabtitle
+{
+	if(offset == 0)
+	{
+		tabs.value.FileName = filename
+		tabs.value.TabTitle = tabtitle
+		return()
+	}
+	
+	FindTabAndSetInfo(tabs.next, offset - 1, filename, tabtitle)
+}
+
+
+TestForMouseOverTab : simplelist<integer> ref edges, integer xcoord -> integer tabindex = WalkEdgeListForActiveTab(edges, xcoord, 0)
+
+WalkEdgeListForActiveTab : simplelist<integer> ref edges, integer xcoord, integer index -> integer active = -1
+{
+	if(xcoord < edges.value)
+	{
+		active = index - 1
+	}
+	else
+	{
+		active = WalkEdgeListForActiveTab(edges.next, xcoord, index + 1)
+	}
+}
+
+WalkEdgeListForActiveTab : nothing, integer xcoord, integer index -> -1
 
