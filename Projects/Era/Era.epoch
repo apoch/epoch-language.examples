@@ -333,6 +333,7 @@ global
 
 	integer FontUIDefault = 0
 	integer FontMonospace = 0
+	integer FontUIMarlett = 0
 	
 	integer BrushBackground = 0
 	integer BrushActiveTab = 0
@@ -403,6 +404,7 @@ entrypoint :
 	
 	FontUIDefault = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Segoe UI")
 	FontMonospace = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Consolas")
+	FontUIMarlett = CreateFont(15, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Marlett")
 
 	integer HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50800000 + ES_READONLY, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
 	PostMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
@@ -475,7 +477,6 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		integer hdc = BeginPaint(hwnd, ps)
 		
 		SetBkMode(hdc, TRANSPARENT)
-		SelectObject(hdc, FontUIDefault)
 
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
@@ -489,6 +490,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		DrawTabList(CurrentTabs, client, client.left + 250 + 3, hdc, 0)
 
 		status.top = status.top + 3
+		
+		SelectObject(hdc, FontUIDefault)
 
 		integer line = 0
 		integer col = 0
@@ -574,7 +577,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				integer ofnret = GetOpenFileName(ofn)
 				if(ofnret != 0)
 				{
-					Open(hwnd, scintillahwnd, cast(string, ofn.file))
+					CreateEditorTab(hwnd, cast(string, ofn.file))
 				}
 			}
 		}
@@ -848,9 +851,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
 
 				if(ptr != 0)
-				{
-					SetActiveTabInfo(filename, TrimFilePath(filename))
-					
+				{					
 					SetScintillaText(ScintillaHWND, ptr, len)
 					SetScintillaNonDirty(ScintillaHWND)
 					UnmapViewOfFile(ptr)
@@ -864,8 +865,6 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 		}
 		else
 		{
-			SetActiveTabInfo(filename, TrimFilePath(filename))
-
 			ClearScintillaText(ScintillaHWND)
 			SetScintillaNonDirty(ScintillaHWND)
 		}
@@ -1243,6 +1242,8 @@ DrawTabList : nothing, Rect ref client, integer left, integer hdc, integer count
 
 DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, integer index -> integer right = 0
 {
+	SelectObject(hdc, FontUIDefault)
+
 	integer BDR_RAISED = 0x5
 	integer BF_RECT = 0xf
 
@@ -1251,7 +1252,7 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	Rect textsize = 0, 0, 5000, 5000
 	DrawText(hdc, thetab.TabTitle, -1, textsize, 0x420)
 
-	tab.right = tab.left + (textsize.right - textsize.left) + 6
+	tab.right = tab.left + (textsize.right - textsize.left) + 26
 
 	if(index == ActiveTabIndex)
 	{
@@ -1275,6 +1276,11 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	tab.right = tab.right - 3
 
 	DrawText(hdc, thetab.TabTitle, -1, tab, 0x24)
+
+	Rect xarea = tab.right - 20, tab.top, tab.right, tab.bottom
+	
+	SelectObject(hdc, FontUIMarlett)
+	DrawText(hdc, "r", -1, xarea, 0x26)
 }
 
 GetActiveEditorHwnd : -> integer hwnd = 0
@@ -1314,7 +1320,6 @@ FindTabAndSetInfo : list<OpenTab> ref tabs, integer offset, string filename, str
 	
 	FindTabAndSetInfo(tabs.next, offset - 1, filename, tabtitle)
 }
-
 
 TestForMouseOverTab : simplelist<integer> ref edges, integer xcoord -> integer tabindex = WalkEdgeListForActiveTab(edges, xcoord, 0)
 
