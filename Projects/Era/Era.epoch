@@ -167,6 +167,7 @@ GetParent : integer hwnd -> integer parenthwnd = 0 [external("User32.dll", "GetP
 
 PostMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 PostMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
+PostMessage : integer hwnd, integer message, integer wparam, string lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 
 SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
@@ -191,6 +192,9 @@ GetOpenFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdl
 GetSaveFileName : OpenFileNameStruct ref ofn -> integer ret = 0 [external("comdlg32.dll", "GetSaveFileNameW", "stdcall")]
 
 GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError", "stdcall")]
+
+
+GetWindowText : integer hwnd, buffer ref outbuffer, integer buffersize -> integer ret = 0 [external("User32.dll", "GetWindowTextW", "stdcall")]
 
 
 SetFocus : integer targethwnd -> integer hwndret = 0 [external("User32.dll", "SetFocus", "stdcall")]
@@ -232,6 +236,16 @@ structure CommonControlInit :
 
 
 InitCommonControlsEx : CommonControlInit ref init -> boolean ret = false [external("Comctl32.dll", "InitCommonControlsEx", "stdcall")]
+
+
+SetWindowSubclass : integer hwnd,
+                    (proc : integer, integer, integer, integer, integer, integer -> integer),
+                    integer id, integer refdata
+                 ->
+                    boolean ret = false
+	         [external("Comctl32.dll", "SetWindowSubclass", "stdcall")]
+	         
+DefSubclassProc : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0 [external("Comctl32.dll", "DefSubclassProc", "stdcall")]
 
 
 structure ParseCallbacks :
@@ -298,8 +312,12 @@ global
 
 	integer WNDID_PROJECT_TREEVIEW = 0x001
 	integer WNDID_STATUS_HISTORY = 0x002
+	integer WNDID_TOOLBAR = 0x003
 
 	integer WNDID_TAB_START = 0x1000
+	
+	integer TOOLID_FIND_EDIT = 0x001
+	integer TOOLID_FIND_BUTTON = 0x002
 
 	integer SCN_MARGINCLICK = 2010
 
@@ -342,6 +360,7 @@ global
 	integer SW_HIDE = 0
 
 	integer WM_SIZE = 5
+	integer WM_COMMAND = 273
 }
 
 
@@ -352,6 +371,15 @@ entrypoint :
 		MessageBox(0, "Invalid command line specified; please check for mismatched quotes or other formatting problems.", "ERA Development Environment", MB_ICONEXCLAMATION)
 		return()
 	}
+	
+	integer ICC_TREEVIEW_CLASSES = 0x2
+	integer ICC_STANDARD_CLASSES = 0x4000
+
+	CommonControlInit ccinit = sizeof(ccinit), ICC_TREEVIEW_CLASSES + ICC_STANDARD_CLASSES
+	if(!InitCommonControlsEx(ccinit))
+	{
+		MessageBox(0, "Failed to init common controls", "ERA Development Environment", MB_ICONEXCLAMATION)
+	}
 
 	integer IDI_ICON = 101
 	integer IDC_ARROW = 32512
@@ -361,7 +389,7 @@ entrypoint :
 	integer SW_SHOWMAXIMIZED = 3
 	integer ES_READONLY = 0x800
 	integer WM_SETFONT = 0x30
-	integer ICC_TREEVIEW_CLASSES = 0x2
+	integer ECM_SETCUEBANNER = 0x1501
 
 	integer hInstance = GetModuleHandle(0)
 	
@@ -378,7 +406,7 @@ entrypoint :
 
 	integer hMainMenuBar = LoadMenu(hInstance, 1000)
 
-	integer hwnd = CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, hMainMenuBar, hInstance, 0)
+	integer hwnd = CreateWindowEx(0, "ERAClass", "ERA - Epoch Development Environment", WS_OVERLAPPEDWINDOW + 0x02000000, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, 0, hMainMenuBar, hInstance, 0)
 
 	if(hwnd == 0)
 	{
@@ -410,8 +438,6 @@ entrypoint :
 	PostMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
 	SetWindowText(HistoryHWND, GetCurrentTimeFormatted() ; ": Era IDE Started")
 	
-	
-	CommonControlInit ccinit = sizeof(ccinit), ICC_TREEVIEW_CLASSES
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
 	
 	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project")
@@ -426,6 +452,22 @@ entrypoint :
 	TreeViewExpand(ProjectHWND, coderoot)
 	TreeViewExpand(ProjectHWND, resourceroot)
 
+
+	WindowClass tbwc = sizeof(tbwc), 0, ToolbarWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), BrushBackground, "", "EraToolbarClass", 0
+	if(RegisterClassEx(tbwc) == fail)
+	{
+		return()
+	}
+
+	integer ToolbarHWND = CreateWindowEx(0, "EraToolbarClass", "", 0x50000000, 0, 0, 10, 10, hwnd, WNDID_TOOLBAR, hInstance, 0)
+	integer FindBoxHWND = CreateWindowEx(0, "Edit", "", 0x50800000, 0, 0, 10, 10, ToolbarHWND, TOOLID_FIND_EDIT, hInstance, 0)
+	integer FindButtonHWND = CreateWindowEx(0, "Button", "Go", 0x50008001, 0, 0, 10, 10, ToolbarHWND, TOOLID_FIND_BUTTON, hInstance, 0)
+
+	PostMessage(FindBoxHWND, WM_SETFONT, FontMonospace, 0)
+	PostMessage(FindButtonHWND, WM_SETFONT, FontUIDefault, 0)
+	
+	PostMessage(FindBoxHWND, ECM_SETCUEBANNER, 0, "Search")
+	SetWindowSubclass(FindBoxHWND, FindBoxSubclassProc, 0, 0)
 
 	integer accelerators = LoadAccelerators(hInstance, 9000)
 	
@@ -452,7 +494,6 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 {
 	integer WM_PAINT = 15
 	integer WM_DESTROY = 2
-	integer WM_COMMAND = 273
 	integer WM_CLOSE = 0x10
 	integer WM_NOTIFY = 0x4e
 	integer WM_TIMER = 0x113
@@ -487,6 +528,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 
 		simplelist<integer> newedges = 0, nothing
 		TabEdges = newedges
+		
+		client.top = client.top + 30
 		DrawTabList(CurrentTabs, client, client.left + 250 + 3, hdc, 0)
 
 		status.top = status.top + 3
@@ -522,7 +565,11 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	{
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
+		
+		integer toolbarhwnd = GetDlgItem(hwnd, WNDID_TOOLBAR)
+		MoveWindow(toolbarhwnd, client.left, client.top, client.right - client.left, client.top + 30, true)
 
+		client.top = client.top + 30
 		Rect editor = client.left + 250 + 3, client.top + 28, client.right, client.bottom - 150 - 24 - 3
 		Rect history = client.left, client.bottom - 150 - 24, client.right, client.bottom - 24
 		Rect project = client.left, client.top, client.left + 250, client.bottom - 150 - 24 - 3
@@ -550,35 +597,25 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 1002)
 		{
-			boolean open = true
-			integer scintillahwnd = GetActiveEditorHwnd()
-			if(GetScintillaDirty(scintillahwnd))
+			integer customfilterbuffersize = 256
+			buffer customfilterbuffer = customfilterbuffersize
+
+			integer filebuffersize = 2048
+			buffer filebuffer = filebuffersize
+
+			integer filetitlebuffersize = 2048
+			buffer filetitlebuffer = filetitlebuffersize
+
+			integer16 word = 0
+
+			OpenFileNameStruct ofn = sizeof(ofn), hwnd, GetModuleHandle(0), FileTypeFilters,
+						 customfilterbuffer, customfilterbuffersize, 1, filebuffer, filebuffersize,
+						 filetitlebuffer, filetitlebuffersize, "", "Open File", 0, word, word, "", 0, 0, ""
+
+			integer ofnret = GetOpenFileName(ofn)
+			if(ofnret != 0)
 			{
-				open = PromptToSave(hwnd, scintillahwnd)
-			}
-
-			if(open)
-			{
-				integer customfilterbuffersize = 256
-				buffer customfilterbuffer = customfilterbuffersize
-
-				integer filebuffersize = 2048
-				buffer filebuffer = filebuffersize
-
-				integer filetitlebuffersize = 2048
-				buffer filetitlebuffer = filetitlebuffersize
-
-				integer16 word = 0
-
-				OpenFileNameStruct ofn = sizeof(ofn), hwnd, GetModuleHandle(0), FileTypeFilters,
-							 customfilterbuffer, customfilterbuffersize, 1, filebuffer, filebuffersize,
-							 filetitlebuffer, filetitlebuffersize, "", "Open File", 0, word, word, "", 0, 0, ""
-
-				integer ofnret = GetOpenFileName(ofn)
-				if(ofnret != 0)
-				{
-					CreateEditorTab(hwnd, cast(string, ofn.file))
-				}
+				CreateEditorTab(hwnd, cast(string, ofn.file))
 			}
 		}
 		elseif(wparam == 1003)
@@ -593,6 +630,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 1005)
 		{
+			// TODO - check ALL tabs for dirty docs and prompt to save each
 			boolean exit = true
 			integer scintillahwnd = GetActiveEditorHwnd()
 			if(GetScintillaDirty(scintillahwnd))
@@ -605,7 +643,27 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				DestroyWindow(hwnd)
 			}
 		}
-		elseif(wparam == 1101)
+		elseif(wparam == 2001)
+		{
+			integer findwnd = GetDlgItem(GetDlgItem(hwnd, WNDID_TOOLBAR), TOOLID_FIND_EDIT)
+			SetWindowText(findwnd, "")
+			SetFocus(findwnd)
+		}
+		elseif(wparam == 2002)
+		{
+			integer findwnd = GetDlgItem(GetDlgItem(hwnd, WNDID_TOOLBAR), TOOLID_FIND_EDIT)
+			buffer needlebuffer = 512
+			GetWindowText(findwnd, needlebuffer, 512)
+			ScintillaFind(GetActiveEditorHwnd(), cast(string, needlebuffer))
+		}
+		elseif(wparam == 2003)
+		{
+			integer findwnd = GetDlgItem(GetDlgItem(hwnd, WNDID_TOOLBAR), TOOLID_FIND_EDIT)
+			buffer needlebuffer = 512
+			GetWindowText(findwnd, needlebuffer, 512)
+			ScintillaFindReverse(GetActiveEditorHwnd(), cast(string, needlebuffer))
+		}
+		elseif(wparam == 3001)
 		{
 			MessageBox(hwnd, "Era is the prototype Integrated Development Environment for the Epoch programming language.", "About Era", 64)
 		}
@@ -676,7 +734,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	{
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
-		Rect tabbar = client.left + 250 + 3, client.top, client.right, client.top + 24
+		Rect tabbar = client.left + 250 + 3, client.top + 30, client.right, client.top + 24 + 30
 
 		integer xcoord = lparam & 0xffff
 		integer ycoord = (lparam & 0xffff0000) / 0x10000
@@ -727,6 +785,51 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
 	}
 }
+
+
+ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
+{
+	if(message == WM_SIZE)
+	{
+		Rect client = 0, 0, 0, 0
+		GetClientRect(hwnd, client)
+		
+		MoveWindow(GetDlgItem(hwnd, TOOLID_FIND_BUTTON), client.right - 30 - 3, client.top + 3, 30, client.bottom - client.top - 6, true)
+		MoveWindow(GetDlgItem(hwnd, TOOLID_FIND_EDIT), client.right - 30 - 2 - 300 - 3, client.top + 3, 300, client.bottom - client.top - 6, true)
+	}
+	elseif(message == WM_COMMAND)
+	{
+		wparam = wparam & 0xffff
+		if(wparam == TOOLID_FIND_BUTTON)
+		{
+			buffer needlebuffer = 512
+			GetWindowText(GetDlgItem(hwnd, TOOLID_FIND_EDIT), needlebuffer, 512)
+			
+			ScintillaFind(GetActiveEditorHwnd(), cast(string, needlebuffer))
+		}
+	}
+	else
+	{
+		ret = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+
+FindBoxSubclassProc : integer hwnd, integer message, integer wparam, integer lparam, integer id, integer refdata -> integer result = 0
+{
+	integer WM_CHAR = 0x102
+	integer VK_RETURN = 0xd
+	
+	if((message == WM_CHAR) && (wparam == VK_RETURN))
+	{
+		PostMessage(GetParent(GetParent(hwnd)), WM_COMMAND, 2002, 0)
+		result = 0
+	}
+	else
+	{
+		result = DefSubclassProc(hwnd, message, wparam, lparam)
+	}
+}
+
 
 SetScintillaScrolling : integer hwnd, integer width
 {
@@ -1337,3 +1440,47 @@ WalkEdgeListForActiveTab : simplelist<integer> ref edges, integer xcoord, intege
 
 WalkEdgeListForActiveTab : nothing, integer xcoord, integer index -> -1
 
+
+ScintillaFind : integer hwnd, string needle
+{
+	integer SCI_SEARCHANCHOR = 2366
+	integer SCI_SEARCHNEXT = 2367
+	integer SCI_SCROLLCARET = 2169
+
+	integer SCI_SETSELECTIONSTART = 2142
+	integer SCI_GETSELECTIONEND = 2145
+	
+	buffer narrowneedle = narrowstring(needle)
+	
+	SetFocus(hwnd)
+	
+	SendMessage(hwnd, SCI_SETSELECTIONSTART, SendMessage(hwnd, SCI_GETSELECTIONEND, 0, 0), 0)
+
+	SendMessage(hwnd, SCI_SEARCHANCHOR, 0, 0)
+	integer findpos = SendMessage(hwnd, SCI_SEARCHNEXT, 0, narrowneedle)
+	if(findpos != -1)
+	{
+		PostMessage(hwnd, SCI_SCROLLCARET, 0, 0)
+	}
+}
+
+ScintillaFindReverse : integer hwnd, string needle
+{
+	integer SCI_SEARCHANCHOR = 2366
+	integer SCI_SEARCHPREV = 2368
+	integer SCI_SCROLLCARET = 2169
+
+	integer SCI_SETSELECTIONSTART = 2142
+	integer SCI_GETSELECTIONEND = 2145
+	
+	buffer narrowneedle = narrowstring(needle)
+	
+	SetFocus(hwnd)
+	
+	SendMessage(hwnd, SCI_SEARCHANCHOR, 0, 0)
+	integer findpos = SendMessage(hwnd, SCI_SEARCHPREV, 0, narrowneedle)
+	if(findpos != -1)
+	{
+		PostMessage(hwnd, SCI_SCROLLCARET, 0, 0)
+	}
+}

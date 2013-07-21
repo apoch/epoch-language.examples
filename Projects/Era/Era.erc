@@ -1,3 +1,8 @@
+[manifest]
+id 1
+language 1033
+Era.manifest
+
 [icon]
 id 101
 language 1033
@@ -22,9 +27,15 @@ language 1033
 		separator
 		item 1005 "E&xit"
 	}
+	popup "&Edit"
+	{
+		item 2001 "New Search	Ctrl+F"
+		item 2002 "Find Next	F3"
+		item 2003 "Find Previous	Shift+F3"
+	}
 	popup "&Help"
 	{
-		item 1101 "&About...	F1"
+		item 3001 "&About...	F1"
 	}
 }
 
@@ -35,6 +46,9 @@ language 1033
 	VK F2 1001
 	CTRL O 1002
 	CTRL S 1003
-	VK F1 1101
+	CTRL F 2001
+	VK F1 2001
+	VK F3 2002
+	SHIFT F3 2003
 }
 
