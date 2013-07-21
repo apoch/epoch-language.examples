@@ -1,10 +1,24 @@
 //
 // The Epoch Language Project
-// ERA Integrated Development Environment
+// Era Integrated Development Environment
 //
-// Entry point and main setup/tear-down logic for the Era IDE
+// This file currently comprises the entirety of Era's implementation.
+// I eagerly await the deployment of separate compilation in the Epoch
+// compiler so I can split this up into clean modules rather than this
+// monolithic mess.
 //
 
+
+// TODO - type aliases for cleanliness?
+
+
+//
+// Foundational types
+//
+// Basic types required for getting anything useful done.
+// These are all candidates for extraction into the Epoch
+// standard library, whenever such a thing exists.
+//
 
 type listnode<type T> : list<T> | nothing
 
@@ -19,6 +33,14 @@ structure simplelist<type T> :
 	T value,
 	simplelistnode<T> next
 
+
+//
+// Win32 Boilerplate - type definitions
+//
+// Also candidate for factoring into a separate module or
+// shared "standard" library. These are all the types and
+// such needed for interacting with the Win32 API.
+//
 
 structure WindowClass :
 	integer Size,
@@ -89,6 +111,38 @@ structure OpenFileNameStruct :
 	integer hook,
 	string templatename
 
+structure TreeViewItem :
+	integer mask,
+	integer handle,
+	integer state,
+	integer statemask,
+	string text,
+	integer textmax,
+	integer image,
+	integer selectedimage,
+	integer children,
+	integer lparam,
+	integer integral,
+	integer stateex,
+	integer hwnd,
+	integer expandedimage,
+	integer reserved
+
+structure TreeViewInsert :
+	integer parent,
+	integer insertafter,
+	TreeViewItem item
+
+structure CommonControlInit :
+	integer size,
+	integer flags
+
+
+
+//
+// Scintilla-specific data types
+//
+
 structure NotifyMessageHeader :
 	integer hwnd,
 	integer childid,
@@ -118,29 +172,15 @@ structure ScintillaNotification :
 	integer token,
 	integer annotationlinesadded
 
-structure TreeViewItem :
-	integer mask,
-	integer handle,
-	integer state,
-	integer statemask,
-	string text,
-	integer textmax,
-	integer image,
-	integer selectedimage,
-	integer children,
-	integer lparam,
-	integer integral,
-	integer stateex,
-	integer hwnd,
-	integer expandedimage,
-	integer reserved
 
+//
+// Win32 Boilerplate - API declarations
+//
+// All aspects of the Windows API that we need to interact with
+// are collected here for organizational sanity.
+//
 
-structure TreeViewInsert :
-	integer parent,
-	integer insertafter,
-	TreeViewItem item
-
+// TODO - organize externals
 
 CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
 GetModuleHandle : integer null -> integer handle = 0 [external("Kernel32.dll", "GetModuleHandleW", "stdcall")]
@@ -229,12 +269,6 @@ GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer
 SetCapture : integer hwnd -> integer prevhwnd = 0 [external("User32.dll", "SetCapture", "stdcall")]
 ReleaseCapture : -> boolean success = false [external("User32.dll", "ReleaseCapture", "stdcall")]
 
-
-structure CommonControlInit :
-	integer size,
-	integer flags
-
-
 InitCommonControlsEx : CommonControlInit ref init -> boolean ret = false [external("Comctl32.dll", "InitCommonControlsEx", "stdcall")]
 
 
@@ -248,6 +282,20 @@ SetWindowSubclass : integer hwnd,
 DefSubclassProc : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0 [external("Comctl32.dll", "DefSubclassProc", "stdcall")]
 
 
+
+//
+// Compiler interaction - types and API declarations
+//
+// For now, we still hook into the C++ implementations of the Epoch
+// compilation toolchain and the Scintilla lexer module. These APIs
+// allow us to do extra syntax highlighting and other niftiness.
+//
+// Note that we probably won't add much more highlighting or syntax
+// completion support until after self-hosting is completed and the
+// relevant APIs are ported to pure Epoch, just for the sake of not
+// doing a ton of duplicate work. 
+//
+
 structure ParseCallbacks :
 	(ParseOKFunc : ),
 	(ParseStructureFunc : string)
@@ -259,6 +307,9 @@ UDTListAppend : buffer token [external("EpochLexer.dll", "UDTListAppend", "stdca
 ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.dll", "ParseSource", "stdcall")]
 
 
+//
+// Internal data structures used by Era
+//
 
 structure OpenTab :
 	integer ContentsType,
@@ -266,6 +317,15 @@ structure OpenTab :
 	string FileName,
 	string TabTitle
 
+
+//
+// Standard library routines
+//
+// Basic functions useful for interacting with standard data
+// structures. Definitely should be factored into a separate
+// module at some point, since these operations tend to show
+// up in every non-trivial Epoch program.
+//
 
 prepend<type T> : list<T> ref thelist, T ref value
 {
@@ -291,25 +351,40 @@ simple_append<type T> : simplelist<T> ref thelist, T value
 }
 
 
+//
+// Global data
+//
+// Normally this would be an evil thing to do, and it still is somewhat
+// evil, but there are two excuses for having a global data block.
+//
+// First, it's the best way to store type-safe data about the UI state
+// and other miscellany. Since we only have one window active at a time,
+// it's safe to do this.
+//
+// Second, this is a handy way to stash a bunch of commonly used constants
+// and their values. We should probably consider a language feature to
+// make constants actually constant.
+//
 
 global
 {
-	integer TAB_TYPE_SENTINEL = 0
-	integer TAB_TYPE_EDITOR = 1
-	integer TAB_TYPE_RESOURCES = 2
-	integer TAB_TYPE_OPTIONS = 3
+	//
+	// Win32 constants
+	//
 	
-	OpenTab SentinelTab = TAB_TYPE_SENTINEL, 0, "", ""
-	list<OpenTab> CurrentTabs = SentinelTab, nothing
-	simplelist<integer> TabEdges = 0, nothing
+	integer SW_SHOW = 5
+	integer SW_HIDE = 0
 
-	integer ActiveTabIndex = 0
-	integer HighlightTabIndex = -1
-	
-	string FileTypeFilters = unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0")
+	integer WM_SIZE = 5
+	integer WM_COMMAND = 273
 
 	integer MB_ICONEXCLAMATION = 0x30
 
+
+	//
+	// UI identifier constants
+	//
+	
 	integer WNDID_PROJECT_TREEVIEW = 0x001
 	integer WNDID_STATUS_HISTORY = 0x002
 	integer WNDID_TOOLBAR = 0x003
@@ -318,6 +393,11 @@ global
 	
 	integer TOOLID_FIND_EDIT = 0x001
 	integer TOOLID_FIND_BUTTON = 0x002
+
+
+	//
+	// Scintilla-specific constants
+	//
 
 	integer SCN_MARGINCLICK = 2010
 
@@ -349,6 +429,10 @@ global
 	integer SC_MARK_EMPTY = 5
 
 
+	//
+	// Handles to widely used resources
+	//
+
 	integer FontUIDefault = 0
 	integer FontMonospace = 0
 	integer FontUIMarlett = 0
@@ -356,16 +440,44 @@ global
 	integer BrushBackground = 0
 	integer BrushActiveTab = 0
 
-	integer SW_SHOW = 5
-	integer SW_HIDE = 0
 
-	integer WM_SIZE = 5
-	integer WM_COMMAND = 273
+	//
+	// UI globals - state tracking for tabbed editing
+	//
+
+	integer TAB_TYPE_SENTINEL = 0
+	integer TAB_TYPE_EDITOR = 1
+	integer TAB_TYPE_RESOURCES = 2
+	integer TAB_TYPE_OPTIONS = 3
+	
+	OpenTab SentinelTab = TAB_TYPE_SENTINEL, 0, "", ""
+	list<OpenTab> CurrentTabs = SentinelTab, nothing
+	simplelist<integer> TabEdges = 0, nothing
+
+	integer ActiveTabIndex = 0
+	integer HighlightTabIndex = -1
+	
+	
+	//
+	// Additional constants for simplicity
+	//
+		
+	string FileTypeFilters = unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0")
 }
 
 
+//
+// Entry point of the Era IDE program
+//
+// This is the first code called once globals are initialized.
+//
+// Here we basically take care of setting up the UI and any other
+// state that needs to be prepped for doing whatever programmery
+// business the user is up to.
+//
 entrypoint :
 {
+	// TODO - clean up UI setup logic
 	if(!cmdlineisvalid())
 	{
 		MessageBox(0, "Invalid command line specified; please check for mismatched quotes or other formatting problems.", "ERA Development Environment", MB_ICONEXCLAMATION)
@@ -490,8 +602,15 @@ entrypoint :
 }
 
 
+//
+// Window procedure for the main UI window
+//
+// Receives Win32 messages and dispatches them to the
+// appropriate routines for handling.
+//
 MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
 {
+	// TODO - factor this out into multiple functions
 	integer WM_PAINT = 15
 	integer WM_DESTROY = 2
 	integer WM_CLOSE = 0x10
@@ -787,6 +906,9 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 }
 
 
+//
+// Window procedure for the toolbar strip at the top of the UI
+//
 ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
 {
 	if(message == WM_SIZE)
@@ -814,6 +936,14 @@ ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 	}
 }
 
+
+//
+// Subclassed window procedure for the "search" box on the toolbar
+//
+// This basically exists so we can consume the Enter key when it is
+// pressed in the Search box, and redirect it to cause an actual search
+// to be initiated in the editor window.
+//
 FindBoxSubclassProc : integer hwnd, integer message, integer wparam, integer lparam, integer id, integer refdata -> integer result = 0
 {
 	integer WM_CHAR = 0x102
