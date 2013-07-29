@@ -190,9 +190,10 @@ ShowWindow : integer hwnd, integer cmdshow -> boolean success = false [external(
 LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [external("User32.dll", "LoadCursorW", "stdcall")]
 LoadMenu : integer hinstance, integer menuid -> integer menuhandle = 0 [external("User32.dll", "LoadMenuW", "stdcall")]
 LoadIcon : integer hinstance, integer iconid -> integer iconhandle = 0 [external("User32.dll", "LoadIconW", "stdcall")]
-GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> boolean success = false [external("User32.dll", "GetMessageW", "stdcall")]
+GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> integer result = 0 [external("User32.dll", "GetMessageW", "stdcall")]
 TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
 DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
+IsDialogMessage : integer hwnd, MessageInfo ref msg -> boolean handled = false [external("User32.dll", "IsDialogMessageW", "stdcall")]
 BeginPaint : integer hwnd, PaintInfo ref paintinfo -> integer hdc = 0 [external("User32.dll", "BeginPaint", "stdcall")]
 EndPaint : integer hwnd, PaintInfo paintinfo -> boolean success = false [external("User32.dll", "EndPaint", "stdcall")]
 PostQuitMessage : integer exitcode [external("User32.dll", "PostQuitMessage", "stdcall")]
@@ -211,9 +212,12 @@ PostMessage : integer hwnd, integer message, integer wparam, string lparam -> in
 PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
 
 SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, string lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
+
+WaitMessage : -> boolean success = false [external("User32.dll", "WaitMessage", "stdcall")]
 
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
 MessageBox : integer hwnd, buffer message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
@@ -266,6 +270,9 @@ GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer
 GetTimeFormatEx : integer localenameptr, integer flags, integer timeptr, integer formatstrptr, integer bufferptr, integer buffersize -> integer ret = 0 [external("Kernel32.dll", "GetTimeFormatEx", "stdcall")]
 
 
+EnableWindow : integer hwnd, boolean enabled -> boolean ret = false [external("User32.dll", "EnableWindow", "stdcall")]
+
+
 SetCapture : integer hwnd -> integer prevhwnd = 0 [external("User32.dll", "SetCapture", "stdcall")]
 ReleaseCapture : -> boolean success = false [external("User32.dll", "ReleaseCapture", "stdcall")]
 
@@ -280,6 +287,15 @@ SetWindowSubclass : integer hwnd,
 	         [external("Comctl32.dll", "SetWindowSubclass", "stdcall")]
 	         
 DefSubclassProc : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0 [external("Comctl32.dll", "DefSubclassProc", "stdcall")]
+
+
+IsWindow : integer hwnd -> boolean iswindow = false [external("User32.dll", "IsWindow", "stdcall")]
+BringWindowToTop : integer hwnd -> boolean success = false [external("User32.dll", "BringWindowToTop", "stdcall")]
+
+AdjustWindowRect : Rect ref r, integer style, boolean menu -> boolean success = false [external("User32.dll", "AdjustWindowRect", "stdcall")]
+GetWindowRect : integer hwnd, Rect ref out -> boolean success = false [external("User32.dll", "GetWindowRect", "stdcall")]
+
+AllocConsole : -> boolean success = false [external("Kernel32.dll", "AllocConsole", "stdcall")]
 
 
 
@@ -375,10 +391,22 @@ global
 	integer SW_SHOW = 5
 	integer SW_HIDE = 0
 
+	integer WS_OVERLAPPEDWINDOW = 13565952
+
+	integer IDC_ARROW = 32512
+
+	integer WM_DESTROY = 2
 	integer WM_SIZE = 5
+	integer WM_PAINT = 15
+	integer WM_CLOSE = 0x10
+	integer WM_QUIT = 0x12
+	integer WM_SETFONT = 0x30
 	integer WM_COMMAND = 273
+	integer WM_KEYDOWN = 0x100
 
 	integer MB_ICONEXCLAMATION = 0x30
+
+	integer CW_USEDEFAULT = -2147483648
 
 
 	//
@@ -494,13 +522,9 @@ entrypoint :
 	}
 
 	integer IDI_ICON = 101
-	integer IDC_ARROW = 32512
 	integer COLOR_BTNFACE = 15
-	integer WS_OVERLAPPEDWINDOW = 13565952
-	integer CW_USEDEFAULT = -2147483648
 	integer SW_SHOWMAXIMIZED = 3
 	integer ES_READONLY = 0x800
-	integer WM_SETFONT = 0x30
 	integer ECM_SETCUEBANNER = 0x1501
 
 	integer hInstance = GetModuleHandle(0)
@@ -591,8 +615,8 @@ entrypoint :
 	Point pt = 0, 0
 	MessageInfo msg = 0, 0, 0, 0, 0, pt
 
-	while(GetMessage(msg, 0, 0, 0))
-	{
+	while(GetMessage(msg, 0, 0, 0) != 0)
+	{		
 		if(TranslateAccelerator(hwnd, accelerators, msg) == 0)
 		{
 			TranslateMessage(msg)
@@ -611,9 +635,6 @@ entrypoint :
 MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
 {
 	// TODO - factor this out into multiple functions
-	integer WM_PAINT = 15
-	integer WM_DESTROY = 2
-	integer WM_CLOSE = 0x10
 	integer WM_NOTIFY = 0x4e
 	integer WM_TIMER = 0x113
 	integer WM_ACTIVATE = 0x06
@@ -664,17 +685,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	}
 	elseif(message == WM_CLOSE)
 	{
-		boolean exit = true
-		integer scintillahwnd = GetActiveEditorHwnd()
-		if(GetScintillaDirty(scintillahwnd))
-		{
-			exit = PromptToSave(hwnd, scintillahwnd)
-		}
-
-		if(exit)
-		{
-			DestroyWindow(hwnd)
-		}
+		CheckForDirtyTabsAndExit(hwnd)
 	}
 	elseif(message == WM_DESTROY)
 	{
@@ -749,18 +760,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 1005)
 		{
-			// TODO - check ALL tabs for dirty docs and prompt to save each
-			boolean exit = true
-			integer scintillahwnd = GetActiveEditorHwnd()
-			if(GetScintillaDirty(scintillahwnd))
-			{
-				exit = PromptToSave(hwnd, scintillahwnd)
-			}
-
-			if(exit)
-			{
-				DestroyWindow(hwnd)
-			}
+			CheckForDirtyTabsAndExit(hwnd)
 		}
 		elseif(wparam == 2001)
 		{
@@ -772,14 +772,14 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		{
 			integer findwnd = GetDlgItem(GetDlgItem(hwnd, WNDID_TOOLBAR), TOOLID_FIND_EDIT)
 			buffer needlebuffer = 512
-			GetWindowText(findwnd, needlebuffer, 512)
+			GetWindowText(findwnd, needlebuffer, 511)
 			ScintillaFind(GetActiveEditorHwnd(), cast(string, needlebuffer))
 		}
 		elseif(wparam == 2003)
 		{
 			integer findwnd = GetDlgItem(GetDlgItem(hwnd, WNDID_TOOLBAR), TOOLID_FIND_EDIT)
 			buffer needlebuffer = 512
-			GetWindowText(findwnd, needlebuffer, 512)
+			GetWindowText(findwnd, needlebuffer, 511)
 			ScintillaFindReverse(GetActiveEditorHwnd(), cast(string, needlebuffer))
 		}
 		elseif(wparam == 3001)
@@ -925,7 +925,7 @@ ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 		if(wparam == TOOLID_FIND_BUTTON)
 		{
 			buffer needlebuffer = 512
-			GetWindowText(GetDlgItem(hwnd, TOOLID_FIND_EDIT), needlebuffer, 512)
+			GetWindowText(GetDlgItem(hwnd, TOOLID_FIND_EDIT), needlebuffer, 511)
 			
 			ScintillaFind(GetActiveEditorHwnd(), cast(string, needlebuffer))
 		}
@@ -959,6 +959,78 @@ FindBoxSubclassProc : integer hwnd, integer message, integer wparam, integer lpa
 		result = DefSubclassProc(hwnd, message, wparam, lparam)
 	}
 }
+
+
+SavePromptWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0
+{
+	if(message == WM_CLOSE)
+	{
+		EnableWindow(GetParent(hwnd), true)
+		DestroyWindow(hwnd)
+	}
+	elseif(message == WM_DESTROY)
+	{
+		// No specific handling needed
+	}
+	elseif(message == WM_PAINT)
+	{
+		integer TRANSPARENT = 1
+
+		Rect prect = 0, 0, 0, 0
+		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
+
+		integer hdc = BeginPaint(hwnd, ps)
+		
+		SetBkMode(hdc, TRANSPARENT)
+		SelectObject(hdc, FontUIDefault)
+
+		Rect client = 0, 0, 0, 0
+		GetClientRect(hwnd, client)
+		client.top = client.top + 3
+		client.left = client.left + 10
+		DrawText(hdc, unescape("The following documents have unsaved changes.\r\nSelect which (if any) to save before proceeding."), -1, client, 0)
+
+		EndPaint(hwnd, ps)		
+	}
+	elseif(message == WM_COMMAND)
+	{
+		wparam = wparam & 0xffff
+		if(wparam == 1001)
+		{
+			// TODO - save all tabs that are dirty and then kill the app
+		}
+		elseif(wparam == 1002)
+		{
+			DestroyTabs(CurrentTabs)
+			
+			list<OpenTab> newtablist = OpenTab(TAB_TYPE_SENTINEL, 0, "", ""), nothing
+			CurrentTabs = newtablist
+
+			DestroyWindow(hwnd)
+			PostQuitMessage(0)
+		}
+		elseif(wparam == 2)
+		{
+			DestroyWindow(hwnd)
+		}
+	}
+	elseif(message == WM_KEYDOWN)
+	{
+		if(wparam == 0x1b)		// Esc
+		{
+			DestroyWindow(hwnd)
+		}
+		else
+		{
+			result = DefWindowProc(hwnd, message, wparam, lparam)
+		}
+	}
+	else
+	{
+		result = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+
 
 
 SetScintillaScrolling : integer hwnd, integer width
@@ -1040,6 +1112,12 @@ SetScintillaText : integer hwnd, integer ptr, integer len
 
 	integer SCI_ADDTEXT = 2001
 	SendMessage(hwnd, SCI_ADDTEXT, len, ptr)
+
+	integer SCI_EMPTYUNDOBUFFER = 2175
+	SendMessage(hwnd, SCI_EMPTYUNDOBUFFER, 0, 0)
+
+	integer SCI_GOTOPOS = 2025
+	SendMessage(hwnd, SCI_GOTOPOS, 0, 0)
 }
 
 ClearScintillaText : integer hwnd
@@ -1047,6 +1125,9 @@ ClearScintillaText : integer hwnd
 	integer SCI_CLEARALL = 2004
 
 	SendMessage(hwnd, SCI_CLEARALL, 0, 0)
+
+	integer SCI_EMPTYUNDOBUFFER = 2175
+	SendMessage(hwnd, SCI_EMPTYUNDOBUFFER, 0, 0)
 }
 
 
@@ -1196,25 +1277,103 @@ GetScintillaDirty : integer hwnd -> boolean dirty = false
 }
 
 
-PromptToSave : integer hwnd, integer scintillahwnd -> boolean ret = false
+PromptToSaveAndExit : integer hwnd, list<OpenTab> ref dirtytabs -> boolean ret = false
 {
-	integer MB_ICONQUESTION = 0x020
-	integer MB_YESNOCANCEL = 0x003
-	integer YES = 6
-	integer NO = 7
-	integer CANCEL = 2
+	integer LB_SETSEL = 0x185
+	
+	WindowClass wc = sizeof(wc), 0, SavePromptWindowProcedure, 0, 0, GetHInstance(), 0, LoadCursor(0, IDC_ARROW), BrushBackground, "", "EraSavePromptClass", 0
+	RegisterClassEx(wc)
 
-	integer prompt = MessageBox(hwnd, "The current document has unsaved changes. Would you like to save them first?", "ERA Development Environment", MB_ICONQUESTION + MB_YESNOCANCEL)
-	if(prompt == YES)
+	Rect adjusted = 0, 0, 420, 390
+	AdjustWindowRect(adjusted, 0x02C80000, false)
+	
+	Rect parentrect = 0, 0, 0, 0
+	GetWindowRect(hwnd, parentrect)
+	
+	integer centeredx = ((parentrect.right - parentrect.left) - (adjusted.right - adjusted.left)) / 2
+	integer centeredy = ((parentrect.bottom - parentrect.top) - (adjusted.bottom - adjusted.top)) / 2
+	
+	integer dialoghwnd = CreateWindowEx(0, "EraSavePromptClass", "ERA - Epoch Development Environment", 0x02C80000, centeredx, centeredy, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, hwnd, 0, GetHInstance(), 0)
+
+	EnableWindow(hwnd, false)
+	
+	ShowWindow(dialoghwnd, SW_SHOW)
+
+	integer listhwnd = CreateWindowEx(0, "LISTBOX", "", 0x50800008, 10, 50, 400, 300, dialoghwnd, 0, GetHInstance(), 0)
+	SendMessage(listhwnd, WM_SETFONT, FontUIDefault, 0)
+	
+	PopulateListWithTabTitles(listhwnd, dirtytabs)
+	
+	SendMessage(listhwnd, LB_SETSEL, 1, -1)
+	
+	
+	integer savebuttonhwnd = CreateWindowEx(0, "BUTTON", "&Save Selected", 0x50800000, 10, 350, 150, 30, dialoghwnd, 1001, GetHInstance(), 0)
+	integer discardbuttonhwnd = CreateWindowEx(0, "BUTTON", "&Discard All", 0x50800000, 170, 350, 150, 30, dialoghwnd, 1002, GetHInstance(), 0)
+	integer cancelbuttonhwnd = CreateWindowEx(0, "BUTTON", "Cancel", 0x50800000, 330, 350, 80, 30, dialoghwnd, 2, GetHInstance(), 0)
+	
+	SendMessage(savebuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	SendMessage(discardbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	SendMessage(cancelbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	
+	boolean active = true
+	while(active)
 	{
-		SaveDocument(hwnd, scintillahwnd)
-		ret = true
+		WaitMessage()
+		active = ModalDialogPump(dialoghwnd)
 	}
-	elseif(prompt == NO)
+	
+	EnableWindow(hwnd, true)
+	BringWindowToTop(hwnd)
+}
+
+PopulateListWithTabTitles : integer listhwnd, list<OpenTab> ref dirtytabs
+{
+	integer LB_ADDSTRING = 0x180
+	integer LB_SETITEMDATA = 0x19a
+	
+	if(dirtytabs.value.TabTitle != "")
 	{
-		ret = true
+		integer index = SendMessage(listhwnd, LB_ADDSTRING, 0, dirtytabs.value.TabTitle)
+		SendMessage(listhwnd, LB_SETITEMDATA, index, dirtytabs.value.ContentsHWND)
+	}
+	
+	PopulateListWithTabTitles(listhwnd, dirtytabs.next)
+}
+
+PopulateListWithTabTitles : integer listhwnd, nothing
+
+
+ModalDialogPump : integer dialoghwnd -> boolean active = true
+{	
+	Point pt = 0, 0
+	MessageInfo msg = 0, 0, 0, 0, 0, pt
+
+	while(true)
+	{
+		integer result = GetMessage(msg, 0, 0, 0)
+		if(result == -1)
+		{
+			return()
+		}
+		
+		if(msg.message == WM_QUIT)
+		{
+			active = false
+			PostMessage(0, WM_QUIT, 0, 0)
+			return()
+		}
+
+		TranslateMessage(msg)
+		DispatchMessage(msg)
+
+		if(!IsWindow(dialoghwnd))
+		{
+			active = false
+			return()
+		}
 	}
 }
+
 
 ParseOK :
 {
@@ -1239,7 +1398,7 @@ PerformAutoIndent : integer hwnd
 	if(line > 0)
 	{
 		integer len = SendMessage(hwnd, SCI_LINELENGTH, line - 1, 0)
-		buffer prevline = len + 1
+		buffer prevline = len + 2
 
 		SendMessage(hwnd, SCI_GETLINE, line - 1, prevline)
 
@@ -1261,9 +1420,12 @@ PerformAutoIndent : integer hwnd
 		}
 		
 		string suffix = ""
-		if(substring(prevlinestr, len - 3, 1) == "{")
+		if(len > 3)
 		{
-			suffix = unescape("\t")
+			if(substring(prevlinestr, len - 3, 1) == "{")
+			{
+				suffix = unescape("\t")
+			}
 		}
 
 		if(pos > 0)
@@ -1290,7 +1452,7 @@ PerformAutoUnindent : integer hwnd
 	integer line = SendMessage(hwnd, SCI_LINEFROMPOSITION, editpos, 0)
 	
 	integer len = SendMessage(hwnd, SCI_LINELENGTH, line, 0)
-	buffer linebuffer = len + 1
+	buffer linebuffer = len + 2
 
 	SendMessage(hwnd, SCI_GETLINE, line, linebuffer)
 
@@ -1333,12 +1495,11 @@ TrimFilePath : string fullpath -> string filename = ""
 GetCurrentTimeFormatted : -> string ret = ""
 {
 	integer reqlen = GetTimeFormatEx(0, 0, 0, 0, 0, 0) + 1
-	buffer timestr = reqlen
+	buffer timestr = reqlen * 2
 	
 	GetTimeFormatEx(0, 0, 0, 0, timestr, reqlen - 1)
 	
 	ret = cast(string, timestr)
-	ret = substring(ret, 0, length(ret) - 2)
 }
 
 
@@ -1378,7 +1539,7 @@ CountTabs : nothing -> 0
 
 CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
 {
-	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
+	editorhwnd = CreateWindowEx(0, "EDIT", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
 	SetScintillaFont(editorhwnd, "Consolas", 10)
 	SetScintillaLexer(editorhwnd)
 	ScintillaColorize(editorhwnd)
@@ -1395,6 +1556,7 @@ CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
 	}
 	
 	AppendTab(CurrentTabs, CurrentTabs.next, tab, 0)
+	SetFocus(editorhwnd)
 }
 
 
@@ -1518,9 +1680,12 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 
 GetActiveEditorHwnd : -> integer hwnd = 0
 {
-	OpenTab tab = 0, 0, "", ""
-	FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
-	hwnd = tab.ContentsHWND
+	if(CountTabs(CurrentTabs) > 0)
+	{
+		OpenTab tab = 0, 0, "", ""
+		FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
+		hwnd = tab.ContentsHWND
+	}
 }
 
 GetActiveEditorChildCode : -> WNDID_TAB_START + ActiveTabIndex
@@ -1614,3 +1779,44 @@ ScintillaFindReverse : integer hwnd, string needle
 		PostMessage(hwnd, SCI_SCROLLCARET, 0, 0)
 	}
 }
+
+
+GetDirtyTabs : list<OpenTab> ref tabs, list<OpenTab> ref dirtytabs -> boolean anydirty = false
+{
+	if(GetScintillaDirty(tabs.value.ContentsHWND))
+	{
+		prepend<OpenTab>(dirtytabs, tabs.value)
+		anydirty = true
+	}
+
+	if(GetDirtyTabs(tabs.next, dirtytabs))
+	{
+		anydirty = true
+	}
+}
+
+GetDirtyTabs : nothing, list<OpenTab> ref out -> false
+
+
+CheckForDirtyTabsAndExit : integer hwnd
+{
+	OpenTab sentineltab = TAB_TYPE_SENTINEL, 0, "", ""
+	list<OpenTab> dirtytabs = sentineltab, nothing
+	
+	if(GetDirtyTabs(CurrentTabs, dirtytabs))
+	{
+		PromptToSaveAndExit(hwnd, dirtytabs)
+	}
+	else
+	{
+		DestroyWindow(hwnd)
+	}
+}
+
+DestroyTabs : list<OpenTab> ref tabs
+{
+	DestroyWindow(tabs.value.ContentsHWND)
+	DestroyTabs(tabs.next)
+}
+
+DestroyTabs : nothing
