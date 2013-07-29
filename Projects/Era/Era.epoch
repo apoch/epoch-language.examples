@@ -1539,7 +1539,7 @@ CountTabs : nothing -> 0
 
 CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
 {
-	editorhwnd = CreateWindowEx(0, "EDIT", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
+	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
 	SetScintillaFont(editorhwnd, "Consolas", 10)
 	SetScintillaLexer(editorhwnd)
 	ScintillaColorize(editorhwnd)
