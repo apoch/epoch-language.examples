@@ -206,14 +206,10 @@ SetTimer : integer hwnd, integer eventid, integer time, integer func -> integer 
 
 GetParent : integer hwnd -> integer parenthwnd = 0 [external("User32.dll", "GetParent", "stdcall")]
 
-PostMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
-PostMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
-PostMessage : integer hwnd, integer message, integer wparam, string lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
-PostMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "PostMessageW", "stdcall")]
-
 SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, string lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
-SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
 
@@ -571,7 +567,7 @@ entrypoint :
 	FontUIMarlett = CreateFont(15, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Marlett")
 
 	integer HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50800000 + ES_READONLY, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
-	PostMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
+	SendMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
 	SetWindowText(HistoryHWND, GetCurrentTimeFormatted() ; ": Era IDE Started")
 	
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
@@ -599,10 +595,10 @@ entrypoint :
 	integer FindBoxHWND = CreateWindowEx(0, "Edit", "", 0x50800000, 0, 0, 10, 10, ToolbarHWND, TOOLID_FIND_EDIT, hInstance, 0)
 	integer FindButtonHWND = CreateWindowEx(0, "Button", "Go", 0x50008001, 0, 0, 10, 10, ToolbarHWND, TOOLID_FIND_BUTTON, hInstance, 0)
 
-	PostMessage(FindBoxHWND, WM_SETFONT, FontMonospace, 0)
-	PostMessage(FindButtonHWND, WM_SETFONT, FontUIDefault, 0)
+	SendMessage(FindBoxHWND, WM_SETFONT, FontMonospace, 0)
+	SendMessage(FindButtonHWND, WM_SETFONT, FontUIDefault, 0)
 	
-	PostMessage(FindBoxHWND, ECM_SETCUEBANNER, 0, "Search")
+	SendMessage(FindBoxHWND, ECM_SETCUEBANNER, 0, "Search")
 	SetWindowSubclass(FindBoxHWND, FindBoxSubclassProc, 0, 0)
 
 	integer accelerators = LoadAccelerators(hInstance, 9000)
@@ -806,7 +802,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				{
 					integer scintillawnd = GetActiveEditorHwnd()
 					integer linenumber = SendMessage(scintillawnd, SCI_LINEFROMPOSITION, scn.position, 0)
-					PostMessage(scintillawnd, SCI_TOGGLEFOLD, linenumber, 0)
+					SendMessage(scintillawnd, SCI_TOGGLEFOLD, linenumber, 0)
 				}
 			}
 			elseif(nmhdr.code == SCN_UPDATEUI)
@@ -951,7 +947,7 @@ FindBoxSubclassProc : integer hwnd, integer message, integer wparam, integer lpa
 	
 	if((message == WM_CHAR) && (wparam == VK_RETURN))
 	{
-		PostMessage(GetParent(GetParent(hwnd)), WM_COMMAND, 2002, 0)
+		SendMessage(GetParent(GetParent(hwnd)), WM_COMMAND, 2002, 0)
 		result = 0
 	}
 	else
@@ -1038,8 +1034,8 @@ SetScintillaScrolling : integer hwnd, integer width
 	integer SCI_SETSCROLLWIDTH = 2274
 	integer SCI_SETSCROLLWIDTHTRACKING = 2516
 
-	PostMessage(hwnd, SCI_SETSCROLLWIDTH, width, 0)
-	PostMessage(hwnd, SCI_SETSCROLLWIDTHTRACKING, 1, 0)
+	SendMessage(hwnd, SCI_SETSCROLLWIDTH, width, 0)
+	SendMessage(hwnd, SCI_SETSCROLLWIDTHTRACKING, 1, 0)
 }
 
 
@@ -1052,22 +1048,22 @@ SetScintillaFont : integer hwnd, string fontname, integer fontsize
 	integer SCI_STYLESETFORE = 2051
 	integer SCI_STYLESETBOLD = 2053
 
-	PostMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
-	PostMessage(hwnd, SCI_STYLESETFONT, 32, narrowstring(fontname))
-	PostMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
-	PostMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
+	SendMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
+	SendMessage(hwnd, SCI_STYLESETFONT, 32, narrowstring(fontname))
+	SendMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
+	SendMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
 
-	PostMessage(hwnd, SCI_STYLESETFORE, 1, 32768)
-	PostMessage(hwnd, SCI_STYLESETFORE, 2, 0xff5b77)
-	PostMessage(hwnd, SCI_STYLESETFORE, 3, 1381795)
+	SendMessage(hwnd, SCI_STYLESETFORE, 1, 32768)
+	SendMessage(hwnd, SCI_STYLESETFORE, 2, 0xff5b77)
+	SendMessage(hwnd, SCI_STYLESETFORE, 3, 1381795)
 
-	PostMessage(hwnd, SCI_STYLESETBOLD, 4, 1)
+	SendMessage(hwnd, SCI_STYLESETBOLD, 4, 1)
 
-	PostMessage(hwnd, SCI_STYLESETFORE, 5, 8421376)
-	PostMessage(hwnd, SCI_STYLESETFORE, 6, 8421376)
-	PostMessage(hwnd, SCI_STYLESETFORE, 7, 16744576)
+	SendMessage(hwnd, SCI_STYLESETFORE, 5, 8421376)
+	SendMessage(hwnd, SCI_STYLESETFORE, 6, 8421376)
+	SendMessage(hwnd, SCI_STYLESETFORE, 7, 16744576)
 
-	PostMessage(hwnd, SCI_STYLESETFORE, 8, 16711680)
+	SendMessage(hwnd, SCI_STYLESETFORE, 8, 16711680)
 }
 
 SetScintillaLexer : integer hwnd
@@ -1075,35 +1071,35 @@ SetScintillaLexer : integer hwnd
 	integer SCI_SETLEXERLANGUAGE = 4006
 	integer SCI_LOADLEXERLIBRARY = 4007
 
-	PostMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowstring("epochlexer.dll"))
-	PostMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowstring("epoch"))
+	SendMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowstring("epochlexer.dll"))
+	SendMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowstring("epoch"))
 
-	PostMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold"), narrowstring("1"))
-	PostMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold.compact"), narrowstring("0"))
+	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold"), narrowstring("1"))
+	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold.compact"), narrowstring("0"))
 
-	PostMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 0)
-	PostMessage(hwnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL)
-	PostMessage(hwnd, SCI_SETMARGINMASKN, 1, SC_MASK_FOLDERS)
-	PostMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 20)
+	SendMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 0)
+	SendMessage(hwnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL)
+	SendMessage(hwnd, SCI_SETMARGINMASKN, 1, SC_MASK_FOLDERS)
+	SendMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 20)
 
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_PLUS)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_MINUS)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEREND, SC_MARK_EMPTY)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERMIDTAIL, SC_MARK_EMPTY)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPENMID, SC_MARK_EMPTY)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERSUB, SC_MARK_EMPTY)
-	PostMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERTAIL, SC_MARK_EMPTY)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_PLUS)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_MINUS)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEREND, SC_MARK_EMPTY)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERMIDTAIL, SC_MARK_EMPTY)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPENMID, SC_MARK_EMPTY)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERSUB, SC_MARK_EMPTY)
+	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDERTAIL, SC_MARK_EMPTY)
 
-	PostMessage(hwnd, SCI_SETFOLDFLAGS, 16, 0)
+	SendMessage(hwnd, SCI_SETFOLDFLAGS, 16, 0)
 
-	PostMessage(hwnd, SCI_SETMARGINSENSITIVEN, 1, 1)
+	SendMessage(hwnd, SCI_SETMARGINSENSITIVEN, 1, 1)
 }
 
 ScintillaColorize : integer hwnd
 {
 	integer SCI_COLOURISE = 4003
 
-	PostMessage(hwnd, SCI_COLOURISE, 0, -1)
+	SendMessage(hwnd, SCI_COLOURISE, 0, -1)
 }
 
 SetScintillaText : integer hwnd, integer ptr, integer len
@@ -1264,7 +1260,7 @@ SaveDocumentAs : integer hwnd, integer scintillahwnd
 SetScintillaNonDirty : integer hwnd
 {
 	integer SCI_SETSAVEPOINT = 2014
-	PostMessage(hwnd, SCI_SETSAVEPOINT, 0, 0)	
+	SendMessage(hwnd, SCI_SETSAVEPOINT, 0, 0)	
 }
 
 GetScintillaDirty : integer hwnd -> boolean dirty = false
@@ -1359,7 +1355,7 @@ ModalDialogPump : integer dialoghwnd -> boolean active = true
 		if(msg.message == WM_QUIT)
 		{
 			active = false
-			PostMessage(0, WM_QUIT, 0, 0)
+			SendMessage(0, WM_QUIT, 0, 0)
 			return()
 		}
 
@@ -1431,11 +1427,11 @@ PerformAutoIndent : integer hwnd
 		if(pos > 0)
 		{
 			string indentprefix = substring(prevlinestr, 0, pos)
-			PostMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(indentprefix ; suffix))
+			SendMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(indentprefix ; suffix))
 		}
 		else
 		{
-			PostMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(suffix))
+			SendMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(suffix))
 		}
 	}
 }
@@ -1460,9 +1456,9 @@ PerformAutoUnindent : integer hwnd
 	
 	if(substring(linestr, 0, 1) == unescape("\t"))
 	{
-		PostMessage(hwnd, SCI_SETTARGETSTART, editpos - 2, 0)
-		PostMessage(hwnd, SCI_SETTARGETEND, editpos - 1, 0)
-		PostMessage(hwnd, SCI_REPLACETARGET, 0, narrowstring(""))
+		SendMessage(hwnd, SCI_SETTARGETSTART, editpos - 2, 0)
+		SendMessage(hwnd, SCI_SETTARGETEND, editpos - 1, 0)
+		SendMessage(hwnd, SCI_REPLACETARGET, 0, narrowstring(""))
 	}
 }
 
@@ -1755,7 +1751,7 @@ ScintillaFind : integer hwnd, string needle
 	integer findpos = SendMessage(hwnd, SCI_SEARCHNEXT, 0, narrowneedle)
 	if(findpos != -1)
 	{
-		PostMessage(hwnd, SCI_SCROLLCARET, 0, 0)
+		SendMessage(hwnd, SCI_SCROLLCARET, 0, 0)
 	}
 }
 
@@ -1776,7 +1772,7 @@ ScintillaFindReverse : integer hwnd, string needle
 	integer findpos = SendMessage(hwnd, SCI_SEARCHPREV, 0, narrowneedle)
 	if(findpos != -1)
 	{
-		PostMessage(hwnd, SCI_SCROLLCARET, 0, 0)
+		SendMessage(hwnd, SCI_SCROLLCARET, 0, 0)
 	}
 }
 
