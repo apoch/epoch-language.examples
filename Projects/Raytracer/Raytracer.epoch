@@ -32,7 +32,7 @@
 type listnode<type T> : list<T> | nothing		// Sum type which allows us to terminate the list
 
 structure list<type T> :				// Structure type which embeds a link to the next node
-	T value,
+	T ref value,
 	listnode<T> next
 
 
@@ -329,7 +329,9 @@ Render : Scene ref scene, buffer ref bitmap
 	// which will eliminate the need for this hackery entirely.
 	Point scratchp = 0.0, 0.0, 0.0
 	Vector scratchv = 0.0, 0.0, 0.0
-	Ray scratchr = scratchp, scratchv
+	Point scratchp2 = 0.0, 0.0, 0.0
+	Vector scratchv2 = 0.0, 0.0, 0.0
+	Ray scratchr = scratchp2, scratchv2
 
 	integer x = 0
 	integer y = 0
