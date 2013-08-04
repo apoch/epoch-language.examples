@@ -208,7 +208,7 @@ GetParent : integer hwnd -> integer parenthwnd = 0 [external("User32.dll", "GetP
 
 SendMessage : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, string lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
-SendMessage : integer hwnd, integer message, integer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
@@ -1048,8 +1048,10 @@ SetScintillaFont : integer hwnd, string fontname, integer fontsize
 	integer SCI_STYLESETFORE = 2051
 	integer SCI_STYLESETBOLD = 2053
 
+	buffer narrowfontname = narrowstring(fontname)
+
 	SendMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
-	SendMessage(hwnd, SCI_STYLESETFONT, 32, narrowstring(fontname))
+	SendMessage(hwnd, SCI_STYLESETFONT, 32, narrowfontname)
 	SendMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
 	SendMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
 
@@ -1071,8 +1073,11 @@ SetScintillaLexer : integer hwnd
 	integer SCI_SETLEXERLANGUAGE = 4006
 	integer SCI_LOADLEXERLIBRARY = 4007
 
-	SendMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowstring("epochlexer.dll"))
-	SendMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowstring("epoch"))
+	buffer narrowdllname = narrowstring("epochlexer.dll")
+	buffer narrowlanguagename = narrowstring("epoch")
+
+	SendMessage(hwnd, SCI_LOADLEXERLIBRARY, 0, narrowdllname)
+	SendMessage(hwnd, SCI_SETLEXERLANGUAGE, 0, narrowlanguagename)
 
 	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold"), narrowstring("1"))
 	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold.compact"), narrowstring("0"))
@@ -1427,11 +1432,13 @@ PerformAutoIndent : integer hwnd
 		if(pos > 0)
 		{
 			string indentprefix = substring(prevlinestr, 0, pos)
-			SendMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(indentprefix ; suffix))
+			buffer prefix = narrowstring(indentprefix ; suffix)
+			SendMessage(hwnd, SCI_REPLACESEL, 0, prefix)
 		}
 		else
 		{
-			SendMessage(hwnd, SCI_REPLACESEL, 0, narrowstring(suffix))
+			buffer narrowsuffix = narrowstring(suffix)
+			SendMessage(hwnd, SCI_REPLACESEL, 0, narrowsuffix)
 		}
 	}
 }
@@ -1456,9 +1463,11 @@ PerformAutoUnindent : integer hwnd
 	
 	if(substring(linestr, 0, 1) == unescape("\t"))
 	{
+		buffer narrowempty = narrowstring("")
+
 		SendMessage(hwnd, SCI_SETTARGETSTART, editpos - 2, 0)
 		SendMessage(hwnd, SCI_SETTARGETEND, editpos - 1, 0)
-		SendMessage(hwnd, SCI_REPLACETARGET, 0, narrowstring(""))
+		SendMessage(hwnd, SCI_REPLACETARGET, 0, narrowempty)
 	}
 }
 
