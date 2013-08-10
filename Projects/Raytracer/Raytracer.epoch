@@ -118,11 +118,11 @@ structure Scene :
 // TODO - fix type inference on generic calls
 //
 
-dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
-dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z
+dot : Vector ref v1, Vector ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z	[nogc]
+dot : Vector ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z	[nogc]
+dot : Point ref v1, Point ref v2 -> v1.x * v2.x + v1.y * v2.y + v1.z * v2.z	[nogc]
 
-normalize : Vector ref in
+normalize : Vector ref in [nogc]
 {
 	real length = sqrt(in.x * in.x + in.y * in.y + in.z * in.z)
 	in.x = in.x / length
@@ -130,7 +130,7 @@ normalize : Vector ref in
 	in.z = in.z / length
 }
 
-rgb : Color ref c -> integer ret = 0
+rgb : Color ref c -> integer ret = 0 [nogc]
 {
 	ret += cast(integer, c.b * 255.0)
 	ret += cast(integer, c.g * 255.0) * 256
@@ -144,7 +144,7 @@ rgb : Color ref c -> integer ret = 0
 // Ray-geometry intersection tests
 //
 
-intersect : Plane ref p, Ray ref r -> real t = 100000.0
+intersect : Plane ref p, Ray ref r -> real t = 100000.0 [nogc]
 {
 	real dotprod = dot(p.normal, r.direction)
 	if(dotprod < 0.0)
@@ -157,7 +157,7 @@ intersect : Plane ref p, Ray ref r -> real t = 100000.0
 	}
 }
 
-intersect : Sphere ref s, Ray ref r -> real t = 100000.0
+intersect : Sphere ref s, Ray ref r -> real t = 100000.0 [nogc]
 {
 	// TODO - transform ray into object space
 
@@ -206,9 +206,9 @@ intersect : Sphere ref s, Ray ref r -> real t = 100000.0
 // Routines for testing a ray against all objects in a scene
 //
 
-test : nothing, Ray ref r, Geometry ref closest, real ref t
+test : nothing, Ray ref r, Geometry ref closest, real ref t [nogc]
 
-test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t
+test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t [nogc]
 {
 	real thist = intersect(geometry.value, r)
 	if(thist < t)
@@ -222,9 +222,9 @@ test : list<Geometry> ref geometry, Ray ref r, Geometry ref closest, real ref t
 }
 
 
-shadowtest : nothing, Ray ref r -> boolean ret = false
+shadowtest : nothing, Ray ref r -> boolean ret = false [nogc]
 
-shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false
+shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false [nogc]
 {
 	real t = intersect(geometry.value, r)
 	if(t < 100000.0)
@@ -244,7 +244,7 @@ shadowtest : list<Geometry> ref geometry, Ray ref r -> boolean ret = false
 // Lighting and coloration routines
 //
 
-shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0
+shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0 [nogc]
 {
 	sr.direction.x = intersectpt.x - s.center.x
 	sr.direction.y = intersectpt.y - s.center.y
@@ -261,7 +261,7 @@ shade : Sphere ref s, Scene ref scene, Point ref intersectpt, Vector ref lightdi
 }
 
 
-shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0
+shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdirvec, Ray ref sr -> integer c = 0 [nogc]
 {
 	real i = p.normal.x * lightdirvec.x + p.normal.y * lightdirvec.y + p.normal.z * lightdirvec.z
 	if(i > 0.0)
@@ -292,7 +292,7 @@ shade : Plane ref p, Scene ref scene, Point ref intersectpt, Vector ref lightdir
 // Master ray trace handler
 //
 
-trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> integer c = 0
+trace : Scene ref scene, Ray ref r, Point ref p, Vector ref v, Ray ref sr -> integer c = 0 [nogc]
 {
 	Geometry closestobj = scene.objects.value
 	real t = 100000.0
