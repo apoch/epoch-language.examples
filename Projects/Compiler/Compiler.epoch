@@ -129,108 +129,111 @@ entrypoint :
 
 PrepareStringTable :
 {
-	OnCodeGenRegisterString(1, "+")
-	OnCodeGenRegisterString(2, "-")
-	OnCodeGenRegisterString(3, "*")
-	OnCodeGenRegisterString(4, "/")
-	OnCodeGenRegisterString(5, "+=@@real")
-	OnCodeGenRegisterString(6, "+@@real")
-	OnCodeGenRegisterString(7, "-=@@real")
-	OnCodeGenRegisterString(8, "-@@real")
-	OnCodeGenRegisterString(9, "*@@real")
-	OnCodeGenRegisterString(10, "/@@real")
-	OnCodeGenRegisterString(11, "+=@@integer")
-	OnCodeGenRegisterString(12, "+@@integer")
-	OnCodeGenRegisterString(13, "-=@@integer")
-	OnCodeGenRegisterString(14, "-@@integer")
-	OnCodeGenRegisterString(15, "*@@integer")
-	OnCodeGenRegisterString(16, "/@@integer")
-	OnCodeGenRegisterString(17, "++@@integer")
-	OnCodeGenRegisterString(18, "--@@integer")
-	OnCodeGenRegisterString(19, "!@@integer")
-	OnCodeGenRegisterString(20, "++@@real")
-	OnCodeGenRegisterString(21, "--@@real")
-	OnCodeGenRegisterString(22, "+=")
-	OnCodeGenRegisterString(23, "-=")
-	OnCodeGenRegisterString(24, "!")
-	OnCodeGenRegisterString(25, "++")
-	OnCodeGenRegisterString(26, "--")
-	OnCodeGenRegisterString(27, "&")
-	OnCodeGenRegisterString(28, "&&")
-	OnCodeGenRegisterString(29, "!@@boolean")
-	OnCodeGenRegisterString(30, "cmdlineisvalid")
-	OnCodeGenRegisterString(31, "cmdlinegetcount")
-	OnCodeGenRegisterString(32, "cmdlineget")
-	OnCodeGenRegisterString(33, "==")
-	OnCodeGenRegisterString(34, "!=")
-	OnCodeGenRegisterString(35, ">")
-	OnCodeGenRegisterString(36, "<")
-	OnCodeGenRegisterString(37, "==@@integer")
-	OnCodeGenRegisterString(38, "==@@integer16")
-	OnCodeGenRegisterString(39, "!=@@integer")
-	OnCodeGenRegisterString(40, "==@@boolean")
-	OnCodeGenRegisterString(41, "!=@@boolean")
-	OnCodeGenRegisterString(42, "==@@string")
-	OnCodeGenRegisterString(43, "!=@@string")
-	OnCodeGenRegisterString(44, "==@@real")
-	OnCodeGenRegisterString(45, ">@@integer")
-	OnCodeGenRegisterString(46, "<@@integer")
-	OnCodeGenRegisterString(47, ">@@real")
-	OnCodeGenRegisterString(48, "<@@real")
-	OnCodeGenRegisterString(49, "print")
-	OnCodeGenRegisterString(50, "read")
-	OnCodeGenRegisterString(51, "assert")
-	OnCodeGenRegisterString(52, "passtest")
-	OnCodeGenRegisterString(53, "sqrt")
-	OnCodeGenRegisterString(54, "plotpixel")
-	OnCodeGenRegisterString(55, "breakpoint")
-	OnCodeGenRegisterString(56, "if")
-	OnCodeGenRegisterString(57, "elseif")
-	OnCodeGenRegisterString(58, "else")
-	OnCodeGenRegisterString(59, "while")
-	OnCodeGenRegisterString(60, "do")
-	OnCodeGenRegisterString(61, "return")
-	OnCodeGenRegisterString(62, "constructor")
-	OnCodeGenRegisterString(63, "external")
-	OnCodeGenRegisterString(64, "@@external")
-	OnCodeGenRegisterString(65, "sizeof")
-	OnCodeGenRegisterString(66, "marshalstructure")
-	OnCodeGenRegisterString(67, "writebuffer")
-	OnCodeGenRegisterString(68, "writebuffer@@string")
-	OnCodeGenRegisterString(69, "writebuffer@@multiple")
-	OnCodeGenRegisterString(70, "writebuffer@@real")
-	OnCodeGenRegisterString(71, "unescape")
-	OnCodeGenRegisterString(72, "substring")
-	OnCodeGenRegisterString(73, "substring@@withlength")
-	OnCodeGenRegisterString(74, "substring@@nolength")
-	OnCodeGenRegisterString(75, ";")
-	OnCodeGenRegisterString(76, "length")
-	OnCodeGenRegisterString(77, "narrowstring")
-	OnCodeGenRegisterString(78, "widenfromptr")
-	OnCodeGenRegisterString(79, "string")
-	OnCodeGenRegisterString(80, "integer")
-	OnCodeGenRegisterString(81, "integer16")
-	OnCodeGenRegisterString(82, "real")
-	OnCodeGenRegisterString(83, "cast@@integer_to_string")
-	OnCodeGenRegisterString(84, "cast@@string_to_integer")
-	OnCodeGenRegisterString(85, "cast@@real_to_integer")
-	OnCodeGenRegisterString(86, "cast@@integer_to_real")
-	OnCodeGenRegisterString(87, "cast@@boolean_to_string")
-	OnCodeGenRegisterString(88, "cast@@real_to_string")
-	OnCodeGenRegisterString(89, "cast@@buffer_to_string")
-	OnCodeGenRegisterString(90, "cast@@boolean_to_integer")
-	OnCodeGenRegisterString(91, "cast@@integer_to_integer16")
-	OnCodeGenRegisterString(92, "cast@@integer16_to_integer")
-	OnCodeGenRegisterString(93, "boolean")
-	OnCodeGenRegisterString(94, "buffer")
-	OnCodeGenRegisterString(95, "nothing")
-	OnCodeGenRegisterString(96, "buffer@@copy")
-	OnCodeGenRegisterString(97, "cast")
-	OnCodeGenRegisterString(98, ".")
-	OnCodeGenRegisterString(99, "identifier")
-	OnCodeGenRegisterString(100, "function")
+	integer counter = 0
+	OnCodeGenRegisterString((++counter), "+")
+	OnCodeGenRegisterString((++counter), "-")
+	OnCodeGenRegisterString((++counter), "*")
+	OnCodeGenRegisterString((++counter), "/")
+	OnCodeGenRegisterString((++counter), "+=@@real")
+	OnCodeGenRegisterString((++counter), "+@@real")
+	OnCodeGenRegisterString((++counter), "-=@@real")
+	OnCodeGenRegisterString((++counter), "-@@real")
+	OnCodeGenRegisterString((++counter), "*@@real")
+	OnCodeGenRegisterString((++counter), "/@@real")
+	OnCodeGenRegisterString((++counter), "+=@@integer")
+	OnCodeGenRegisterString((++counter), "+@@integer")
+	OnCodeGenRegisterString((++counter), "-=@@integer")
+	OnCodeGenRegisterString((++counter), "-@@integer")
+	OnCodeGenRegisterString((++counter), "*@@integer")
+	OnCodeGenRegisterString((++counter), "/@@integer")
+	OnCodeGenRegisterString((++counter), "++@@integer")
+	OnCodeGenRegisterString((++counter), "--@@integer")
+	OnCodeGenRegisterString((++counter), "!@@integer")
+	OnCodeGenRegisterString((++counter), "++@@real")
+	OnCodeGenRegisterString((++counter), "--@@real")
+	OnCodeGenRegisterString((++counter), "+=")
+	OnCodeGenRegisterString((++counter), "-=")
+	OnCodeGenRegisterString((++counter), "!")
+	OnCodeGenRegisterString((++counter), "++")
+	OnCodeGenRegisterString((++counter), "--")
+	OnCodeGenRegisterString((++counter), "&")
+	OnCodeGenRegisterString((++counter), "&&")
+	OnCodeGenRegisterString((++counter), "!@@boolean")
+	OnCodeGenRegisterString((++counter), "cmdlineisvalid")
+	OnCodeGenRegisterString((++counter), "cmdlinegetcount")
+	OnCodeGenRegisterString((++counter), "cmdlineget")
+	OnCodeGenRegisterString((++counter), "==")
+	OnCodeGenRegisterString((++counter), "!=")
+	OnCodeGenRegisterString((++counter), ">")
+	OnCodeGenRegisterString((++counter), "<")
+	OnCodeGenRegisterString((++counter), "==@@integer")
+	OnCodeGenRegisterString((++counter), "==@@integer16")
+	OnCodeGenRegisterString((++counter), "!=@@integer")
+	OnCodeGenRegisterString((++counter), "==@@boolean")
+	OnCodeGenRegisterString((++counter), "!=@@boolean")
+	OnCodeGenRegisterString((++counter), "==@@string")
+	OnCodeGenRegisterString((++counter), "!=@@string")
+	OnCodeGenRegisterString((++counter), "==@@real")
+	OnCodeGenRegisterString((++counter), ">@@integer")
+	OnCodeGenRegisterString((++counter), "<@@integer")
+	OnCodeGenRegisterString((++counter), ">@@real")
+	OnCodeGenRegisterString((++counter), "<@@real")
+	OnCodeGenRegisterString((++counter), "print")
+	OnCodeGenRegisterString((++counter), "read")
+	OnCodeGenRegisterString((++counter), "assert")
+	OnCodeGenRegisterString((++counter), "passtest")
+	OnCodeGenRegisterString((++counter), "sqrt")
+	OnCodeGenRegisterString((++counter), "plotpixel")
+	OnCodeGenRegisterString((++counter), "breakpoint")
+	OnCodeGenRegisterString((++counter), "if")
+	OnCodeGenRegisterString((++counter), "elseif")
+	OnCodeGenRegisterString((++counter), "else")
+	OnCodeGenRegisterString((++counter), "while")
+	OnCodeGenRegisterString((++counter), "do")
+	OnCodeGenRegisterString((++counter), "return")
+	OnCodeGenRegisterString((++counter), "constructor")
+	OnCodeGenRegisterString((++counter), "external")
+	OnCodeGenRegisterString((++counter), "@@external")
+	OnCodeGenRegisterString((++counter), "nogc")
+	OnCodeGenRegisterString((++counter), "sizeof")
+	OnCodeGenRegisterString((++counter), "marshalstructure")
+	OnCodeGenRegisterString((++counter), "writebuffer")
+	OnCodeGenRegisterString((++counter), "writebuffer@@string")
+	OnCodeGenRegisterString((++counter), "writebuffer@@multiple")
+	OnCodeGenRegisterString((++counter), "writebuffer@@real")
+	OnCodeGenRegisterString((++counter), "unescape")
+	OnCodeGenRegisterString((++counter), "substring")
+	OnCodeGenRegisterString((++counter), "substring@@withlength")
+	OnCodeGenRegisterString((++counter), "substring@@nolength")
+	OnCodeGenRegisterString((++counter), ";")
+	OnCodeGenRegisterString((++counter), "length")
+	OnCodeGenRegisterString((++counter), "narrowstring")
+	OnCodeGenRegisterString((++counter), "widenfromptr")
+	OnCodeGenRegisterString((++counter), "widenfrombuffer")
+	OnCodeGenRegisterString((++counter), "string")
+	OnCodeGenRegisterString((++counter), "integer")
+	OnCodeGenRegisterString((++counter), "integer16")
+	OnCodeGenRegisterString((++counter), "real")
+	OnCodeGenRegisterString((++counter), "cast@@integer_to_string")
+	OnCodeGenRegisterString((++counter), "cast@@string_to_integer")
+	OnCodeGenRegisterString((++counter), "cast@@real_to_integer")
+	OnCodeGenRegisterString((++counter), "cast@@integer_to_real")
+	OnCodeGenRegisterString((++counter), "cast@@boolean_to_string")
+	OnCodeGenRegisterString((++counter), "cast@@real_to_string")
+	OnCodeGenRegisterString((++counter), "cast@@buffer_to_string")
+	OnCodeGenRegisterString((++counter), "cast@@boolean_to_integer")
+	OnCodeGenRegisterString((++counter), "cast@@integer_to_integer16")
+	OnCodeGenRegisterString((++counter), "cast@@integer16_to_integer")
+	OnCodeGenRegisterString((++counter), "boolean")
+	OnCodeGenRegisterString((++counter), "buffer")
+	OnCodeGenRegisterString((++counter), "nothing")
+	OnCodeGenRegisterString((++counter), "buffer@@copy")
+	OnCodeGenRegisterString((++counter), "cast")
+	OnCodeGenRegisterString((++counter), ".")
+	OnCodeGenRegisterString((++counter), "identifier")
+	OnCodeGenRegisterString((++counter), "function")
 
-	CurrentStringHandle = 101
+	CurrentStringHandle = counter + 1
 }
 
 
@@ -315,7 +318,11 @@ Lex : string code, integer len
 
 		if(state == CHARACTER_CLASS_WHITE)
 		{
-			if(!IsWhitespace(c))
+			if((c == "/") && (charat(code, index + 1) == "/"))
+			{
+				state = CHARACTER_CLASS_COMMENT
+			}
+			elseif(!IsWhitespace(c))
 			{
 				state = Classify(c)
 				lasttokenstart = index
@@ -353,6 +360,17 @@ Lex : string code, integer len
 
 			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
 			lasttokenstart = index
+		}
+		elseif(state == CHARACTER_CLASS_COMMENT)
+		{
+			if(c == unescape("\r"))
+			{
+				state = CHARACTER_CLASS_WHITE
+			}
+			elseif(c == unescape("\n"))
+			{
+				state = CHARACTER_CLASS_WHITE
+			}
 		}
 
 
@@ -523,7 +541,7 @@ ParseFunction :
 		if(ParseStatement())
 		{
 		}
-		elseif(ParseAssignment())
+		elseif(ParseInitialization())
 		{
 		}
 
@@ -566,7 +584,7 @@ ParseStatement : -> boolean matched = false
 	matched = true
 }
 
-ParseAssignment : -> boolean matched = false
+ParseInitialization : -> boolean matched = false
 {
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
@@ -582,6 +600,8 @@ ParseAssignment : -> boolean matched = false
 	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
+	
+	// TODO - parse parameters to initializer
 
 	matched = true
 }
@@ -589,13 +609,66 @@ ParseAssignment : -> boolean matched = false
 
 ParseExpression :
 {
-	string id = PeekToken(0)
-	if(id != ")")
+	if(!ParseExpressionTerm(true))
 	{
-		PopToken()
+		return()
 	}
+	
+	while(ParseExpressionOperator())
+	{
+		ParseExpressionTerm(false)
+	}
+	
+	IRExitExpression()
 }
 
+ParseExpressionTerm : boolean startsexpr -> boolean matched = false
+{
+	string term = PeekToken(0)
+		
+	if(term == ")")
+	{
+		return()
+	}
+	elseif(term == ",")
+	{
+		return()
+	}
+	
+	if(startsexpr)
+	{
+		IREnterExpression()
+	}
+	
+	if(term == "false")
+	{
+		IRAddLiteralBoolean(false)
+	}
+	elseif(term == "true")
+	{
+		IRAddLiteralBoolean(true)
+	}
+
+	PopTokens(1)
+	matched = true
+}
+
+ParseExpressionOperator : -> boolean matched = false
+{
+	string op = PeekToken(0)
+	if(op == ")")
+	{
+		return()
+	}
+	elseif(op == ",")
+	{
+		return()
+	}
+
+	IRAddOperator(op)
+	PopTokens(1)
+	matched = true
+}
 
 
 //
@@ -4907,5 +4980,6 @@ global
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
 	integer CHARACTER_CLASS_PUNCTUATION = 2
+	integer CHARACTER_CLASS_COMMENT = 3
 }
 
