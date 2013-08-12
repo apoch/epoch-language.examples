@@ -295,7 +295,11 @@ Parse : string code, integer len
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		ParseFunction()
+		if(!ParseFunction())
+		{
+			print("Error: function could not be parsed")
+			return()
+		}
 
 		token = PeekToken(0)
 	}
@@ -511,23 +515,28 @@ PeekWithExpectation : integer displacement, string expected -> boolean found = f
 }
 
 
-ParseFunction :
+ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
-
-	IREnterFunction(functionname)
 
 	if(!PeekWithExpectation(1, ":"))
 	{
 		return()
 	}
 
-	if(!PeekWithExpectation(2, "{"))
+	PopTokens(2)
+	ParseFunctionParams(functionname)
+
+	if(!PeekWithExpectation(0, "{"))
 	{
+		matched = true
+		IREnterFunction(functionname)
+		IRExitFunction()
 		return()
 	}
 
-	PopTokens(3)
+	PopTokens(1)
+	IREnterFunction(functionname)
 	
 	string token = PeekToken(0)
 	while(token != "}")
@@ -544,12 +553,42 @@ ParseFunction :
 		elseif(ParseInitialization())
 		{
 		}
-
+		
 		token = PeekToken(0)
 	}
 
 	PopToken()
 	IRExitFunction()
+	matched = true
+}
+
+
+ParseFunctionParams : string functionname
+{
+	string typetoken = PeekToken(0)
+	if(typetoken == "")
+	{
+		return()
+	}
+	
+	while(typetoken != "{")
+	{
+		string nametoken = PeekToken(1)
+		PopTokens(2)
+		
+		// TODO - error checking
+		// TODO - higher order function params
+		// TODO - literal params
+		
+		// TODO - add parameters to the function signature and local scope
+		
+		typetoken = PeekToken(0)
+		if(typetoken != ",")
+		{
+			return()
+		}
+		PopToken()
+	}
 }
 
 
@@ -574,9 +613,18 @@ ParseStatement : -> boolean matched = false
 			return()
 		}
 
-		ParseExpression()
+		if(!ParseExpression())
+		{
+			print("Error: mangled expression")
+			return()
+		}
 
 		token = PeekToken(0)
+		if(token == ",")
+		{
+			PopToken()
+			token = PeekToken(0)
+		}
 	}
 
 	PopToken()
@@ -607,7 +655,7 @@ ParseInitialization : -> boolean matched = false
 }
 
 
-ParseExpression :
+ParseExpression : -> boolean matched = false
 {
 	if(!ParseExpressionTerm(true))
 	{
@@ -620,6 +668,7 @@ ParseExpression :
 	}
 	
 	IRExitExpression()
+	matched = true
 }
 
 ParseExpressionTerm : boolean startsexpr -> boolean matched = false
@@ -662,6 +711,11 @@ ParseExpressionOperator : -> boolean matched = false
 	}
 	elseif(op == ",")
 	{
+		return()
+	}
+	elseif(op == "")
+	{
+		print("Error: incomplete expression")
 		return()
 	}
 
