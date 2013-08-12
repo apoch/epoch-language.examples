@@ -525,18 +525,21 @@ ParseFunction : -> boolean matched = false
 	}
 
 	PopTokens(2)
+	OnCodeGenRegisterFunction(PoolString(functionname))
 	ParseFunctionParams(functionname)
 
 	if(!PeekWithExpectation(0, "{"))
 	{
 		matched = true
-		IREnterFunction(functionname)
+		integer namehandle = IREnterFunction(functionname)
+		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
 	}
 
 	PopTokens(1)
-	IREnterFunction(functionname)
+	integer namehandle = IREnterFunction(functionname)
+	OnCodeGenEnterFunctionBody(namehandle)
 	
 	string token = PeekToken(0)
 	while(token != "}")
@@ -580,7 +583,7 @@ ParseFunctionParams : string functionname
 		// TODO - higher order function params
 		// TODO - literal params
 		
-		// TODO - add parameters to the function signature and local scope
+		IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken))
 		
 		typetoken = PeekToken(0)
 		if(typetoken != ",")
@@ -1324,6 +1327,17 @@ type OptionalEntityList : EntityList | nothing
 
 structure EntityChain :
 	OptionalEntityList Entries
+		
+		
+structure UnresolvedParameter :
+	integer NameHandle,
+	integer TypeNameHandle,
+	integer ResolvedType
+		
+structure FunctionParams :
+	list<UnresolvedParameter> ref Params
+	
+type OptionalParameters : FunctionParams | nothing
 
 
 structure FunctionDefinition :
@@ -1331,7 +1345,8 @@ structure FunctionDefinition :
 	OptionalExpression Return,
 	OptionalCodeBlock Code,
 	boolean AnonymousReturn,
-	integer InvokeTag
+	integer InvokeTag,
+	OptionalParameters Params
 
 
 structure Variable :
@@ -1348,6 +1363,10 @@ structure Scope :
 	integer LocalOffset
 
 
+structure Parameter :
+	integer Name,
+	integer Type
+	
 
 structure ContextStackEntry :
 	integer EntryType,
@@ -1358,11 +1377,6 @@ structure SumType :
 	integer Name,
 	integer Type,
 	simplelist<integer> Bases
-
-
-structure Parameter :
-	integer Name,
-	integer Type
 
 
 structure FunctionSignature :
@@ -1637,12 +1651,43 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 OnCodeGenRegisterFunction : integer funcname
 {
-	FunctionDefinition func = funcname, nothing, nothing, false, 0
+	FunctionDefinition func = funcname, nothing, nothing, false, 0, nothing
 	prepend<FunctionDefinition>(Functions, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
 }
+
+IRRegisterFunctionParam : integer paramname, integer paramtypename
+{
+	UnresolvedParameter p = paramname, paramtypename, 0
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
+
+AppendUnresolvedParameterToFunction : FunctionDefinition ref func, FunctionParams ref params, UnresolvedParameter ref p
+{
+	AppendUnresolvedParameter(params.Params, params.Params.next, p)
+}
+
+AppendUnresolvedParameterToFunction : FunctionDefinition ref func, nothing, UnresolvedParameter ref p
+{
+	list<UnresolvedParameter> newlist = p, nothing
+	OptionalParameters params = newlist
+	func.Params = params
+}
+
+
+AppendUnresolvedParameter : list<UnresolvedParameter> ref thelist, list<UnresolvedParameter> ref tail, UnresolvedParameter ref p
+{
+	AppendUnresolvedParameter(tail, tail.next, p)
+}
+
+AppendUnresolvedParameter : list<UnresolvedParameter> ref thelist, nothing, UnresolvedParameter ref p
+{
+	list<UnresolvedParameter> newlist = p, nothing
+	thelist.next = newlist
+}
+
 
 OnCodeGenEnterFunctionBody : integer funcname
 {
@@ -3912,7 +3957,6 @@ OnCodeGenRegisterFunctionSigEnd :
 	// TODO - dead code?
 }
 
-
 CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
 {
 	CodeGenEmitSingleFunctionSignature(thelist.value)
@@ -4766,14 +4810,10 @@ IRExitProgram :
 }
 
 
-IREnterFunction : string funcname
+IREnterFunction : string funcname -> integer namehandle = PoolString(funcname)
 {
-	integer namehandle = PoolString(funcname)
-	OnCodeGenRegisterFunction(namehandle)
+	//OnCodeGenRegisterFunction(namehandle)
 	OnCodeGenRegisterScope(namehandle, 0)
-
-	// TODO - hack
-	OnCodeGenEnterFunctionBody(namehandle)
 }
 
 IRExitFunction :
@@ -4941,7 +4981,7 @@ global
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
 
-	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0
+	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0, nothing
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
