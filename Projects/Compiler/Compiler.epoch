@@ -365,6 +365,25 @@ Lex : string code, integer len
 			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
 			lasttokenstart = index
 		}
+		elseif(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+		{
+			boolean notcompound = false
+			if(IsWhitespace(c))
+			{
+				notcompound = true
+				state = CHARACTER_CLASS_WHITE
+			}
+			elseif(Classify(c) != CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+			{
+				notcompound = true
+				state = Classify(c)
+			}
+
+			if(notcompound)
+			{
+				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+			}
+		}
 		elseif(state == CHARACTER_CLASS_COMMENT)
 		{
 			if(c == unescape("\r"))
@@ -438,7 +457,7 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
 	}
 	elseif(c == "=")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
 	elseif(c == ",")
 	{
@@ -525,20 +544,23 @@ ParseFunction : -> boolean matched = false
 	}
 
 	PopTokens(2)
-	OnCodeGenRegisterFunction(PoolString(functionname))
-	ParseFunctionParams(functionname)
+	
+	integer namehandle = PoolString(functionname)
+	OnCodeGenRegisterFunction(namehandle)
+	ParseFunctionParams()
+	ParseFunctionReturn(namehandle)
 
 	if(!PeekWithExpectation(0, "{"))
 	{
 		matched = true
-		integer namehandle = IREnterFunction(functionname)
+		IREnterFunction(functionname)
 		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
 	}
 
 	PopTokens(1)
-	integer namehandle = IREnterFunction(functionname)
+	IREnterFunction(functionname)
 	OnCodeGenEnterFunctionBody(namehandle)
 	
 	string token = PeekToken(0)
@@ -550,11 +572,16 @@ ParseFunction : -> boolean matched = false
 			return()
 		}
 
-		if(ParseStatement())
+		if(ParseStatement(false))
 		{
 		}
-		elseif(ParseInitialization())
+		elseif(ParseInitialization(namehandle))
 		{
+		}
+		else
+		{
+			print("Parse failure: " ; PeekToken(0) ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			return()
 		}
 		
 		token = PeekToken(0)
@@ -566,7 +593,7 @@ ParseFunction : -> boolean matched = false
 }
 
 
-ParseFunctionParams : string functionname
+ParseFunctionParams :
 {
 	string typetoken = PeekToken(0)
 	if(typetoken == "")
@@ -574,7 +601,7 @@ ParseFunctionParams : string functionname
 		return()
 	}
 	
-	while(typetoken != "{")
+	while((typetoken != "{") && (typetoken != "->"))
 	{
 		string nametoken = PeekToken(1)
 		PopTokens(2)
@@ -595,16 +622,39 @@ ParseFunctionParams : string functionname
 }
 
 
-ParseStatement : -> boolean matched = false
+ParseFunctionReturn : integer namehandle
+{
+	if(!PeekWithExpectation(0, "->"))
+	{
+		return()
+	}
+	
+	PopToken()
+	
+	// TODO - support initializations!
+	
+	OnCodeGenEnterFunctionReturn(namehandle, true)
+	ParseExpression()
+	OnCodeGenExitContext()
+}
+
+
+ParseStatement : boolean substatement -> boolean matched = false
 {
 	string statementname = PeekToken(0)
-
+	
 	if(!PeekWithExpectation(1, "("))
 	{
 		return()
 	}
 
+	if(substatement)
+	{
+		OnCodeGenEnterSubStatement()
+	}
+	
 	IREnterStatement(statementname)
+	
 	PopTokens(2)
 
 	string token = PeekToken(0)
@@ -632,10 +682,16 @@ ParseStatement : -> boolean matched = false
 
 	PopToken()
 	IRExitStatement()
+	
+	if(substatement)
+	{
+		IRExitStatement()
+	}
+	
 	matched = true
 }
 
-ParseInitialization : -> boolean matched = false
+ParseInitialization : integer funcnamehandle -> boolean matched = false
 {
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
@@ -652,7 +708,14 @@ ParseInitialization : -> boolean matched = false
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
 	
-	// TODO - parse parameters to initializer
+	ParseExpression()
+	while(PeekToken(0) == ",")
+	{
+		PopToken()
+		ParseExpression()
+	}
+	
+	IRExitStatement()
 
 	matched = true
 }
@@ -665,11 +728,10 @@ ParseExpression : -> boolean matched = false
 		return()
 	}
 	
-	while(ParseExpressionOperator())
+	while(ParseExpressionOperator() && ParseExpressionTerm(false))
 	{
-		ParseExpressionTerm(false)
 	}
-	
+		
 	IRExitExpression()
 	matched = true
 }
@@ -700,8 +762,26 @@ ParseExpressionTerm : boolean startsexpr -> boolean matched = false
 	{
 		IRAddLiteralBoolean(true)
 	}
+	elseif(ParseStatement(true))
+	{
+		// Do not continue parsing expression!
+		return()
+	}
+	else
+	{
+		// TODO - handle literals properly
+		
+		if(term == "42")
+		{
+			IRAddLiteralInteger(42)
+		}
+		elseif(term == "n")
+		{
+			IRAddLiteralIdentifier(term)
+		}
+	}
 
-	PopTokens(1)
+	PopToken()
 	matched = true
 }
 
@@ -718,10 +798,9 @@ ParseExpressionOperator : -> boolean matched = false
 	}
 	elseif(op == "")
 	{
-		print("Error: incomplete expression")
 		return()
 	}
-
+	
 	IRAddOperator(op)
 	PopTokens(1)
 	matched = true
@@ -946,7 +1025,8 @@ OnBytecodeBindReference : integer frameskip, integer index
 {
 	if(index < 0)
 	{
-		breakpoint()
+		print("Binding reference to a missing variable!")
+		assert(false)
 	}
 
 	OnBytecodeEmitByte(0x03)			// BindRef instruction
@@ -4217,7 +4297,8 @@ CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
 structure InferenceContext :
 	integer ScopeName,
 	integer StatementName,
-	simplelist<integer> ref ExpectedTypes
+	simplelist<integer> ref ExpectedTypes,
+	boolean FunctionReturn
 
 structure TypePossibilityList :
 	simplelist<integer> ref Types
@@ -4232,7 +4313,7 @@ structure InferencePossibility :
 IRTypeInference : -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext context = 0, 0, temp
+	InferenceContext context = 0, 0, temp, false
 
 	if(!TypeInference(Functions, context))
 	{
@@ -4258,9 +4339,25 @@ TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref con
 TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext innercontext = func.Name, 0, temp
+	InferenceContext innercontext = func.Name, 0, temp, false
 
-	// TODO - inference on return value
+	simplelist<integer> tempret = 0, nothing
+	InferenceContext retcontext = func.Name, 0, tempret, true
+
+	if(!TypeInference(func.Return, retcontext))
+	{
+		success = false
+	}
+	
+	integer rettype = GetOptionalExpressionType(func.Return)
+	if((rettype != 0) && (rettype != 0x00000002))	// void magic
+	{
+		if(func.AnonymousReturn)
+		{
+			OnCodeGenRegisterVariable(func.Name, PoolString("@@anonymousret"), rettype, 2)
+		}
+	}
+	
 	// TODO - inference on parameters
 
 	if(!TypeInference(func.Code, innercontext))
@@ -4292,7 +4389,7 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
-	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false
 
 	integer vartype = GetTypeByName(statement.Name)
 	if(vartype != 0)
@@ -4307,6 +4404,8 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	}
 
 	// TODO - overload resolution
+	
+	statement.Type = GetFunctionReturnType(Functions, statement.Name)
 }
 
 
@@ -4322,7 +4421,7 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 {
 	simplelist<integer> temp = 0, nothing
 	GetExpectedParameterTypes(context.StatementName, paramindex, temp)
-	InferenceContext newcontext = context.ScopeName, context.StatementName, temp
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, false
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
@@ -4359,25 +4458,40 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	integer counter = 0
 	integer scopename = context.ScopeName
 	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename)
-
+	
 	integer possibilitycount = CountPossibilities(possibilities)
 	if(possibilitycount == 1)
 	{
-		simplelist<integer> types = 0, nothing
-		EliminateImpossibleType(possibilities.value.ReturnType.Types, context.ExpectedTypes, types)
+		if(!context.FunctionReturn)
+		{
+			simplelist<integer> types = 0, nothing
+			EliminateImpossibleType(possibilities.value.ReturnType.Types, context.ExpectedTypes, types)
 
-		integer typecount = countnonzero(types)
-		if(typecount == 1)
-		{
-			expression.Type = types.value
-		}
-		elseif(typecount > 1)
-		{
-			print("Multiple types possible")
+			integer typecount = countnonzero(types)
+			if(typecount == 1)
+			{
+				expression.Type = types.value
+			}
+			elseif(typecount > 1)
+			{
+				print("Multiple types possible")
+			}
+			else
+			{
+				print("All types ruled out")
+			}
 		}
 		else
 		{
-			print("All types ruled out")
+			integer typecount = countnonzero(possibilities.value.ReturnType.Types)
+			if(typecount == 1)
+			{
+				expression.Type = possibilities.value.ReturnType.Types.value
+			}
+			else
+			{
+				print("Failed to infer return type of function")
+			}
 		}
 	}
 	else
@@ -4554,7 +4668,13 @@ GetAtomType : real               ref atom, TypePossibilityList ref possibilities
 
 GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname
 {
-	// TODO - type inference on inner statement
+	// TODO - type inference on substatements
+	
+	simplelist<integer> temp = 0, nothing
+	InferenceContext newcontext = funcname, statement.Name, temp, false
+	TypeInference(statement, newcontext)
+	
+	AddPossibleParameter(possibilities.Types, statement.Type)
 }
 
 GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname
@@ -4924,6 +5044,14 @@ DumpAtom : Statement		   ref nonsentinel { print("Statement") }
 DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
 DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
 
+DumpExpressionAtoms : list<ExpressionAtom> ref atoms
+{
+	DumpAtom(atoms.value)
+	DumpExpressionAtoms(atoms.next)
+}
+
+DumpExpressionAtoms : nothing
+
 
 
 AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossibility> ref possibilities
@@ -4951,6 +5079,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 
 GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
 {
+	// TODO
 	////// HACK - force expected types
 	if(paramindex == 1)
 	{
@@ -4963,6 +5092,24 @@ GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<int
 	}
 	////// END HACK
 }
+
+
+GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname -> integer rettype = 0
+{
+	if(functions.value.Name == funcname)
+	{
+		rettype = GetOptionalExpressionType(functions.value.Return)
+	}
+	else
+	{
+		rettype = GetFunctionReturnType(functions.next, funcname)
+	}
+}
+
+GetFunctionReturnType : nothing, integer funcname -> 0
+
+GetOptionalExpressionType : Expression ref expr -> expr.Type
+GetOptionalExpressionType : nothing -> 0
 
 
 //
@@ -5075,5 +5222,6 @@ global
 	integer CHARACTER_CLASS_IDENTIFIER = 1
 	integer CHARACTER_CLASS_PUNCTUATION = 2
 	integer CHARACTER_CLASS_COMMENT = 3
+	integer CHARACTER_CLASS_PUNCTUATION_COMPOUND = 4
 }
 
