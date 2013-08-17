@@ -413,7 +413,7 @@ Lex : string code, integer len
 }
 
 
-IsWhitespace : string c -> boolean white = false
+IsWhitespace : string c -> boolean white = false [nogc]
 {
 	if(c == " ")
 	{
@@ -433,7 +433,7 @@ IsWhitespace : string c -> boolean white = false
 	}
 }
 
-Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
+Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 {
 	if(c == "{")
 	{
@@ -467,7 +467,7 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
 
 
 // TODO - replace with better option
-charat : string in, integer index -> string c = substring(in, index, 1)
+charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 
 PushToken : string token
