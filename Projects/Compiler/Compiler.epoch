@@ -575,7 +575,7 @@ ParseFunction : -> boolean matched = false
 		if(ParseStatement(false))
 		{
 		}
-		elseif(ParseInitialization(namehandle))
+		elseif(ParseInitialization(false))
 		{
 		}
 		else
@@ -634,7 +634,10 @@ ParseFunctionReturn : integer namehandle
 	// TODO - support initializations!
 	
 	OnCodeGenEnterFunctionReturn(namehandle, true)
-	ParseExpression()
+	if(!ParseInitialization(true))
+	{
+		ParseExpression()
+	}
 	OnCodeGenExitContext()
 }
 
@@ -671,6 +674,8 @@ ParseStatement : boolean substatement -> boolean matched = false
 			print("Error: mangled expression")
 			return()
 		}
+		
+		OnCodeGenShiftParameter()
 
 		token = PeekToken(0)
 		if(token == ",")
@@ -691,7 +696,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 	matched = true
 }
 
-ParseInitialization : integer funcnamehandle -> boolean matched = false
+ParseInitialization : boolean inreturn -> boolean matched = false
 {
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
@@ -702,22 +707,41 @@ ParseInitialization : integer funcnamehandle -> boolean matched = false
 	}
 
 	PopTokens(3)
+	
+	if(inreturn)
+	{
+		IREnterExpression()
+		OnCodeGenEnterSubStatement()
+	}
 
 	IREnterStatement(typename)
 	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
 	
+	if(inreturn)
+	{
+		OnCodeGenShiftParameter()
+	}
+	
 	ParseExpression()
 	while(PeekToken(0) == ",")
 	{
 		PopToken()
+		OnCodeGenShiftParameter()
 		ParseExpression()
 	}
 	
 	IRExitStatement()
 
 	matched = true
+	
+	if(inreturn)
+	{
+		IRExitStatement()
+		IRExitExpression()
+		Functions.value.AnonymousReturn = false
+	}
 }
 
 
@@ -4394,18 +4418,32 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	integer vartype = GetTypeByName(statement.Name)
 	if(vartype != 0)
 	{
-		ConstructVariableFromStatement(statement, context.ScopeName, vartype)
+		integer origin = 0
+		if(context.FunctionReturn)
+		{
+			origin = 2
+		}
+		ConstructVariableFromStatement(statement, context.ScopeName, vartype, origin)
 	}
 
 	if(!TypeInference(statement.Parameters, newcontext))
 	{
 		success = false
 		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+		
+		DumpParameterAtoms(statement.Parameters)
 	}
 
 	// TODO - overload resolution
 	
-	statement.Type = GetFunctionReturnType(Functions, statement.Name)
+	if(context.FunctionReturn)
+	{
+		statement.Type = vartype
+	}
+	else
+	{
+		statement.Type = GetFunctionReturnType(Functions, statement.Name)
+	}
 }
 
 
@@ -4425,6 +4463,8 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
+		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")
+		DumpExpressionAtoms(parameters.value.Atoms)
 		success = false
 	}
 
@@ -4454,10 +4494,11 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 
 	InferencePossibility temp = scratchpossibility
 	list<InferencePossibility> possibilities = temp, nothing
-
+	
 	integer counter = 0
 	integer scopename = context.ScopeName
-	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename)
+	boolean flag = context.FunctionReturn		// TODO - this is some dumb bug in the C++ compiler probably
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename, flag)
 	
 	integer possibilitycount = CountPossibilities(possibilities)
 	if(possibilitycount == 1)
@@ -4490,7 +4531,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			}
 			else
 			{
-				print("Failed to infer return type of function")
+				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possibile")
 			}
 		}
 	}
@@ -4542,14 +4583,14 @@ countnonzero : nothing -> 0
 
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname, boolean funcret
 {
-	WalkAtomsForType(tail, tail.next, possibilities, counter, funcname)
+	WalkAtomsForType(tail, tail.next, possibilities, counter, funcname, funcret)
 
 	if(!IsOperatorInvoke(atoms.value))
 	{
 		++counter
-		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname)
+		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname, funcret)
 
 		if(counter > 1)
 		{
@@ -4563,12 +4604,12 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	}
 }
 
-ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname
+ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname, boolean funcret
 {
 	if(possibilities.value.FunctionName != 0)
 	{
 		TypePossibilityList poss = scratchparams
-		GetAtomType(atom, poss, funcname)
+		GetAtomType(atom, poss, funcname, funcret)
 
 		simplelist<integer> out = 0, nothing
 
@@ -4582,13 +4623,13 @@ ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibi
 		}
 	}
 
-	ConsumeParameterForAllPossibleOverloads(possibilities.next, atom, funcname)
+	ConsumeParameterForAllPossibleOverloads(possibilities.next, atom, funcname, funcret)
 }
 
-ConsumeParameterForAllPossibleOverloads : nothing, ExpressionAtom ref atom, integer funcname
+ConsumeParameterForAllPossibleOverloads : nothing, ExpressionAtom ref atom, integer funcname, boolean funcret
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname
+WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname, boolean funcret
 {
 	if(IsOperatorInvoke(atoms.value))
 	{
@@ -4597,7 +4638,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossib
 	else
 	{
 		TypePossibilityList poss = scratchparams
-		GetAtomType(atoms.value, poss, funcname)
+		GetAtomType(atoms.value, poss, funcname, funcret)
 
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
 		prepend<InferencePossibility>(possibilities, newpossibility)
@@ -4658,28 +4699,28 @@ PopPossibility : list<InferencePossibility> ref list, list<InferencePossibility>
 PopPossibility : list<InferencePossibility> ref thelist, nothing -> false
 
 
-GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
-GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x02000000) }
-GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
-GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000001) }
-GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000002) }
-GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000003) }
-GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname { AddPossibleParameter(possibilities.Types, 0x01000004) }
+GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
+GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x02000000) }
+GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000002) }
+GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000003) }
+GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000004) }
 
-GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname
-{
-	// TODO - type inference on substatements
-	
+GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+{	
 	simplelist<integer> temp = 0, nothing
-	InferenceContext newcontext = funcname, statement.Name, temp, false
-	TypeInference(statement, newcontext)
+	InferenceContext newcontext = funcname, statement.Name, temp, funcret
 	
-	AddPossibleParameter(possibilities.Types, statement.Type)
+	if(TypeInference(statement, newcontext))
+	{
+		AddPossibleParameter(possibilities.Types, statement.Type)
+	}
 }
 
-GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname
+GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 
-GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname
+GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
 	// TODO - type inference on parentheticals
 }
@@ -4689,7 +4730,7 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 	AddPossibilityPerOperatorOverload(atom.OperatorName, possibilities)
 }
 
-GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname
+GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
 	AddPossibleParameter(possibilities.Types, 0x01000000)
 
@@ -4869,12 +4910,13 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
 }
 
 
-ConstructVariableFromStatement : Statement ref statement, integer scopename, integer vartype
+ConstructVariableFromStatement : Statement ref statement, integer scopename, integer vartype, integer origin
 {
 	integer varname = ExtractConstructorIdentifier(statement.Parameters)
+		
 	if(varname != 0)
 	{
-		StoreVariableInScope(Scopes, scopename, varname, vartype, false, 0)		// VARIABLE_ORIGIN_LOCAL
+		StoreVariableInScope(Scopes, scopename, varname, vartype, false, origin)
 	}
 }
 
@@ -5040,9 +5082,16 @@ DumpAtom : integer 		   ref nonsentinel { print("integer " ; cast(string, nonsen
 DumpAtom : integer16 		   ref nonsentinel { print("integer16") }
 DumpAtom : boolean 		   ref nonsentinel { print("boolean") }
 DumpAtom : real 		   ref nonsentinel { print("real " ; cast(string, nonsentinel)) }
-DumpAtom : Statement		   ref nonsentinel { print("Statement") }
 DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
 DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
+
+DumpAtom : Statement		   ref nonsentinel
+{
+	print("Statement")
+	print("BEGIN PARAMS")
+	DumpParameterAtoms(nonsentinel.Parameters)
+	print("END PARAMS")
+}
 
 DumpExpressionAtoms : list<ExpressionAtom> ref atoms
 {
@@ -5051,6 +5100,26 @@ DumpExpressionAtoms : list<ExpressionAtom> ref atoms
 }
 
 DumpExpressionAtoms : nothing
+
+
+DumpExpressionList : list<Expression> ref exprs
+{
+	print("BEGIN EXPR")
+	DumpExpressionAtoms(exprs.value.Atoms)
+	print("END EXPR")
+
+	DumpExpressionList(exprs.next)
+}
+
+DumpExpressionList : nothing
+
+
+DumpParameterAtoms : ExpressionList ref exprs
+{
+	DumpExpressionList(exprs.Expressions)
+}
+
+DumpParameterAtoms : nothing
 
 
 
