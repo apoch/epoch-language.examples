@@ -100,16 +100,24 @@ entrypoint :
 		PrepareStringTable()
 
 		integer startparsems = timeGetTime()
-		Parse(contents, len)
+		boolean parseok = Parse(contents, len)
 		integer durationparsems = timeGetTime() - startparsems
 
 		print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
+		if(!parseok)
+		{
+			return()
+		}
 
 		integer startprocessms = timeGetTime()
-		IRProcess()
+		boolean irok = IRProcess()
 		integer durationprocessms = timeGetTime() - startprocessms
 
 		print("Semantic analysis completed in " ; cast(string, durationprocessms) ; " milliseconds")
+		if(!irok)
+		{
+			return()
+		}
 
 		integer startcodegenms = timeGetTime()
 		OnCodeGenProcessProgram()
@@ -283,7 +291,7 @@ ReadFile : string filename, integer ref len -> string contents = ""
 }
 
 
-Parse : string code, integer len
+Parse : string code, integer len -> boolean success = false
 {
 	Lex(code, len)
 
@@ -305,6 +313,7 @@ Parse : string code, integer len
 	}
 
 	IRExitProgram()
+	success = true
 }
 
 
@@ -380,7 +389,7 @@ Lex : string code, integer len
 			}
 
 			if(notcompound)
-			{
+			{				
 				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
 			}
 		}
@@ -407,7 +416,7 @@ Lex : string code, integer len
 	}
 
 	if((lasttokenstart < len) && (state != CHARACTER_CLASS_WHITE))
-	{
+	{		
 		PushToken(substring(code, lasttokenstart, len - lasttokenstart))
 	}
 }
@@ -472,6 +481,12 @@ charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 PushToken : string token
 {
+	if(length(token) == 0)
+	{
+		print("Lexer attempted to shift a zero-length token!")
+		assert(false)
+	}
+
 	simple_append<string>(TokenStream, token)
 }
 
@@ -630,9 +645,7 @@ ParseFunctionReturn : integer namehandle
 	}
 	
 	PopToken()
-	
-	// TODO - support initializations!
-	
+		
 	OnCodeGenEnterFunctionReturn(namehandle, true)
 	if(!ParseInitialization(true))
 	{
@@ -719,10 +732,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
 	
-	if(inreturn)
-	{
-		OnCodeGenShiftParameter()
-	}
+	OnCodeGenShiftParameter()
 	
 	ParseExpression()
 	while(PeekToken(0) == ",")
@@ -739,7 +749,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	if(inreturn)
 	{
 		IRExitStatement()
-		IRExitExpression()
+		//OnCodeGenShiftParameter()
 		Functions.value.AnonymousReturn = false
 	}
 }
@@ -755,7 +765,7 @@ ParseExpression : -> boolean matched = false
 	while(ParseExpressionOperator() && ParseExpressionTerm(false))
 	{
 	}
-		
+
 	IRExitExpression()
 	matched = true
 }
@@ -769,6 +779,10 @@ ParseExpressionTerm : boolean startsexpr -> boolean matched = false
 		return()
 	}
 	elseif(term == ",")
+	{
+		return()
+	}
+	elseif(term == "")
 	{
 		return()
 	}
@@ -786,6 +800,10 @@ ParseExpressionTerm : boolean startsexpr -> boolean matched = false
 	{
 		IRAddLiteralBoolean(true)
 	}
+	elseif(term == "0")
+	{
+		IRAddLiteralInteger(0)
+	}
 	elseif(ParseStatement(true))
 	{
 		// Do not continue parsing expression!
@@ -793,16 +811,26 @@ ParseExpressionTerm : boolean startsexpr -> boolean matched = false
 	}
 	else
 	{
-		// TODO - handle literals properly
-		
-		if(term == "42")
-		{
-			IRAddLiteralInteger(42)
-		}
-		elseif(term == "n")
-		{
-			IRAddLiteralIdentifier(term)
-		}
+		//if(false)
+		//{
+			// TODO - support for string literals
+		//}
+		//elseif(false)
+		//{
+			// TODO - support for floating point literals
+		//}
+		//else
+		//{
+			integer literalvalue = cast(integer, term)
+			if(literalvalue != 0)
+			{
+				IRAddLiteralInteger(literalvalue)
+			}
+			else
+			{
+				IRAddLiteralIdentifier(term)
+			}
+		//}
 	}
 
 	PopToken()
@@ -1450,7 +1478,8 @@ structure FunctionDefinition :
 	OptionalCodeBlock Code,
 	boolean AnonymousReturn,
 	integer InvokeTag,
-	OptionalParameters Params
+	OptionalParameters Params,
+	boolean InferenceDone
 
 
 structure Variable :
@@ -1755,7 +1784,7 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 OnCodeGenRegisterFunction : integer funcname
 {
-	FunctionDefinition func = funcname, nothing, nothing, false, 0, nothing
+	FunctionDefinition func = funcname, nothing, nothing, false, 0, nothing, false
 	prepend<FunctionDefinition>(Functions, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
@@ -4317,6 +4346,18 @@ CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
 
 
 
+DumpTypeList : simplelist<integer> ref types
+{
+	if(types.value != 0)
+	{
+		print(" Potential type: " ; cast(string, types.value))
+	}
+	
+	DumpTypeList(types.next)
+}
+
+DumpTypeList : nothing
+
 
 structure InferenceContext :
 	integer ScopeName,
@@ -4362,8 +4403,20 @@ TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref con
 
 TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
 {
+	if(func.InferenceDone)
+	{
+		return()
+	}
+	
 	simplelist<integer> temp = 0, nothing
 	InferenceContext innercontext = func.Name, 0, temp, false
+	
+	
+	if(!TypeInference(func.Params, innercontext))
+	{
+		success = false
+	}
+	
 
 	simplelist<integer> tempret = 0, nothing
 	InferenceContext retcontext = func.Name, 0, tempret, true
@@ -4382,11 +4435,39 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 		}
 	}
 	
-	// TODO - inference on parameters
+	func.InferenceDone = true
 
 	if(!TypeInference(func.Code, innercontext))
 	{
 		success = false
+	}
+}
+
+TypeInference : FunctionParams ref params, InferenceContext ref context -> boolean success = TypeInference(params.Params, context)
+
+TypeInference : list<UnresolvedParameter> ref params, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(params.value, context))
+	{
+		success = false
+	}
+	
+	if(!TypeInference(params.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> boolean success = true
+{
+	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
+	if(param.ResolvedType == 0)
+	{
+		success = false
+	}
+	else
+	{
+		OnCodeGenRegisterVariable(context.ScopeName, param.NameHandle, param.ResolvedType, 1)
 	}
 }
 
@@ -4430,8 +4511,6 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		success = false
 		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-		
-		DumpParameterAtoms(statement.Parameters)
 	}
 
 	// TODO - overload resolution
@@ -4459,12 +4538,11 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 {
 	simplelist<integer> temp = 0, nothing
 	GetExpectedParameterTypes(context.StatementName, paramindex, temp)
-	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, false
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
-		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")
-		DumpExpressionAtoms(parameters.value.Atoms)
+		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")	
 		success = false
 	}
 
@@ -4520,6 +4598,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			else
 			{
 				print("All types ruled out")
+				DumpTypeList(possibilities.value.ReturnType.Types)
 			}
 		}
 		else
@@ -4531,7 +4610,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			}
 			else
 			{
-				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possibile")
+				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
+				DumpTypeList(possibilities.value.ReturnType.Types)
 			}
 		}
 	}
@@ -4768,6 +4848,8 @@ AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 
 AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
 {
+	assert(functionname != 0)
+
 	simplelist<integer> p1t = param1type, nothing
 	simplelist<integer> p2t = param2type, nothing
 
@@ -5017,7 +5099,7 @@ IRExitExpression :
 
 	if(IRExpressionDepth == 0)
 	{
-		OnCodeGenShiftParameter()
+		//OnCodeGenShiftParameter()
 	}
 }
 
@@ -5054,7 +5136,7 @@ IRAddLiteralIdentifier : string token
 
 
 
-GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = ""
+GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = "" [nogc]
 {
 	if(strings.value.Handle == handle)
 	{
@@ -5066,7 +5148,7 @@ GetPooledString : list<StringTableEntry> ref strings, integer handle -> string p
 	}
 }
 
-GetPooledString : nothing, integer handle -> ""
+GetPooledString : nothing, integer handle -> "" [nogc]
 {
 	print("String handle not pooled!")
 	assert(false)
@@ -5075,7 +5157,7 @@ GetPooledString : nothing, integer handle -> ""
 
 DumpAtom : AtomSentinel 	   ref sentinel    { print("Sentinel") }
 DumpAtom : StringHandleAtom 	   ref nonsentinel { print("String handle " ; cast(string, nonsentinel.Handle)) }
-DumpAtom : IdentifierAtom 	   ref nonsentinel { print("Identifier " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : IdentifierAtom 	   ref nonsentinel { print("Identifier " ; cast(string, nonsentinel.Handle) ; " = '" ; GetPooledString(GlobalStrings, nonsentinel.Handle) ; "'") }
 DumpAtom : OperatorInvokeAtom 	   ref nonsentinel { print("Operator " ; cast(string, nonsentinel.OperatorName)) }
 DumpAtom : TypeAnnotationAtom 	   ref nonsentinel { print("Type annotation") }
 DumpAtom : integer 		   ref nonsentinel { print("integer " ; cast(string, nonsentinel)) }
@@ -5148,25 +5230,68 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 
 GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
 {
-	// TODO
-	////// HACK - force expected types
-	if(paramindex == 1)
+	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, types)
+}
+
+FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	if(functions.value.Name == funcname)
 	{
-		simpleprepend<integer>(types, 0x01000001)
+		if(!functions.value.InferenceDone)
+		{
+			simplelist<integer> temp = 0, nothing
+			InferenceContext context = 0, 0, temp, false			
+			
+			TypeInference(functions.value, context)
+		}
+		
+		UnwrapParamsForTypeRetrieval(functions.value.Params, paramindex, types)
 	}
 	else
 	{
-		simpleprepend<integer>(types, 0x01000000)
-		simpleprepend<integer>(types, 0x01000003)
+		FindFunctionAndAddParameterTypes(functions.next, funcname, paramindex, types)
 	}
-	////// END HACK
 }
+
+FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	FindBuiltinAndAddParameterTypes(funcname, paramindex, types)
+}
+
+UnwrapParamsForTypeRetrieval : FunctionParams ref params, integer paramindex, simplelist<integer> ref types
+{
+	RetrieveParamType(params.Params, paramindex, types)
+}
+
+UnwrapParamsForTypeRetrieval : nothing, integer paramindex, simplelist<integer> ref types
+
+
+RetrieveParamType : list<UnresolvedParameter> ref params, integer paramindex, simplelist<integer> ref types
+{
+	if(paramindex == 0)
+	{
+		simpleprepend(types, params.value.ResolvedType)
+		return()
+	}
+	
+	RetrieveParamType(params.next, paramindex - 1, types)
+}
+
+RetrieveParamType : nothing, integer paramindex, simplelist<integer> ref types
 
 
 GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname -> integer rettype = 0
 {
 	if(functions.value.Name == funcname)
 	{
+		if(!functions.value.InferenceDone)
+		{
+			simplelist<integer> temp = 0, nothing
+			InferenceContext context = 0, 0, temp, false
+
+			TypeInference(functions.value, context)
+		}
+
 		rettype = GetOptionalExpressionType(functions.value.Return)
 	}
 	else
@@ -5179,6 +5304,34 @@ GetFunctionReturnType : nothing, integer funcname -> 0
 
 GetOptionalExpressionType : Expression ref expr -> expr.Type
 GetOptionalExpressionType : nothing -> 0
+
+
+FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	string readablename = GetPooledString(GlobalStrings, funcname)
+	if(readablename == "passtest")
+	{
+		// No parameters
+	}
+	elseif(readablename == "assert")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+		}
+	}
+	elseif(readablename == "integer")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+		}
+		elseif(paramindex == 1)
+		{
+			simpleprepend<integer>(types, 0x01000001)	// integer type signature
+		}
+	}
+}
 
 
 //
@@ -5197,7 +5350,7 @@ global
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
 
-	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0, nothing
+	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0, nothing, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
