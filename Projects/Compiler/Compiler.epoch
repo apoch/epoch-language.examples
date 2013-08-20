@@ -305,7 +305,7 @@ Parse : string code, integer len -> boolean success = false
 	{
 		if(!ParseFunction())
 		{
-			print("Error: function could not be parsed")
+			print("Error: function could not be parsed: " ; token)
 			return()
 		}
 
@@ -483,7 +483,7 @@ PushToken : string token
 {
 	if(length(token) == 0)
 	{
-		print("Lexer attempted to shift a zero-length token!")
+		print("Lexer attempted to push a zero-length token!")
 		assert(false)
 	}
 
@@ -633,6 +633,7 @@ ParseFunctionParams :
 			return()
 		}
 		PopToken()
+		typetoken = PeekToken(0)
 	}
 }
 
@@ -688,16 +689,15 @@ ParseStatement : boolean substatement -> boolean matched = false
 			return()
 		}
 		
-		OnCodeGenShiftParameter()
-
 		token = PeekToken(0)
 		if(token == ",")
 		{
 			PopToken()
 			token = PeekToken(0)
+			OnCodeGenShiftParameter()
 		}
 	}
-
+	
 	PopToken()
 	IRExitStatement()
 	
@@ -757,20 +757,29 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 
 ParseExpression : -> boolean matched = false
 {
-	if(!ParseExpressionTerm(true))
+	boolean matchedstatement = false
+	
+	if(!ParseExpressionTerm(true, matchedstatement))
 	{
 		return()
 	}
 	
-	while(ParseExpressionOperator() && ParseExpressionTerm(false))
+	if(matchedstatement && (PeekToken(0) == ")"))
 	{
+	}
+	else
+	{
+		while(ParseExpressionOperator())
+		{
+			ParseExpressionTerm(false, matchedstatement)
+		}
 	}
 
 	IRExitExpression()
 	matched = true
 }
 
-ParseExpressionTerm : boolean startsexpr -> boolean matched = false
+ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolean matched = false
 {
 	string term = PeekToken(0)
 		
@@ -806,7 +815,8 @@ ParseExpressionTerm : boolean startsexpr -> boolean matched = false
 	}
 	elseif(ParseStatement(true))
 	{
-		// Do not continue parsing expression!
+		matched = true
+		matchedstatement = true
 		return()
 	}
 	else
@@ -853,9 +863,27 @@ ParseExpressionOperator : -> boolean matched = false
 		return()
 	}
 	
-	IRAddOperator(op)
-	PopTokens(1)
-	matched = true
+
+	boolean knownoperator = false
+	if(op == "+")
+	{
+		knownoperator = true
+	}
+	elseif(op == "*")
+	{
+		knownoperator = true
+	}
+	elseif(op == "==")
+	{
+		knownoperator = true
+	}
+	
+	if(knownoperator)
+	{
+		IRAddOperator(op)
+		PopToken()
+		matched = true
+	}
 }
 
 
@@ -4569,15 +4597,16 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	}
 
 	ShuntingYard(expression.Atoms)
-
+	
 	InferencePossibility temp = scratchpossibility
 	list<InferencePossibility> possibilities = temp, nothing
-	
+		
 	integer counter = 0
 	integer scopename = context.ScopeName
-	boolean flag = context.FunctionReturn		// TODO - this is some dumb bug in the C++ compiler probably
-	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename, flag)
 	
+	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename, flag)
+		
 	integer possibilitycount = CountPossibilities(possibilities)
 	if(possibilitycount == 1)
 	{
@@ -4624,7 +4653,9 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		}
 		else
 		{
-			print("No type satisfies the requirements")
+			print("No types possible in this expression:")
+			DumpExpressionAtoms(expression.Atoms)
+			print("End expression")
 		}
 	}
 
