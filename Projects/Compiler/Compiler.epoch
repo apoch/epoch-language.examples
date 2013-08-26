@@ -303,7 +303,16 @@ Parse : string code, integer len -> boolean success = false
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		if(!ParseFunction())
+		if(ParseWeakAlias())
+		{
+		}
+		elseif(ParseStrongAlias())
+		{
+		}
+		elseif(ParseStructure())
+		{
+		}
+		elseif(!ParseFunction())
 		{
 			print("Error: function could not be parsed: " ; token)
 			return()
@@ -404,6 +413,14 @@ Lex : string code, integer len
 				state = CHARACTER_CLASS_WHITE
 			}
 		}
+		elseif(state == CHARACTER_CLASS_STRING_LITERAL)
+		{
+			if(c == unescape("\'"))
+			{
+				state = CHARACTER_CLASS_WHITE
+				PushToken(substring(code, lasttokenstart, index - lasttokenstart + 1))
+			}
+		}
 
 
 		if(state != prevstate)
@@ -469,6 +486,22 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
 	elseif(c == ",")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == unescape("\'"))
+	{
+		class = CHARACTER_CLASS_STRING_LITERAL
+	}
+	elseif(c == "-")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == ">")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == ".")
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
@@ -549,6 +582,142 @@ PeekWithExpectation : integer displacement, string expected -> boolean found = f
 }
 
 
+ParseWeakAlias : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "alias"))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, "="))
+	{
+		return()
+	}
+	
+	PopToken()
+	string aliasname = PeekToken(0)
+	string basename = PeekToken(2)
+	PopTokens(3)
+	
+	OnCodeGenRegisterWeakAlias((++GlobalWeakAliasCounter), PoolString(aliasname), PoolString(basename))
+	
+	matched = true
+}
+
+
+ParseStrongAlias : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "type"))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+	
+	PopToken()
+	string aliasname = PeekToken(0)
+	string basename = PeekToken(2)
+	PopTokens(3)
+	
+	OnCodeGenRegisterAlias((++GlobalAliasCounter), PoolString(aliasname), PoolString(basename))
+	
+	matched = true
+}
+
+
+ParseStructure : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "structure"))
+	{
+		return()
+	}
+	
+	if(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+	
+	PopToken()
+	string structurename = PeekToken(0)
+	integer structuretype = (++GlobalStructureCounter)
+	PopTokens(2)
+
+	boolean moremembers = true
+	while(moremembers)
+	{
+		if(PeekToken(0) == "(")
+		{
+			PopToken()
+			
+			string memberfuncname = PeekToken(0)
+			PopToken()
+			
+			if(!PeekWithExpectation(0, ":"))
+			{
+				return()
+			}
+			
+			PopToken()
+			
+			boolean moreparams = true
+			while(moreparams)
+			{
+				string paramtypename = PeekToken(0)
+				PopToken()
+				
+				// TODO - register member function param
+				
+				if(PeekToken(0) != ",")
+				{
+					moreparams = false
+				}
+				else
+				{
+					PopToken()
+				}
+			}
+			
+			if(PeekToken(0) == "->")
+			{
+				PopToken()
+				string returntypename = PeekToken(0)
+				PopToken()
+			}
+			
+			if(!PeekWithExpectation(0, ")"))
+			{
+				return()
+			}
+			
+			PopToken()
+		}
+		else
+		{
+			string membertypename = PeekToken(0)
+			PopToken()
+			string membername = PeekToken(0)
+			PopToken()
+			
+			OnCodeGenRegisterStructureMemVar(PoolString(structurename), structuretype, PoolString(membername), PoolString(membertypename))
+		}
+		
+		if(PeekToken(0) != ",")
+		{
+			moremembers = false
+		}
+		else
+		{
+			PopToken()
+		}
+	}
+	
+	matched = true
+}
+
+
 ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
@@ -591,6 +760,9 @@ ParseFunction : -> boolean matched = false
 		{
 		}
 		elseif(ParseInitialization(false))
+		{
+		}
+		elseif(ParseAssignment())
 		{
 		}
 		else
@@ -713,6 +885,11 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 {
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
+	
+	if(varname == ".")
+	{
+		return()
+	}
 
 	if(PeekToken(2) != "=")
 	{
@@ -795,6 +972,26 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	{
 		return()
 	}
+	elseif(term == "(")
+	{
+		OnCodeGenRegisterParenthetical()
+		
+		PopToken()
+		if(ParseExpression())
+		{
+			PopToken()
+			matched = true
+		}
+		else
+		{
+			print("Error in parenthetical expression")
+		}
+		
+		OnCodeGenExitContext()
+		
+		
+		return()
+	}
 	
 	if(startsexpr)
 	{
@@ -821,16 +1018,17 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	}
 	else
 	{
-		//if(false)
-		//{
-			// TODO - support for string literals
-		//}
+		if(substring(term, 0, 1) == unescape("\'"))
+		{
+			string stringliteral = substring(term, 1, length(term) - 2)
+			IRAddLiteralString(stringliteral)			
+		}
 		//elseif(false)
 		//{
 			// TODO - support for floating point literals
 		//}
-		//else
-		//{
+		else
+		{
 			integer literalvalue = cast(integer, term)
 			if(literalvalue != 0)
 			{
@@ -840,7 +1038,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 			{
 				IRAddLiteralIdentifier(term)
 			}
-		//}
+		}
 	}
 
 	PopToken()
@@ -869,11 +1067,23 @@ ParseExpressionOperator : -> boolean matched = false
 	{
 		knownoperator = true
 	}
+	elseif(op == "-")
+	{
+		knownoperator = true
+	}
 	elseif(op == "*")
 	{
 		knownoperator = true
 	}
+	elseif(op == "/")
+	{
+		knownoperator = true
+	}
 	elseif(op == "==")
+	{
+		knownoperator = true
+	}
+	elseif(op == ".")
 	{
 		knownoperator = true
 	}
@@ -883,6 +1093,49 @@ ParseExpressionOperator : -> boolean matched = false
 		IRAddOperator(op)
 		PopToken()
 		matched = true
+	}
+}
+
+
+ParseAssignment : -> boolean matched = false
+{
+	integer lhslength = 1
+	while(PeekToken(lhslength) == ".")
+	{
+		lhslength += 2
+	}
+	
+	if(PeekToken(lhslength) != "=")
+	{
+		return()
+	}
+	
+	if(lhslength == 1)
+	{
+		OnCodeGenEnterAssignment(PoolString(PeekToken(0)), 0, 0)
+	}
+	else
+	{
+		OnCodeGenEnterAssignmentCompound(PoolString(PeekToken(0)), 0, 0)
+		integer tokenindex = 2
+		while(tokenindex < lhslength)
+		{
+			OnCodeGenAssignmentCompoundMember(PoolString(PeekToken(tokenindex)))
+			tokenindex += 2
+		}
+		OnCodeGenAssignmentCompoundEnd()
+	}
+	
+	PopTokens(lhslength + 1)
+	
+	if(ParseExpression())
+	{
+		matched = true
+		OnCodeGenExitContext()
+	}
+	else
+	{
+		print("Right hand side of assignment is not a valid expression")
 	}
 }
 
@@ -916,6 +1169,27 @@ listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = f
 
 listcontains : nothing, integer value -> boolean contains = false
 
+
+
+TypeListContains : simplelist<integer> ref thelist, integer value -> boolean ret = false
+{
+	integer listval = thelist.value
+	if((listval & 0xff000000) == 0x05000000)
+	{
+		listval = FindTypeAliasBase(TypeAliases, listval)
+	}
+	
+	if(listval == value)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = listcontains(thelist.next, value)
+	}
+}
+
+TypeListContains : nothing, integer value -> boolean contains = false
 
 
 
@@ -1119,11 +1393,16 @@ OnBytecodeAssign :
 	OnBytecodeEmitByte(0x06)			// Assign instruction
 }
 
-OnBytecodePushVarValue : integer name, integer typeid
+OnBytecodePushVarValueNoCopy : integer name
 {
 	OnBytecodeEmitByte(0x05)			// Read instruction
 	OnBytecodeEmitInteger(name)
+}
 
+OnBytecodePushVarValue : integer name, integer typeid
+{
+	OnBytecodePushVarValueNoCopy(name)
+	
 	integer family = typeid & 0x7f000000
 
 	if(typeid == 0x02000001)			// Buffer type signature
@@ -1368,12 +1647,14 @@ structure StringTableEntry :
 	string Data
 
 structure TypeAlias :
-	integer Alias,
-	integer Base
+	integer TypeID,
+	integer AliasNameHandle,
+	integer BaseNameHandle
 
 structure StructureMemberVariable :
 	integer Name,
-	integer Type
+	integer Type,
+	integer TypeNameHandle
 
 structure StructureMemberFunctionRef :
 	integer Name,
@@ -1410,6 +1691,10 @@ structure RefBinding :
 	integer StructureName,
 	boolean IsReference,
 	boolean InputIsReference
+	
+structure CompoundAtom :
+	list<RefBinding> ref Bindings,
+	integer Type
 
 structure AtomSentinel :
 	integer dummy
@@ -1417,6 +1702,7 @@ structure AtomSentinel :
 
 type ExpressionAtom : 	integer | integer16 | boolean | real | StringHandleAtom |
 			IdentifierAtom | OperatorInvokeAtom | TypeAnnotationAtom | RefBinding |
+			CompoundAtom |
 			Statement |
 			ParentheticalExpression |
 			AtomSentinel
@@ -1543,7 +1829,7 @@ structure SumType :
 structure FunctionSignature :
 	integer Name,
 	list<Parameter> ref Parameters,
-	integer ReturnType
+	integer ReturnTypeName
 
 structure TypeMatcher :
 	integer Name,
@@ -1589,17 +1875,17 @@ OnCodeGenRegisterString : integer handle, string data
 	}
 }
 
-OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer membertype
+OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle
 {
-	StructureMemberVariable member = membername, membertype
+	StructureMemberVariable member = membername, 0, typenamehandle
 	StructureMember memwrap = member
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
 
-OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettype
+OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettypename
 {
 	list<Parameter> p = dummyparam, nothing
-	FunctionSignature signature = name, p, rettype
+	FunctionSignature signature = name, p, rettypename
 	StructureMemberFunctionRef m = name, signature
 	StructureMember memwrap = m
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
@@ -2131,6 +2417,7 @@ ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false
 ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false
 ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false
 ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false
+ExpressionAtomIsSentinel : CompoundAtom            ref nonsentinel -> false
 ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false
 
 
@@ -2660,7 +2947,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 		constructssumtype = true
 	}
 
-	boolean constructorcall = false
+	boolean constructorcall = StructureConstructorExists(Structures, s.Name)
 
 	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
 
@@ -2884,6 +3171,7 @@ CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean r
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
+CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> false
 
 CodeGenCheckAtomForReadRef : integer ref atom -> false
 CodeGenCheckAtomForReadRef : integer16 ref atom -> false
@@ -3005,6 +3293,39 @@ CodeGenEmitSingleAtom : ParentheticalExpression ref expr, boolean constructor
 {
 	CodeGenEmitExpression(expr.Inner, false, false)
 }
+
+CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
+{
+	integer frames = 0
+	integer index = FindVariable(atom.Bindings.value.Identifier, frames)
+	OnBytecodeBindReference(frames, index)
+	
+	EmitCompoundBindings(atom.Bindings, atom.Bindings.next)
+	OnBytecodeReadReference()
+}
+
+EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
+{
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(EmittingFunctionName, bindings.value.Identifier, var)
+	
+	integer lhstypename = GetNameOfType(var.VarType)
+
+	integer memtype = GetStructureMemberType(Structures, lhstypename, tail.value.Identifier)
+	integer memoffset = GetStructureMemberOffset(Structures, lhstypename, tail.value.Identifier)
+	OnBytecodeBindStructReference(memtype, memoffset)
+
+	EmitCompoundSubsequentBindings(tail.next)
+}
+
+EmitCompoundSubsequentBindings : nothing
+
+EmitCompoundSubsequentBindings : list<RefBinding> ref bindings
+{
+	CodeGenEmitSingleAtom(bindings.value, false)
+	EmitCompoundSubsequentBindings(bindings.next)
+}
+
 
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
 
@@ -3758,10 +4079,10 @@ EmitCopyConstructor : StructureDefinition ref def
 {
 	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
 	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x81000000, 1)
-	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "value"), def.Type, 1)
+	OnBytecodeLexicalScopeEntry(def.Name, def.Type, 1)
 
 	OnBytecodeEnterFunction(def.CopyConstructorName)
-	OnBytecodePushVarNoCopy(FindString(GlobalStrings, "value"))
+	OnBytecodePushVarNoCopy(def.Name)
 	OnBytecodeCopyStructure()
 	OnBytecodeBindReference(0, 0)
 	OnBytecodeAssign()
@@ -3883,9 +4204,21 @@ GetNameOfType : integer typeid -> integer name = 0
 
 GetTypeByName : integer name -> integer typeid = 0
 {
+	integer unaliasedname = UnaliasType(TypeWeakAliases, name)
+	while(unaliasedname != name)
+	{
+		name = unaliasedname
+		unaliasedname = UnaliasType(TypeWeakAliases, name)
+	}
+	name = unaliasedname
+
 	if(name == FindString(GlobalStrings, "integer"))
 	{
 		typeid = 0x01000001
+	}
+	elseif(name == FindString(GlobalStrings, "boolean"))
+	{
+		typeid = 0x01000003
 	}
 	elseif(name == FindString(GlobalStrings, "string"))
 	{
@@ -3897,13 +4230,37 @@ GetTypeByName : integer name -> integer typeid = 0
 	}
 	else
 	{
-		integer structurename = GetStructureTypeByName(Structures, name)
-		if(structurename != 0)
+		integer structuretype = GetStructureTypeByName(Structures, name)
+		if(structuretype != 0)
 		{
-			typeid = structurename
+			typeid = structuretype
+			return()
+		}
+		
+		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
+		if(strongaliastype != 0)
+		{
+			typeid = strongaliastype
+			return()
 		}
 	}
 }
+
+
+UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0
+{
+	if(aliases.value.AliasNameHandle == namehandle)
+	{
+		unaliasedname = aliases.value.BaseNameHandle
+	}
+	else
+	{
+		unaliasedname = UnaliasType(aliases.next, namehandle)
+	}
+}
+
+UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle
+
 
 
 GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0
@@ -4079,9 +4436,9 @@ AppendEntityToChainWorker : list<Entity> ref chain, nothing, Entity ref e
 
 FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer basetype = 0
 {
-	if(aliases.value.Alias == aliastype)
+	if(aliases.value.TypeID == aliastype)
 	{
-		basetype = aliases.value.Base
+		basetype = GetTypeByName(aliases.value.BaseNameHandle)
 	}
 	else
 	{
@@ -4092,18 +4449,38 @@ FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer ba
 FindTypeAliasBase : nothing, integer aliastype -> integer basetype = 0
 
 
-OnCodeGenRegisterAlias : integer aliastype, integer base
+FindTypeAliasByName : list<TypeAlias> ref aliases, integer aliasname -> integer aliastype = 0
 {
-	TypeAlias newalias = aliastype, base
+	if(aliases.value.AliasNameHandle == aliasname)
+	{
+		aliastype = aliases.value.TypeID
+	}
+	else
+	{
+		aliastype = FindTypeAliasByName(aliases.next, aliasname)
+	}
+}
+
+FindTypeAliasByName : nothing, integer aliasname -> 0
+
+
+OnCodeGenRegisterAlias : integer aliastype, integer aliasname, integer base
+{
+	TypeAlias newalias = aliastype, aliasname, base
 	prepend<TypeAlias>(TypeAliases, newalias)
 }
 
+OnCodeGenRegisterWeakAlias : integer aliastype, integer aliasname, integer basename
+{
+	TypeAlias newalias = aliastype, aliasname, basename
+	prepend<TypeAlias>(TypeWeakAliases, newalias)
+}
 
 
-OnCodeGenRegisterFunctionSig : integer sigtype, integer rettype
+OnCodeGenRegisterFunctionSig : integer sigtype, integer rettypename
 {
 	list<Parameter> d = dummyparam, nothing
-	FunctionSignature sig = sigtype, d, rettype
+	FunctionSignature sig = sigtype, d, rettypename
 	prepend<FunctionSignature>(FunctionSignatures, sig)
 }
 
@@ -4131,7 +4508,7 @@ CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
 {
 	if(signature.Name != 0)
 	{
-		OnBytecodeEmitFunctionSignature(signature.Name, signature.ReturnType, CountParameters(signature.Parameters))
+		OnBytecodeEmitFunctionSignature(signature.Name, GetTypeByName(signature.ReturnTypeName), CountParameters(signature.Parameters))
 		CodeGenEmitFunctionSigParams(signature.Parameters)
 	}
 }
@@ -4407,6 +4784,11 @@ IRTypeInference : -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
 	InferenceContext context = 0, 0, temp, false
+	
+	if(!TypeInference(Structures, context))
+	{
+		success = false
+	}
 
 	if(!TypeInference(Functions, context))
 	{
@@ -4415,6 +4797,71 @@ IRTypeInference : -> boolean success = true
 }
 
 TypeInference : nothing, InferenceContext ref context -> true
+
+
+TypeInference : list<StructureDefinition> ref structures, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(structures.value, context))
+	{
+		success = false
+	}
+	
+	if(!TypeInference(structures.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : StructureDefinition ref structuredef, InferenceContext ref context -> boolean success = true
+{
+	if(structuredef.Name == 0)
+	{
+		return()
+	}
+
+	if(!TypeInference(structuredef.Members, context))
+	{
+		success = false
+	}
+	
+	string readablename = GetPooledString(GlobalStrings, structuredef.Name)
+	integer ctorname = PoolString(readablename ; "@@constructor")
+	integer anonname = PoolString(readablename ; "@@anonconstructor")
+	integer copyname = PoolString(readablename ; "@@copyconstructor")
+	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
+}
+
+
+TypeInference : list<StructureMember> ref members, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(members.value, context))
+	{
+		success = false
+	}
+	
+	if(!TypeInference(members.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context -> boolean success = true
+{
+	if(memvar.Name == 0)
+	{
+		return()
+	}
+
+	memvar.Type = GetTypeByName(memvar.TypeNameHandle)
+	if(memvar.Type == 0)
+	{
+		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
+		success = false
+	}
+}
+
+TypeInference : StructureMemberFunctionRef ref memfunc, InferenceContext ref context -> true
+
 
 TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref context -> boolean success = true
 {
@@ -4491,6 +4938,7 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
 	if(param.ResolvedType == 0)
 	{
+		print("Unknown parameter type: " ; GetPooledString(GlobalStrings, param.TypeNameHandle))
 		success = false
 	}
 	else
@@ -4532,6 +4980,21 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		{
 			origin = 2
 		}
+		
+		while((vartype & 0xff000000) == 0x05000000)
+		{
+			vartype = FindTypeAliasBase(TypeAliases, vartype)
+		}
+		
+		if((vartype & 0xff000000) == 0x03000000)
+		{
+			statement.Name = GetConstructorName(Structures, vartype)
+		}
+		else
+		{
+			statement.Name = GetNameOfType(vartype)
+		}
+		
 		ConstructVariableFromStatement(statement, context.ScopeName, vartype, origin)
 	}
 
@@ -4551,6 +5014,16 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		statement.Type = GetFunctionReturnType(Functions, statement.Name)
 	}
+}
+
+TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
+{
+	// TODO - assignment inference!
+}
+
+TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
+{
+	// TODO - compound assignment inference!
 }
 
 
@@ -4596,21 +5069,22 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		return()
 	}
 
+	CoalesceMemberAccesses(expression.Atoms, context.ScopeName)
 	ShuntingYard(expression.Atoms)
-	
+		
 	InferencePossibility temp = scratchpossibility
 	list<InferencePossibility> possibilities = temp, nothing
-		
+
 	integer counter = 0
 	integer scopename = context.ScopeName
-	
+		
 	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
 	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename, flag)
 		
 	integer possibilitycount = CountPossibilities(possibilities)
 	if(possibilitycount == 1)
 	{
-		if(!context.FunctionReturn)
+		if((!context.FunctionReturn) && (context.StatementName != 0))
 		{
 			simplelist<integer> types = 0, nothing
 			EliminateImpossibleType(possibilities.value.ReturnType.Types, context.ExpectedTypes, types)
@@ -4628,6 +5102,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				print("All types ruled out")
 				DumpTypeList(possibilities.value.ReturnType.Types)
+				print("Expected types are")
+				DumpTypeList(context.ExpectedTypes)
 			}
 		}
 		else
@@ -4637,7 +5113,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				expression.Type = possibilities.value.ReturnType.Types.value
 			}
-			else
+			elseif(context.FunctionReturn)
 			{
 				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
 				DumpTypeList(possibilities.value.ReturnType.Types)
@@ -4697,12 +5173,12 @@ countnonzero : nothing -> 0
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname, boolean funcret
 {
 	WalkAtomsForType(tail, tail.next, possibilities, counter, funcname, funcret)
-
+	
 	if(!IsOperatorInvoke(atoms.value))
 	{
-		++counter
 		ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname, funcret)
-
+		
+		++counter
 		if(counter > 1)
 		{
 			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, counter)
@@ -4711,9 +5187,15 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	}
 	else
 	{
+		if(counter > 0)
+		{
+			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, counter + 1)
+			--counter
+		}
 		GetAtomTypeOperator(atoms.value, possibilities)
 	}
 }
+
 
 ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname, boolean funcret
 {
@@ -4785,7 +5267,7 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 {
 	EliminateImpossibleType(possibles.next, filter, out)
 
-	if((possibles.value != 0) && listcontains(filter, possibles.value))
+	if((possibles.value != 0) && TypeListContains(filter, possibles.value))
 	{
 		simpleprepend<integer>(out, possibles.value)
 	}
@@ -4818,6 +5300,8 @@ GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities
 GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000003) }
 GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000004) }
 
+GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, atom.Type)  }
+
 GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {	
 	simplelist<integer> temp = 0, nothing
@@ -4833,7 +5317,17 @@ GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, intege
 
 GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
-	// TODO - type inference on parentheticals
+	simplelist<integer> temp = 0, nothing
+	InferenceContext newcontext = funcname, 0, temp, funcret
+		
+	if(TypeInference(parenthetical.Inner, newcontext))
+	{
+		AddPossibleParameter(possibilities.Types, parenthetical.Inner.Type)
+	}
+	else
+	{
+		print("Parenthetical expression failed type inference")
+	}
 }
 
 GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities
@@ -4866,7 +5360,30 @@ IsOperatorInvoke : boolean 		   ref nonsentinel -> false
 IsOperatorInvoke : real 		   ref nonsentinel -> false
 IsOperatorInvoke : Statement		   ref nonsentinel -> false
 IsOperatorInvoke : RefBinding              ref nonsentinel -> false
+IsOperatorInvoke : CompoundAtom		   ref nonsentinel -> false
 IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
+
+
+IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismemberaccess = false
+{
+	if(GetPooledString(GlobalStrings, nonsentinel.OperatorName) == ".")
+	{
+		ismemberaccess = true
+	}
+}
+
+IsMemberAccessOperator : AtomSentinel 	   	 ref sentinel    -> false
+IsMemberAccessOperator : StringHandleAtom 	 ref nonsentinel -> false
+IsMemberAccessOperator : IdentifierAtom 	 ref nonsentinel -> false
+IsMemberAccessOperator : TypeAnnotationAtom 	 ref nonsentinel -> false
+IsMemberAccessOperator : integer 		 ref nonsentinel -> false
+IsMemberAccessOperator : integer16 		 ref nonsentinel -> false
+IsMemberAccessOperator : boolean 		 ref nonsentinel -> false
+IsMemberAccessOperator : real 		   	 ref nonsentinel -> false
+IsMemberAccessOperator : Statement		 ref nonsentinel -> false
+IsMemberAccessOperator : RefBinding              ref nonsentinel -> false
+IsMemberAccessOperator : CompoundAtom            ref nonsentinel -> false
+IsMemberAccessOperator : ParentheticalExpression ref nonsentinel -> false
 
 
 
@@ -4875,6 +5392,11 @@ IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
 AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 {
 	simpleprepend<integer>(possibilities, paramtype)
+	
+	if((paramtype & 0xff000000) == 0x05000000)
+	{
+		simpleprepend<integer>(possibilities, FindTypeAliasBase(TypeAliases, paramtype))
+	}
 }
 
 AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
@@ -4932,55 +5454,48 @@ ShuntingYardVisit : real                    ref atom, list<ExpressionAtom> ref o
 ShuntingYardVisit : Statement               ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
 ShuntingYardVisit : RefBinding              ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
 ShuntingYardVisit : ParentheticalExpression ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
+ShuntingYardVisit : CompoundAtom            ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack	{ ExpressionAtom wrap = atom  PlaceAtomInList(outputqueue, wrap) }
 
 ShuntingYardVisit : OperatorInvokeAtom ref atom, list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
 {
-	if(false)			// TODO - check if atom is a member access
-	{
-		ExpressionAtom wrap = atom
-		PlaceAtomInList(outputqueue, wrap)
-	}
-	else
-	{
-		integer opprec = GetOperatorPrecedence(atom)
-		boolean continueops = true
+	integer opprec = GetOperatorPrecedence(atom)
+	boolean continueops = true
 
-		while(continueops && (!ExpressionAtomIsSentinel(opstack.value)))
+	while(continueops && (!ExpressionAtomIsSentinel(opstack.value)))
+	{
+		ExpressionAtom opatom2 = opstack.value
+		integer op2prec = GetOperatorPrecedence(opatom2)
+
+		// TODO - this whole section is hacky. Replace with break() calls and >= operator.
+
+		if(false)		// TODO - check for unary operators
 		{
-			ExpressionAtom opatom2 = opstack.value
-			integer op2prec = GetOperatorPrecedence(opatom2)
-
-			// TODO - this whole section is hacky. Replace with break() calls and >= operator.
-
-			if(false)		// TODO - check for unary operators
+			if(opprec > op2prec)
 			{
-				if(opprec > op2prec)
-				{
-					continueops = false
-				}
-				elseif(opprec == op2prec)
-				{
-					continueops = false
-				}
+				continueops = false
 			}
-			else
+			elseif(opprec == op2prec)
 			{
-				if(opprec > op2prec)
-				{
-					continueops = false
-				}
+				continueops = false
 			}
-
-			if(continueops)
+		}
+		else
+		{
+			if(opprec > op2prec)
 			{
-				PlaceAtomInList(outputqueue, opatom2)
-				ShuntingYardPopStack(opstack, opstack.next)
+				continueops = false
 			}
 		}
 
-		ExpressionAtom wrap = atom
-		prepend<ExpressionAtom>(opstack, wrap)
+		if(continueops)
+		{
+			PlaceAtomInList(outputqueue, opatom2)
+			ShuntingYardPopStack(opstack, opstack.next)
+		}
 	}
+
+	ExpressionAtom wrap = atom
+	prepend<ExpressionAtom>(opstack, wrap)
 }
 
 ShuntingYardFlush : list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> ref opstack
@@ -5016,9 +5531,26 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
 	{
 		precedence = 5
 	}
+	elseif(basename == "-")
+	{
+		precedence = 5
+	}
 	elseif(basename == "*")
 	{
 		precedence = 9
+	}
+	elseif(basename == "/")
+	{
+		precedence = 9
+	}
+	elseif(basename == ".")
+	{
+		precedence = 11
+	}
+	else
+	{
+		print("Unknown operator " ; basename)
+		assert(false)
 	}
 }
 
@@ -5181,13 +5713,13 @@ GetPooledString : list<StringTableEntry> ref strings, integer handle -> string p
 
 GetPooledString : nothing, integer handle -> "" [nogc]
 {
-	print("String handle not pooled!")
+	print("String handle not pooled: " ; cast(string, handle))
 	assert(false)
 }
 
 
 DumpAtom : AtomSentinel 	   ref sentinel    { print("Sentinel") }
-DumpAtom : StringHandleAtom 	   ref nonsentinel { print("String handle " ; cast(string, nonsentinel.Handle)) }
+DumpAtom : StringHandleAtom 	   ref nonsentinel { print("String handle " ; cast(string, nonsentinel.Handle) ; " = '" ; GetPooledString(GlobalStrings, nonsentinel.Handle) ; "'") }
 DumpAtom : IdentifierAtom 	   ref nonsentinel { print("Identifier " ; cast(string, nonsentinel.Handle) ; " = '" ; GetPooledString(GlobalStrings, nonsentinel.Handle) ; "'") }
 DumpAtom : OperatorInvokeAtom 	   ref nonsentinel { print("Operator " ; cast(string, nonsentinel.OperatorName)) }
 DumpAtom : TypeAnnotationAtom 	   ref nonsentinel { print("Type annotation") }
@@ -5197,6 +5729,7 @@ DumpAtom : boolean 		   ref nonsentinel { print("boolean") }
 DumpAtom : real 		   ref nonsentinel { print("real " ; cast(string, nonsentinel)) }
 DumpAtom : RefBinding              ref nonsentinel { print("RefBinding") }
 DumpAtom : ParentheticalExpression ref nonsentinel { print("Parenthetical") }
+DumpAtom : CompoundAtom            ref nonsentinel { print("Compound") }
 
 DumpAtom : Statement		   ref nonsentinel
 {
@@ -5243,18 +5776,28 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer"), 0x01000001, 0x01000001, 0x01000003)
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@boolean"), 0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@string"),  0x02000000, 0x02000000, 0x01000003)
 	}
 	elseif(basename == "+")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
 	}
+	elseif(basename == "-")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "-@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
 	elseif(basename == "*")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "*@@integer"), 0x01000001, 0x01000001, 0x01000001)
 	}
+	elseif(basename == "/")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "/@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
 	else
 	{
 		print("Unrecognized operator")
+		assert(false)
 	}
 }
 
@@ -5286,7 +5829,15 @@ FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integ
 
 FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, simplelist<integer> ref types
 {
-	FindBuiltinAndAddParameterTypes(funcname, paramindex, types)
+	integer functype = GetTypeByName(funcname)
+	if((functype & 0xff000000) == 0x03000000)
+	{
+		FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, types)
+	}
+	else
+	{
+		FindBuiltinAndAddParameterTypes(funcname, paramindex, types)
+	}
 }
 
 UnwrapParamsForTypeRetrieval : FunctionParams ref params, integer paramindex, simplelist<integer> ref types
@@ -5339,6 +5890,12 @@ GetOptionalExpressionType : nothing -> 0
 
 FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
 {
+	integer ctype = GetTypeByName(funcname)
+	if((ctype & 0xff000000) == 0x05000000)
+	{
+		funcname = GetNameOfType(FindTypeAliasBase(TypeAliases, ctype))
+	}
+
 	string readablename = GetPooledString(GlobalStrings, funcname)
 	if(readablename == "passtest")
 	{
@@ -5362,6 +5919,184 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simpleli
 			simpleprepend<integer>(types, 0x01000001)	// integer type signature
 		}
 	}
+	elseif(readablename == "boolean")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+		}
+		elseif(paramindex == 1)
+		{
+			simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+		}
+	}
+	elseif(readablename == "string")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+		}
+		elseif(paramindex == 1)
+		{
+			simpleprepend<integer>(types, 0x02000000)	// string type signature
+		}
+	}
+}
+
+
+FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	if(structures.value.Name == funcname)
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+		}
+		else
+		{
+			FindMemberAndAddParameterTypes(structures.value.Members, paramindex - 1, types)
+		}
+	}
+	else
+	{
+		FindConstructorAndAddParameterTypes(structures.next, funcname, paramindex, types)
+	}
+}
+
+FindConstructorAndAddParameterTypes : nothing, integer funcname, integer paramindex, simplelist<integer> ref types
+
+
+FindMemberAndAddParameterTypes : list<StructureMember> ref members, integer paramindex, simplelist<integer> ref types
+{
+	if(paramindex == 0)
+	{
+		AddParameterTypesForMember(members.value, types)
+	}
+	else
+	{
+		FindMemberAndAddParameterTypes(members.next, paramindex - 1, types)
+	}
+}
+
+FindMemberAndAddParameterTypes : nothing, integer paramindex, simplelist<integer> ref types
+{
+	print("Too many arguments to constructor")
+}
+
+
+AddParameterTypesForMember : StructureMemberVariable ref memvar, simplelist<integer> ref types
+{
+	simpleprepend<integer>(types, memvar.Type)
+}
+
+AddParameterTypesForMember : StructureMemberFunctionRef ref memfunc, simplelist<integer> ref types
+{
+	simpleprepend<integer>(types, 0x09000000)
+}
+
+
+GetConstructorName : list<StructureDefinition> ref structures, integer typeid -> integer name = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		name = structures.value.ConstructorName
+	}
+	else
+	{
+		name = GetConstructorName(structures.next, typeid)
+	}
+}
+
+
+StructureConstructorExists : list<StructureDefinition> ref structures, integer ctorname -> boolean exists = false
+{
+	if(structures.value.ConstructorName == ctorname)
+	{
+		exists = true
+	}
+	else
+	{
+		exists = StructureConstructorExists(structures.next, ctorname)
+	}
+}
+
+StructureConstructorExists : nothing, integer ctorname -> false
+
+
+CoalesceMemberAccesses : list<ExpressionAtom> ref atoms, integer scopename
+{
+	while(SearchForMemberAccessStart(atoms, atoms.next, scopename))
+	{
+	}
+}
+
+SearchForMemberAccessStart : list<ExpressionAtom> ref previous, list<ExpressionAtom> ref current, integer scopename -> boolean found = false
+{
+	if(IsMemberAccessOperator(current.value))
+	{
+		CoalesceMemberAccessTriplet(previous, current, current.next, scopename)
+		found = true
+	}
+	else
+	{
+		found = SearchForMemberAccessStart(current, current.next, scopename)
+	}
+}
+
+SearchForMemberAccessStart : list<ExpressionAtom> ref previous, nothing, integer scopename -> false
+
+
+CoalesceMemberAccessTriplet : list<ExpressionAtom> ref lhs, list<ExpressionAtom> ref op, list<ExpressionAtom> ref rhs, integer scopename
+{
+	CoalesceMemberAccessAtoms(lhs, lhs.value, rhs.value, scopename)
+	lhs.next = rhs.next
+}
+
+CoalesceMemberAccessAtoms : list<ExpressionAtom> ref lhslist, ExpressionAtom ref lhs, ExpressionAtom ref rhs, integer scopename
+{
+	CoalesceMemberAccessAtomsUnwrapped(lhslist, lhs, rhs, scopename)
+}
+
+CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, IdentifierAtom ref lhs, IdentifierAtom ref rhs, integer scopename
+{
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(scopename, lhs.Handle, var)
+	
+	integer lhstypename = GetNameOfType(var.VarType)
+	
+	integer rhstype = GetStructureMemberType(Structures, lhstypename, rhs.Handle)
+	integer rhstypename = GetNameOfType(rhstype)
+
+	RefBinding lhsbinding = lhs.Handle, lhstypename, false, false
+	RefBinding rhsbinding = rhs.Handle, rhstypename, false, false
+
+	list<RefBinding> bindings = rhsbinding, nothing
+	prepend<RefBinding>(bindings, lhsbinding)
+	
+	CompoundAtom compound = bindings, rhstype
+	ExpressionAtom wrap = compound
+	lhslist.value = wrap
+}
+
+CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, CompoundAtom ref lhs, IdentifierAtom ref rhs, integer scopename
+{
+	integer typename = GetNameOfType(lhs.Type)
+	
+	RefBinding temp = rhs.Handle, typename, false, false
+	AppendBinding(lhs.Bindings, lhs.Bindings.next, temp)
+
+	lhs.Type = GetStructureMemberType(Structures, typename, rhs.Handle)
+}
+
+AppendBinding : list<RefBinding> ref bindings, list<RefBinding> ref tail, RefBinding ref binding
+{
+	AppendBinding(tail, tail.next, binding)
+}
+
+AppendBinding : list<RefBinding> ref bindings, nothing, RefBinding ref binding
+{
+	list<RefBinding> newtail = binding, nothing
+	bindings.next = newtail
 }
 
 
@@ -5390,7 +6125,7 @@ global
 	list<SumType> SumTypes = dummysumtype, nothing
 
 
-	StructureMemberVariable dummymember = 0, 0
+	StructureMemberVariable dummymember = 0, 0, 0
 	list<StructureMember> dummymembers = dummymember, nothing
 	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers
 	list<StructureDefinition> Structures = dummystruct, nothing
@@ -5452,8 +6187,11 @@ global
 	simplelist<integer> AutoGeneratedFunctionNames = 0, nothing
 	simplelist<integer> CustomConstructors = 0, nothing
 
-	TypeAlias dummyalias = 0, 0
+	TypeAlias dummyalias = 0, 0, 0
 	list<TypeAlias> TypeAliases = dummyalias, nothing
+	
+	TypeAlias dummyweak = 0, 0, 0
+	list<TypeAlias> TypeWeakAliases = dummyweak, nothing
 
 	list<FunctionSignature> FunctionSignatures = dummysignature, nothing
 
@@ -5476,5 +6214,11 @@ global
 	integer CHARACTER_CLASS_PUNCTUATION = 2
 	integer CHARACTER_CLASS_COMMENT = 3
 	integer CHARACTER_CLASS_PUNCTUATION_COMPOUND = 4
+	integer CHARACTER_CLASS_STRING_LITERAL = 5
+	
+	integer GlobalStructureCounter = 0x03000000
+	integer GlobalWeakAliasCounter = 0x04000000
+	integer GlobalAliasCounter = 0x05000000
 }
+
 
