@@ -505,6 +505,10 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
+	elseif(c == ";")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
 }
 
 
@@ -1084,6 +1088,10 @@ ParseExpressionOperator : -> boolean matched = false
 		knownoperator = true
 	}
 	elseif(op == ".")
+	{
+		knownoperator = true
+	}
+	elseif(op == ";")
 	{
 		knownoperator = true
 	}
@@ -5018,7 +5026,12 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
 {
-	// TODO - assignment inference!
+	if(!TypeInference(assignment.RHS, context))
+	{
+		success = false
+	}
+
+	// TODO - assignment type checking!
 }
 
 TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
@@ -5527,6 +5540,10 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
 	{
 		precedence = 0
 	}
+	elseif(basename == ";")
+	{
+		precedence = 3
+	}
 	elseif(basename == "+")
 	{
 		precedence = 5
@@ -5793,6 +5810,10 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	elseif(basename == "/")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "/@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basename == ";")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, ";"), 0x02000000, 0x02000000, 0x02000000)
 	}
 	else
 	{
