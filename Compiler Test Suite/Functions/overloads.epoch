@@ -1,0 +1,26 @@
+//
+// OVERLOADS.EPOCH
+//
+// Simple test of function overloading
+//
+
+
+func : integer foo
+{
+	assert(foo == 42)
+}
+
+func : string foo
+{
+	assert(foo == "bar")
+}
+
+
+entrypoint :
+{
+	func(42)
+	func("bar")
+	
+	passtest()
+}
+

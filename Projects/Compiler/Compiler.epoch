@@ -303,7 +303,10 @@ Parse : string code, integer len -> boolean success = false
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		if(ParseWeakAlias())
+		if(ParseSumType())
+		{
+		}
+		elseif(ParseWeakAlias())
 		{
 		}
 		elseif(ParseStrongAlias())
@@ -632,6 +635,43 @@ ParseStrongAlias : -> boolean matched = false
 }
 
 
+ParseSumType : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "type"))
+	{
+		return()
+	}
+	
+	if(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+	
+	if(!PeekWithExpectation(4, "|"))
+	{
+		return()
+	}
+	
+	PopToken()
+	string sumtypename = PeekToken(0)
+	integer typename = PoolString(sumtypename)
+	integer typeid = (++GlobalSumTypeCounter)
+	PopTokens(2)
+	
+	while(PeekToken(1) == "|")
+	{
+		string basename = PeekToken(0)		
+		OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename))
+		PopTokens(2)
+	}
+	
+	string finalbasename = PeekToken(0)		
+	OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(finalbasename))
+	PopToken()
+	matched = true
+}
+
+
 ParseStructure : -> boolean matched = false
 {
 	if(!PeekWithExpectation(0, "structure"))
@@ -734,6 +774,9 @@ ParseFunction : -> boolean matched = false
 	PopTokens(2)
 	
 	integer namehandle = PoolString(functionname)
+	
+	namehandle = RegisterOverloadForFunction(namehandle)
+	
 	OnCodeGenRegisterFunction(namehandle)
 	ParseFunctionParams()
 	ParseFunctionReturn(namehandle)
@@ -741,14 +784,14 @@ ParseFunction : -> boolean matched = false
 	if(!PeekWithExpectation(0, "{"))
 	{
 		matched = true
-		IREnterFunction(functionname)
+		IREnterFunction(namehandle)
 		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
 	}
 
 	PopTokens(1)
-	IREnterFunction(functionname)
+	IREnterFunction(namehandle)
 	OnCodeGenEnterFunctionBody(namehandle)
 
 	ParseCodeBlock()
@@ -1881,6 +1924,9 @@ structure FunctionParams :
 	
 type OptionalParameters : FunctionParams | nothing
 
+structure Overload :
+	integer NormalName,
+	integer MangledName
 
 structure FunctionDefinition :
 	integer Name,
@@ -2175,7 +2221,7 @@ StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varnam
 
 StoreVariableInScope : nothing, integer scopename, integer varname, integer vartype, boolean isref, integer origin
 {
-	print("No scope available")
+	print("No scope available for identifier " ; GetPooledString(GlobalStrings, scopename))
 	assert(false)
 }
 
@@ -2190,6 +2236,32 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 	GlobalCodeBlockName = name
 }
+
+
+RegisterOverloadForFunction : integer rawname -> integer mangledname = rawname
+{
+	integer existingcount = CountOverloads(Overloads, rawname)
+	if(existingcount > 0)
+	{
+		mangledname = PoolString(GetPooledString(GlobalStrings, rawname) ; "@overload@" ; cast(string, existingcount))
+	}
+	
+	Overload overload = rawname, mangledname
+	prepend<Overload>(Overloads, overload)
+}
+
+
+CountOverloads : list<Overload> ref overloads, integer rawname -> integer count = 0
+{
+	if(rawname == overloads.value.NormalName)
+	{
+		++count
+	}
+	
+	count += CountOverloads(overloads.next, rawname)
+}
+
+CountOverloads : nothing, integer rawname -> 0
 
 
 OnCodeGenRegisterFunction : integer funcname
@@ -4339,8 +4411,29 @@ GetTypeByName : integer name -> integer typeid = 0
 			typeid = strongaliastype
 			return()
 		}
+		
+		integer sumtype = FindSumTypeByName(SumTypes, name)
+		if(sumtype != 0)
+		{
+			typeid = sumtype
+			return()
+		}
 	}
 }
+
+
+FindSumTypeByName : list<SumType> ref sumtypes, integer name -> integer typeid = 0
+{
+	if((sumtypes.value.Type != 0) && (sumtypes.value.Name == name))
+	{
+		typeid = sumtypes.value.Type
+		return()
+	}
+	
+	typeid = FindSumTypeByName(sumtypes.next, name)
+}
+
+FindSumTypeByName : nothing, integer name -> 0
 
 
 UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0
@@ -4881,6 +4974,11 @@ IRTypeInference : -> boolean success = true
 	simplelist<integer> temp = 0, nothing
 	InferenceContext context = 0, 0, temp, false
 	
+	if(!TypeInference(SumTypes, context))
+	{
+		success = false
+	}
+	
 	if(!TypeInference(Structures, context))
 	{
 		success = false
@@ -4893,6 +4991,47 @@ IRTypeInference : -> boolean success = true
 }
 
 TypeInference : nothing, InferenceContext ref context -> true
+
+
+TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> boolean success = true
+{
+	if(sumtypes.value.Type != 0)
+	{
+		if(!ResolveSumTypeBases(sumtypes.value.Bases))
+		{
+			success = false
+		}
+	}
+	
+	if(!TypeInference(sumtypes.next, context))
+	{
+		success = false
+	}
+}
+
+ResolveSumTypeBases : simplelist<integer> ref bases -> boolean success = true
+{
+	if(bases.value != 0)
+	{
+		integer resolvedtype = GetTypeByName(bases.value)
+		if(resolvedtype == 0)
+		{
+			print("Sum type has unknown base type")
+			success = false
+		}
+		else
+		{
+			bases.value = resolvedtype
+		}
+	}
+	
+	if(!ResolveSumTypeBases(bases.next))
+	{
+		success = false
+	}
+}
+
+ResolveSumTypeBases : nothing -> true
 
 
 TypeInference : list<StructureDefinition> ref structures, InferenceContext ref context -> boolean success = true
@@ -4985,6 +5124,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	
 	if(!TypeInference(func.Params, innercontext))
 	{
+		print("Parameters to function failed type inference")
 		success = false
 	}
 	
@@ -4994,6 +5134,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 
 	if(!TypeInference(func.Return, retcontext))
 	{
+		print("Function return expression failed type inference")
 		success = false
 	}
 	
@@ -5010,6 +5151,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 
 	if(!TypeInference(func.Code, innercontext))
 	{
+		print("Function code body failed type inference")
 		success = false
 	}
 }
@@ -5100,7 +5242,20 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
 	}
 
-	// TODO - overload resolution
+
+	simplelist<integer> paramtypes = 0, nothing
+	AccumulateParameterTypes(paramtypes, statement.Parameters)
+	
+	integer overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
+	if(overloadname != 0)
+	{
+		statement.Name = overloadname
+	}
+	else
+	{
+		success = false
+		print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+	}
 	
 	if(context.FunctionReturn)
 	{
@@ -5111,6 +5266,113 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		statement.Type = GetFunctionReturnType(Functions, statement.Name)
 	}
 }
+
+
+AccumulateParameterTypes : simplelist<integer> ref types, OptionalExpressionList ref exprs
+{
+	AccumulateParameterTypesUnwrap(types, exprs)
+}
+
+AccumulateParameterTypesUnwrap : simplelist<integer> ref types, ExpressionList ref exprs
+{
+	AccumulateParameterTypesUnwrapped(exprs.Expressions, types)
+}
+
+AccumulateParameterTypesUnwrap : simplelist<integer> ref types, nothing
+
+AccumulateParameterTypesUnwrapped : list<Expression> ref exprs, simplelist<integer> ref types
+{
+	AccumulateParameterTypesUnwrapped(exprs.next, types)
+	simpleprepend<integer>(types, exprs.value.Type)
+}
+
+AccumulateParameterTypesUnwrapped : nothing, simplelist<integer> ref types
+
+
+FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, simplelist<integer> ref types -> integer overloadname = rawname
+{
+	if(overloads.value.NormalName == rawname)
+	{
+		if(FunctionMatchesParameterTypes(Functions, overloads.value.MangledName, types))
+		{
+			overloadname = overloads.value.MangledName
+			return()
+		}
+	}
+
+	overloadname = FindOverloadWithParameterTypes(overloads.next, rawname, types)
+}
+
+FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
+{
+	string funcname = GetPooledString(GlobalStrings, rawname)
+	if(funcname == "assert")
+	{
+		overloadname = rawname
+	}
+	elseif(funcname == "passtest")
+	{
+		overloadname = rawname
+	}
+}
+
+
+FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer funcname, simplelist<integer> ref types -> boolean match = false
+{
+	if(functions.value.Name == funcname)
+	{
+		match = CheckParameterTypesForMatch(functions.value.Params, types)
+	}
+	else
+	{
+		match = FunctionMatchesParameterTypes(functions.next, funcname, types)
+	}
+}
+
+
+CheckParameterTypesForMatch : nothing, simplelist<integer> ref types -> boolean match = false
+{
+	if(countnonzero(types) == 0)
+	{
+		match = true
+	}
+}
+
+CheckParameterTypesForMatch : FunctionParams ref params, simplelist<integer> ref types -> boolean match = CheckParameterTypesForMatch(params.Params, types)
+
+CheckParameterTypesForMatch : list<UnresolvedParameter> ref params, simplelist<integer> ref types -> boolean match = true
+{
+	if(!ResolvedTypesMatch(params, types))
+	{
+		match = false
+	}
+}
+
+ResolvedTypesMatch : nothing, nothing -> true
+
+ResolvedTypesMatch : list<UnresolvedParameter> ref params, nothing -> false
+ResolvedTypesMatch : nothing, simplelist<integer> ref types -> boolean match = false
+{
+	if(types.value == 0)
+	{
+		match = true
+	}
+}
+
+ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> ref types -> boolean match = true
+{
+	if(params.value.ResolvedType != types.value)
+	{
+		match = false
+	}
+	else
+	{
+		listnode<UnresolvedParameter> n = params.next
+		simplelistnode<integer> nt = types.next
+		match = ResolvedTypesMatch(n, nt)			// TODO - this is some kind of compiler bug... or maybe a runtime bug?!
+	}
+}
+
 
 TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
 {
@@ -5182,6 +5444,10 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 	{
 		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")	
 		success = false
+	}
+	else
+	{
+		context.StatementName = newcontext.StatementName
 	}
 
 	if(!TypeInferenceExpressionList(parameters.next, context, paramindex + 1))
@@ -5762,9 +6028,8 @@ IRExitProgram :
 }
 
 
-IREnterFunction : string funcname -> integer namehandle = PoolString(funcname)
+IREnterFunction : integer namehandle
 {
-	//OnCodeGenRegisterFunction(namehandle)
 	OnCodeGenRegisterScope(namehandle, 0)
 }
 
@@ -5958,7 +6223,22 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 GetExpectedParameterTypes : integer funcname, integer paramindex, simplelist<integer> ref types
 {
 	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, types)
+	
+	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, types)
 }
+
+EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, simplelist<integer> ref types
+{
+	if(overloads.value.NormalName == funcname)
+	{
+		FindFunctionAndAddParameterTypes(Functions, overloads.value.MangledName, paramindex, types)
+	}
+	
+	EnumerateOverloadsAndAddParameterTypes(overloads.next, funcname, paramindex, types)
+}
+
+EnumerateOverloadsAndAddParameterTypes : nothing, integer funcname, integer paramindex, simplelist<integer> ref types
+
 
 FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, simplelist<integer> ref types
 {
@@ -6049,6 +6329,19 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simpleli
 		funcname = GetNameOfType(FindTypeAliasBase(TypeAliases, ctype))
 	}
 
+	if((ctype & 0xff000000) == 0x07000000)
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+		}
+		elseif(paramindex == 1)
+		{
+			FindSumTypeAndPrependTypesToList(SumTypes, ctype, types)
+		}
+		return()
+	}
+
 	string readablename = GetPooledString(GlobalStrings, funcname)
 	if(readablename == "passtest")
 	{
@@ -6093,6 +6386,28 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simpleli
 		{
 			simpleprepend<integer>(types, 0x02000000)	// string type signature
 		}
+	}
+}
+
+
+simpleprependall<type T> : simplelist<T> ref input, simplelist<T> ref newentries
+{
+	simpleprepend<T>(input, newentries.value)
+	simpleprependall<T>(input, newentries.next)
+}
+
+simpleprependall<type T> : simplelist<T> ref input, nothing
+
+
+FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid, simplelist<integer> ref types
+{
+	if(sumtypes.value.Type == sumtypeid)
+	{
+		simpleprependall<integer>(types, sumtypes.value.Bases)
+	}
+	else
+	{
+		FindSumTypeAndPrependTypesToList(sumtypes.next, sumtypeid, types)
 	}
 }
 
@@ -6268,6 +6583,9 @@ global
 	list<Variable> dummyvarlist = dummyvar, nothing
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
+	
+	Overload dummyoverload = 0, 0
+	list<Overload> Overloads = dummyoverload, nothing
 
 	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0, nothing, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
@@ -6372,6 +6690,7 @@ global
 	integer GlobalStructureCounter = 0x03000000
 	integer GlobalWeakAliasCounter = 0x04000000
 	integer GlobalAliasCounter = 0x05000000
+	integer GlobalSumTypeCounter = 0x07000000
 }
 
 
