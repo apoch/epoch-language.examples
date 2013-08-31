@@ -1,0 +1,18 @@
+//
+// WHILE.EPOCH
+//
+// Basic test of while() entities
+//
+
+entrypoint :
+{
+	integer foo = 4
+	while(foo > 0)
+	{
+		assert(foo > 0)
+		foo = foo - 1
+	}
+	
+	passtest()
+}
+
