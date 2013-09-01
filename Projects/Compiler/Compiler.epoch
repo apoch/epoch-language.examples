@@ -3348,13 +3348,7 @@ CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean r
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
-CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> boolean read = false
-{
-	if((atom.Type & 0x80000000) == 0)
-	{
-		read = true
-	}
-}
+CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> false
 
 CodeGenCheckAtomForReadRef : integer ref atom -> false
 CodeGenCheckAtomForReadRef : integer16 ref atom -> false
@@ -5331,17 +5325,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 
 FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
 {
-	// TODO - this is ugly. Builtins should get better overload support.
-	string funcname = GetPooledString(GlobalStrings, rawname)
-	if(funcname == "assert")
-	{
-		overloadname = rawname
-	}
-	elseif(funcname == "passtest")
-	{
-		overloadname = rawname
-	}
-	elseif(funcname == "integer")
+	if(!FunctionExists(Functions, rawname))
 	{
 		overloadname = rawname
 	}
@@ -5363,9 +5347,17 @@ FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer 
 
 CheckParameterTypesForMatch : nothing, simplelist<integer> ref types -> boolean match = false
 {
-	if(countnonzero(types) == 0)
+	integer count = countnonzero(types)
+	if(count == 0)
 	{
 		match = true
+	}
+	elseif(count == 1)
+	{
+		if(types.value == 0x00000002)		// void type signature
+		{
+			match = true
+		}
 	}
 }
 
