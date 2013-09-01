@@ -814,11 +814,19 @@ ParseFunctionParams :
 		string nametoken = PeekToken(1)
 		PopTokens(2)
 		
+		boolean isreference = false
+		if(nametoken == "ref")
+		{
+			isreference = true
+			nametoken = PeekToken(0)
+			PopToken()
+		}
+		
 		// TODO - error checking
 		// TODO - higher order function params
 		// TODO - literal params
 		
-		IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken))
+		IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
 		
 		typetoken = PeekToken(0)
 		if(typetoken != ",")
@@ -1310,7 +1318,7 @@ listcontains : nothing, integer value -> boolean contains = false
 
 
 
-TypeListContains : simplelist<integer> ref thelist, integer value -> boolean ret = false
+TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0
 {
 	integer listval = thelist.value
 	if((listval & 0xff000000) == 0x05000000)
@@ -1318,17 +1326,17 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> boolean ret
 		listval = FindTypeAliasBase(TypeAliases, listval)
 	}
 	
-	if(listval == value)
+	if(MakeNonReferenceType(listval) == value)
 	{
-		ret = true
+		ret = listval
 	}
 	else
 	{
-		ret = listcontains(thelist.next, value)
+		ret = TypeListContains(thelist.next, value)
 	}
 }
 
-TypeListContains : nothing, integer value -> boolean contains = false
+TypeListContains : nothing, integer value -> 0
 
 
 
@@ -1917,7 +1925,8 @@ structure EntityChain :
 structure UnresolvedParameter :
 	integer NameHandle,
 	integer TypeNameHandle,
-	integer ResolvedType
+	integer ResolvedType,
+	boolean HasRefTag
 		
 structure FunctionParams :
 	list<UnresolvedParameter> ref Params
@@ -2273,9 +2282,9 @@ OnCodeGenRegisterFunction : integer funcname
 	CurrentCodeBlockStack = newstack
 }
 
-IRRegisterFunctionParam : integer paramname, integer paramtypename
+IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref
 {
-	UnresolvedParameter p = paramname, paramtypename, 0
+	UnresolvedParameter p = paramname, paramtypename, 0, isref
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -3339,7 +3348,13 @@ CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean r
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
-CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> false
+CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> boolean read = false
+{
+	if((atom.Type & 0x80000000) == 0)
+	{
+		read = true
+	}
+}
 
 CodeGenCheckAtomForReadRef : integer ref atom -> false
 CodeGenCheckAtomForReadRef : integer16 ref atom -> false
@@ -3426,7 +3441,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 			else
 			{
 				if(idatom.IsReference)
-				{
+				{	
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
 					OnBytecodeBindReference(frames, index)
@@ -3469,7 +3484,11 @@ CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
 	OnBytecodeBindReference(frames, index)
 	
 	EmitCompoundBindings(atom.Bindings, atom.Bindings.next)
-	OnBytecodeReadReference()
+	
+	if(!CodeGenCheckAtomForReadRef(atom))
+	{
+		OnBytecodeReadReference()
+	}
 }
 
 EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
@@ -4853,6 +4872,8 @@ IsReferenceType : integer typeid -> boolean ret = false
 	}
 }
 
+MakeReferenceType : integer typeid -> (typeid + 0x80000000)
+
 MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff)
 
 
@@ -5181,6 +5202,11 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 	}
 	else
 	{
+		if(param.HasRefTag)
+		{
+			param.ResolvedType = param.ResolvedType + 0x80000000
+		}
+		
 		OnCodeGenRegisterVariable(context.ScopeName, param.NameHandle, param.ResolvedType, 1)
 	}
 }
@@ -5219,12 +5245,12 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			origin = 2
 		}
 		
-		while((vartype & 0xff000000) == 0x05000000)
+		while((vartype & 0x7f000000) == 0x05000000)
 		{
 			vartype = FindTypeAliasBase(TypeAliases, vartype)
 		}
 		
-		if((vartype & 0xff000000) == 0x03000000)
+		if((vartype & 0x7f000000) == 0x03000000)
 		{
 			statement.Name = GetConstructorName(Structures, vartype)
 		}
@@ -5305,12 +5331,17 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 
 FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
 {
+	// TODO - this is ugly. Builtins should get better overload support.
 	string funcname = GetPooledString(GlobalStrings, rawname)
 	if(funcname == "assert")
 	{
 		overloadname = rawname
 	}
 	elseif(funcname == "passtest")
+	{
+		overloadname = rawname
+	}
+	elseif(funcname == "integer")
 	{
 		overloadname = rawname
 	}
@@ -5474,7 +5505,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 
 	CoalesceMemberAccesses(expression.Atoms, context.ScopeName)
 	ShuntingYard(expression.Atoms)
-		
+
 	InferencePossibility temp = scratchpossibility
 	list<InferencePossibility> possibilities = temp, nothing
 
@@ -5541,6 +5572,14 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	if(expression.Type == 0)
 	{
 		success = false
+	}
+	elseif(IsReferenceType(expression.Type))
+	{
+		if(!MarkAtomAsReference(expression.Atoms.value))
+		{
+			print("Cannot pass the value of this expression as a reference")
+			success = false
+		}
 	}
 }
 
@@ -5670,9 +5709,13 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 {
 	EliminateImpossibleType(possibles.next, filter, out)
 
-	if((possibles.value != 0) && TypeListContains(filter, possibles.value))
+	if(possibles.value != 0)
 	{
-		simpleprepend<integer>(out, possibles.value)
+		integer expectedtype = TypeListContains(filter, possibles.value)
+		if(expectedtype != 0)
+		{
+			simpleprepend<integer>(out, expectedtype)
+		}
 	}
 }
 
@@ -5790,13 +5833,35 @@ IsMemberAccessOperator : ParentheticalExpression ref nonsentinel -> false
 
 
 
+MarkAtomAsReference : OperatorInvokeAtom      ref atom -> false
+MarkAtomAsReference : AtomSentinel 	      ref atom -> false
+MarkAtomAsReference : StringHandleAtom 	      ref atom -> false
+MarkAtomAsReference : TypeAnnotationAtom      ref atom -> false
+MarkAtomAsReference : integer 		      ref atom -> false
+MarkAtomAsReference : integer16               ref atom -> false
+MarkAtomAsReference : boolean 		      ref atom -> false
+MarkAtomAsReference : real 		      ref atom -> false
+MarkAtomAsReference : Statement		      ref atom -> false
+MarkAtomAsReference : ParentheticalExpression ref atom -> false
+
+MarkAtomAsReference : RefBinding              ref atom -> true
+
+MarkAtomAsReference : IdentifierAtom          ref atom -> true
+{
+	atom.IsReference = true
+}
+
+MarkAtomAsReference : CompoundAtom            ref atom -> true
+{
+	atom.Type = MakeReferenceType(atom.Type)
+}
 
 
 AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 {
 	simpleprepend<integer>(possibilities, paramtype)
 	
-	if((paramtype & 0xff000000) == 0x05000000)
+	if((paramtype & 0x7f000000) == 0x05000000)
 	{
 		simpleprepend<integer>(possibilities, FindTypeAliasBase(TypeAliases, paramtype))
 	}
@@ -6263,7 +6328,7 @@ FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integ
 FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, simplelist<integer> ref types
 {
 	integer functype = GetTypeByName(funcname)
-	if((functype & 0xff000000) == 0x03000000)
+	if((functype & 0x7f000000) == 0x03000000)
 	{
 		FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, types)
 	}
@@ -6284,7 +6349,7 @@ UnwrapParamsForTypeRetrieval : nothing, integer paramindex, simplelist<integer> 
 RetrieveParamType : list<UnresolvedParameter> ref params, integer paramindex, simplelist<integer> ref types
 {
 	if(paramindex == 0)
-	{
+	{	
 		simpleprepend(types, params.value.ResolvedType)
 		return()
 	}
