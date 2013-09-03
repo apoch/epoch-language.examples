@@ -1334,6 +1334,15 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 		listval = FindTypeAliasBase(TypeAliases, listval)
 	}
 	
+	if((value & 0xff000000) == 0x07000000)
+	{
+		if(SumTypeHasBase(SumTypes, value, listval))
+		{
+			ret = value
+			return()
+		}
+	}	
+	
 	if(MakeNonReferenceType(listval) == value)
 	{
 		ret = listval
@@ -1990,6 +1999,10 @@ structure FunctionSignature :
 	list<Parameter> ref Parameters,
 	integer ReturnTypeName
 
+structure PendingTypeMatcher :
+	integer OverloadName,
+	integer MatcherName
+
 structure TypeMatcher :
 	integer Name,
 	list<FunctionSignature> ref Overloads
@@ -2009,6 +2022,8 @@ structure FunctionTag :
 
 OnCodeGenProcessProgram :
 {
+	GeneratePendingTypeMatchers(PendingTypeMatchers)
+
 	CodeGenEmitStrings(GlobalStrings)
 	CodeGenEmitSumTypes(SumTypes)
 	CodeGenRearrangeStructures(Structures)
@@ -3730,6 +3745,21 @@ FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0
 FindSumTypeName : nothing, integer typeid -> 0
 
 
+SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetypeid -> boolean hasbase = false
+{
+	if(sumtypes.value.Type == sumtypeid)
+	{
+		hasbase = listcontains(sumtypes.value.Bases, basetypeid)
+	}
+	else
+	{
+		hasbase = SumTypeHasBase(sumtypes.next, sumtypeid, basetypeid)
+	}
+}
+
+SumTypeHasBase : nothing, integer sumtypeid, integer basetypeid -> false
+
+
 
 FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 {
@@ -4961,6 +4991,73 @@ CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
 	// TODO
 }
 
+GeneratePendingTypeMatchers : list<PendingTypeMatcher> ref pendingmatchers -> boolean success = true
+{
+	if(!GeneratePendingTypeMatcher(pendingmatchers.value))
+	{
+		success = false
+	}
+	
+	if(!GeneratePendingTypeMatchers(pendingmatchers.next))
+	{
+		success = false
+	}
+}
+
+GeneratePendingTypeMatchers : nothing -> true
+
+GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success = true
+{
+	if(matcher.OverloadName == 0)
+	{
+		return()
+	}
+
+	if(!TypeMatcherExists(TypeMatchers, matcher.MatcherName))
+	{
+		OnCodeGenEnterTypeMatcher(matcher.MatcherName)
+		OnCodeGenExitContext()
+	}
+	
+	EnsureTypeMatcherIsConfigured(Functions, matcher.OverloadName, matcher.MatcherName)
+}
+
+EnsureTypeMatcherIsConfigured : list<FunctionDefinition> ref functions, integer overloadname, integer matchername
+{
+	if(functions.value.Name == overloadname)
+	{
+		CreateTypeMatcherEntryForFunction(functions.value, matchername)
+		return()
+	}
+
+	EnsureTypeMatcherIsConfigured(functions.next, overloadname, matchername)
+}
+
+
+CreateTypeMatcherEntryForFunction : FunctionDefinition ref func, integer matchername
+{
+	integer name = func.Name		// TODO - more dumb compiler bug
+	WalkParametersForTypeMatcher(func.Params, matchername, name)
+}
+
+WalkParametersForTypeMatcher : FunctionParams ref params, integer matchername, integer overloadname
+{
+	WalkParametersForTypeMatcherUnwrapped(params.Params, matchername, overloadname)
+}
+
+
+WalkParametersForTypeMatcherUnwrapped : list<UnresolvedParameter> ref params, integer matchername, integer overloadname
+{
+	if(params.value.NameHandle != 0)
+	{
+		OnCodeGenRegisterTypeMatchParam(matchername, overloadname, params.value.NameHandle, params.value.ResolvedType)
+	}
+	
+	WalkParametersForTypeMatcherUnwrapped(params.next, matchername, overloadname)
+}
+
+WalkParametersForTypeMatcherUnwrapped : nothing, integer matchername, integer overloadname
+
 
 
 DumpTypeList : simplelist<integer> ref types
@@ -5293,6 +5390,47 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		statement.Type = GetFunctionReturnType(Functions, statement.Name)
 	}
+	
+	if((vartype & 0x7f000000) == 0x07000000)
+	{
+		AddTypeAnnotation(statement.Parameters)
+	}
+	elseif(IsPendingTypeMatcher(PendingTypeMatchers, overloadname))
+	{
+		AnnotateAllParameters(statement.Parameters)
+	}
+}
+
+AddTypeAnnotation : ExpressionList ref exprs
+{
+	AddTypeAnnotation(exprs.Expressions.next)
+}
+
+AnnotateAllParameters : ExpressionList ref exprs
+{
+	AnnotateAllParameters(exprs.Expressions)
+}
+
+AddTypeAnnotation : list<Expression> ref params
+{
+	AddTypeAnnotation(params.value)
+}
+
+AnnotateAllParameters : list<Expression> ref params
+{
+	AddTypeAnnotation(params.value)
+	AnnotateAllParameters(params.next)
+}
+
+AnnotateAllParameters : nothing
+
+
+AddTypeAnnotation : Expression ref expr
+{
+	integer typeid = expr.Type
+	TypeAnnotationAtom atom = typeid
+	ExpressionAtom wrap = atom
+	AppendAtomToExpression(expr.Atoms, expr.Atoms.next, wrap)
 }
 
 
@@ -5326,10 +5464,64 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 			overloadname = overloads.value.MangledName
 			return()
 		}
+		elseif(countnonzero(types) == GetFunctionParameterCount(Functions, overloads.value.MangledName))
+		{
+			if(CheckForNeededTypeMatcher(types))
+			{
+				overloadname = FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName)
+				FindOverloadWithParameterTypes(overloads.next, rawname, types)
+				return()
+			}
+		}
 	}
 
 	overloadname = FindOverloadWithParameterTypes(overloads.next, rawname, types)
 }
+
+
+GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer funcname -> integer count = 0
+{
+	if(functions.value.Name == funcname)
+	{
+		count = CountUnresolvedParameters(functions.value.Params)
+	}
+	else
+	{
+		count = GetFunctionParameterCount(functions.next, funcname)
+	}
+}
+
+
+CountUnresolvedParameters : FunctionParams ref params -> integer count = CountUnresolvedParametersUnwrapped(params.Params)
+CountUnresolvedParameters : nothing -> 0
+
+CountUnresolvedParametersUnwrapped : list<UnresolvedParameter> ref params -> integer count = 0
+{
+	if(params.value.NameHandle != 0)
+	{
+		 ++count
+	}
+	
+	count += CountUnresolvedParametersUnwrapped(params.next)
+}
+
+CountUnresolvedParametersUnwrapped : nothing -> 0
+
+
+CheckForNeededTypeMatcher : simplelist<integer> ref types -> boolean needsmatcher = false
+{
+	if((types.value & 0x7f000000) == 0x07000000)
+	{
+		needsmatcher = true
+	}
+	else
+	{
+		needsmatcher = CheckForNeededTypeMatcher(types.next)
+	}
+}
+
+CheckForNeededTypeMatcher : nothing -> false
+
 
 FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
 {
@@ -5392,7 +5584,19 @@ ResolvedTypesMatch : nothing, simplelist<integer> ref types -> boolean match = f
 
 ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> ref types -> boolean match = true
 {
-	if(params.value.ResolvedType != types.value)
+	integer resolved = params.value.ResolvedType
+	while((resolved & 0x7f000000) == 0x05000000)
+	{
+		resolved = FindTypeAliasBase(TypeAliases, resolved)
+	}
+
+	integer expected = types.value
+	while((expected & 0x7f000000) == 0x0500000)
+	{
+		expected = FindTypeAliasBase(TypeAliases, expected)
+	}
+
+	if(resolved != expected)
 	{
 		match = false
 	}
@@ -6367,7 +6571,7 @@ RetrieveParamType : list<UnresolvedParameter> ref params, integer paramindex, si
 {
 	if(paramindex == 0)
 	{	
-		simpleprepend(types, params.value.ResolvedType)
+		simpleprepend<integer>(types, params.value.ResolvedType)
 		return()
 	}
 	
@@ -6650,6 +6854,44 @@ AppendBinding : list<RefBinding> ref bindings, nothing, RefBinding ref binding
 }
 
 
+FindOrCreateTypeMatcher : integer rawname, integer overloadnamehandle -> integer matcherhandle = 0
+{
+	string matchername = GetPooledString(GlobalStrings, rawname) ; "@@typematcher"
+	matcherhandle = PoolString(matchername)
+	
+	EnsureMatcherIsPending(PendingTypeMatchers, overloadnamehandle, matcherhandle)
+}
+
+EnsureMatcherIsPending : list<PendingTypeMatcher> ref pending, integer overloadname, integer matcher
+{
+	if(pending.value.OverloadName != overloadname)
+	{
+		EnsureMatcherIsPending(pending.next, overloadname, matcher)
+	}
+}
+
+EnsureMatcherIsPending : nothing, integer overloadname, integer matcher
+{
+	PendingTypeMatcher m = overloadname, matcher
+	prepend<PendingTypeMatcher>(PendingTypeMatchers, m)
+}
+
+
+IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername -> boolean exists = false
+{
+	if(pending.value.MatcherName == matchername)
+	{
+		exists = true
+	}
+	else
+	{
+		exists = IsPendingTypeMatcher(pending.next, matchername)
+	}
+}
+
+IsPendingTypeMatcher : nothing, integer matchername -> false
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -6759,6 +7001,9 @@ global
 	InferencePossibility scratchpossibility = 0, scratchparampossibles, scratchreturns
 
 	integer IRExpressionDepth = 0
+	
+	PendingTypeMatcher dummypending = 0, 0
+	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing
 
 	simplelist<string> TokenStream = "", nothing
 
