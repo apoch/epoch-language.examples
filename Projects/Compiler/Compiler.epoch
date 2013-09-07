@@ -815,22 +815,32 @@ ParseFunctionParams :
 	
 	while((typetoken != "{") && (typetoken != "->"))
 	{
-		string nametoken = PeekToken(1)
-		PopTokens(2)
-		
-		boolean isreference = false
-		if(nametoken == "ref")
+		if(typetoken == "nothing")
 		{
-			isreference = true
-			nametoken = PeekToken(0)
+			integer pooledhandle = PoolString(typetoken)
+			
 			PopToken()
+			IRRegisterFunctionParam(pooledhandle, pooledhandle, false)
 		}
-		
-		// TODO - error checking
-		// TODO - higher order function params
-		// TODO - literal params
-		
-		IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
+		else
+		{
+			string nametoken = PeekToken(1)
+			PopTokens(2)
+			
+			boolean isreference = false
+			if(nametoken == "ref")
+			{
+				isreference = true
+				nametoken = PeekToken(0)
+				PopToken()
+			}
+			
+			// TODO - error checking
+			// TODO - higher order function params
+			// TODO - literal params
+			
+			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
+		}
 		
 		typetoken = PeekToken(0)
 		if(typetoken != ",")
@@ -5995,6 +6005,12 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
 	AddPossibleParameter(possibilities.Types, 0x01000000)
+	
+	if(GetPooledString(GlobalStrings, atom.Handle) == "nothing")
+	{
+		AddPossibleParameter(possibilities.Types, 0x00000004)
+		return()
+	}
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(funcname, atom.Handle, var)
