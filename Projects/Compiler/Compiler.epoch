@@ -7147,6 +7147,8 @@ MakeParametersReferencesForTypeMatcher : list<PendingTypeMatcher> ref pending, i
 MakeParametersReferencesForTypeMatcher : nothing, integer matchername, ExpressionList ref params
 
 
+WalkFunctionParamsAndSetReferences : nothing, ExpressionList ref paramexprs
+
 WalkFunctionParamsAndSetReferences : FunctionParams ref params, ExpressionList ref paramexprs
 {
 	WalkFunctionParamsAndSetReferencesUnwrapped(params.Params, paramexprs.Expressions)
