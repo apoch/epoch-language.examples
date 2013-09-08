@@ -44,6 +44,14 @@ prepend<type T> : list<T> ref thelist, T ref value
 }
 
 
+getelement : simplelist<integer> ref thelist, integer index -> integer value = thelist.value
+{
+	if(index > 0)
+	{
+		value = getelement(thelist.next, index - 1)
+	}
+}
+
 
 
 
@@ -1339,21 +1347,34 @@ listcontains : nothing, integer value -> boolean contains = false
 TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0
 {
 	integer listval = thelist.value
-	if((listval & 0xff000000) == 0x05000000)
+	if((listval & 0x7f000000) == 0x05000000)
 	{
 		listval = FindTypeAliasBase(TypeAliases, listval)
 	}
 	
-	if((value & 0xff000000) == 0x07000000)
+	if((value & 0x7f000000) == 0x07000000)
 	{
-		if(SumTypeHasBase(SumTypes, value, listval))
+		if(SumTypeHasBase(SumTypes, MakeNonReferenceType(value), MakeNonReferenceType(listval)))
 		{
 			ret = value
 			return()
 		}
-	}	
+	}
+	
+	if((listval & 0x7f000000) == 0x07000000)
+	{
+		if(SumTypeHasBase(SumTypes, listval, MakeNonReferenceType(value)))
+		{
+			ret = value
+			return()
+		}
+	}
 	
 	if(MakeNonReferenceType(listval) == value)
+	{
+		ret = listval
+	}
+	elseif(listval == value)
 	{
 		ret = listval
 	}
@@ -3194,7 +3215,7 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 	integer index = FindVariable(a.LHSName, frames)
 	OnBytecodeBindReference(frames, index)
 
-	if((a.LHSType & 0xff000000) == 0x07000000)
+	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
 		OnBytecodeAssignSumType()
 	}
@@ -3222,7 +3243,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 	integer structurename = GetNameOfStructureByType(typeid)
 	BindAssignmentMembers(a.LHS.next, structurename)
 
-	if((a.LHSType & 0xff000000) == 0x07000000)
+	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
 		OnBytecodeAssignSumType()	
 	}
@@ -3307,6 +3328,27 @@ BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurenam
 }
 
 BindAssignmentMembers : nothing, integer structurename
+
+
+ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, integer scopename -> integer typeid = 0
+{
+	integer rootname = assignment.LHS.value
+	
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(scopename, rootname, var)
+	
+	integer vartypename = GetNameOfType(var.VarType)
+	typeid = ComputeCompoundAssignmentLHSTypeMembers(assignment.LHS.next, vartypename)
+}
+
+ComputeCompoundAssignmentLHSTypeMembers : simplelist<integer> ref lhsmembers, integer structurename -> integer typeid = 0
+{
+	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
+	typeid = ComputeCompoundAssignmentLHSTypeMembers(lhsmembers.next, GetNameOfType(membertype))
+}
+
+ComputeCompoundAssignmentLHSTypeMembers : nothing, integer structurename -> integer typeid = GetTypeByName(structurename)
+
 
 
 
@@ -3484,7 +3526,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom, boolean constructor
 {
-	OnBytecodePushTypeAnnotation(atom.Type)
+	OnBytecodePushTypeAnnotation(MakeNonReferenceType(atom.Type))
 }
 
 CodeGenEmitSingleAtom : Statement ref atom, boolean constructor
@@ -3512,9 +3554,16 @@ CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
 	
 	EmitCompoundBindings(atom.Bindings, atom.Bindings.next)
 	
-	if(!CodeGenCheckAtomForReadRef(atom))
+	if(!IsReferenceType(atom.Type))
 	{
-		OnBytecodeReadReference()
+		if((atom.Type & 0x7f000000) == 0x07000000)
+		{
+			OnBytecodeReadReferenceAnnotated()
+		}
+		else
+		{
+			OnBytecodeReadReference()
+		}
 	}
 }
 
@@ -5281,7 +5330,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 
 	if(!TypeInference(func.Code, innercontext))
 	{
-		print("Function code body failed type inference")
+		print(GetPooledString(GlobalStrings, func.Name) ; "() - Function code body failed type inference")
 		success = false
 	}
 }
@@ -5401,9 +5450,11 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		statement.Type = GetFunctionReturnType(Functions, statement.Name)
 	}
 	
-	if((vartype & 0x7f000000) == 0x07000000)
+	MakeParametersReferences(Functions, statement.Name, statement.Parameters)
+
+	if(vartype != 0)
 	{
-		AddTypeAnnotation(statement.Parameters)
+		InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
 	}
 	elseif(IsPendingTypeMatcher(PendingTypeMatchers, overloadname))
 	{
@@ -5411,19 +5462,9 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	}
 }
 
-AddTypeAnnotation : ExpressionList ref exprs
-{
-	AddTypeAnnotation(exprs.Expressions.next)
-}
-
 AnnotateAllParameters : ExpressionList ref exprs
 {
 	AnnotateAllParameters(exprs.Expressions)
-}
-
-AddTypeAnnotation : list<Expression> ref params
-{
-	AddTypeAnnotation(params.value)
 }
 
 AnnotateAllParameters : list<Expression> ref params
@@ -5434,6 +5475,31 @@ AnnotateAllParameters : list<Expression> ref params
 
 AnnotateAllParameters : nothing
 
+
+AnnotateNonReferenceParameters : ExpressionList ref exprs
+{
+	AnnotateNonReferenceParameters(exprs.Expressions)
+}
+
+AnnotateNonReferenceParameters : list<Expression> ref params
+{
+	if((params.value.Type & 0x7f000000) != 0x07000000)
+	{
+		AddTypeAnnotation(params.value)
+	}
+	AnnotateNonReferenceParameters(params.next)
+}
+
+AnnotateNonReferenceParameters : nothing
+
+
+
+AddTypeAnnotation : nothing
+
+AddTypeAnnotation : list<Expression> ref params
+{
+	AddTypeAnnotation(params.value)
+}
 
 AddTypeAnnotation : Expression ref expr
 {
@@ -5621,22 +5687,52 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 
 TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
 {
-	if(!TypeInference(assignment.RHS, context))
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(context.ScopeName, assignment.LHSName, var)
+
+	simplelist<integer> temp = var.VarType, nothing
+	InferenceContext newcontext = context.ScopeName, -1, temp, false
+
+	if(!TypeInference(assignment.RHS, newcontext))
 	{
+		print("Failed to infer type of RHS of assignment")
+		DumpExpressionAtoms(assignment.RHS.Atoms)
 		success = false
 	}
-
-	// TODO - assignment type checking!
+		
+	assignment.LHSType = var.VarType
+	
+	if(assignment.LHSType != assignment.RHS.Type)
+	{
+		// TODO - check type of RHS vs. LHS?
+		
+		assignment.Annotation = assignment.RHS.Type
+	}
 }
 
 TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
 {
-	if(!TypeInference(assignment.RHS, context))
+	integer hack = context.ScopeName
+	integer lhstype = ComputeCompoundAssignmentLHSType(assignment, hack)
+	
+	simplelist<integer> temp = lhstype, nothing
+	InferenceContext newcontext = context.ScopeName, -1, temp, false
+
+	if(!TypeInference(assignment.RHS, newcontext))
 	{
+		print("Failed to infer type of RHS of assignment")
+		DumpExpressionAtoms(assignment.RHS.Atoms)
 		success = false
 	}
+	
+	assignment.LHSType = lhstype
 
-	// TODO - compound assignment type checking!
+	if(assignment.LHSType != assignment.RHS.Type)
+	{
+		// TODO - check type of RHS vs. LHS?
+		
+		assignment.Annotation = assignment.RHS.Type
+	}
 }
 
 TypeInference : EntityChain ref chain, InferenceContext ref context -> boolean success = TypeInference(chain.Entries, context)
@@ -5740,6 +5836,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			integer typecount = countnonzero(types)
 			if(typecount == 1)
 			{
+				assert(types.value != 0)
 				expression.Type = types.value
 			}
 			elseif(typecount > 1)
@@ -5760,10 +5857,16 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			if(typecount == 1)
 			{
 				expression.Type = possibilities.value.ReturnType.Types.value
+				assert(expression.Type != 0)
 			}
 			elseif(context.FunctionReturn)
 			{
 				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
+				DumpTypeList(possibilities.value.ReturnType.Types)
+			}
+			else
+			{
+				print("Expression has " ; cast(string, typecount) ; " types possible")
 				DumpTypeList(possibilities.value.ReturnType.Types)
 			}
 		}
@@ -5786,14 +5889,6 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	if(expression.Type == 0)
 	{
 		success = false
-	}
-	elseif(IsReferenceType(expression.Type))
-	{
-		if(!MarkAtomAsReference(expression.Atoms.value))
-		{
-			print("Cannot pass the value of this expression as a reference")
-			success = false
-		}
 	}
 }
 
@@ -6003,20 +6098,25 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 }
 
 GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
-{
-	AddPossibleParameter(possibilities.Types, 0x01000000)
-	
+{	
 	if(GetPooledString(GlobalStrings, atom.Handle) == "nothing")
 	{
+		atom.Type = 0x00000004
 		AddPossibleParameter(possibilities.Types, 0x00000004)
 		return()
 	}
+
+	AddPossibleParameter(possibilities.Types, 0x01000000)
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(funcname, atom.Handle, var)
 	if(var.Name != 0)
 	{
 		AddPossibleParameter(possibilities.Types, var.VarType)
+	}
+	else
+	{
+		print(GetPooledString(GlobalStrings, var.Name) ; " is not a defined identifier!")
 	}
 }
 
@@ -6617,7 +6717,8 @@ GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname
 	}
 }
 
-GetFunctionReturnType : nothing, integer funcname -> 0
+GetFunctionReturnType : nothing, integer funcname -> integer rettype = GetPendingTypeMatcherReturnType(PendingTypeMatchers, funcname)
+
 
 GetOptionalExpressionType : Expression ref expr -> expr.Type
 GetOptionalExpressionType : nothing -> 0
@@ -6906,6 +7007,167 @@ IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername
 }
 
 IsPendingTypeMatcher : nothing, integer matchername -> false
+
+
+GetPendingTypeMatcherReturnType : list<PendingTypeMatcher> ref pending, integer matchername -> integer rettype = 0
+{
+	if(pending.value.MatcherName == matchername)
+	{
+		// TODO - ensure all overloads return the same type or this might get ugly!
+		rettype = GetFunctionReturnType(Functions, pending.value.OverloadName)
+		return()
+	}
+	
+	rettype = GetPendingTypeMatcherReturnType(pending.next, matchername)
+}
+
+GetPendingTypeMatcherReturnType : nothing, integer matchername -> 0
+
+
+InsertAnnotationsForTypeMatchedParams : list<FunctionDefinition> ref functions, integer overloadname, OptionalExpressionList ref paramexprs
+{
+	InsertAnnotationsForTypeMatchedParamsUnwrapper(functions, overloadname, paramexprs)
+}
+
+InsertAnnotationsForTypeMatchedParamsUnwrapper : list<FunctionDefinition> ref functions, integer overloadname, ExpressionList ref paramexprs
+{
+	InsertAnnotationsForTypeMatchedParamsUnwrap(functions, overloadname, paramexprs.Expressions)
+}
+
+InsertAnnotationsForTypeMatchedParamsUnwrap : list<FunctionDefinition> ref functions, integer overloadname, list<Expression> ref paramexprs
+{
+	if(functions.value.Name == overloadname)
+	{
+		AnnotateTypeMatchedParams(functions.value.Params, paramexprs)
+	}
+	else
+	{
+		InsertAnnotationsForTypeMatchedParamsUnwrap(functions.next, overloadname, paramexprs)
+	}
+}
+
+InsertAnnotationsForTypeMatchedParamsUnwrap : nothing, integer overloadname, list<Expression> ref paramexprs
+{
+	FindConstructorAndAnnotateTypeMatchedParams(Structures, overloadname, paramexprs)
+}
+
+FindConstructorAndAnnotateTypeMatchedParams : list<StructureDefinition> ref structures, integer funcname, list<Expression> ref paramexprs
+{
+	if(structures.value.ConstructorName == funcname)
+	{
+		listnode<Expression> ne = paramexprs.next
+		AnnotateTypeMatchedParamsFromConstructor(structures.value.Members, ne)
+	}
+	else
+	{
+		FindConstructorAndAnnotateTypeMatchedParams(structures.next, funcname, paramexprs)
+	}
+}
+
+FindConstructorAndAnnotateTypeMatchedParams : nothing, integer funcname, list<Expression> ref paramexprs
+{
+	if((GetTypeByName(funcname) & 0x7f000000) == 0x07000000)
+	{
+		AnnotateNonReferenceParameters(paramexprs.next)
+	}
+}
+
+
+AnnotateTypeMatchedParamsFromConstructor : list<StructureMember> ref members, list<Expression> ref paramexprs
+{
+	if((GetMemberTypeDecompose(members.value) & 0x7f000000) == 0x07000000)
+	{
+		AddTypeAnnotation(paramexprs.value)
+	}
+	
+	listnode<StructureMember> nm = members.next
+	listnode<Expression> ne = paramexprs.next
+	AnnotateTypeMatchedParamsFromConstructor(nm, ne)
+}
+
+AnnotateTypeMatchedParamsFromConstructor : nothing, nothing
+
+
+AnnotateTypeMatchedParams : FunctionParams ref params, list<Expression> ref paramexprs
+{
+	AnnotateTypeMatchedParams(params.Params, paramexprs)
+}
+
+AnnotateTypeMatchedParams : list<UnresolvedParameter> ref params, list<Expression> ref paramexprs
+{
+	if((params.value.ResolvedType & 0x7f000000) == 0x07000000)
+	{
+		//if(paramexprs.value.Type != params.value.ResolvedType)
+		//{
+			AddTypeAnnotation(paramexprs.value)
+		//}
+	}
+
+	listnode<UnresolvedParameter> np = params.next
+	listnode<Expression> ne = paramexprs.next
+	AnnotateTypeMatchedParams(np, ne)
+}
+
+AnnotateTypeMatchedParams : nothing, nothing
+
+MakeParametersReferences : list<FunctionDefinition> ref functions, integer overloadname, OptionalExpressionList ref exprs
+{
+	MakeParametersReferencesUnwrap(functions, overloadname, exprs)
+}
+
+MakeParametersReferencesUnwrap : list<FunctionDefinition> ref functions, integer overloadname, nothing
+
+MakeParametersReferencesUnwrap : list<FunctionDefinition> ref functions, integer overloadname, ExpressionList ref params
+{
+	if(functions.value.Name == overloadname)
+	{
+		WalkFunctionParamsAndSetReferences(functions.value.Params, params)
+	}
+	else
+	{
+		MakeParametersReferencesUnwrap(functions.next, overloadname, params)
+	}
+}
+
+MakeParametersReferencesUnwrap : nothing, integer overloadname, ExpressionList ref params
+{
+	MakeParametersReferencesForTypeMatcher(PendingTypeMatchers, overloadname, params)
+}
+
+MakeParametersReferencesForTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername, ExpressionList ref params
+{
+	if(pending.value.MatcherName == matchername)
+	{
+		MakeParametersReferencesUnwrap(Functions, pending.value.OverloadName, params)
+	}
+	
+	MakeParametersReferencesForTypeMatcher(pending.next, matchername, params)
+}
+
+MakeParametersReferencesForTypeMatcher : nothing, integer matchername, ExpressionList ref params
+
+
+WalkFunctionParamsAndSetReferences : FunctionParams ref params, ExpressionList ref paramexprs
+{
+	WalkFunctionParamsAndSetReferencesUnwrapped(params.Params, paramexprs.Expressions)
+}
+
+WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref params, list<Expression> ref paramexprs
+{
+	if(IsReferenceType(params.value.ResolvedType))
+	{
+		if(!MarkAtomAsReference(paramexprs.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+
+	listnode<UnresolvedParameter> np = params.next
+	listnode<Expression> ne = paramexprs.next
+	WalkFunctionParamsAndSetReferencesUnwrapped(np, ne)
+}
+
+WalkFunctionParamsAndSetReferencesUnwrapped : nothing, nothing
 
 
 //

@@ -47,7 +47,6 @@ checkvalue : list ref thelist, integer expected
 
 checkvalue : nothing, integer expected
 {
-	print("Unexpected end of list")
 	assert(false)
 }
 
