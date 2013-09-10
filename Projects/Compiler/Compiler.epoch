@@ -524,6 +524,14 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
+	elseif(c == "[")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "]")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
 }
 
 
@@ -792,6 +800,7 @@ ParseFunction : -> boolean matched = false
 	OnCodeGenRegisterFunction(namehandle)
 	ParseFunctionParams()
 	ParseFunctionReturn(namehandle)
+	ParseFunctionTags(namehandle)
 
 	if(!PeekWithExpectation(0, "{"))
 	{
@@ -876,6 +885,74 @@ ParseFunctionReturn : integer namehandle
 		ParseExpression()
 	}
 	OnCodeGenExitContext()
+}
+
+
+ParseFunctionTags : integer functionname
+{
+	if(!PeekWithExpectation(0, "["))
+	{
+		return()
+	}
+	
+	PopToken()
+	
+	while(PeekToken(0) != "]")
+	{
+		ParseSingleFunctionTag(functionname)
+	}
+	
+	PopToken()
+}
+
+ParseSingleFunctionTag : integer functionname
+{
+	string tagname = PeekToken(0)
+	
+	if(PeekToken(1) == "(")
+	{
+		PopTokens(2)
+		OnCodeGenRegisterFunctionTag(functionname, tagname)
+		
+		string token = PeekToken(0)
+		while(token != ")")
+		{
+			if(token == "")
+			{
+				print("Incomplete function tag")
+				return()
+			}
+			
+			string parameter = PeekToken(0)
+			if(substring(parameter, 0, 1) == unescape("\'"))
+			{
+				parameter = substring(parameter, 1, length(parameter) - 2)
+			}
+			
+			PopToken()
+			
+			OnCodeGenRegisterFunctionTagParam(functionname, tagname, parameter)
+
+			token = PeekToken(0)
+			if(token == ",")
+			{
+				PopToken()
+				token = PeekToken(0)
+			}			
+		}
+		
+		PopToken()
+	}
+	else
+	{
+		PopToken()
+		OnCodeGenRegisterFunctionTag(functionname, tagname)
+	}
+	
+	if(tagname == "external")
+	{
+		OnCodeGenRegisterFunctionInvokeTag(functionname, PoolString("@@external"))
+	}
 }
 
 
@@ -5828,7 +5905,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		
 	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
 	WalkAtomsForType(expression.Atoms, expression.Atoms.next, possibilities, counter, scopename, flag)
-		
+	
 	integer possibilitycount = CountPossibilities(possibilities)
 	if(possibilitycount == 1)
 	{
@@ -5845,14 +5922,23 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			}
 			elseif(typecount > 1)
 			{
-				print("Multiple types possible")
+				print("Multiple types possible:")
+				DumpTypeList(types)
 			}
 			else
 			{
-				print("All types ruled out")
-				DumpTypeList(possibilities.value.ReturnType.Types)
-				print("Expected types are")
-				DumpTypeList(context.ExpectedTypes)
+				// TODO - demotion logic here is MESSY
+				if((countnonzero(possibilities.value.ReturnType.Types) == 1) && (countnonzero(context.ExpectedTypes) == 1) && (possibilities.value.ReturnType.Types.value == 0x01000001) && (context.ExpectedTypes.value == 0x01000002))
+				{
+					expression.Type = 0x01000002
+				}
+				else
+				{
+					print("All types ruled out")
+					DumpTypeList(possibilities.value.ReturnType.Types)
+					print("Expected types are")
+					DumpTypeList(context.ExpectedTypes)
+				}
 			}
 		}
 		else
@@ -5880,7 +5966,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		// TODO - error context!
 		if(possibilitycount > 0)
 		{
-			print("Multiple overloads possible")
+			print("Multiple overloads possible:")
+			DumpOverloadList(possibilities)
 		}
 		else
 		{
@@ -5935,11 +6022,24 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	
 	if(!IsOperatorInvoke(atoms.value))
 	{
-		boolean demote = ConsumeParameterForAllPossibleOverloads(possibilities, atoms.value, funcname, funcret)
-		if(demote)
+		list<InferencePossibility> out = scratchpossibility, nothing
+		
+		EliminateImpossibleParametersForAllOverloads(possibilities, out, atoms.value, counter, funcname, funcret)
+
+		possibilities = out
+
+		if(CountPossibilities(possibilities) == 1)
 		{
-			DemoteAtomType(atoms)
-			demotedtoright = true
+			if(listcontains(possibilities.value.ParameterTypes.value.Types, 0x01000002))
+			{
+				DemoteAtomType(atoms)
+				demotedtoright = true
+				
+				if((!didrightdemote) && (!IsOperatorInvoke(tail.value)))
+				{
+					DemoteAtomType(tail)
+				}
+			}
 		}
 		elseif(didrightdemote)
 		{
@@ -5960,46 +6060,12 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 			SetOperatorAtomToOverload(atoms, possibilities.value.FunctionName, counter + 1)
 			--counter
 		}
-		GetAtomTypeOperator(atoms.value, possibilities)
+
+		list<InferencePossibility> out = scratchpossibility, nothing
+		GetAtomTypeOperator(atoms.value, out)
+		possibilities = out
 	}
 }
-
-
-ConsumeParameterForAllPossibleOverloads : list<InferencePossibility> ref possibilities, ExpressionAtom ref atom, integer funcname, boolean funcret -> boolean demote = false
-{
-	if(possibilities.value.FunctionName != 0)
-	{
-		TypePossibilityList poss = scratchparams
-		GetAtomType(atom, poss, funcname, funcret)
-
-		simplelist<integer> out = 0, nothing
-
-		ConsumeParameter(possibilities.value.ParameterTypes, poss.Types, out)
-
-		poss.Types = out
-
-		integer numposs = countnonzero(out)
-		if(numposs == 0)
-		{
-			PopPossibility(possibilities, possibilities.next)
-		}
-		elseif(numposs == 1)
-		{
-			if(poss.Types.value == 0x01000002)
-			{
-				demote = true
-			}
-		}
-	}
-
-	if(ConsumeParameterForAllPossibleOverloads(possibilities.next, atom, funcname, funcret))
-	{
-		demote = true
-	}
-}
-
-ConsumeParameterForAllPossibleOverloads : nothing, ExpressionAtom ref atom, integer funcname, boolean funcret -> false
-
 
 WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossibility> ref possibilities, integer ref counter, integer funcname, boolean funcret -> false
 {
@@ -6014,6 +6080,51 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<InferencePossib
 
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
 		prepend<InferencePossibility>(possibilities, newpossibility)
+	}
+}
+
+
+EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref possibilities, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer paramcounter, integer funcname, boolean funcret
+{
+	if(possibilities.value.FunctionName != 0)
+	{
+		if(EliminateImpossibleParameters(possibilities.value.ParameterTypes, atom, paramcounter, funcname, funcret))
+		{
+			prepend<InferencePossibility>(out, possibilities.value)
+		}
+	}
+	
+	EliminateImpossibleParametersForAllOverloads(possibilities.next, out, atom, paramcounter, funcname, funcret)
+}
+
+EliminateImpossibleParametersForAllOverloads : nothing, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer paramcounter, integer funcname, boolean funcret
+
+
+EliminateImpossibleParameters : list<TypePossibilityList> ref params, ExpressionAtom ref atom, integer paramcounter, integer funcname, boolean funcret -> boolean valid = true
+{
+	assert(paramcounter < 2)
+
+	if(paramcounter == 0)
+	{
+		TypePossibilityList poss = scratchparams
+		GetAtomType(atom, poss, funcname, funcret)
+		
+		simplelist<integer> types = 0, nothing
+		EliminateImpossibleType(params.value.Types, poss.Types, types)
+		
+		params.value.Types = types
+		
+		if(countnonzero(types) == 0)
+		{
+			valid = false
+		}
+	}
+	else
+	{
+		if(!EliminateImpossibleParameters(params.next, atom, paramcounter - 1, funcname, funcret))
+		{
+			valid = false
+		}
 	}
 }
 
@@ -6043,16 +6154,11 @@ ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
 }
 
 
-ConsumeParameter : list<TypePossibilityList> ref parameterlist, simplelist<integer> ref parampossibles, simplelist<integer> ref out
-{
-	EliminateImpossibleType(parameterlist.value.Types, parampossibles, out)
-	PopTypePossibility(parameterlist, parameterlist.next)
-}
 
 EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out
 {
 	EliminateImpossibleType(possibles.next, filter, out)
-
+	
 	if(possibles.value != 0)
 	{
 		integer expectedtype = TypeListContains(filter, possibles.value)
@@ -6066,21 +6172,6 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
 
 
-PopTypePossibility : list<TypePossibilityList> ref list, list<TypePossibilityList> ref tail
-{
-	list = tail
-}
-
-PopTypePossibility : list<TypePossibilityList> ref list, nothing
-
-
-PopPossibility : list<InferencePossibility> ref list, list<InferencePossibility> ref tail -> true
-{
-	list = tail
-}
-
-PopPossibility : list<InferencePossibility> ref thelist, nothing -> false
-
 
 GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
 GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x02000000) }
@@ -6092,7 +6183,7 @@ GetAtomType : real               ref atom, TypePossibilityList ref possibilities
 GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
 	AddPossibleParameter(possibilities.Types, 0x01000001)
-	AddPossibleParameter(possibilities.Types, 0x01000002)		// Allow for later type demotion
+	AddPossibleParameter(possibilities.Types, 0x01000002)			// Allow demotion later
 }
 
 GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, atom.Type)  }
@@ -7230,6 +7321,20 @@ PerformDemotion : list<ExpressionAtom> ref atoms, integer ref atom
 }
 
 PerformDemotion : list<ExpressionAtom> ref atoms, IdentifierAtom ref atom
+
+
+DumpOverloadList : list<InferencePossibility> ref possibilities
+{
+	if(possibilities.value.FunctionName != 0)
+	{
+		print(GetPooledString(GlobalStrings, possibilities.value.FunctionName))
+	}
+	
+	DumpOverloadList(possibilities.next)
+}
+
+DumpOverloadList : nothing
+
 
 
 //
