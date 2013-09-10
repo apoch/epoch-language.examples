@@ -5204,7 +5204,7 @@ DumpTypeList : simplelist<integer> ref types
 {
 	if(types.value != 0)
 	{
-		print(" Potential type: " ; cast(string, types.value))
+		print(" Potential type: " ; GetPooledString(GlobalStrings, GetNameOfType(types.value)))
 	}
 	
 	DumpTypeList(types.next)
@@ -5835,8 +5835,10 @@ TypeInference : list<Entity> ref entities, InferenceContext ref context -> boole
 
 TypeInference : Entity ref entity, InferenceContext ref context -> boolean success = true
 {
-	// TODO - set up context for the entity's param?
-	if(!TypeInference(entity.Param, context))
+	simplelist<integer> temp = 0x01000003, nothing			// TODO - don't assume all entities take a boolean!
+	InferenceContext newcontext = context.ScopeName, -1, temp, false
+	
+	if(!TypeInference(entity.Param, newcontext))
 	{
 		success = false
 	}
@@ -6025,8 +6027,17 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		list<InferencePossibility> out = scratchpossibility, nothing
 		
 		EliminateImpossibleParametersForAllOverloads(possibilities, out, atoms.value, counter, funcname, funcret)
-
-		possibilities = out
+		
+		if(counter == 1)
+		{
+			list<InferencePossibility> filtered = scratchpossibility, nothing
+			FilterOverloadsForTypeDemotion(out, filtered)
+			possibilities = filtered
+		}
+		else
+		{
+			possibilities = out
+		}
 
 		if(CountPossibilities(possibilities) == 1)
 		{
@@ -7334,6 +7345,65 @@ DumpOverloadList : list<InferencePossibility> ref possibilities
 }
 
 DumpOverloadList : nothing
+
+
+
+FilterOverloadsForTypeDemotion : list<InferencePossibility> ref in, list<InferencePossibility> ref out
+{
+	boolean hasdemoted = false
+	boolean hassuperior = false
+	boolean hasother = false
+	
+	CheckIfContainsOnlyDemotedOverloads(in, hasdemoted, hassuperior, hasother)
+	
+	if(hasdemoted && hassuperior && (!hasother))
+	{
+		StripDemotedOverloads(in, out)
+	}
+	else
+	{
+		out = in
+	}
+}
+
+CheckIfContainsOnlyDemotedOverloads : list<InferencePossibility> ref in, boolean ref hasdemoted, boolean ref hassuperior, boolean ref hasother
+{
+	if(in.value.ParameterTypes.value.Types.value == 0x01000001)
+	{
+		hassuperior = true
+	}
+	elseif(in.value.ParameterTypes.value.Types.value == 0x01000002)
+	{
+		hasdemoted = true
+	}
+	elseif(in.value.ParameterTypes.value.Types.value == 0)
+	{
+	}
+	else
+	{
+		hasother = true
+	}
+	
+	CheckIfContainsOnlyDemotedOverloads(in.next, hasdemoted, hassuperior, hasother)
+}
+
+CheckIfContainsOnlyDemotedOverloads : nothing, boolean ref hasdemoted, boolean ref hassuperior, boolean ref hasother
+
+
+StripDemotedOverloads : list<InferencePossibility> ref in, list<InferencePossibility> ref out
+{
+	if(in.value.FunctionName != 0)
+	{
+		if(in.value.ParameterTypes.value.Types.value != 0x01000002)
+		{
+			prepend<InferencePossibility>(out, in.value)
+		}
+	}
+	
+	StripDemotedOverloads(in.next, out)
+}
+
+StripDemotedOverloads : nothing, list<InferencePossibility> ref out
 
 
 
