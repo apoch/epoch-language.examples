@@ -1,0 +1,67 @@
+//
+// MEMBERTYPEMATCH.EPOCH
+//
+// Test of type matchers which have been passed structure members
+//
+
+
+type TestType :
+	integer |
+	string
+
+
+structure TestStructure :
+	TestType alpha,
+	TestType beta
+
+structure Container :
+	TestStructure contained
+	
+	
+TypeMatchFunc : integer ref ignored, string ref alsoignored, integer ref i
+{
+	i = 42
+}
+
+TypeMatchFunc : integer ref ignored, string ref alsoignored, string ref s
+{
+	s = "Test"
+}
+
+
+CheckValueInt : integer ref i
+{
+	assert(i == 42)
+}
+
+CheckValueStr : string ref s
+{
+	assert(s == "Test")
+}
+
+
+Operate : TestStructure ref struct
+{
+	integer foonum = 666
+	string foostr = "Bleh"
+
+	TypeMatchFunc(foonum, foostr, struct.alpha)
+	TypeMatchFunc(foonum, foostr, struct.beta)
+	
+	CheckValueInt(struct.alpha)
+	CheckValueStr(struct.beta)
+}
+
+
+entrypoint :
+{
+	TestType numeric = 0
+	TestType textual = ""
+	
+	TestStructure struct = numeric, textual
+	Container container = struct
+	
+	Operate(container.contained)
+	
+	passtest()
+}
