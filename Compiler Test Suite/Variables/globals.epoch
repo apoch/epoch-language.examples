@@ -5,16 +5,18 @@
 //
 
 
-global
-{
-	integer n = 41
-}
-
-
 entrypoint :
 {
 	n = n + 1
 	assert(n == 42)
 	passtest()
 }
+
+
+
+global
+{
+	integer n = 41
+}
+
 
