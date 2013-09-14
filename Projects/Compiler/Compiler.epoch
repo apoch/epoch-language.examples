@@ -106,6 +106,7 @@ entrypoint :
 		string contents = ReadFile(filename, len)
 
 		PrepareStringTable()
+		InitBuiltInOverloads()
 
 		integer startparsems = timeGetTime()
 		boolean parseok = Parse(contents, len)
@@ -760,12 +761,20 @@ ParseStructure : -> boolean matched = false
 		}
 		else
 		{
+			boolean isref = false
 			string membertypename = PeekToken(0)
 			PopToken()
 			string membername = PeekToken(0)
 			PopToken()
 			
-			OnCodeGenRegisterStructureMemVar(PoolString(structurename), structuretype, PoolString(membername), PoolString(membertypename))
+			if(membername == "ref")
+			{
+				isref = true
+				membername = PeekToken(0)
+				PopToken()
+			}
+			
+			OnCodeGenRegisterStructureMemVar(PoolString(structurename), structuretype, PoolString(membername), PoolString(membertypename), isref)
 		}
 		
 		if(PeekToken(0) != ",")
@@ -2157,9 +2166,15 @@ OnCodeGenRegisterString : integer handle, string data
 	}
 }
 
-OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle
+OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle, boolean isref
 {
-	StructureMemberVariable member = membername, 0, typenamehandle
+	integer refnum = 0
+	if(isref)
+	{
+		refnum = 0x80000000
+	}
+
+	StructureMemberVariable member = membername, refnum, typenamehandle
 	StructureMember memwrap = member
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
@@ -5362,11 +5377,16 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 		return()
 	}
 
+	integer pretype = memvar.Type
 	memvar.Type = GetTypeByName(memvar.TypeNameHandle)
 	if(memvar.Type == 0)
 	{
 		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
 		success = false
+	}
+	else
+	{
+		memvar.Type = memvar.Type + pretype			// Hack to accept reference marker
 	}
 }
 
@@ -5663,6 +5683,20 @@ GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer func
 	}
 }
 
+GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
+{
+	string readablename = GetPooledString(GlobalStrings, funcname)
+	if(readablename == "substring@@withlength")
+	{
+		count = 3
+	}
+	elseif(readablename == "substring@@nolength")
+	{
+		count = 2
+	}
+}
+
+
 
 CountUnresolvedParameters : FunctionParams ref params -> integer count = CountUnresolvedParametersUnwrapped(params.Params)
 CountUnresolvedParameters : nothing -> 0
@@ -5697,7 +5731,22 @@ CheckForNeededTypeMatcher : nothing -> false
 
 FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
 {
-	if(!FunctionExists(Functions, rawname))
+	string readablename = GetPooledString(GlobalStrings, rawname)
+	if(readablename == "substring")
+	{
+		integer withlen = PoolString("substring@@withlength")
+		integer nolen = PoolString("substring@@nolength")
+		
+		if(FunctionMatchesParameterTypes(nothing, withlen, types))
+		{
+			overloadname = withlen
+		}
+		elseif(FunctionMatchesParameterTypes(nothing, nolen, types))
+		{
+			overloadname = nolen
+		}
+	}
+	elseif(!FunctionExists(Functions, rawname))
 	{
 		overloadname = rawname
 	}
@@ -5713,6 +5762,24 @@ FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer 
 	else
 	{
 		match = FunctionMatchesParameterTypes(functions.next, funcname, types)
+	}
+}
+
+FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> ref types -> boolean match = false
+{
+	string readablename = GetPooledString(GlobalStrings, funcname)
+	if(readablename == "substring@@withlength")
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x02000000)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(readablename == "substring@@nolength")
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x02000000)
+		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 }
 
@@ -5742,6 +5809,28 @@ CheckParameterTypesForMatch : list<UnresolvedParameter> ref params, simplelist<i
 		match = false
 	}
 }
+
+CheckParameterTypesForMatch : simplelist<integer> ref atypes, simplelist<integer> ref btypes -> boolean match = TypesMatch(atypes, btypes)
+
+
+TypesMatch : simplelist<integer> ref a, simplelist<integer> ref b -> boolean match = true
+{
+	if(a.value != b.value)
+	{
+		match = false
+	}
+	else
+	{
+		match = TypesMatch(a.next, b.next)
+	}
+}
+
+TypesMatch : nothing, nothing -> true
+
+TypesMatch : nothing, simplelist<integer> ref b -> boolean match = (b.value == 0)
+TypesMatch : simplelist<integer> ref a, nothing -> boolean match = (a.value == 0)
+
+
 
 ResolvedTypesMatch : nothing, nothing -> true
 
@@ -7010,6 +7099,39 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, simpleli
 			simpleprepend<integer>(types, 0x01000001)	// integer type signature
 		}
 	}
+	elseif(readablename == "narrowstring")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x02000000)	// string type signature
+		}
+	}
+	elseif(readablename == "substring@@withlength")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x02000000)	// string type signature
+		}
+		elseif(paramindex == 1)
+		{
+			simpleprepend<integer>(types, 0x01000001)	// integer type signature
+		}
+		elseif(paramindex == 2)
+		{
+			simpleprepend<integer>(types, 0x01000001)	// integer type signature
+		}
+	}
+	elseif(readablename == "substring@@nolength")
+	{
+		if(paramindex == 0)
+		{
+			simpleprepend<integer>(types, 0x02000000)	// string type signature
+		}
+		elseif(paramindex == 1)
+		{
+			simpleprepend<integer>(types, 0x01000001)	// integer type signature
+		}
+	}
 }
 
 
@@ -7241,7 +7363,27 @@ GetPendingTypeMatcherReturnType : list<PendingTypeMatcher> ref pending, integer 
 	rettype = GetPendingTypeMatcherReturnType(pending.next, matchername)
 }
 
-GetPendingTypeMatcherReturnType : nothing, integer matchername -> 0
+GetPendingTypeMatcherReturnType : nothing, integer matchername -> integer typeid = GetBuiltInReturnType(matchername)
+
+
+
+GetBuiltInReturnType : integer builtinname -> integer returntype = 0
+{
+	string readablename = GetPooledString(GlobalStrings, builtinname)
+	
+	if(readablename == "narrowstring")
+	{
+		returntype = 0x02000001		// buffer type signature
+	}
+	elseif(readablename == "substring@@withlength")
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(readablename == "substring@@nolength")
+	{
+		returntype = 0x02000000		// string type signature
+	}
+}
 
 
 InsertAnnotationsForTypeMatchedParams : list<FunctionDefinition> ref functions, integer overloadname, OptionalExpressionList ref paramexprs
@@ -7365,6 +7507,47 @@ MakeParametersReferencesForTypeMatcher : list<PendingTypeMatcher> ref pending, i
 }
 
 MakeParametersReferencesForTypeMatcher : nothing, integer matchername, ExpressionList ref params
+{
+	MakeParametersReferencesForConstructor(Structures, matchername, params)
+}
+
+
+MakeParametersReferencesForConstructor : list<StructureDefinition> ref structures, integer constructorname, ExpressionList ref params
+{
+	if(structures.value.ConstructorName == constructorname)
+	{
+		MakeParametersReferencesForStructureMembers(structures.value.Members, params.Expressions.next)
+	}
+	else
+	{
+		MakeParametersReferencesForConstructor(structures.next, constructorname, params)
+	}
+}
+
+
+MakeParametersReferencesForConstructor : nothing, integer constructorname, ExpressionList ref params
+
+
+MakeParametersReferencesForStructureMembers : list<StructureMember> ref members, list<Expression> ref params
+{
+	if(IsMemberReferenceType(members.value))
+	{
+		if(!MarkAtomAsReference(params.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	
+	MakeParametersReferencesForStructureMembers(members.next, params.next)
+}
+
+MakeParametersReferencesForStructureMembers : nothing, nothing
+
+
+
+IsMemberReferenceType : StructureMemberVariable ref memvar -> boolean isref = IsReferenceType(memvar.Type)
+IsMemberReferenceType : StructureMemberFunctionRef ref memfunc -> false
+
 
 
 WalkFunctionParamsAndSetReferences : nothing, ExpressionList ref paramexprs
@@ -7540,6 +7723,14 @@ StripDemotedTypes : simplelist<integer> ref in, simplelist<integer> ref out
 StripDemotedTypes : nothing, simplelist<integer> ref out
 
 
+InitBuiltInOverloads :
+{
+	Overload substrlength = PoolString("substring"), PoolString("substring@@withlength")
+	prepend<Overload>(Overloads, substrlength)
+
+	Overload substrnolen = PoolString("substring"), PoolString("substring@@nolength")
+	prepend<Overload>(Overloads, substrnolen)
+}
 
 
 //
