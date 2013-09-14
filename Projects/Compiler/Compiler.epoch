@@ -312,7 +312,10 @@ Parse : string code, integer len -> boolean success = false
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		if(ParseSumType())
+		if(ParseGlobalBlock())
+		{
+		}
+		elseif(ParseSumType())
 		{
 		}
 		elseif(ParseWeakAlias())
@@ -607,6 +610,39 @@ PeekWithExpectation : integer displacement, string expected -> boolean found = f
 	{
 		found = true
 	}
+}
+
+
+ParseGlobalBlock : -> boolean matched = false
+{
+	if(PeekToken(0) != "global")
+	{
+		return()
+	}
+	
+	if(PeekToken(1) != "{")
+	{
+		return()
+	}
+	
+	PopTokens(2)
+	
+	integer blockname = PoolString("@@globalblock")
+	OnCodeGenRegisterScope(blockname, 0)
+	OnCodeGenRegisterGlobalBlock(blockname)
+	
+	while(PeekToken(0) != "}")
+	{
+		if(!ParseInitialization(false))
+		{
+			print("Failure to parse global entry")
+			return()
+		}
+	}
+	
+	PopToken()
+	OnCodeGenExitContext()
+	matched = true
 }
 
 
@@ -2146,6 +2182,12 @@ OnCodeGenProcessProgram :
 	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
 	CodeGenEmitFunctionSignatures(FunctionSignatures)
+	
+	if(GlobalCodeBlockName != 0)
+	{
+		CodeGenEmitSpecificScope(Scopes, GlobalCodeBlockName)
+	}
+	
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
 	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
@@ -3110,11 +3152,32 @@ CodeGenEmitScopes : nothing
 
 CodeGenEmitSingleScope : Scope ref scope, integer funcname
 {
-	if(scope.Name != 0)
+	if((scope.Name != 0) && (scope.Name != GlobalCodeBlockName))
 	{
+		integer parentname = scope.ParentName
+		if((parentname == 0) && (scope.Name != GlobalCodeBlockName))
+		{
+			parentname = GlobalCodeBlockName
+		}
+		
 		integer varcount = CountScopeVariables(scope)
-		OnBytecodeLexicalScope(scope.Name, scope.ParentName, varcount)
+		OnBytecodeLexicalScope(scope.Name, parentname, varcount)
 		CodeGenEmitVariables(scope.Variables, funcname)
+	}
+}
+
+
+CodeGenEmitSpecificScope : list<Scope> ref scopes, integer scopename
+{
+	if(scopes.value.Name == scopename)
+	{
+		integer varcount = CountScopeVariables(scopes.value)
+		OnBytecodeLexicalScope(scopes.value.Name, 0, varcount)
+		CodeGenEmitVariables(scopes.value.Variables, 0)
+	}
+	else
+	{
+		CodeGenEmitSpecificScope(scopes.next, scopename)
 	}
 }
 
@@ -3609,7 +3672,20 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 				}
 				else
 				{
-					OnBytecodePushVarValue(idatom.Handle, atomtype)
+					integer frames = 0
+					integer index = FindVariable(idatom.Handle, frames)
+
+					if(frames == 0)
+					{
+						OnBytecodePushVarValue(idatom.Handle, atomtype)
+					}
+					else
+					{
+						Variable var = 0, 0, 0, 0
+						FindVariableDataInScope(EmittingFunctionName, idatom.Handle, var)
+						
+						OnBytecodePushLocal(false, frames, var.Offset, 0)
+					}
 				}
 			}
 		}
@@ -4003,6 +4079,7 @@ FindVariableInScopeList : list<Scope> ref scopes, integer scopename, integer var
 
 FindVariableInScopeList : nothing, integer scopename, integer varname -> integer index = -1
 
+
 FindVariableInSingleScope : list<Variable> ref vars, integer varname, integer ref index
 {
 	if(vars.value.Name != varname)
@@ -4110,6 +4187,10 @@ FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer
 	if(scopes.value.Name == scopename)
 	{
 		found = FindVariableDataInSingleScope(scopes.value.Variables, varname, outvar)
+		if((!found) && (GlobalCodeBlockName != 0) && (scopename != GlobalCodeBlockName))
+		{
+			found = FindVariableDataInScopeList(Scopes, GlobalCodeBlockName, varname, outvar)
+		}
 	}
 	else
 	{
@@ -5272,6 +5353,15 @@ IRTypeInference : -> boolean success = true
 	if(!TypeInference(Structures, context))
 	{
 		success = false
+	}
+
+	if(GlobalCodeBlockName != 0)
+	{
+		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false
+		if(!TypeInference(GlobalCodeBlock, globalcontext))
+		{
+			success = false
+		}
 	}
 
 	if(!TypeInference(Functions, context))
