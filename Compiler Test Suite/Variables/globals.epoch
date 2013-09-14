@@ -13,7 +13,7 @@ global
 
 entrypoint :
 {
-	++n
+	n = n + 1
 	assert(n == 42)
 	passtest()
 }
