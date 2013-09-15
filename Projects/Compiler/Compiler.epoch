@@ -7953,13 +7953,20 @@ InitBuiltInOverloads :
 
 CheckMemberTypes : list<StructureMember> ref members, simplelist<integer> ref types -> boolean match = true
 {
-	if(GetMemberTypeDecompose(members.value) != types.value)
+	integer membertype = GetMemberTypeDecompose(members.value)
+	integer curtype = types.value
+
+	if(membertype == curtype)
 	{
-		match = false
+		match = CheckMemberTypes(members.next, types.next)
+	}
+	elseif(SumTypeHasBase(SumTypes, membertype, MakeNonReferenceType(curtype)))
+	{
+		match = CheckMemberTypes(members.next, types.next)
 	}
 	else
 	{
-		match = CheckMemberTypes(members.next, types.next)
+		match = false
 	}
 }
 
