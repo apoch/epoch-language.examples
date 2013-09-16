@@ -1015,7 +1015,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 		OnCodeGenEnterSubStatement()
 	}
 	
-	IREnterStatement(statementname)
+	IREnterStatement(statementname, !substatement)
 	
 	PopTokens(2)
 
@@ -1077,7 +1077,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 		OnCodeGenEnterSubStatement()
 	}
 
-	IREnterStatement(typename)
+	IREnterStatement(typename, true)
 	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
@@ -2044,7 +2044,8 @@ structure ParentheticalExpression :
 structure Statement :
 	integer Name,
 	OptionalExpressionList Parameters,
-	integer Type
+	integer Type,
+	boolean TopLevel
 
 structure Assignment :
 	integer LHSName,
@@ -2799,9 +2800,9 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 }
 
 
-OnCodeGenEnterStatement : integer statementname, integer statementtype
+OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel
 {
-	Statement statement = statementname, nothing, statementtype
+	Statement statement = statementname, nothing, statementtype, toplevel
 
 	if(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
 	{
@@ -5152,7 +5153,13 @@ IsReferenceType : integer typeid -> boolean ret = false
 	}
 }
 
-MakeReferenceType : integer typeid -> (typeid + 0x80000000)
+MakeReferenceType : integer typeid -> integer reftypeid = typeid
+{
+	if(!IsReferenceType(typeid))
+	{
+		reftypeid = typeid + 0x80000000
+	}
+}
 
 MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff)
 
@@ -5326,7 +5333,8 @@ structure InferenceContext :
 	integer StatementName,
 	simplelist<integer> ref ExpectedTypes,
 	boolean FunctionReturn,
-	integer NumParameters
+	integer NumParameters,
+	boolean TopLevelStatement
 
 structure TypePossibilityList :
 	simplelist<integer> ref Types,
@@ -5344,7 +5352,7 @@ structure ExpressionInferenceStackEntry :
 IRTypeInference : -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext context = 0, 0, temp, false, 0
+	InferenceContext context = 0, 0, temp, false, 0, false
 	
 	if(!TypeInference(SumTypes, context))
 	{
@@ -5358,7 +5366,7 @@ IRTypeInference : -> boolean success = true
 
 	if(GlobalCodeBlockName != 0)
 	{
-		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0
+		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0, false
 		if(!TypeInference(GlobalCodeBlock, globalcontext))
 		{
 			success = false
@@ -5511,7 +5519,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	}
 	
 	simplelist<integer> temp = 0, nothing
-	InferenceContext innercontext = func.Name, 0, temp, false, 0
+	InferenceContext innercontext = func.Name, 0, temp, false, 0, false
 	
 	
 	if(!TypeInference(func.Params, innercontext))
@@ -5522,7 +5530,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	
 
 	simplelist<integer> tempret = 0, nothing
-	InferenceContext retcontext = func.Name, 0, tempret, true, 0
+	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false
 
 	if(!TypeInference(func.Return, retcontext))
 	{
@@ -5605,6 +5613,8 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
+	integer paramcount = CountExpressions(statement.Parameters)
+
 	integer vartype = GetTypeByName(statement.Name)
 	if(vartype != 0)
 	{
@@ -5628,11 +5638,13 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			statement.Name = GetNameOfType(vartype)
 		}
 		
-		ConstructVariableFromStatement(statement, context.ScopeName, vartype, origin)
+		if(statement.TopLevel)
+		{
+			ConstructVariableFromStatement(statement, context.ScopeName, vartype, origin)
+		}
 	}
 	
-	integer paramcount = CountExpressions(statement.Parameters)
-	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel
 
 	if(!TypeInference(statement.Parameters, newcontext))
 	{
@@ -6031,7 +6043,7 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 	FindVariableDataInScope(context.ScopeName, assignment.LHSName, var)
 
 	simplelist<integer> temp = var.VarType, nothing
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
 
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
@@ -6056,7 +6068,7 @@ TypeInference : AssignmentCompound ref assignment, InferenceContext ref context 
 	integer lhstype = ComputeCompoundAssignmentLHSType(assignment, hack)
 	
 	simplelist<integer> temp = lhstype, nothing
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
 
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
@@ -6095,7 +6107,7 @@ TypeInference : list<Entity> ref entities, InferenceContext ref context -> boole
 TypeInference : Entity ref entity, InferenceContext ref context -> boolean success = true
 {
 	simplelist<integer> temp = 0x01000003, nothing			// TODO - don't assume all entities take a boolean!
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
 	
 	if(!TypeInference(entity.Param, newcontext))
 	{
@@ -6120,8 +6132,8 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, temp)
-	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters
+	GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
@@ -6508,7 +6520,7 @@ GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities
 GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {	
 	simplelist<integer> temp = 0, nothing
-	InferenceContext newcontext = funcname, statement.Name, temp, funcret, 0
+	InferenceContext newcontext = funcname, statement.Name, temp, funcret, 0, false
 	
 	if(TypeInference(statement, newcontext))
 	{
@@ -6521,7 +6533,7 @@ GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, intege
 GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname, boolean funcret
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext newcontext = funcname, 0, temp, funcret, 0
+	InferenceContext newcontext = funcname, 0, temp, funcret, 0, false
 		
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
@@ -6824,6 +6836,19 @@ ExtractIdentifier : IdentifierAtom ref atom -> atom.Handle
 	atom.Type = 0x81000000		// HACK - reference to identifier
 }
 
+ExtractIdentifier : AtomSentinel 	    ref sentinel    -> 0
+ExtractIdentifier : StringHandleAtom 	    ref nonsentinel -> 0
+ExtractIdentifier : OperatorInvokeAtom 	    ref nonsentinel -> 0
+ExtractIdentifier : TypeAnnotationAtom 	    ref nonsentinel -> 0
+ExtractIdentifier : integer 		    ref nonsentinel -> 0
+ExtractIdentifier : integer16 		    ref nonsentinel -> 0
+ExtractIdentifier : boolean 		    ref nonsentinel -> 0
+ExtractIdentifier : real 		    ref nonsentinel -> 0
+ExtractIdentifier : Statement		    ref nonsentinel -> 0
+ExtractIdentifier : RefBinding              ref nonsentinel -> 0
+ExtractIdentifier : CompoundAtom            ref nonsentinel -> 0
+ExtractIdentifier : ParentheticalExpression ref nonsentinel -> 0
+
 
 PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
 {
@@ -6886,10 +6911,10 @@ IRExitCodeBlock :
 }
 
 
-IREnterStatement : string funcname
+IREnterStatement : string funcname, boolean istoplevel
 {
 	integer namehandle = PoolString(funcname)
-	OnCodeGenEnterStatement(namehandle, 0)
+	OnCodeGenEnterStatement(namehandle, 0, istoplevel)
 }
 
 IRExitStatement :
@@ -7064,34 +7089,34 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 }
 
 
-GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, paramcount, types)
+	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, paramcount, toplevel, types)
 	
-	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, types)
+	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
 }
 
-EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	if(overloads.value.NormalName == funcname)
 	{
-		FindFunctionAndAddParameterTypes(Functions, overloads.value.MangledName, paramindex, paramcount, types)
+		FindFunctionAndAddParameterTypes(Functions, overloads.value.MangledName, paramindex, paramcount, toplevel, types)
 	}
 	
-	EnumerateOverloadsAndAddParameterTypes(overloads.next, funcname, paramindex, paramcount, types)
+	EnumerateOverloadsAndAddParameterTypes(overloads.next, funcname, paramindex, paramcount, toplevel, types)
 }
 
-EnumerateOverloadsAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+EnumerateOverloadsAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 
 
-FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	if(functions.value.Name == funcname)
 	{
 		if(!functions.value.InferenceDone)
 		{
 			simplelist<integer> temp = 0, nothing
-			InferenceContext context = 0, 0, temp, false, 0	
+			InferenceContext context = 0, 0, temp, false, 0, false
 			
 			TypeInference(functions.value, context)
 		}
@@ -7100,15 +7125,15 @@ FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integ
 	}
 	else
 	{
-		FindFunctionAndAddParameterTypes(functions.next, funcname, paramindex, paramcount, types)
+		FindFunctionAndAddParameterTypes(functions.next, funcname, paramindex, paramcount, toplevel, types)
 	}
 }
 
-FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	if(StructureConstructorExists(Structures, funcname))
 	{
-		FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, paramcount, types)
+		FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, paramcount, toplevel, types)
 	}
 	else
 	{
@@ -7152,7 +7177,7 @@ GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname
 		if(!functions.value.InferenceDone)
 		{
 			simplelist<integer> temp = 0, nothing
-			InferenceContext context = 0, 0, temp, false, 0
+			InferenceContext context = 0, 0, temp, false, 0, false
 
 			TypeInference(functions.value, context)
 		}
@@ -7348,7 +7373,7 @@ FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid
 }
 
 
-FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	integer membercount = CountMembers(structures.value.Members)
 
@@ -7367,7 +7392,7 @@ FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, 
 	{
 		FindMemberAndAddParameterTypes(structures.value.Members, paramindex, types)
 	}
-	elseif((structures.value.CopyConstructorName == funcname) && (paramcount == 2))
+	elseif((toplevel) && (structures.value.CopyConstructorName == funcname) && (paramcount == 2))
 	{
 		if(paramindex == 0)
 		{
@@ -7380,11 +7405,11 @@ FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, 
 	}
 	else
 	{
-		FindConstructorAndAddParameterTypes(structures.next, funcname, paramindex, paramcount, types)
+		FindConstructorAndAddParameterTypes(structures.next, funcname, paramindex, paramcount, toplevel, types)
 	}
 }
 
-FindConstructorAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+FindConstructorAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 
 
 FindMemberAndAddParameterTypes : list<StructureMember> ref members, integer paramindex, simplelist<integer> ref types
@@ -7586,6 +7611,12 @@ GetPendingTypeMatcherReturnType : nothing, integer matchername -> integer typeid
 
 GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 {
+	if(StructureConstructorExists(Structures, builtinname))
+	{
+		returntype = GetStructureByAnonConstructorName(Structures, builtinname)
+		return()
+	}
+
 	string readablename = GetPooledString(GlobalStrings, builtinname)
 	
 	if(readablename == "narrowstring")
@@ -7654,9 +7685,13 @@ FindConstructorAndAnnotateTypeMatchedParams : nothing, integer funcname, list<Ex
 
 AnnotateTypeMatchedParamsFromConstructor : list<StructureMember> ref members, list<Expression> ref paramexprs
 {
-	if((GetMemberTypeDecompose(members.value) & 0x7f000000) == 0x07000000)
+	integer membertype = GetMemberTypeDecompose(members.value)
+	if((membertype & 0x7f000000) == 0x07000000)
 	{
-		AddTypeAnnotation(paramexprs.value)
+		if(paramexprs.value.Type != membertype)
+		{
+			AddTypeAnnotation(paramexprs.value)
+		}
 	}
 	
 	listnode<StructureMember> nm = members.next
@@ -7983,6 +8018,21 @@ CheckMemberTypes : nothing, simplelist<integer> ref types -> boolean match = fal
 }
 
 
+GetStructureByAnonConstructorName : nothing, integer name -> 0
+
+GetStructureByAnonConstructorName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0
+{
+	if(structures.value.AnonConstructorName == name)
+	{
+		typeid = structures.value.Type
+	}
+	else
+	{
+		typeid = GetStructureByAnonConstructorName(structures.next, name)
+	}
+}
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -8038,7 +8088,7 @@ global
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
 	Expression dummyexpression = dummyatomlist, 0
 	list<Expression> ScratchExpressions = dummyexpression, nothing
-	Statement dummystatement = 0, nothing, 0
+	Statement dummystatement = 0, nothing, 0, false
 	list<Statement> SubStatements = dummystatement, nothing
 
 	Parameter dummyparam = 0, 0
