@@ -951,6 +951,51 @@ ParseFunctionParams :
 			PopToken()
 			IRRegisterFunctionParam(pooledhandle, pooledhandle, false)
 		}
+		elseif(typetoken == "(")
+		{
+			PopToken()
+			string higherordername = PeekToken(0)
+			
+			if(PeekWithExpectation(1, ":"))
+			{
+				PopTokens(2)
+				
+				boolean moreparams = true
+				while(moreparams)
+				{
+					string paramtypename = PeekToken(0)
+					PopToken()
+					
+					// TODO - register higher order function param
+					
+					if(PeekToken(0) != ",")
+					{
+						moreparams = false
+					}
+					else
+					{
+						PopToken()
+					}
+				}
+				
+				if(PeekToken(0) == "->")
+				{
+					PopToken()
+					string returntypename = PeekToken(0)
+					PopToken()
+				}
+				
+				// TODO - register higher order function
+				
+				if(!PeekWithExpectation(0, ")"))
+				{
+					print("Error in higher order function parameter syntax")
+					return()
+				}
+				
+				PopToken()
+			}
+		}
 		else
 		{
 			string nametoken = PeekToken(1)
@@ -965,7 +1010,6 @@ ParseFunctionParams :
 			}
 			
 			// TODO - error checking
-			// TODO - higher order function params
 			// TODO - literal params
 			
 			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
