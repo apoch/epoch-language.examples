@@ -565,43 +565,113 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 	}
 	elseif(c == "0")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "1")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "2")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "3")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "4")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "5")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "6")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "7")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "8")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 	elseif(c == "9")
 	{
-		class = CHARACTER_CLASS_LITERAL
+		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+		else
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
 	}
 }
 
