@@ -241,6 +241,7 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "cast@@boolean_to_integer")
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_integer16")
 	OnCodeGenRegisterString((++counter), "cast@@integer16_to_integer")
+	OnCodeGenRegisterString((++counter), "cast@@string_to_real")
 	OnCodeGenRegisterString((++counter), "boolean")
 	OnCodeGenRegisterString((++counter), "buffer")
 	OnCodeGenRegisterString((++counter), "nothing")
@@ -361,7 +362,7 @@ Lex : string code, integer len
 			}
 			elseif(!IsWhitespace(c))
 			{
-				state = Classify(c)
+				state = Classify(c, state)
 				lasttokenstart = index
 			}
 		}
@@ -373,10 +374,10 @@ Lex : string code, integer len
 				notidentifier = true
 				state = CHARACTER_CLASS_WHITE
 			}
-			elseif(Classify(c) != CHARACTER_CLASS_IDENTIFIER)
+			elseif(Classify(c, state) != CHARACTER_CLASS_IDENTIFIER)
 			{
 				notidentifier = true
-				state = Classify(c)
+				state = Classify(c, state)
 			}
 
 			if(notidentifier)
@@ -390,9 +391,9 @@ Lex : string code, integer len
 			{
 				state = CHARACTER_CLASS_WHITE
 			}
-			elseif(Classify(c) != CHARACTER_CLASS_PUNCTUATION)
+			elseif(Classify(c, state) != CHARACTER_CLASS_PUNCTUATION)
 			{
-				state = Classify(c)
+				state = Classify(c, state)
 			}
 
 			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
@@ -406,10 +407,10 @@ Lex : string code, integer len
 				notcompound = true
 				state = CHARACTER_CLASS_WHITE
 			}
-			elseif(Classify(c) != CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+			elseif(Classify(c, state) != CHARACTER_CLASS_PUNCTUATION_COMPOUND)
 			{
 				notcompound = true
-				state = Classify(c)
+				state = Classify(c, state)
 			}
 
 			if(notcompound)
@@ -434,6 +435,25 @@ Lex : string code, integer len
 			{
 				state = CHARACTER_CLASS_WHITE
 				PushToken(substring(code, lasttokenstart, index - lasttokenstart + 1))
+			}
+		}
+		elseif(state == CHARACTER_CLASS_LITERAL)
+		{
+			boolean notliteral = false
+			if(IsWhitespace(c))
+			{
+				notliteral = true
+				state = CHARACTER_CLASS_WHITE
+			}
+			elseif(Classify(c, state) != CHARACTER_CLASS_LITERAL)
+			{
+				notliteral = true
+				state = Classify(c, state)
+			}
+
+			if(notliteral)
+			{
+				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
 			}
 		}
 
@@ -474,7 +494,7 @@ IsWhitespace : string c -> boolean white = false [nogc]
 	}
 }
 
-Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
+Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 {
 	if(c == "{")
 	{
@@ -518,7 +538,14 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 	}
 	elseif(c == ".")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_PUNCTUATION
+		}
 	}
 	elseif(c == ";")
 	{
@@ -535,6 +562,46 @@ Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 	elseif(c == "]")
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "0")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "1")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "2")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "3")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "4")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "5")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "6")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "7")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "8")
+	{
+		class = CHARACTER_CLASS_LITERAL
+	}
+	elseif(c == "9")
+	{
+		class = CHARACTER_CLASS_LITERAL
 	}
 }
 
@@ -1183,6 +1250,10 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	{
 		IRAddLiteralInteger(0)
 	}
+	elseif(term == "0.0")
+	{
+		IRAddLiteralReal(0.0)
+	}
 	elseif(ParseStatement(true))
 	{
 		matched = true
@@ -1196,20 +1267,24 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 			string stringliteral = substring(term, 1, length(term) - 2)
 			IRAddLiteralString(stringliteral)			
 		}
-		//elseif(false)
-		//{
-			// TODO - support for floating point literals
-		//}
 		else
 		{
-			integer literalvalue = cast(integer, term)
-			if(literalvalue != 0)
+			if(stringcontains(term, "."))
 			{
-				IRAddLiteralInteger(literalvalue)
+				real realvalue = cast(real, term)
+				IRAddLiteralReal(realvalue)
 			}
 			else
 			{
-				IRAddLiteralIdentifier(term)
+				integer literalvalue = cast(integer, term)
+				if(literalvalue != 0)
+				{
+					IRAddLiteralInteger(literalvalue)
+				}
+				else
+				{
+					IRAddLiteralIdentifier(term)
+				}
 			}
 		}
 	}
@@ -4684,6 +4759,10 @@ GetTypeByName : integer name -> integer typeid = 0
 	{
 		typeid = 0x01000003
 	}
+	elseif(name == FindString(GlobalStrings, "real"))
+	{
+		typeid = 0x01000004
+	}
 	elseif(name == FindString(GlobalStrings, "string"))
 	{
 		typeid = 0x02000000
@@ -7278,6 +7357,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "real")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
 	elseif(readablename == "string")
 	{
 		if(paramcount == 2)
@@ -8033,6 +8126,25 @@ GetStructureByAnonConstructorName : list<StructureDefinition> ref structures, in
 }
 
 
+stringcontains : string haystack, string needle -> boolean contains = false
+{
+	integer needlelen = length(needle)
+	integer haystacklen = length(haystack)
+	
+	integer index = 0
+	while(index < (haystacklen - needlelen))
+	{
+		if(substring(haystack, index, needlelen) == needle)
+		{
+			contains = true
+			return()
+		}
+		
+		++index
+	}
+}
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -8154,6 +8266,7 @@ global
 	integer CHARACTER_CLASS_COMMENT = 3
 	integer CHARACTER_CLASS_PUNCTUATION_COMPOUND = 4
 	integer CHARACTER_CLASS_STRING_LITERAL = 5
+	integer CHARACTER_CLASS_LITERAL = 6
 	
 	integer GlobalStructureCounter = 0x03000000
 	integer GlobalWeakAliasCounter = 0x04000000
