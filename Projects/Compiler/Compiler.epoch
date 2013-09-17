@@ -916,14 +916,13 @@ ParseFunction : -> boolean matched = false
 
 	PopTokens(2)
 	
-	integer namehandle = PoolString(functionname)
-	
-	namehandle = RegisterOverloadForFunction(namehandle)
+	integer rawnamehandle = PoolString(functionname)
+	integer namehandle = RegisterOverloadForFunction(rawnamehandle)
 	
 	OnCodeGenRegisterFunction(namehandle)
 	ParseFunctionParams()
 	ParseFunctionReturn(namehandle)
-	ParseFunctionTags(namehandle)
+	ParseFunctionTags(namehandle, rawnamehandle)
 
 	if(!PeekWithExpectation(0, "{"))
 	{
@@ -1055,7 +1054,7 @@ ParseFunctionReturn : integer namehandle
 }
 
 
-ParseFunctionTags : integer functionname
+ParseFunctionTags : integer functionname, integer rawfuncname
 {
 	if(!PeekWithExpectation(0, "["))
 	{
@@ -1066,20 +1065,20 @@ ParseFunctionTags : integer functionname
 	
 	while(PeekToken(0) != "]")
 	{
-		ParseSingleFunctionTag(functionname)
+		ParseSingleFunctionTag(functionname, rawfuncname)
 	}
 	
 	PopToken()
 }
 
-ParseSingleFunctionTag : integer functionname
+ParseSingleFunctionTag : integer functionname, integer rawfuncname
 {
 	string tagname = PeekToken(0)
 	
 	if(PeekToken(1) == "(")
 	{
 		PopTokens(2)
-		OnCodeGenRegisterFunctionTag(functionname, tagname)
+		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
 		
 		string token = PeekToken(0)
 		while(token != ")")
@@ -1113,7 +1112,7 @@ ParseSingleFunctionTag : integer functionname
 	else
 	{
 		PopToken()
-		OnCodeGenRegisterFunctionTag(functionname, tagname)
+		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
 	}
 	
 	if(tagname == "external")
@@ -3791,7 +3790,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 		{
 			if(atomtype == 0x01000000)					// Identifier type signature
 			{
-				if(!constructor)
+				if((!constructor) && (!idatom.IsReference))
 				{
 					OnBytecodePushLiteralString(idatom.Handle)
 				}
@@ -4518,7 +4517,7 @@ FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
 	assert(false)
 }
 
-OnCodeGenRegisterFunctionTag : integer funcname, string tagname
+OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfuncname
 {
 	list<string> dtp = "", nothing
 	FunctionTag tag = funcname, tagname, dtp
@@ -4527,6 +4526,13 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname
 	if(tagname == "constructor")
 	{
 		simpleprepend<integer>(CustomConstructors, funcname)
+		
+		integer baseconstructorname = PoolString(GetPooledString(GlobalStrings, rawfuncname) ; "@@constructor")
+		
+		Overload overload = baseconstructorname, funcname
+		prepend<Overload>(Overloads, overload)
+		
+		PrependFunctionParameter(Functions, funcname, PoolString("@id"), 0x81000000)		// reference to identifier type signature
 	}
 }
 
@@ -4819,7 +4825,11 @@ GetTypeByName : integer name -> integer typeid = 0
 	}
 	name = unaliasedname
 
-	if(name == FindString(GlobalStrings, "integer"))
+	if(name == FindString(GlobalStrings, "identifier"))
+	{
+		typeid = 0x01000000
+	}
+	elseif(name == FindString(GlobalStrings, "integer"))
 	{
 		typeid = 0x01000001
 	}
@@ -5669,6 +5679,8 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 		return()
 	}
 	
+	func.InferenceDone = true
+
 	simplelist<integer> temp = 0, nothing
 	InferenceContext innercontext = func.Name, 0, temp, false, 0, false
 	
@@ -5698,8 +5710,6 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 		}
 	}
 	
-	func.InferenceDone = true
-
 	if(!TypeInference(func.Code, innercontext))
 	{
 		print(GetPooledString(GlobalStrings, func.Name) ; "() - Function code body failed type inference")
@@ -7974,6 +7984,7 @@ WalkFunctionParamsAndSetReferences : FunctionParams ref params, ExpressionList r
 	WalkFunctionParamsAndSetReferencesUnwrapped(params.Params, paramexprs.Expressions)
 }
 
+
 WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref params, list<Expression> ref paramexprs
 {
 	if(IsReferenceType(params.value.ResolvedType))
@@ -8214,6 +8225,36 @@ stringcontains : string haystack, string needle -> boolean contains = false
 		
 		++index
 	}
+}
+
+
+PrependFunctionParameter : list<FunctionDefinition> ref functions, integer funcname, integer paramname, integer paramtype
+{
+	if(functions.value.Name == funcname)
+	{
+		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype)
+		PrependUnresolvedParameter(functions.value.Params, p)
+	}
+	else
+	{
+		PrependFunctionParameter(functions.next, funcname, paramname, paramtype)
+	}
+}
+
+PrependUnresolvedParameter : FunctionParams ref params, UnresolvedParameter ref p
+{
+	PrependUnresolvedParameter(params.Params, p)
+}
+
+PrependUnresolvedParameter : list<UnresolvedParameter> ref thelist, UnresolvedParameter ref p
+{
+	prepend<UnresolvedParameter>(thelist, p)
+}
+
+PrependUnresolvedParameter : nothing, UnresolvedParameter ref p
+{
+	print("Cannot set constructor tag on function with no parameters")
+	assert(false)
 }
 
 
