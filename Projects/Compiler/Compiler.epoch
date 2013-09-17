@@ -812,6 +812,8 @@ ParseStructure : -> boolean matched = false
 	string structurename = PeekToken(0)
 	integer structuretype = (++GlobalStructureCounter)
 	PopTokens(2)
+	
+	integer structurenamehandle = PoolString(structurename)
 
 	boolean moremembers = true
 	while(moremembers)
@@ -830,13 +832,17 @@ ParseStructure : -> boolean matched = false
 			
 			PopToken()
 			
+			integer memberfuncnamehandle = PoolString(memberfuncname)
+			
+			simplelist<integer> paramtypenames = 0, nothing
+						
 			boolean moreparams = true
 			while(moreparams)
 			{
 				string paramtypename = PeekToken(0)
 				PopToken()
 				
-				// TODO - register member function param
+				simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
 				
 				if(PeekToken(0) != ",")
 				{
@@ -848,12 +854,17 @@ ParseStructure : -> boolean matched = false
 				}
 			}
 			
+			integer returntypehandle = 0
+			
 			if(PeekToken(0) == "->")
 			{
 				PopToken()
-				string returntypename = PeekToken(0)
+				returntypehandle = PoolString(PeekToken(0))
 				PopToken()
 			}
+			
+			OnCodeGenRegisterStructureMemFuncSig(structurenamehandle, structuretype, memberfuncnamehandle, returntypehandle)
+			OnCodeGenRegisterStructureMemFuncSigParamList(structurenamehandle, structuretype, memberfuncnamehandle, paramtypenames)
 			
 			if(!PeekWithExpectation(0, ")"))
 			{
@@ -877,7 +888,7 @@ ParseStructure : -> boolean matched = false
 				PopToken()
 			}
 			
-			OnCodeGenRegisterStructureMemVar(PoolString(structurename), structuretype, PoolString(membername), PoolString(membertypename), isref)
+			OnCodeGenRegisterStructureMemVar(structurenamehandle, structuretype, PoolString(membername), PoolString(membertypename), isref)
 		}
 		
 		if(PeekToken(0) != ",")
@@ -2355,6 +2366,19 @@ OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer struc
 	Parameter param = 1, paramtype
 	FindStructureAndAddMemberParam(Structures, structurename, structuretype, membername, param)
 }
+
+OnCodeGenRegisterStructureMemFuncSigParamList : integer structurename, integer structuretype, integer membername, simplelist<integer> ref typenames
+{
+	OnCodeGenRegisterStructureMemFuncSigParamList(structurename, structuretype, membername, typenames.next)
+	
+	if(typenames.value != 0)
+	{
+		OnCodeGenRegisterStructureMemFuncSigParam(structurename, structuretype, membername, typenames.value)
+	}
+}
+
+OnCodeGenRegisterStructureMemFuncSigParamList : integer structurename, integer structuretype, integer membername, nothing
+
 
 
 FindStructureAndAddMember : list<StructureDefinition> ref structures, integer structurename, integer structuretype, StructureMember ref member
@@ -4773,6 +4797,10 @@ GetNameOfType : integer typeid -> integer name = 0
 	elseif((typeid & 0xff000000) == 0x07000000)
 	{
 		name = FindSumTypeName(typeid)
+	}
+	elseif((typeid & 0x7f000000) == 0x09000000)
+	{
+		name = PoolString("{function}")
 	}
 	else
 	{
