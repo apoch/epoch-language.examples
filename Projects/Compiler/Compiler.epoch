@@ -1040,13 +1040,20 @@ ParseFunctionParams :
 			{
 				PopTokens(2)
 				
+				simplelist<integer> paramtypenames = 0, nothing
+				
 				boolean moreparams = true
+				if(PeekToken(0) == ")")
+				{
+					moreparams = false
+				}
+				
 				while(moreparams)
 				{
 					string paramtypename = PeekToken(0)
 					PopToken()
 					
-					// TODO - register higher order function param
+					simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
 					
 					if(PeekToken(0) != ",")
 					{
@@ -1058,21 +1065,26 @@ ParseFunctionParams :
 					}
 				}
 				
+				integer returntypename = 0
+				
 				if(PeekToken(0) == "->")
 				{
 					PopToken()
-					string returntypename = PeekToken(0)
+					returntypename = PoolString(PeekToken(0))
 					PopToken()
 				}
 				
-				// TODO - register higher order function
+				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, returntypename)				
 				
 				if(!PeekWithExpectation(0, ")"))
-				{
+				{	
 					print("Error in higher order function parameter syntax")
 					return()
 				}
 				
+				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false
+				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+
 				PopToken()
 			}
 		}
@@ -3897,6 +3909,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 						Variable var = 0, 0, 0, 0
 						FindVariableDataInScope(EmittingFunctionName, idatom.Handle, var)
 						
+						assert(var.Name != 0)
 						OnBytecodePushLocal(false, frames, var.Offset, 0)
 					}
 				}
@@ -5210,6 +5223,19 @@ OnCodeGenRegisterFunctionSigParam : integer paramtype
 	AppendParameter(FunctionSignatures.value.Parameters, param)
 }
 
+OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
+{
+	OnCodeGenRegisterFunctionSigParamList(paramtypenames.next)
+	
+	if(paramtypenames.value != 0)
+	{
+		OnCodeGenRegisterFunctionSigParam(GetTypeByName(paramtypenames.value))		// TODO - defer higher order function parameter type resolution until type inference
+	}
+}
+
+OnCodeGenRegisterFunctionSigParamList : nothing
+
+
 OnCodeGenRegisterFunctionSigEnd :
 {
 	// TODO - dead code?
@@ -5228,7 +5254,13 @@ CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
 {
 	if(signature.Name != 0)
 	{
-		OnBytecodeEmitFunctionSignature(signature.Name, GetTypeByName(signature.ReturnTypeName), CountParameters(signature.Parameters))
+		integer rettype = GetTypeByName(signature.ReturnTypeName)
+		if(rettype == 0)
+		{
+			rettype = 0x00000002		// void
+		}
+		
+		OnBytecodeEmitFunctionSignature(signature.Name, rettype, CountParameters(signature.Parameters))
 		CodeGenEmitFunctionSigParams(signature.Parameters)
 	}
 }
@@ -5804,6 +5836,12 @@ TypeInference : list<UnresolvedParameter> ref params, InferenceContext ref conte
 
 TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> boolean success = true
 {
+	if((param.ResolvedType & 0x7f000000) == 0x09000000)
+	{
+		OnCodeGenRegisterVariable(context.ScopeName, param.NameHandle, param.ResolvedType, 1)
+		return()
+	}
+
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
 	if(param.ResolvedType == 0)
 	{
@@ -5874,48 +5912,59 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			ConstructVariableFromStatement(statement, context.ScopeName, vartype, origin)
 		}
 	}
-	
-	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel
 
-	if(!TypeInference(statement.Parameters, newcontext))
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(context.ScopeName, statement.Name, var)
+	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
 	{
-		success = false
-		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-	}
-
-
-	simplelist<integer> paramtypes = 0, nothing
-	AccumulateParameterTypes(paramtypes, statement.Parameters)
-	
-	integer overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
-	if(overloadname != 0)
-	{
-		statement.Name = overloadname
+		// TODO - type checking on higher order functions
+		
+		statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
 	}
 	else
 	{
-		success = false
-		print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-	}
-	
-	if(context.FunctionReturn)
-	{
-		statement.Type = vartype
-	}
-	else
-	{
-		statement.Type = GetFunctionReturnType(Functions, statement.Name)
-	}
-	
-	MakeParametersReferences(Functions, statement.Name, statement.Parameters)
+		InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel
 
-	if(vartype != 0)
-	{
-		InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
-	}
-	elseif(IsPendingTypeMatcher(PendingTypeMatchers, overloadname))
-	{
-		AnnotateAllParameters(statement.Parameters)
+		if(!TypeInference(statement.Parameters, newcontext))
+		{
+			success = false
+			print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+		}
+
+
+		simplelist<integer> paramtypes = 0, nothing
+		AccumulateParameterTypes(paramtypes, statement.Parameters)
+		
+		integer overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
+		if(overloadname != 0)
+		{
+			statement.Name = overloadname
+		}
+		else
+		{
+			success = false
+			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+		}
+		
+		if(context.FunctionReturn)
+		{
+			statement.Type = vartype
+		}
+		else
+		{
+			statement.Type = GetFunctionReturnType(Functions, statement.Name)
+		}
+		
+		MakeParametersReferences(Functions, statement.Name, statement.Parameters)
+
+		if(vartype != 0)
+		{
+			InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
+		}
+		elseif(IsPendingTypeMatcher(PendingTypeMatchers, overloadname))
+		{
+			AnnotateAllParameters(statement.Parameters)
+		}
 	}
 }
 
@@ -6494,6 +6543,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	{
 		DemoteAtomType(expression.Atoms)
 	}
+	elseif((expression.Type & 0x7f000000) == 0x09000000)
+	{
+		SetAtomType(expression.Atoms.value, expression.Type)
+	}
 }
 
 
@@ -6524,6 +6577,10 @@ countnonzero : simplelist<integer> ref thelist -> integer count = 0
 countnonzero : nothing -> 0
 
 
+SetAtomType : IdentifierAtom ref atom, integer typeid
+{
+	atom.Type = typeid
+}
 
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> boolean demotedtoright = false
 {
@@ -6800,7 +6857,24 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, in
 	}
 	else
 	{
-		print(GetPooledString(GlobalStrings, atom.Handle) ; " is not a defined identifier!")
+		if(FunctionExists(Functions, atom.Handle))
+		{
+			// TODO - overload resolution on higher order function name
+			integer sigtype = FindFunctionAndGetSignatureType(Functions, atom.Handle)
+			AddPossibleParameter(possibilities.Types, sigtype)
+		}
+		else
+		{
+			integer sigtype = FindBuiltinAndGetSignatureType(atom.Handle)
+			if(sigtype != 0)
+			{
+				AddPossibleParameter(possibilities.Types, sigtype)
+			}
+			else
+			{
+				print(GetPooledString(GlobalStrings, atom.Handle) ; " is not a defined identifier!")
+			}
+		}
 	}
 }
 
@@ -8328,6 +8402,137 @@ PrependUnresolvedParameter : nothing, UnresolvedParameter ref p
 }
 
 
+GetSignatureReturnType : list<FunctionSignature> ref signatures, integer functype -> integer rettype = 0
+{
+	if(signatures.value.Name == functype)		// stupid overload of "name" to also mean "type"
+	{
+		rettype = GetTypeByName(signatures.value.ReturnTypeName)
+	}
+	else
+	{
+		rettype = GetSignatureReturnType(signatures.next, functype)
+	}
+}
+
+
+FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, integer returntypename -> integer typeid = 0
+{
+	typeid = FindFunctionSignatureType(FunctionSignatures, paramtypenames, returntypename)
+	if(typeid == 0)
+	{
+		OnCodeGenRegisterFunctionSig((++GlobalFunctionTypeCounter), returntypename)
+		OnCodeGenRegisterFunctionSigParamList(paramtypenames)
+		
+		typeid = GlobalFunctionTypeCounter
+	}
+}
+
+FindFunctionSignatureType : list<FunctionSignature> ref signatures, simplelist<integer> ref paramtypes, integer returntypename -> integer typeid = 0
+{
+	if(signatures.value.ReturnTypeName == returntypename)
+	{
+		if(SignatureMatchesParams(signatures.value.Parameters, paramtypes))
+		{
+			typeid = signatures.value.Name
+			return()
+		}
+	}
+	
+	typeid = FindFunctionSignatureType(signatures.next, paramtypes, returntypename)
+}
+
+FindFunctionSignatureType : nothing, simplelist<integer> ref paramtypes, integer returntypename -> 0
+
+
+SignatureMatchesParams : list<Parameter> ref params, simplelist<integer> ref paramtypes -> boolean match = true
+{
+	if(params.value.Name == 0)
+	{
+		match = SignatureMatchesParams(params.next, paramtypes)
+	}
+	elseif(params.value.Type != GetTypeByName(paramtypes.value))
+	{
+		match = false
+	}
+	else
+	{
+		match = SignatureMatchesParams(params.next, paramtypes.next)
+	}
+}
+
+SignatureMatchesParams : nothing, simplelist<integer> ref paramtypes -> (paramtypes.value == 0)
+SignatureMatchesParams : list<Parameter> ref params, nothing -> (params.value.Name == 0)
+
+SignatureMatchesParams : nothing, nothing -> true
+
+
+FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, integer funcname -> integer typeid = 0
+{
+	if(functions.value.Name == funcname)
+	{
+		simplelist<integer> paramtypes = 0, nothing
+		GetFunctionParameterTypes(functions.value.Params, paramtypes)
+		
+		typeid = FindFunctionSignatureType(FunctionSignatures, paramtypes, GetNameOfType(GetFunctionReturnType(functions, funcname)))
+	}
+	else
+	{
+		typeid = FindFunctionAndGetSignatureType(functions.next, funcname)
+	}
+}
+
+
+GetFunctionParameterTypes : FunctionParams ref params, simplelist<integer> ref outtypenames
+{
+	GetFunctionParameterTypes(params.Params, outtypenames)
+}
+
+GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<integer> ref outtypenames
+{
+	GetFunctionParameterTypes(params.next, outtypenames)
+	simpleprepend<integer>(outtypenames, GetNameOfType(params.value.ResolvedType))
+}
+
+GetFunctionParameterTypes : nothing, simplelist<integer> ref outtypenames
+
+
+
+DumpSignature : FunctionSignature ref sig
+{
+	print("  Function signature")
+	DumpSignatureParams(sig.Parameters)
+	print("  ->")
+	if(sig.ReturnTypeName != 0)
+	{
+		print(GetPooledString(GlobalStrings, GetNameOfType(sig.ReturnTypeName)))
+	}
+}
+
+DumpSignatureParams : list<Parameter> ref params
+{
+	if(params.value.Type != 0)
+	{
+		print(GetPooledString(GlobalStrings, GetNameOfType(params.value.Type)))
+	}
+	DumpSignatureParams(params.next)
+}
+
+DumpSignatureParams : nothing
+
+
+
+FindBuiltinAndGetSignatureType : integer builtinname -> integer typeid = 0
+{
+	string readablename = GetPooledString(GlobalStrings, builtinname)
+	if(readablename == "passtest")
+	{
+		simplelist<integer> paramtypes = 0, nothing
+		typeid = FindOrCreateFunctionSignatureType(paramtypes, 0)
+	}
+}
+
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -8455,6 +8660,7 @@ global
 	integer GlobalWeakAliasCounter = 0x04000000
 	integer GlobalAliasCounter = 0x05000000
 	integer GlobalSumTypeCounter = 0x07000000
+	integer GlobalFunctionTypeCounter = 0x09000000
 }
 
 
