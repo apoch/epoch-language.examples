@@ -3345,7 +3345,7 @@ CodeGenEmitMember : StructureMemberVariable ref memvar
 
 CodeGenEmitMember : StructureMemberFunctionRef ref member
 {
-	OnBytecodeStructureMember(member.Name, 0x09000000)
+	OnBytecodeStructureMember(member.Name, GetMemberTypeDecompose(member))
 }
 
 
@@ -4067,8 +4067,7 @@ GetMemberType : nothing, integer membername -> integer rtype = 0
 
 GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
 
-GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = 0x09000000
-
+GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = FindOrCreateFunctionSignatureType(member.Signature)
 
 
 GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
@@ -4547,7 +4546,7 @@ CountParameters : list<Parameter> ref params -> integer count = 0
 {
 	count = CountParameters(params.next)
 
-	if(params.value.Name != 0)
+	if(params.value.Type != 0)
 	{
 		++count
 	}
@@ -4795,7 +4794,7 @@ EmitScopeEntryForMember : StructureMemberFunctionRef ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, 0x09000000, 1)
+		OnBytecodeLexicalScopeEntry(memvar.Name, GetMemberTypeDecompose(memvar), 1)
 	}
 }
 
@@ -4889,7 +4888,7 @@ GetNameOfType : integer typeid -> integer name = 0
 	}
 	elseif((typeid & 0x7f000000) == 0x09000000)
 	{
-		name = PoolString("{function}")
+		name = PoolString("{function} " ; cast(string, typeid))
 	}
 	else
 	{
@@ -5758,7 +5757,10 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 	}
 }
 
-TypeInference : StructureMemberFunctionRef ref memfunc, InferenceContext ref context -> true
+TypeInference : StructureMemberFunctionRef ref memfunc, InferenceContext ref context -> boolean success = true
+{
+	ResolveSignatureTypes(memfunc.Signature)
+}
 
 
 TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref context -> boolean success = true
@@ -6581,6 +6583,13 @@ SetAtomType : IdentifierAtom ref atom, integer typeid
 {
 	atom.Type = typeid
 }
+
+SetAtomType : CompoundAtom ref atom, integer typeid
+{
+	atom.Type = typeid
+}
+
+
 
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> boolean demotedtoright = false
 {
@@ -7757,7 +7766,7 @@ AddParameterTypesForMember : StructureMemberVariable ref memvar, simplelist<inte
 
 AddParameterTypesForMember : StructureMemberFunctionRef ref memfunc, simplelist<integer> ref types
 {
-	simpleprepend<integer>(types, 0x09000000)
+	simpleprepend<integer>(types, GetMemberTypeDecompose(memfunc))
 }
 
 
@@ -8415,6 +8424,19 @@ GetSignatureReturnType : list<FunctionSignature> ref signatures, integer functyp
 }
 
 
+FindOrCreateFunctionSignatureType : FunctionSignature ref signature -> integer typeid = 0
+{
+	typeid = FindMatchingSignature(FunctionSignatures, signature)
+	if(typeid == 0)
+	{
+		FunctionSignature newsig = signature
+		newsig.Name = (++GlobalFunctionTypeCounter)
+		prepend<FunctionSignature>(FunctionSignatures, newsig)
+		
+		typeid = newsig.Name
+	}
+}
+
 FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, integer returntypename -> integer typeid = 0
 {
 	typeid = FindFunctionSignatureType(FunctionSignatures, paramtypenames, returntypename)
@@ -8496,6 +8518,40 @@ GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<int
 GetFunctionParameterTypes : nothing, simplelist<integer> ref outtypenames
 
 
+FindMatchingSignature : list<FunctionSignature> ref signatures, FunctionSignature ref targetsig -> integer typeid = 0
+{
+	if(signatures.value.ReturnTypeName == targetsig.ReturnTypeName)
+	{
+		if(SignaturesMatch(signatures.value.Parameters, targetsig.Parameters))
+		{
+			typeid = signatures.value.Name
+			return()
+		}
+	}
+	
+	typeid = FindMatchingSignature(signatures.next, targetsig)
+}
+
+FindMatchingSignature : nothing, FunctionSignature ref targetsig -> 0
+
+
+SignaturesMatch : list<Parameter> ref a, list<Parameter> ref b -> boolean match = true
+{
+	if(a.value.Type != b.value.Type)
+	{
+		match = false
+	}
+	else
+	{
+		match = SignaturesMatch(a.next, b.next)
+	}
+}
+
+SignaturesMatch : nothing, list<Parameter> ref b -> (b.value.Name == 0)
+SignaturesMatch : list<Parameter> ref a, nothing -> (a.value.Name == 0)
+
+SignaturesMatch : nothing, nothing -> true
+
 
 DumpSignature : FunctionSignature ref sig
 {
@@ -8504,7 +8560,7 @@ DumpSignature : FunctionSignature ref sig
 	print("  ->")
 	if(sig.ReturnTypeName != 0)
 	{
-		print(GetPooledString(GlobalStrings, GetNameOfType(sig.ReturnTypeName)))
+		print(GetPooledString(GlobalStrings, sig.ReturnTypeName))
 	}
 }
 
@@ -8518,6 +8574,21 @@ DumpSignatureParams : list<Parameter> ref params
 }
 
 DumpSignatureParams : nothing
+
+
+
+ResolveSignatureTypes : FunctionSignature ref signature
+{
+	ResolveSignatureTypes(signature.Parameters)
+}
+
+ResolveSignatureTypes : list<Parameter> ref params
+{
+	params.value.Type = GetTypeByName(params.value.Type)
+	ResolveSignatureTypes(params.next)
+}
+
+ResolveSignatureTypes : nothing
 
 
 
