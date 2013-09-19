@@ -104,6 +104,11 @@ entrypoint :
 
 		integer len = 0
 		string contents = ReadFile(filename, len)
+		
+		if(len == 0)
+		{
+			return()
+		}
 
 		PrepareStringTable()
 		InitBuiltInOverloads()
@@ -545,6 +550,10 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
 			class = CHARACTER_CLASS_LITERAL
+		}
+		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+		{
+			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
@@ -1434,6 +1443,12 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	{
 		IRAddLiteralReal(0.0)
 	}
+	elseif(ParsePreopStatement())
+	{
+	}
+	elseif(ParsePostopStatement())
+	{
+	}
 	elseif(ParseStatement(true))
 	{
 		matched = true
@@ -1650,6 +1665,12 @@ ParseCodeBlock :
 		if(ParseEntity())
 		{
 		}
+		elseif(ParsePreopStatement())
+		{
+		}
+		elseif(ParsePostopStatement())
+		{
+		}
 		elseif(ParseStatement(false))
 		{
 		}
@@ -1686,6 +1707,69 @@ ParseEntityCode : -> boolean matched = false
 	else
 	{
 		print("Expected code block")
+	}
+}
+
+
+ParsePreopStatement : -> boolean matched = false
+{
+	boolean recognized = false
+	string potential = PeekToken(0)
+	
+	if(potential == "++")
+	{
+		recognized = true
+	}
+	elseif(potential == "--")
+	{
+		recognized = true
+	}
+	
+	if(recognized)
+	{
+		PopToken()
+		
+		string operand = PeekToken(0)
+		PopToken()
+		
+		OnCodeGenRegisterPreOpStatement(PoolString(potential), PoolString(operand))
+		
+		// TODO - compound operand support
+		
+		matched = true
+	}
+}
+
+ParsePostopStatement : -> boolean matched = false
+{
+	boolean recognized = false
+	
+	string operand = PeekToken(0)
+	integer operandlength = 1
+	while(PeekToken(operandlength) == ".")
+	{
+		operandlength += 2
+	}
+	
+	string potential = PeekToken(operandlength)
+	if(potential == "++")
+	{
+		recognized = true
+	}
+	elseif(potential == "--")
+	{
+		recognized = true
+	}
+	
+	if(recognized)
+	{
+		// TODO - compound operand support
+		
+		PopTokens(operandlength + 1)
+		
+		OnCodeGenRegisterPostOpStatement(PoolString(potential), PoolString(operand))
+		
+		matched = true
 	}
 }
 
@@ -5926,6 +6010,33 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 	}
 }
 
+
+TypeInference : PreOpStatement ref statement, InferenceContext ref context -> boolean success = true
+{
+	// TODO - support compound operands
+	
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
+
+	integer operandtype = MakeNonReferenceType(var.VarType)
+	
+	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+}
+
+
+TypeInference : PostOpStatement ref statement, InferenceContext ref context -> boolean success = true
+{
+	// TODO - support compound operands
+	
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
+
+	integer operandtype = MakeNonReferenceType(var.VarType)
+	
+	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+}
+
+
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
 	integer paramcount = CountExpressions(statement.Parameters)
@@ -8646,6 +8757,25 @@ FindBuiltinAndGetSignatureType : integer builtinname -> integer typeid = 0
 	}
 }
 
+
+FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integer overloadname = 0
+{
+	string readable = GetPooledString(GlobalStrings, operatorname)
+	if(readable == "++")
+	{
+		if(operandtype == 0x01000001)
+		{
+			overloadname = FindString(GlobalStrings, "++@@integer")
+		}
+	}
+	elseif(readable == "--")
+	{
+		if(operandtype == 0x01000001)
+		{
+			overloadname = FindString(GlobalStrings, "--@@integer")
+		}
+	}
+}
 
 
 //
