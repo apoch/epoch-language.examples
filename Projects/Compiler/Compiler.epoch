@@ -347,7 +347,7 @@ Parse : string code, integer len -> boolean success = false
 }
 
 
-Lex : string code, integer len
+Lex : string code, integer len [nogc]
 {
 	integer index = 0
 	integer lasttokenstart = 0
@@ -733,7 +733,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 
-PushToken : string token
+PushToken : string token [nogc]
 {
 	if(length(token) == 0)
 	{
@@ -741,7 +741,20 @@ PushToken : string token
 		assert(false)
 	}
 
-	simple_append<string>(TokenStream, token)
+	quick_append(TokenStreamTail.tail, token)
+}
+
+
+quick_append : simplelist<string> ref tailnode, string token [nogc]
+{
+	simplelist<string> newlist = token, nothing
+	tailnode.next = newlist
+	TokenStreamTail.tail = newlist
+}
+
+quick_append : nothing, string token [nogc]
+{
+	assert(false)
 }
 
 
@@ -8778,6 +8791,11 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 }
 
 
+
+structure tailhack :
+	simplelistnode<string> tail
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -8892,6 +8910,7 @@ global
 	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing
 
 	simplelist<string> TokenStream = "", nothing
+	tailhack TokenStreamTail = TokenStream
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
