@@ -6183,15 +6183,29 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		simplelist<integer> paramtypes = 0, nothing
 		AccumulateParameterTypes(paramtypes, statement.Parameters)
 		
-		integer overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
-		if(overloadname != 0)
+		// This is the worst hack EVER.
+		if(GetPooledString(GlobalStrings, statement.Name) == "cast")
 		{
-			statement.Name = overloadname
+			statement.Name = GetCastOverload(statement.Parameters)
+			
+			if(statement.Name == 0)
+			{
+				success = false
+				print("Invalid cast()")
+			}
 		}
 		else
 		{
-			success = false
-			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+			integer overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
+			if(overloadname != 0)
+			{
+				statement.Name = overloadname
+			}
+			else
+			{
+				success = false
+				print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+			}
 		}
 		
 		if(context.FunctionReturn)
@@ -6209,7 +6223,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		{
 			InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
 		}
-		elseif(IsPendingTypeMatcher(PendingTypeMatchers, overloadname))
+		elseif(IsPendingTypeMatcher(PendingTypeMatchers, statement.Name))
 		{
 			AnnotateAllParameters(statement.Parameters)
 		}
@@ -7113,6 +7127,12 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, in
 	}
 
 	AddPossibleParameter(possibilities.Types, 0x01000000)
+	
+	if(GetTypeByName(atom.Handle) != 0)
+	{
+		return()
+	}
+	
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(funcname, atom.Handle, var)
@@ -7942,6 +7962,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@real_to_integer")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
 }
 
 
@@ -8240,6 +8274,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(readablename == "substring@@nolength")
 	{
 		returntype = 0x02000000		// string type signature
+	}
+	elseif(readablename == "cast@@real_to_integer")
+	{
+		returntype = 0x01000001		// integer type signature
 	}
 }
 
@@ -8593,6 +8631,9 @@ InitBuiltInOverloads :
 
 	Overload substrnolen = PoolString("substring"), PoolString("substring@@nolength")
 	prepend<Overload>(Overloads, substrnolen)
+	
+	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer")
+	prepend<Overload>(Overloads, castrealtoint)
 }
 
 
@@ -9102,6 +9143,39 @@ PatternMatcherExists : list<PendingPatternMatcher> ref matchers, integer matcher
 		exists = PatternMatcherExists(matchers.next, matchername)
 	}
 }
+
+
+
+GetCastOverload : nothing -> 0
+
+GetCastOverload : ExpressionList ref params -> integer overloadname = FigureOutCastOverload(params.Expressions)
+
+
+FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
+{
+	integer idtype = GetTypeByName(GetIdentifier(params.value.Atoms.value))
+	if(idtype != 0)
+	{
+		integer origintype = FigureOutCastOriginType(params.next)
+		
+		if((idtype == 0x01000001) && (origintype == 0x01000004))
+		{
+			overloadname = PoolString("cast@@real_to_integer")
+		}
+	}
+}
+
+FigureOutCastOverload : nothing -> 0
+
+
+
+FigureOutCastOriginType : list<Expression> ref params -> integer origintype = params.value.Type
+
+FigureOutCastOriginType : nothing -> 0
+
+
+GetIdentifier : IdentifierAtom ref atom -> atom.Handle
+
 
 
 structure tailhack :
