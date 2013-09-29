@@ -7416,14 +7416,12 @@ ConstructVariableFromStatement : Statement ref statement, integer scopename, int
 		
 	if(varname != 0)
 	{
-		if(origin == 2)
+		// TODO - this is a HACK to bypass shadowing checks. We should check for actual variable shadowing instead.
+		Variable var = 0, 0, 0, 0
+		FindVariableDataInScope(scopename, varname, var)
+		if(var.Name != 0)
 		{
-			Variable var = 0, 0, 0, 0
-			FindVariableDataInScope(scopename, varname, var)
-			if((var.Name != 0) && (var.Origin == 2))
-			{
-				return()
-			}
+			return()
 		}
 		
 		StoreVariableInScope(Scopes, scopename, varname, vartype, false, origin)
