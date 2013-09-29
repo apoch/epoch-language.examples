@@ -2131,20 +2131,20 @@ OnBytecodePushVarValue : integer name, integer typeid
 {
 	OnBytecodePushVarValueNoCopy(name)
 	
-	integer family = typeid & 0x7f000000
+	integer family = typeid & 0xff000000
 
 	if(typeid == 0x02000001)			// Buffer type signature
 	{
 		OnBytecodeCopyBuffer()
 	}
-	//elseif(family == 0x03000000)			// Structure family signature
-	//{
-	//	OnBytecodeCopyStructure()
-	//}
-	//elseif(family == 0x08000000)			// Template instance family signature
-	//{
-	//	OnBytecodeCopyStructure()
-	//}
+	elseif(family == 0x03000000)			// Structure family signature
+	{
+		OnBytecodeCopyStructure()
+	}
+	elseif(family == 0x08000000)			// Template instance family signature
+	{
+		OnBytecodeCopyStructure()
+	}
 }
 
 OnBytecodeCopyBuffer :
@@ -4109,7 +4109,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 					if(frames == 0)
 					{
-						OnBytecodePushVarValue(idatom.Handle, atomtype)
+						OnBytecodePushVarValue(idatom.Handle, idatom.Type)
 					}
 					else
 					{
@@ -6821,6 +6821,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	{
 		SetAtomType(expression.Atoms.value, expression.Type)
 	}
+	elseif(IsStructureType(expression.Type))
+	{
+		SetAtomType(expression.Atoms.value, expression.Type)
+	}
 }
 
 
@@ -6860,6 +6864,7 @@ SetAtomType : CompoundAtom ref atom, integer typeid
 	atom.Type = typeid
 }
 
+SetAtomType : Statement ref atom, integer typeid
 
 
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> boolean demotedtoright = false
