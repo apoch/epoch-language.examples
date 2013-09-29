@@ -6298,7 +6298,7 @@ AccumulateParameterTypesUnwrapped : nothing, simplelist<integer> ref types
 FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, simplelist<integer> ref types -> integer overloadname = rawname
 {
 	if(overloads.value.NormalName == rawname)
-	{
+	{	
 		if(FunctionMatchesParameterTypes(Functions, overloads.value.MangledName, types))
 		{
 			integer matchername = CheckForNeededPatternMatcher(PendingPatternMatchers, rawname)
@@ -6309,7 +6309,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 			else
 			{
 				overloadname = overloads.value.MangledName
-			}
+			}		
 			return()
 		}
 		elseif(countnonzero(types) == GetFunctionParameterCount(Functions, overloads.value.MangledName))
@@ -6707,8 +6707,6 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		return()
 	}
 	
-	RecursiveTypeInference(expression.Atoms, context)
-
 	CoalesceMemberAccesses(expression.Atoms, context.ScopeName)
 	ShuntingYard(expression.Atoms)
 
@@ -6810,15 +6808,6 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		SetAtomType(expression.Atoms.value, expression.Type)
 	}
 }
-
-
-RecursiveTypeInference : list<ExpressionAtom> ref atoms, InferenceContext ref context
-{
-	AtomTypeInference(atoms.value, context)
-	RecursiveTypeInference(atoms.next, context)
-}
-
-RecursiveTypeInference : nothing, InferenceContext ref context
 
 
 CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
@@ -7064,29 +7053,6 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 }
 
 EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
-
-
-AtomTypeInference : AtomSentinel 	    ref sentinel, InferenceContext ref context
-AtomTypeInference : StringHandleAtom 	    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : IdentifierAtom 	    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : OperatorInvokeAtom 	    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : TypeAnnotationAtom 	    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : integer 		    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : integer16 		    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : boolean 		    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : real 		    ref nonsentinel, InferenceContext ref context
-AtomTypeInference : RefBinding              ref nonsentinel, InferenceContext ref context
-AtomTypeInference : CompoundAtom            ref nonsentinel, InferenceContext ref context
-
-AtomTypeInference : Statement		    ref nonsentinel, InferenceContext ref context
-{
-	TypeInference(nonsentinel, context)
-}
-
-AtomTypeInference : ParentheticalExpression ref nonsentinel, InferenceContext ref context
-{
-	TypeInference(nonsentinel.Inner, context)
-}
 
 
 GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
