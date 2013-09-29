@@ -1056,7 +1056,7 @@ ParseFunction : -> boolean matched = false
 	integer namehandle = RegisterOverloadForFunction(rawnamehandle)
 	
 	OnCodeGenRegisterFunction(namehandle)
-	ParseFunctionParams()
+	ParseFunctionParams(rawnamehandle, namehandle)
 	ParseFunctionReturn(namehandle)
 	ParseFunctionTags(namehandle, rawnamehandle)
 
@@ -1080,7 +1080,7 @@ ParseFunction : -> boolean matched = false
 }
 
 
-ParseFunctionParams :
+ParseFunctionParams : integer rawname, integer mangledname
 {
 	string typetoken = PeekToken(0)
 	if(typetoken == "")
@@ -1148,11 +1148,17 @@ ParseFunctionParams :
 					return()
 				}
 				
-				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false
+				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing
 				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 				PopToken()
 			}
+		}
+		elseif(HandleLiteralFunctionParam(typetoken))
+		{
+			PopToken()
+			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, mangledname)
+			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, rawname)			// kind of a dumb hack
 		}
 		else
 		{
@@ -1168,7 +1174,6 @@ ParseFunctionParams :
 			}
 			
 			// TODO - error checking
-			// TODO - literal params
 			
 			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
 		}
@@ -1784,6 +1789,60 @@ ParsePostopStatement : -> boolean matched = false
 		
 		matched = true
 	}
+}
+
+
+HandleLiteralFunctionParam : string token -> boolean isliteral = false
+{
+	if(token == "0")
+	{
+		RegisterLiteralFunctionParam(0)
+		isliteral = true
+	}
+	elseif(token == "0.0")
+	{
+		RegisterLiteralFunctionParam(0.0)
+		isliteral = true
+	}
+	elseif(stringcontains(token, "."))
+	{
+		real realval = cast(real, token)
+		RegisterLiteralFunctionParam(realval)
+		isliteral = true
+	}
+	else
+	{
+		integer intval = cast(integer, token)
+		if(intval != 0)
+		{
+			RegisterLiteralFunctionParam(intval)
+			isliteral = true
+			return()
+		}
+				
+		// TODO - support pattern match literals of other types
+	}
+}
+
+
+RegisterLiteralFunctionParam : integer literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000001		// integer type signature
+
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
+
+RegisterLiteralFunctionParam : real literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000004		// real type signature
+	
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
 
@@ -2449,7 +2508,8 @@ structure UnresolvedParameter :
 	integer NameHandle,
 	integer TypeNameHandle,
 	integer ResolvedType,
-	boolean HasRefTag
+	boolean HasRefTag,
+	OptionalExpression PatternMatchValue
 		
 structure FunctionParams :
 	list<UnresolvedParameter> ref Params
@@ -2508,6 +2568,11 @@ structure FunctionSignature :
 structure PendingTypeMatcher :
 	integer OverloadName,
 	integer MatcherName
+	
+structure PendingPatternMatcher :
+	integer RawName,
+	integer OverloadName,
+	integer MatcherName
 
 structure TypeMatcher :
 	integer Name,
@@ -2547,6 +2612,7 @@ OnCodeGenProcessProgram :
 	CodeGenEmitFunctions(Functions)
 	CodeGenEmitGlobalBlockEpilogue(GlobalCodeBlock)
 	CodeGenEmitTypeMatchers(TypeMatchers)
+	CodeGenEmitPatternMatchers(PendingPatternMatchers)
 	CodeGenEmitConstructors(Structures)
 }
 
@@ -2838,7 +2904,7 @@ OnCodeGenRegisterFunction : integer funcname
 
 IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref
 {
-	UnresolvedParameter p = paramname, paramtypename, 0, isref
+	UnresolvedParameter p = paramname, paramtypename, 0, isref, nothing
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -4361,6 +4427,10 @@ FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 		ret = true
 	}
 	elseif(TypeMatcherExists(TypeMatchers, funcname))
+	{
+		ret = true
+	}
+	elseif(PatternMatcherExists(PendingPatternMatchers, funcname))
 	{
 		ret = true
 	}
@@ -5984,6 +6054,13 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		OnCodeGenRegisterVariable(context.ScopeName, param.NameHandle, param.ResolvedType, 1)
 		return()
 	}
+	
+	integer patternmatchtype = GetOptionalExpressionType(param.PatternMatchValue)
+	if(patternmatchtype != 0)
+	{
+		param.ResolvedType = patternmatchtype
+		return()
+	}
 
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
 	if(param.ResolvedType == 0)
@@ -6061,6 +6138,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		if(context.FunctionReturn)
 		{
 			origin = 2
+			SetFunctionReturnType(context.ScopeName, vartype)
 		}
 		
 		while((vartype & 0x7f000000) == 0x05000000)
@@ -6223,7 +6301,15 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 	{
 		if(FunctionMatchesParameterTypes(Functions, overloads.value.MangledName, types))
 		{
-			overloadname = overloads.value.MangledName
+			integer matchername = CheckForNeededPatternMatcher(PendingPatternMatchers, rawname)
+			if(matchername != 0)
+			{
+				overloadname = matchername
+			}
+			else
+			{
+				overloadname = overloads.value.MangledName
+			}
 			return()
 		}
 		elseif(countnonzero(types) == GetFunctionParameterCount(Functions, overloads.value.MangledName))
@@ -6276,6 +6362,10 @@ CountUnresolvedParametersUnwrapped : list<UnresolvedParameter> ref params -> int
 	if(params.value.NameHandle != 0)
 	{
 		 ++count
+	}
+	elseif(GetOptionalExpressionType(params.value.PatternMatchValue) != 0)
+	{
+		++count
 	}
 	
 	count += CountUnresolvedParametersUnwrapped(params.next)
@@ -6616,6 +6706,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		expression.Type = 0x00000002
 		return()
 	}
+	
+	RecursiveTypeInference(expression.Atoms, context)
 
 	CoalesceMemberAccesses(expression.Atoms, context.ScopeName)
 	ShuntingYard(expression.Atoms)
@@ -6719,6 +6811,14 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	}
 }
 
+
+RecursiveTypeInference : list<ExpressionAtom> ref atoms, InferenceContext ref context
+{
+	AtomTypeInference(atoms.value, context)
+	RecursiveTypeInference(atoms.next, context)
+}
+
+RecursiveTypeInference : nothing, InferenceContext ref context
 
 
 CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
@@ -6965,6 +7065,28 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 
 EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
 
+
+AtomTypeInference : AtomSentinel 	    ref sentinel, InferenceContext ref context
+AtomTypeInference : StringHandleAtom 	    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : IdentifierAtom 	    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : OperatorInvokeAtom 	    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : TypeAnnotationAtom 	    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : integer 		    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : integer16 		    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : boolean 		    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : real 		    ref nonsentinel, InferenceContext ref context
+AtomTypeInference : RefBinding              ref nonsentinel, InferenceContext ref context
+AtomTypeInference : CompoundAtom            ref nonsentinel, InferenceContext ref context
+
+AtomTypeInference : Statement		    ref nonsentinel, InferenceContext ref context
+{
+	TypeInference(nonsentinel, context)
+}
+
+AtomTypeInference : ParentheticalExpression ref nonsentinel, InferenceContext ref context
+{
+	TypeInference(nonsentinel.Inner, context)
+}
 
 
 GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
@@ -7303,6 +7425,16 @@ ConstructVariableFromStatement : Statement ref statement, integer scopename, int
 		
 	if(varname != 0)
 	{
+		if(origin == 2)
+		{
+			Variable var = 0, 0, 0, 0
+			FindVariableDataInScope(scopename, varname, var)
+			if((var.Name != 0) && (var.Origin == 2))
+			{
+				return()
+			}
+		}
+		
 		StoreVariableInScope(Scopes, scopename, varname, vartype, false, origin)
 	}
 }
@@ -8101,7 +8233,23 @@ GetPendingTypeMatcherReturnType : list<PendingTypeMatcher> ref pending, integer 
 	rettype = GetPendingTypeMatcherReturnType(pending.next, matchername)
 }
 
-GetPendingTypeMatcherReturnType : nothing, integer matchername -> integer typeid = GetBuiltInReturnType(matchername)
+GetPendingTypeMatcherReturnType : nothing, integer matchername -> integer typeid = GetPendingPatternMatcherReturnType(PendingPatternMatchers, matchername)
+
+
+
+GetPendingPatternMatcherReturnType : list<PendingPatternMatcher> ref pending, integer matchername -> integer rettype = 0
+{
+	if(pending.value.MatcherName == matchername)
+	{
+		// TODO - ensure all overloads return the same type or this might get ugly!
+		rettype = GetFunctionReturnType(Functions, pending.value.OverloadName)
+		return()
+	}
+	
+	rettype = GetPendingPatternMatcherReturnType(pending.next, matchername)
+}
+
+GetPendingPatternMatcherReturnType : nothing, integer matchername -> integer typeid = GetBuiltInReturnType(matchername)
 
 
 
@@ -8553,7 +8701,7 @@ PrependFunctionParameter : list<FunctionDefinition> ref functions, integer funcn
 {
 	if(functions.value.Name == funcname)
 	{
-		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype)
+		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype), nothing
 		PrependUnresolvedParameter(functions.value.Params, p)
 	}
 	else
@@ -8791,6 +8939,204 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 }
 
 
+SetFunctionReturnType : integer funcname, integer rettype
+{
+	FindFunctionAndSetReturnType(Functions, funcname, rettype)
+}
+
+FindFunctionAndSetReturnType : list<FunctionDefinition> ref functions, integer funcname, integer rettype
+{
+	if(functions.value.Name == funcname)
+	{
+		SetOptionalExpressionType(functions.value.Return, rettype)
+	}
+	else
+	{
+		FindFunctionAndSetReturnType(functions.next, funcname, rettype)
+	}
+}
+
+SetOptionalExpressionType : Expression ref expr, integer typeid
+{
+	expr.Type = typeid
+}
+
+
+
+CheckForNeededPatternMatcher : list<PendingPatternMatcher> ref patternmatchers, integer rawname -> integer matchername = 0
+{
+	if(patternmatchers.value.RawName == rawname)
+	{
+		matchername = patternmatchers.value.MatcherName
+	}
+	else
+	{
+		matchername = CheckForNeededPatternMatcher(patternmatchers.next, rawname)
+	}
+}
+
+CheckForNeededPatternMatcher : nothing, integer rawname -> 0
+
+
+EnsurePatternMatcherExists : list<PendingPatternMatcher> ref patternmatchers, integer rawname, integer mangledname
+{
+	if(patternmatchers.value.OverloadName == mangledname)
+	{
+		return()
+	}
+	
+	EnsurePatternMatcherExists(patternmatchers.next, rawname, mangledname)
+}
+
+EnsurePatternMatcherExists : nothing, integer rawname, integer mangledname
+{
+	PendingPatternMatcher pm = rawname, mangledname, PoolString(GetPooledString(GlobalStrings, rawname) ; "@@patternmatch")
+	prepend<PendingPatternMatcher>(PendingPatternMatchers, pm)
+}
+
+
+
+CodeGenEmitPatternMatchers : list<PendingPatternMatcher> ref matchers
+{
+	if(!listcontains(EmittedPatternMatchers, matchers.value.MatcherName))
+	{
+		OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
+		OnBytecodeEmitInteger(matchers.value.MatcherName)
+		OnBytecodeEmitInteger(0)
+		OnBytecodeEmitInteger(0)
+
+		OnBytecodeEnterPatternResolver(matchers.value.MatcherName)
+		EmitOverloadsForPatternMatcher(PendingPatternMatchers, matchers.value.MatcherName, true)
+		EmitOverloadsForPatternMatcher(PendingPatternMatchers, matchers.value.MatcherName, false)
+		OnBytecodeExitPatternResolver()
+		
+		simpleprepend<integer>(EmittedPatternMatchers, matchers.value.MatcherName)
+	}
+	
+	CodeGenEmitPatternMatchers(matchers.next)
+}
+
+CodeGenEmitPatternMatchers : nothing
+
+
+EmitOverloadsForPatternMatcher : list<PendingPatternMatcher> ref matchers, integer matchername, boolean preferliterals
+{
+	if(matchername == matchers.value.MatcherName)
+	{
+		// TODO - filter down to matchers that fit the most general function pattern
+		
+		EmitPatternMatchOverload(Functions, matchers.value.OverloadName, preferliterals)		
+	}
+
+	EmitOverloadsForPatternMatcher(matchers.next, matchername, preferliterals)
+}
+
+EmitOverloadsForPatternMatcher : nothing, integer matchername, boolean preferliterals
+
+
+
+EmitPatternMatchOverload : list<FunctionDefinition> ref functions, integer overloadname, boolean preferliterals
+{
+	if(functions.value.Name == overloadname)
+	{
+		boolean hasliterals = FunctionSignatureHasLiterals(functions.value.Params)
+		if(hasliterals && preferliterals)
+		{
+			EmitPatternMatchingForFunction(functions.value)
+		}
+		elseif((!hasliterals) && (!preferliterals))
+		{
+			EmitPatternMatchingForFunction(functions.value)
+		}
+	}
+	else
+	{
+		EmitPatternMatchOverload(functions.next, overloadname, preferliterals)
+	}
+}
+
+
+FunctionSignatureHasLiterals : FunctionParams ref params -> boolean hasliterals = FunctionSignatureHasLiterals(params.Params)
+
+FunctionSignatureHasLiterals : list<UnresolvedParameter> ref params -> boolean hasliterals = false
+{
+	integer exprtype = GetOptionalExpressionType(params.value.PatternMatchValue)
+	if((exprtype != 0) && (exprtype != 0x00000002))
+	{
+		hasliterals = true
+		return()
+	}
+
+	if(FunctionSignatureHasLiterals(params.next))
+	{
+		hasliterals = true
+	}
+}
+
+FunctionSignatureHasLiterals : nothing -> false
+
+
+
+EmitPatternMatchingForFunction : FunctionDefinition ref function
+{
+	OnBytecodeEmitByte(0x12)			// PatternMatch instruction
+	OnBytecodeEmitInteger(function.Name)
+	OnBytecodeEmitInteger(0)
+	OnBytecodeEmitInteger(CountUnresolvedParameters(function.Params))
+	EmitPatternMatchingForParameters(function.Params)
+}
+
+EmitPatternMatchingForParameters : FunctionParams ref params
+{
+	EmitPatternMatchingForParameters(params.Params)
+}
+
+EmitPatternMatchingForParameters : list<UnresolvedParameter> ref params
+{
+	integer parampatterntype = GetOptionalExpressionType(params.value.PatternMatchValue)
+	OnBytecodeEmitInteger(MakeNonReferenceType(parampatterntype))
+
+	if(parampatterntype != 0)
+	{
+		OnBytecodeEmitBoolean(true)
+		EmitPatternMatchLiteral(params.value.PatternMatchValue)
+	}
+	else
+	{
+		OnBytecodeEmitBoolean(false)
+	}
+
+	EmitPatternMatchingForParameters(params.next)
+}
+
+EmitPatternMatchingForParameters : nothing
+
+
+EmitPatternMatchLiteral : Expression ref expr
+{
+	EmitPatternMatchLiteralAtom(expr.Atoms.value)
+}
+
+EmitPatternMatchLiteralAtom : integer value
+{
+	OnBytecodeEmitInteger(value)
+}
+
+
+PatternMatcherExists : nothing, integer matchername -> false
+
+PatternMatcherExists : list<PendingPatternMatcher> ref matchers, integer matchername -> boolean exists = false
+{
+	if(matchers.value.MatcherName == matchername)
+	{
+		exists = true
+	}
+	else
+	{
+		exists = PatternMatcherExists(matchers.next, matchername)
+	}
+}
+
 
 structure tailhack :
 	simplelistnode<string> tail
@@ -8908,9 +9254,14 @@ global
 	
 	PendingTypeMatcher dummypending = 0, 0
 	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing
+	
+	PendingPatternMatcher dummypatternpending = 0, 0, 0
+	list<PendingPatternMatcher> PendingPatternMatchers = dummypatternpending, nothing
 
 	simplelist<string> TokenStream = "", nothing
 	tailhack TokenStreamTail = TokenStream
+	
+	simplelist<integer> EmittedPatternMatchers = 0, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
