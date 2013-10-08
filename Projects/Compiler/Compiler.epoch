@@ -541,6 +541,10 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
+	elseif(c == "<")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
 	elseif(c == ">")
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
@@ -1044,6 +1048,18 @@ ParseStructure : -> boolean matched = false
 ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
+	boolean templated = false
+	
+	if(PeekToken(1) == "<")
+	{
+		PopTokens(2)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+		
+		templated = true
+	}
 
 	if(!PeekWithExpectation(1, ":"))
 	{
@@ -1076,6 +1092,38 @@ ParseFunction : -> boolean matched = false
 	ParseCodeBlock()
 	
 	IRExitFunction()
+	matched = true
+}
+
+
+ParseTemplateParameters : -> boolean matched = false
+{
+	boolean hasparams = true
+	
+	while(hasparams)
+	{
+		string paramtype = PeekToken(0)
+		string paramname = PeekToken(1)
+		
+		// TODO - store off template parameters for later attachment to function definition
+		
+		PopTokens(2)
+		
+		if(PeekToken(0) == ">")
+		{
+			hasparams = false
+		}
+		elseif(PeekToken(0) == ",")
+		{
+			PopToken()
+		}
+		else
+		{
+			print("Syntax error in template parameters")
+			return()
+		}
+	}
+	
 	matched = true
 }
 
@@ -1278,8 +1326,21 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 ParseStatement : boolean substatement -> boolean matched = false
 {
 	string statementname = PeekToken(0)
+	boolean templated = false
+	integer lookahead = 0
 	
-	if(!PeekWithExpectation(1, "("))
+	if(PeekToken(1) == "<")
+	{
+		lookahead = ParseTemplateArgs(2)
+		if(lookahead > 0)
+		{
+			templated = true
+			
+			// TODO - attach template arguments to statement somehow or another
+		}
+	}
+	
+	if(!PeekWithExpectation(1 + lookahead, "("))
 	{
 		return()
 	}
@@ -1291,7 +1352,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 	
 	IREnterStatement(statementname, !substatement)
 	
-	PopTokens(2)
+	PopTokens(2 + lookahead)
 
 	string token = PeekToken(0)
 	while(token != ")")
@@ -1326,6 +1387,32 @@ ParseStatement : boolean substatement -> boolean matched = false
 	}
 	
 	matched = true
+}
+
+ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
+{
+	boolean hasargs = true
+	while(hasargs)
+	{
+		string argvalue = PeekToken(consumed)
+		++consumed
+		
+		// TODO - stash argument for attachment to the statement/type definition
+		
+		if(PeekToken(consumed) == ">")
+		{
+			hasargs = false
+		}
+		elseif(PeekToken(consumed) == ",")
+		{
+			++consumed
+		}
+		else
+		{
+			consumed = 0
+			return()
+		}
+	}
 }
 
 ParseInitialization : boolean inreturn -> boolean matched = false
@@ -2585,6 +2672,16 @@ structure FunctionTag :
 	list<string> ref Parameters
 
 
+structure TemplateParameter :
+	integer ParamName,
+	integer ParamType
+	
+structure TemplateArgument :
+	integer ReplaceWith
+	
+structure TemplateFunction :
+	FunctionDefinition ref FunctionDef,
+	list<TemplateParameter> ref Parameters
 
 
 //
