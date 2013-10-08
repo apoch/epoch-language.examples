@@ -1071,7 +1071,7 @@ ParseFunction : -> boolean matched = false
 	integer rawnamehandle = PoolString(functionname)
 	integer namehandle = RegisterOverloadForFunction(rawnamehandle)
 	
-	OnCodeGenRegisterFunction(namehandle)
+	OnCodeGenRegisterFunction(namehandle, templated)
 	ParseFunctionParams(rawnamehandle, namehandle)
 	ParseFunctionReturn(namehandle)
 	ParseFunctionTags(namehandle, rawnamehandle)
@@ -2609,13 +2609,14 @@ structure Overload :
 
 structure FunctionDefinition :
 	integer Name,
+	boolean IsTemplate,
 	OptionalExpression Return,
 	OptionalCodeBlock Code,
 	boolean AnonymousReturn,
 	integer InvokeTag,
 	OptionalParameters Params,
 	boolean InferenceDone
-
+	
 
 structure Variable :
 	integer Name,
@@ -2680,7 +2681,7 @@ structure TemplateArgument :
 	integer ReplaceWith
 	
 structure TemplateFunction :
-	FunctionDefinition ref FunctionDef,
+	integer FunctionDefName,
 	list<TemplateParameter> ref Parameters
 
 
@@ -2990,9 +2991,9 @@ CountOverloads : list<Overload> ref overloads, integer rawname -> integer count 
 CountOverloads : nothing, integer rawname -> 0
 
 
-OnCodeGenRegisterFunction : integer funcname
+OnCodeGenRegisterFunction : integer funcname, boolean istemplate
 {
-	FunctionDefinition func = funcname, nothing, nothing, false, 0, nothing, false
+	FunctionDefinition func = funcname, istemplate, nothing, nothing, false, 0, nothing, false
 	prepend<FunctionDefinition>(Functions, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
@@ -6086,6 +6087,11 @@ TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref con
 
 TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
 {
+	if(func.IsTemplate)
+	{
+		return()
+	}
+
 	if(func.InferenceDone)
 	{
 		return()
@@ -9301,7 +9307,7 @@ global
 	Overload dummyoverload = 0, 0
 	list<Overload> Overloads = dummyoverload, nothing
 
-	FunctionDefinition dummyfunc = 0, nothing, nothing, false, 0, nothing, false
+	FunctionDefinition dummyfunc = 0, false, nothing, nothing, false, 0, nothing, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
