@@ -1071,7 +1071,7 @@ ParseFunction : -> boolean matched = false
 	integer rawnamehandle = PoolString(functionname)
 	integer namehandle = RegisterOverloadForFunction(rawnamehandle)
 	
-	OnCodeGenRegisterFunction(namehandle, templated)
+	OnCodeGenRegisterFunction(namehandle, rawnamehandle, templated)
 	ParseFunctionParams(rawnamehandle, namehandle)
 	ParseFunctionReturn(namehandle)
 	ParseFunctionTags(namehandle, rawnamehandle)
@@ -1105,7 +1105,7 @@ ParseTemplateParameters : -> boolean matched = false
 		string paramtype = PeekToken(0)
 		string paramname = PeekToken(1)
 		
-		// TODO - store off template parameters for later attachment to function definition
+		IRRegisterTemplateParameter(PoolString(paramtype), PoolString(paramname))
 		
 		PopTokens(2)
 		
@@ -2676,13 +2676,18 @@ structure FunctionTag :
 structure TemplateParameter :
 	integer ParamName,
 	integer ParamType
-	
+
 structure TemplateArgument :
 	integer ReplaceWith
-	
+
 structure TemplateFunction :
 	integer FunctionDefName,
 	list<TemplateParameter> ref Parameters
+
+structure TemplateInstance :
+	integer DefName,
+	integer InstanceName,
+	list<TemplateArgument> ref Arguments
 
 
 //
@@ -2991,13 +2996,22 @@ CountOverloads : list<Overload> ref overloads, integer rawname -> integer count 
 CountOverloads : nothing, integer rawname -> 0
 
 
-OnCodeGenRegisterFunction : integer funcname, boolean istemplate
+OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istemplate
 {
 	FunctionDefinition func = funcname, istemplate, nothing, nothing, false, 0, nothing, false
 	prepend<FunctionDefinition>(Functions, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
+	
+	if(istemplate)
+	{
+		CreateFunctionTemplateAndAttachParams(rawfuncname, TemplateParameterQueue)
+		
+		// Reset template parameter queue
+		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
+		TemplateParameterQueue = dummylist
+	}
 }
 
 IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref
@@ -9284,6 +9298,43 @@ GetIdentifier : IdentifierAtom ref atom -> atom.Handle
 
 
 
+IRRegisterTemplateParameter : integer paramtype, integer paramname
+{
+	TemplateParameter p = paramname, paramtype
+	prepend<TemplateParameter>(TemplateParameterQueue, p)
+}
+
+
+CreateFunctionTemplateAndAttachParams : integer funcname, list<TemplateParameter> ref paramqueue
+{
+	list<TemplateParameter> dummyparams = scratchtemplateparam, nothing
+	TransferTemplateParamsFromQueue(dummyparams, paramqueue)
+
+	TemplateFunction templfunc = funcname, dummyparams
+	prepend<TemplateFunction>(TemplateFunctions, templfunc)
+}
+
+
+TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<TemplateParameter> ref queue
+{
+	if(queue.value.ParamType != 0)
+	{
+		TransferTemplateParamsFromQueue(out, queue.next)
+
+		if(out.value.ParamType == 0)
+		{
+			out.value = queue.value
+		}
+		else
+		{
+			prepend<TemplateParameter>(out, queue.value)
+		}
+	}
+}
+
+
+
+
 structure tailhack :
 	simplelistnode<string> tail
 
@@ -9408,6 +9459,13 @@ global
 	tailhack TokenStreamTail = TokenStream
 	
 	simplelist<integer> EmittedPatternMatchers = 0, nothing
+	
+	TemplateParameter scratchtemplateparam = 0, 0
+	list<TemplateParameter> TemplateParameterQueue = scratchtemplateparam, nothing
+	
+	list<TemplateParameter> dummytemplateparams = scratchtemplateparam, nothing
+	TemplateFunction dummyfunctemplate = 0, dummytemplateparams
+	list<TemplateFunction> TemplateFunctions = dummyfunctemplate, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
