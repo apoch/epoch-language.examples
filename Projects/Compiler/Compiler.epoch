@@ -1335,8 +1335,6 @@ ParseStatement : boolean substatement -> boolean matched = false
 		if(lookahead > 0)
 		{
 			templated = true
-			
-			// TODO - attach template arguments to statement somehow or another
 		}
 	}
 	
@@ -1350,7 +1348,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 		OnCodeGenEnterSubStatement()
 	}
 	
-	IREnterStatement(statementname, !substatement)
+	IREnterStatement(statementname, !substatement, templated)
 	
 	PopTokens(2 + lookahead)
 
@@ -1391,13 +1389,18 @@ ParseStatement : boolean substatement -> boolean matched = false
 
 ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
 {
+	TemplateArgumentList newarglist = scratchtemplatearglist
+	prepend<TemplateArgumentList>(ScratchTemplateArgumentStack, newarglist)
+
 	boolean hasargs = true
 	while(hasargs)
 	{
 		string argvalue = PeekToken(consumed)
 		++consumed
 		
-		// TODO - stash argument for attachment to the statement/type definition
+		integer replacehandle = PoolString(argvalue)
+		TemplateArgument newarg = replacehandle
+		AppendTemplateArgument(ScratchTemplateArgumentStack.value.Args, newarg)
 		
 		if(PeekToken(consumed) == ">")
 		{
@@ -1409,6 +1412,7 @@ ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
 		}
 		else
 		{
+			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 			consumed = 0
 			return()
 		}
@@ -1438,7 +1442,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 		OnCodeGenEnterSubStatement()
 	}
 
-	IREnterStatement(typename, true)
+	IREnterStatement(typename, true, false)
 	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
@@ -2539,11 +2543,14 @@ structure ParentheticalExpression :
 	Expression ref Inner
 
 
+type OptionalTemplateArgs : TemplateArgumentList | nothing
+
 structure Statement :
 	integer Name,
 	OptionalExpressionList Parameters,
 	integer Type,
-	boolean TopLevel
+	boolean TopLevel,
+	OptionalTemplateArgs TemplateArgs
 
 structure Assignment :
 	integer LHSName,
@@ -2679,6 +2686,9 @@ structure TemplateParameter :
 
 structure TemplateArgument :
 	integer ReplaceWith
+
+structure TemplateArgumentList :
+	list<TemplateArgument> ref Args
 
 structure TemplateFunction :
 	integer FunctionDefName,
@@ -3343,9 +3353,17 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 }
 
 
-OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel
+OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel, boolean hastemplateargs
 {
-	Statement statement = statementname, nothing, statementtype, toplevel
+	Statement statement = statementname, nothing, statementtype, toplevel, nothing
+	
+	if(hastemplateargs)
+	{
+		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+		statement.TemplateArgs = arglist
+		
+		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+	}
 
 	if(ContextStack.value.EntryType == STACK_TYPE_SUBSTATEMENT)
 	{
@@ -6246,6 +6264,8 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
+	statement.Name = InstantiateFunctionTemplate(statement.Name, statement.TemplateArgs)
+
 	integer paramcount = CountExpressions(statement.Parameters)
 
 	integer vartype = GetTypeByName(statement.Name)
@@ -7631,10 +7651,10 @@ IRExitCodeBlock :
 }
 
 
-IREnterStatement : string funcname, boolean istoplevel
+IREnterStatement : string funcname, boolean istoplevel, boolean hastemplateargs
 {
 	integer namehandle = PoolString(funcname)
-	OnCodeGenEnterStatement(namehandle, 0, istoplevel)
+	OnCodeGenEnterStatement(namehandle, 0, istoplevel, hastemplateargs)
 }
 
 IRExitStatement :
@@ -9334,6 +9354,39 @@ TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<Template
 
 
 
+PopTemplateArgStack : list<TemplateArgumentList> ref stack, list<TemplateArgumentList> ref next
+{
+	stack = next
+}
+
+
+AppendTemplateArgument : list<TemplateArgument> ref thelist, TemplateArgument ref arg
+{
+	AppendTemplateArgumentRecurse(thelist, thelist.next, arg)
+}
+
+
+AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, nothing, TemplateArgument ref arg
+{
+	list<TemplateArgument> newlist = arg, nothing
+	thelist.next = newlist
+}
+
+AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, list<TemplateArgument> ref tail, TemplateArgument ref arg
+{
+	AppendTemplateArgumentRecurse(tail, tail.next, arg)
+}
+
+
+
+InstantiateFunctionTemplate : integer templatename, nothing -> templatename
+
+InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
+{
+	print("TODO - traverse the function template with the given name and generate a new instantiation if needed")
+}
+
+
 
 structure tailhack :
 	simplelistnode<string> tail
@@ -9394,7 +9447,7 @@ global
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
 	Expression dummyexpression = dummyatomlist, 0
 	list<Expression> ScratchExpressions = dummyexpression, nothing
-	Statement dummystatement = 0, nothing, 0, false
+	Statement dummystatement = 0, nothing, 0, false, nothing
 	list<Statement> SubStatements = dummystatement, nothing
 
 	Parameter dummyparam = 0, 0
@@ -9466,6 +9519,11 @@ global
 	list<TemplateParameter> dummytemplateparams = scratchtemplateparam, nothing
 	TemplateFunction dummyfunctemplate = 0, dummytemplateparams
 	list<TemplateFunction> TemplateFunctions = dummyfunctemplate, nothing
+	
+	TemplateArgument scratchtemplatearg = 0
+	list<TemplateArgument> scratchtemplateargs = scratchtemplatearg, nothing
+	TemplateArgumentList scratchtemplatearglist = scratchtemplateargs
+	list<TemplateArgumentList> ScratchTemplateArgumentStack = scratchtemplatearglist, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
