@@ -9383,8 +9383,100 @@ InstantiateFunctionTemplate : integer templatename, nothing -> templatename
 
 InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
 {
-	print("TODO - traverse the function template with the given name and generate a new instantiation if needed")
+	integer existing = FindExistingTemplateInstance(TemplateFunctionInstances, templatename, args.Args)
+	if(existing != 0)
+	{
+		instancename = existing
+		return()
+	}
+	
+	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, args.Args)
 }
+
+
+FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	if(templates.value.FunctionDefName == defname)
+	{
+		string mangledname = MangleTemplateName(defname, args)
+		instancename = PoolString(mangledname)
+		
+		OnCodeGenRegisterFunction(instancename, defname, false)
+
+		// TODO - traverse template and instantiate the following stuff
+		//ParseFunctionParams(rawnamehandle, namehandle)
+		//ParseFunctionReturn(namehandle)
+		//ParseFunctionTags(namehandle, rawnamehandle)
+
+		OnCodeGenEnterFunctionBody(instancename)
+
+		// TODO - instantiate code body of function templates!
+		//ParseCodeBlock()
+		
+		IRExitFunction()
+	}
+	else
+	{
+		instancename = FindFunctionTemplateAndInstantiate(templates.next, defname, args)
+	}
+}
+
+
+
+MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, defname) ; "@@templateinst@"
+{
+	mangled = mangled ; MangleTemplateArguments(args)
+}
+
+MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, args.value.ReplaceWith)
+{
+	mangled = mangled; MangleTemplateArguments(args.next)
+}
+
+MangleTemplateArguments : nothing -> ""
+
+
+FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> 0
+{
+	print("Error - template not provided, cannot create instance!")
+}
+
+
+
+FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	if(instances.value.DefName == defname)
+	{
+		if(TemplateArgumentsMatch(instances.value.Arguments, args))
+		{
+			instancename = instances.value.InstanceName
+			return()
+		}
+	}
+	
+	instancename = FindExistingTemplateInstance(instances.next, defname, args)
+}
+
+FindExistingTemplateInstance : nothing, integer defname, list<TemplateArgument> ref args -> 0
+
+
+
+TemplateArgumentsMatch : list<TemplateArgument> ref a, list<TemplateArgument> ref b -> boolean match = true
+{
+	if(a.value.ReplaceWith != b.value.ReplaceWith)
+	{
+		match = false
+	}
+	else
+	{
+		match = TemplateArgumentsMatch(a.next, b.next)
+	}
+}
+
+TemplateArgumentsMatch : nothing, list<TemplateArgument> ref b -> false
+TemplateArgumentsMatch : list<TemplateArgument> ref a, nothing -> false
+TemplateArgumentsMatch : nothing, nothing -> true
+
 
 
 
@@ -9524,6 +9616,9 @@ global
 	list<TemplateArgument> scratchtemplateargs = scratchtemplatearg, nothing
 	TemplateArgumentList scratchtemplatearglist = scratchtemplateargs
 	list<TemplateArgumentList> ScratchTemplateArgumentStack = scratchtemplatearglist, nothing
+	
+	TemplateInstance dummytemplateinst = 0, 0, scratchtemplateargs
+	list<TemplateInstance> TemplateFunctionInstances = dummytemplateinst, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
