@@ -1464,7 +1464,6 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	if(inreturn)
 	{
 		IRExitStatement()
-		//OnCodeGenShiftParameter()
 		Functions.value.AnonymousReturn = false
 	}
 }
@@ -7798,6 +7797,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer"),   0x01000001, 0x01000001, 0x01000003)
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer16"), 0x01000002, 0x01000002, 0x01000003)
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@boolean"),   0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@real"),      0x01000004, 0x01000004, 0x01000003)
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@string"),    0x02000000, 0x02000000, 0x01000003)
 	}
 	elseif(basename == "!=")
@@ -7813,6 +7813,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	elseif(basename == "+")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@real"), 0x01000004, 0x01000004, 0x01000004)
 	}
 	elseif(basename == "-")
 	{
@@ -9432,7 +9433,7 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 	if(functions.value.Name == defname)
 	{
 		assert(functions.value.IsTemplate)
-			
+		
 		FunctionDefinition func = instancename, false, nothing, nothing, functions.value.AnonymousReturn, 0, nothing, false
 		prepend<FunctionDefinition>(Functions, func)
 
@@ -9440,7 +9441,7 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 		CurrentCodeBlockStack = newstack
 		
 		DoParameterInstantiation(functions.value.Params, params, args)
-		DoReturnInstantiation(functions.value.Return, instancename, params, args)
+		DoReturnInstantiation(functions.value.Return, instancename, functions.value.AnonymousReturn, params, args)
 
 		// TODO - traverse template and instantiate the following stuff
 		//ParseFunctionTags(namehandle, rawnamehandle)
@@ -9488,11 +9489,11 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 }
 
 
-DoReturnInstantiation : Expression ref retexpr, integer funcname, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
-	OnCodeGenEnterFunctionReturn(funcname, true)
+	OnCodeGenEnterFunctionReturn(funcname, anonymous)
 	IREnterExpression()
-	InstantiateExpression(retexpr, templateparams, templateargs)
+	InstantiateExpression(retexpr, true, templateparams, templateargs)
 	IRExitExpression()
 	OnCodeGenExitContext()
 }
@@ -9571,32 +9572,65 @@ TemplateArgumentsMatch : nothing, nothing -> true
 
 
 
-InstantiateExpression : Expression ref expr, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+InstantiateExpression : Expression ref expr, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
-	InstantiateAtoms(expr.Atoms, templateparams, templateargs)
+	InstantiateAtoms(expr.Atoms, inret, templateparams, templateargs)
 }
 
-InstantiateAtoms : list<ExpressionAtom> ref atoms, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+InstantiateAtoms : list<ExpressionAtom> ref atoms, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
-	InstantiateSingleAtom(atoms.value, templateparams, templateargs)
-	InstantiateAtoms(atoms.next, templateparams, templateargs)
+	InstantiateSingleAtom(atoms.value, inret, templateparams, templateargs)
+	InstantiateAtoms(atoms.next, inret, templateparams, templateargs)
 }
 
-InstantiateAtoms : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+InstantiateAtoms : nothing, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 
 
 
 // TODO - support ALL atom types
-InstantiateSingleAtom : IdentifierAtom ref atom, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+InstantiateSingleAtom : IdentifierAtom ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	OnCodeGenRegisterAtomIdentifier(atom.Handle, 0)
 }
 
-InstantiateSingleAtom : OperatorInvokeAtom ref atom, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+InstantiateSingleAtom : OperatorInvokeAtom ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	OnCodeGenRegisterOperatorInvoke(atom.OperatorName)
 }
 
+InstantiateSingleAtom : Statement ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	integer statementname = MapTemplateType(atom.Name, templateparams, templateargs)
+
+	OnCodeGenEnterSubStatement()
+	OnCodeGenEnterStatement(statementname, 0, inret, false)		// TODO - support for templated statements here!
+
+	InstantiateExpressionList(atom.Parameters, false, templateparams, templateargs, 0)
+	
+	IRExitStatement()
+	IRExitStatement()
+}
+
+InstantiateExpressionList : ExpressionList ref exprs, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs, integer count
+{
+	InstantiateExpressionList(exprs.Expressions, inret, templateparams, templateargs, count)
+}
+
+InstantiateExpressionList : list<Expression> ref exprs, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs, integer count
+{
+	if(count != 0)
+	{
+		OnCodeGenShiftParameter()
+	}
+
+	IREnterExpression()
+	InstantiateExpression(exprs.value, inret, templateparams, templateargs)
+	IRExitExpression()
+
+	InstantiateExpressionList(exprs.next, inret, templateparams, templateargs, count + 1)
+}
+
+InstantiateExpressionList : nothing, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs, integer count
 
 
 
