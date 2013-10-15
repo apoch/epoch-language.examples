@@ -938,21 +938,38 @@ ParseSumType : -> boolean matched = false
 
 ParseStructure : -> boolean matched = false
 {
+	boolean templated = false
+
 	if(!PeekWithExpectation(0, "structure"))
 	{
 		return()
 	}
-	
-	if(!PeekWithExpectation(2, ":"))
+		
+	string structurename = PeekToken(1)
+
+	if(PeekToken(2) == "<")
+	{
+		PopTokens(3)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+		
+		templated = true
+		
+		if(!PeekWithExpectation(1, ":"))
+		{
+			return()
+		}
+	}
+	elseif(!PeekWithExpectation(2, ":"))
 	{
 		return()
 	}
-	
-	PopToken()
-	string structurename = PeekToken(0)
-	integer structuretype = (++GlobalStructureCounter)
+
 	PopTokens(2)
 	
+	integer structuretype = (++GlobalStructureCounter)	
 	integer structurenamehandle = PoolString(structurename)
 
 	boolean moremembers = true
@@ -1427,6 +1444,13 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	if(varname == ".")
 	{
 		return()
+	}
+	elseif(varname == "<")
+	{
+		PopTokens(2)
+		ParseTemplateArgs(0)
+		PopToken()
+		varname = PeekToken(1)
 	}
 
 	if(PeekToken(2) != "=")
