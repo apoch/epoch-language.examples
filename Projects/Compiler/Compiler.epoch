@@ -957,6 +957,8 @@ ParseStructure : -> boolean matched = false
 		
 		templated = true
 		
+		// TODO - do something with structure template params
+		
 		if(!PeekWithExpectation(1, ":"))
 		{
 			return()
@@ -1056,6 +1058,11 @@ ParseStructure : -> boolean matched = false
 		{
 			PopToken()
 		}
+	}
+	
+	if(templated)
+	{
+		SetStructureToTemplate(Structures, structurenamehandle)
 	}
 	
 	matched = true
@@ -1438,27 +1445,29 @@ ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
 
 ParseInitialization : boolean inreturn -> boolean matched = false
 {
+	boolean templated = false
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
 	
+	integer skipahead = 0
 	if(varname == ".")
 	{
 		return()
 	}
 	elseif(varname == "<")
 	{
-		PopTokens(2)
-		ParseTemplateArgs(0)
-		PopToken()
-		varname = PeekToken(1)
+		skipahead = ParseTemplateArgs(2)
+		varname = PeekToken(1 + skipahead)
+		
+		templated = true
 	}
 
-	if(PeekToken(2) != "=")
+	if(PeekToken(2 + skipahead) != "=")
 	{
 		return()
 	}
 
-	PopTokens(3)
+	PopTokens(3 + skipahead)
 	
 	if(inreturn)
 	{
@@ -1466,7 +1475,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 		OnCodeGenEnterSubStatement()
 	}
 
-	IREnterStatement(typename, true, false)
+	IREnterStatement(typename, true, templated)
 	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
 	IRExitExpression()
@@ -2511,7 +2520,8 @@ structure StructureDefinition :
 	integer ConstructorName,
 	integer AnonConstructorName,
 	integer CopyConstructorName,
-	list<StructureMember> ref Members
+	list<StructureMember> ref Members,
+	boolean IsTemplate
 
 
 structure IdentifierAtom :
@@ -2820,7 +2830,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
 {
 	list<StructureMember> members = member, nothing
-	StructureDefinition def = structurename, structuretype, 0, 0, 0, members
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, false
 
 	AppendStructure(Structures, Structures.next, def)
 }
@@ -6074,6 +6084,11 @@ TypeInference : list<StructureDefinition> ref structures, InferenceContext ref c
 TypeInference : StructureDefinition ref structuredef, InferenceContext ref context -> boolean success = true
 {
 	if(structuredef.Name == 0)
+	{
+		return()
+	}
+	
+	if(structuredef.IsTemplate)
 	{
 		return()
 	}
@@ -9658,6 +9673,19 @@ InstantiateExpressionList : nothing, boolean inret, list<TemplateParameter> ref 
 
 
 
+SetStructureToTemplate : list<StructureDefinition> ref structures, integer name
+{
+	if(structures.value.Name == name)
+	{
+		structures.value.IsTemplate = true
+	}
+	else
+	{
+		SetStructureToTemplate(structures.next, name)
+	}
+}
+
+
 structure tailhack :
 	simplelistnode<string> tail
 
@@ -9692,7 +9720,7 @@ global
 
 	StructureMemberVariable dummymember = 0, 0, 0
 	list<StructureMember> dummymembers = dummymember, nothing
-	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers
+	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers, false
 	list<StructureDefinition> Structures = dummystruct, nothing
 
 
