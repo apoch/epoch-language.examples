@@ -956,9 +956,7 @@ ParseStructure : -> boolean matched = false
 		}
 		
 		templated = true
-		
-		// TODO - do something with structure template params
-		
+				
 		if(!PeekWithExpectation(1, ":"))
 		{
 			return()
@@ -970,6 +968,10 @@ ParseStructure : -> boolean matched = false
 	}
 
 	PopTokens(2)
+	if(!templated)
+	{
+		PopToken()
+	}
 	
 	integer structuretype = (++GlobalStructureCounter)	
 	integer structurenamehandle = PoolString(structurename)
@@ -2727,6 +2729,10 @@ structure TemplateFunction :
 	integer FunctionDefName,
 	list<TemplateParameter> ref Parameters
 
+structure TemplateStructure :
+	integer StructureDefName,
+	list<TemplateParameter> ref Parameters
+
 structure TemplateInstance :
 	integer DefName,
 	integer InstanceName,
@@ -2903,7 +2909,7 @@ OnCodeGenRegisterConstructors : integer structurename, integer constructorname, 
 FindStructureAndSetConstructors : list<StructureDefinition> ref structures, integer structurename, integer constructorname, integer anonname, integer copyname
 {
 	if(structures.value.Name == structurename)
-	{
+	{	
 		structures.value.ConstructorName = constructorname
 		structures.value.AnonConstructorName = anonname
 		structures.value.CopyConstructorName = copyname
@@ -3693,7 +3699,7 @@ CodeGenEmitStructures : nothing
 
 CodeGenEmitSingleStructure : StructureDefinition ref def
 {
-	if(def.Name != 0)
+	if((def.Name != 0) && (!def.IsTemplate))
 	{
 		integer membercount = CountMembers(def.Members)
 		OnBytecodeDefineStructure(def.Type, membercount)
@@ -5072,7 +5078,7 @@ CountTagParams : nothing -> integer count = 0
 
 CodeGenEmitConstructors : list<StructureDefinition> ref structures
 {
-	if(structures.value.Name != 0)
+	if((structures.value.Name != 0) && (!structures.value.IsTemplate))
 	{
 		EmitCtorTag(structures.value.ConstructorName)
 		EmitCtorTag(structures.value.AnonConstructorName)
@@ -5408,7 +5414,7 @@ CodeGenRearrangeStructures : list<StructureDefinition> ref thelist
 
 CodeGenRearrangeStructuresRecurse : list<StructureDefinition> ref thelist, simplelist<integer> ref processed -> boolean changed = false
 {
-	if(thelist.value.Name != 0)
+	if((thelist.value.Name != 0) && (!thelist.value.IsTemplate))
 	{
 		simplelist<integer> dependencies = 0, nothing
 		ParseStructDependencies(thelist.value.Members, dependencies)
@@ -5460,7 +5466,7 @@ GetMemberDependency : StructureMemberVariable ref var -> integer dep = 0
 {
 	if(var.Name != 0)
 	{
-		if((var.Type & 0xff000000) == 0x03000000)
+		if(IsStructureType(var.Type))
 		{
 			dep = var.Type
 		}
@@ -5490,7 +5496,7 @@ MissingDependency : simplelist<integer> ref dependencies, simplelist<integer> re
 	}
 }
 
-MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = true
+MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = false			// TODO - is this really correct?!
 
 
 OnCodeGenEnterEntity : integer entityname, integer postfixtag
@@ -6330,7 +6336,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			vartype = FindTypeAliasBase(TypeAliases, vartype)
 		}
 		
-		if((vartype & 0x7f000000) == 0x03000000)
+		if(IsStructureType(vartype))
 		{
 			statement.Name = GetConstructorName(Structures, vartype)
 		}
@@ -9384,6 +9390,17 @@ CreateFunctionTemplateAndAttachParams : integer funcname, list<TemplateParameter
 }
 
 
+CreateStructureTemplateAndAttachParams : integer structurename, list<TemplateParameter> ref paramqueue
+{
+	list<TemplateParameter> dummyparams = scratchtemplateparam, nothing
+	TransferTemplateParamsFromQueue(dummyparams, paramqueue)
+
+	TemplateStructure templstructure = structurename, dummyparams
+	prepend<TemplateStructure>(TemplateStructures, templstructure)
+}
+
+
+
 TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<TemplateParameter> ref queue
 {
 	if(queue.value.ParamType != 0)
@@ -9466,6 +9483,79 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 }
 
 
+FindStructureTemplateAndInstantiate : list<TemplateStructure> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	if(templates.value.StructureDefName == defname)
+	{
+		string mangledname = MangleTemplateName(defname, args)
+		instancename = PoolString(mangledname)
+		
+		// TODO - validate that args suit the formal template parameters!
+		
+		DoStructureInstantiation(Structures, defname, instancename, templates.value.Parameters, args)
+	}
+	else
+	{
+		instancename = FindStructureTemplateAndInstantiate(templates.next, defname, args)
+	}
+}
+
+FindStructureTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	print("Error - no template provided, cannot create instance!")
+}
+
+
+DoStructureInstantiation : list<StructureDefinition> ref structures, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	if(structures.value.Name == defname)
+	{
+		assert(structures.value.IsTemplate)
+		
+		++GlobalTemplateInstanceCounter
+		
+		list<StructureMember> members = dummymember, nothing
+		DoMemberListInstantiation(structures.value.Members, members, params, args)
+		PopMember(members, members.next)
+		
+		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, false
+		prepend<StructureDefinition>(Structures, struct)
+
+		simplelist<integer> temp = 0, nothing
+		InferenceContext context = 0, 0, temp, false, 0, false
+		TypeInference(Structures.value, context)
+	}
+	else
+	{
+		DoStructureInstantiation(structures.next, defname, instancename, params, args)
+	}
+}
+
+PopMember : list<StructureMember> ref members, list<StructureMember> ref tail
+{
+	members = tail
+}
+
+
+DoMemberListInstantiation : list<StructureMember> ref members, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	DoMemberInstantiation(members.value, out, params, args)	
+	DoMemberListInstantiation(members.next, out, params, args)
+}
+
+DoMemberListInstantiation : nothing, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+
+DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	if(memvar.Name != 0)
+	{
+		integer newtype = MapTemplateType(memvar.TypeNameHandle, params, args)
+		StructureMemberVariable newmemvar = memvar.Name, 0, newtype
+		StructureMember newmember = newmemvar
+		AppendStructureMember(out, out.next, newmember)
+	}
+}
+
 
 DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
@@ -9501,7 +9591,7 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 		
 		simplelist<integer> temp = 0, nothing
 		InferenceContext context = 0, 0, temp, false, 0, false
-		TypeInference(functions.value, context)
+		TypeInference(Functions.value, context)
 	}
 	else
 	{
@@ -9568,11 +9658,17 @@ MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = Ge
 MangleTemplateArguments : nothing -> ""
 
 
-FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> 0
+FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
-	print("Error - template not provided, cannot create instance!")
+	integer existing = FindExistingTemplateInstance(TemplateStructureInstances, defname, args)
+	if(existing != 0)
+	{
+		instancename = existing
+		return()
+	}
+	
+	instancename = FindStructureTemplateAndInstantiate(TemplateStructures, defname, args)
 }
-
 
 
 FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
@@ -9678,6 +9774,12 @@ SetStructureToTemplate : list<StructureDefinition> ref structures, integer name
 	if(structures.value.Name == name)
 	{
 		structures.value.IsTemplate = true
+
+		CreateStructureTemplateAndAttachParams(name, TemplateParameterQueue)
+		
+		// Reset template parameter queue
+		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
+		TemplateParameterQueue = dummylist
 	}
 	else
 	{
@@ -9808,23 +9910,27 @@ global
 
 	simplelist<string> TokenStream = "", nothing
 	tailhack TokenStreamTail = TokenStream
-	
+
 	simplelist<integer> EmittedPatternMatchers = 0, nothing
-	
+
 	TemplateParameter scratchtemplateparam = 0, 0
 	list<TemplateParameter> TemplateParameterQueue = scratchtemplateparam, nothing
-	
+
 	list<TemplateParameter> dummytemplateparams = scratchtemplateparam, nothing
 	TemplateFunction dummyfunctemplate = 0, dummytemplateparams
 	list<TemplateFunction> TemplateFunctions = dummyfunctemplate, nothing
-	
+
 	TemplateArgument scratchtemplatearg = 0
 	list<TemplateArgument> scratchtemplateargs = scratchtemplatearg, nothing
 	TemplateArgumentList scratchtemplatearglist = scratchtemplateargs
 	list<TemplateArgumentList> ScratchTemplateArgumentStack = scratchtemplatearglist, nothing
-	
+
 	TemplateInstance dummytemplateinst = 0, 0, scratchtemplateargs
 	list<TemplateInstance> TemplateFunctionInstances = dummytemplateinst, nothing
+	list<TemplateInstance> TemplateStructureInstances = dummytemplateinst, nothing
+
+	TemplateStructure dummystructuretemplate = 0, dummytemplateparams
+	list<TemplateStructure> TemplateStructures = dummystructuretemplate, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
@@ -9833,11 +9939,12 @@ global
 	integer CHARACTER_CLASS_PUNCTUATION_COMPOUND = 4
 	integer CHARACTER_CLASS_STRING_LITERAL = 5
 	integer CHARACTER_CLASS_LITERAL = 6
-	
+
 	integer GlobalStructureCounter = 0x03000000
 	integer GlobalWeakAliasCounter = 0x04000000
 	integer GlobalAliasCounter = 0x05000000
 	integer GlobalSumTypeCounter = 0x07000000
+	integer GlobalTemplateInstanceCounter = 0x08000000
 	integer GlobalFunctionTypeCounter = 0x09000000
 }
 
