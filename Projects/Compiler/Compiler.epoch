@@ -1169,7 +1169,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 			integer pooledhandle = PoolString(typetoken)
 			
 			PopToken()
-			IRRegisterFunctionParam(pooledhandle, pooledhandle, false)
+			IRRegisterFunctionParam(pooledhandle, pooledhandle, false, false)
 		}
 		elseif(typetoken == "(")
 		{
@@ -1222,7 +1222,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 					return()
 				}
 				
-				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing
+				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing, nothing
 				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 				PopToken()
@@ -1236,8 +1236,20 @@ ParseFunctionParams : integer rawname, integer mangledname
 		}
 		else
 		{
-			string nametoken = PeekToken(1)
-			PopTokens(2)
+			integer lookahead = 0
+			boolean templated = false
+			
+			if(PeekToken(1) == "<")
+			{
+				lookahead = ParseTemplateArgs(2)
+				if(lookahead > 0)
+				{
+					templated = true
+				}
+			}
+			
+			string nametoken = PeekToken(1 + lookahead)
+			PopTokens(2 + lookahead)
 			
 			boolean isreference = false
 			if(nametoken == "ref")
@@ -1249,7 +1261,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 			
 			// TODO - error checking
 			
-			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference)
+			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference, templated)
 		}
 		
 		typetoken = PeekToken(0)
@@ -1956,7 +1968,7 @@ RegisterLiteralFunctionParam : integer literalvalue
 	list<ExpressionAtom> atoms = atom, nothing
 	Expression expr = atoms, 0x01000001		// integer type signature
 
-	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -1966,7 +1978,7 @@ RegisterLiteralFunctionParam : real literalvalue
 	list<ExpressionAtom> atoms = atom, nothing
 	Expression expr = atoms, 0x01000004		// real type signature
 	
-	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -2638,7 +2650,8 @@ structure UnresolvedParameter :
 	integer TypeNameHandle,
 	integer ResolvedType,
 	boolean HasRefTag,
-	OptionalExpression PatternMatchValue
+	OptionalExpression PatternMatchValue,
+	OptionalTemplateArgs TemplateArgs
 		
 structure FunctionParams :
 	list<UnresolvedParameter> ref Params
@@ -3063,9 +3076,19 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istem
 	}
 }
 
-IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref
+IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref, boolean templated
 {
-	UnresolvedParameter p = paramname, paramtypename, 0, isref, nothing
+	UnresolvedParameter p = paramname, paramtypename, 0, isref, nothing, nothing
+	
+	if(templated)
+	{
+		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
+		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+		p.TemplateArgs = arglist
+		
+		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+	}
+	
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -6249,6 +6272,8 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		param.ResolvedType = patternmatchtype
 		return()
 	}
+	
+	param.TypeNameHandle = MangleTemplateNameByHandle(param.TypeNameHandle, param.TemplateArgs)
 
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
 	if(param.ResolvedType == 0)
@@ -8903,7 +8928,7 @@ PrependFunctionParameter : list<FunctionDefinition> ref functions, integer funcn
 {
 	if(functions.value.Name == funcname)
 	{
-		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype), nothing
+		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype), nothing, nothing
 		PrependUnresolvedParameter(functions.value.Params, p)
 	}
 	else
@@ -9611,7 +9636,7 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 {
 	integer newtype = MapTemplateType(params.value.TypeNameHandle, templateparams, templateargs)
 	
-	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue	
+	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue, params.value.TemplateArgs
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 	DoParameterInstantiation(params.next, templateparams, templateargs)
@@ -9643,6 +9668,11 @@ MapTemplateType : integer typenamehandle, list<TemplateParameter> ref templatepa
 }
 
 MapTemplateType : integer typenamehandle, nothing, nothing -> typenamehandle
+
+
+MangleTemplateNameByHandle : integer defname, nothing -> integer mangled = defname
+
+MangleTemplateNameByHandle : integer defname, TemplateArgumentList ref args -> integer mangled = PoolString(MangleTemplateName(defname, args.Args))
 
 
 MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, defname) ; "@@templateinst@"
