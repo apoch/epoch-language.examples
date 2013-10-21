@@ -335,7 +335,7 @@ Parse : string code, integer len -> boolean success = false
 		}
 		elseif(!ParseFunction())
 		{
-			print("Error: function could not be parsed: " ; token)
+			print("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
 			return()
 		}
 
@@ -901,38 +901,90 @@ ParseStrongAlias : -> boolean matched = false
 
 ParseSumType : -> boolean matched = false
 {
+	boolean templated = false
+
 	if(!PeekWithExpectation(0, "type"))
 	{
 		return()
 	}
 	
-	if(!PeekWithExpectation(2, ":"))
+	if(PeekToken(2) == "<")
+	{
+		PopTokens(3)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+
+		templated = true
+		
+		if(!PeekWithExpectation(1, ":"))
+		{
+			return()
+		}
+		
+		if(PeekToken(3) == "<")
+		{
+			if(PeekToken(6) != "|")
+			{
+				return()
+			}
+		}
+		elseif(!PeekWithExpectation(3, "|"))
+		{
+			return()
+		}
+	}
+	elseif(!PeekWithExpectation(2, ":"))
 	{
 		return()
 	}
-	
-	if(!PeekWithExpectation(4, "|"))
+	elseif(!PeekWithExpectation(4, "|"))
 	{
 		return()
 	}
+	else
+	{
+		PopToken()
+	}
 	
-	PopToken()
 	string sumtypename = PeekToken(0)
 	integer typename = PoolString(sumtypename)
 	integer typeid = (++GlobalSumTypeCounter)
 	PopTokens(2)
 	
-	while(PeekToken(1) == "|")
-	{
-		string basename = PeekToken(0)		
-		OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename))
-		PopTokens(2)
-	}
+	ParseSumTypeBases(typename, typeid)
 	
-	string finalbasename = PeekToken(0)		
+	string finalbasename = PeekToken(0)	
 	OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(finalbasename))
 	PopToken()
 	matched = true
+}
+
+
+ParseSumTypeBases : integer typename, integer typeid
+{
+	boolean hasmorebases = true
+
+	while(hasmorebases)
+	{
+		string basename = PeekToken(0)
+		
+		if(PeekToken(1) == "<")
+		{
+			integer baselookahead = ParseTemplateArgs(1)
+			PopTokens(baselookahead + 3)
+			
+			// TODO - register templated sum type base
+		}
+		else
+		{
+			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename))
+			PopTokens(2)
+		}
+
+		hasmorebases = (PeekToken(1) == "|")
+	}
 }
 
 
@@ -973,7 +1025,7 @@ ParseStructure : -> boolean matched = false
 		PopToken()
 	}
 	
-	integer structuretype = (++GlobalStructureCounter)	
+	integer structuretype = (++GlobalStructureCounter)
 	integer structurenamehandle = PoolString(structurename)
 
 	boolean moremembers = true
@@ -1036,11 +1088,31 @@ ParseStructure : -> boolean matched = false
 		}
 		else
 		{
+			boolean membertemplated = false
 			boolean isref = false
 			string membertypename = PeekToken(0)
 			PopToken()
 			string membername = PeekToken(0)
 			PopToken()
+			
+			if(membername == "<")
+			{
+				integer memberlookahead = ParseTemplateArgs(0)
+				if(memberlookahead > 0)
+				{
+					membertemplated = true
+					PopTokens(memberlookahead + 1)
+					membername = PeekToken(0)
+					PopToken()
+					
+					// TODO - do something with templated members!
+				}
+				else
+				{
+					print("Error in template arguments for structure member")
+					return()
+				}
+			}
 			
 			if(membername == "ref")
 			{
