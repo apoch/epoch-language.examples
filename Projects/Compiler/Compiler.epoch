@@ -1557,14 +1557,11 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	
 	if(inreturn)
 	{
-		IREnterExpression()
 		OnCodeGenEnterSubStatement()
 	}
 
 	IREnterStatement(typename, true, templated)
-	IREnterExpression()
 	IRAddLiteralIdentifier(varname)
-	IRExitExpression()
 	
 	OnCodeGenShiftParameter()
 	
@@ -1608,7 +1605,6 @@ ParseExpression : -> boolean matched = false
 		}
 	}
 
-	IRExitExpression()
 	matched = true
 }
 
@@ -1648,12 +1644,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 		
 		return()
 	}
-	
-	if(startsexpr)
-	{
-		IREnterExpression()
-	}
-	
+		
 	if(term == "false")
 	{
 		IRAddLiteralBoolean(false)
@@ -7813,22 +7804,6 @@ IRExitStatement :
 }
 
 
-IREnterExpression :
-{
-	++IRExpressionDepth		// TODO - this should be a stack so we can have nested statements
-}
-
-IRExitExpression :
-{
-	--IRExpressionDepth
-
-	if(IRExpressionDepth == 0)
-	{
-		//OnCodeGenShiftParameter()
-	}
-}
-
-
 IRAddOperator : string operatorname
 {
 	OnCodeGenRegisterOperatorInvoke(PoolString(operatorname))
@@ -9718,9 +9693,7 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	OnCodeGenEnterFunctionReturn(funcname, anonymous)
-	IREnterExpression()
 	InstantiateExpression(retexpr, true, templateparams, templateargs)
-	IRExitExpression()
 	OnCodeGenExitContext()
 }
 
@@ -9860,10 +9833,7 @@ InstantiateExpressionList : list<Expression> ref exprs, boolean inret, list<Temp
 		OnCodeGenShiftParameter()
 	}
 
-	IREnterExpression()
 	InstantiateExpression(exprs.value, inret, templateparams, templateargs)
-	IRExitExpression()
-
 	InstantiateExpressionList(exprs.next, inret, templateparams, templateargs, count + 1)
 }
 
@@ -10001,8 +9971,6 @@ global
 	TypePossibilityList scratchparams = scratchpossibletypes, false
 	list<TypePossibilityList> scratchparampossibles = scratchparams, nothing
 	InferencePossibility scratchpossibility = 0, scratchparampossibles, scratchreturns
-
-	integer IRExpressionDepth = 0
 	
 	PendingTypeMatcher dummypending = 0, 0
 	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing

@@ -1,0 +1,34 @@
+//
+// NESTEDSTATEMENT.EPOCH
+//
+// Simple test of nested function calls in a statement
+//
+
+
+foo : integer a -> integer b = a + 2
+
+bar : integer a
+{
+	assert(a == 42)
+}
+
+baz : integer a
+{
+	assert(a == 666)
+}
+
+quux : integer a, integer b
+{
+	bar(a)
+	baz(b)
+}
+
+passthrough : integer a -> integer b = a
+
+
+entrypoint :
+{
+	quux(foo(passthrough(40)), foo(passthrough(664)))
+	passtest()
+}
+
