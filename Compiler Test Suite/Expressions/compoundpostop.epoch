@@ -1,0 +1,27 @@
+//
+// COMPOUNDPOSTOP.EPOCH
+//
+// Test of compound post-operator statements
+//
+
+
+structure Foo :
+	integer a,
+	Baz b
+	
+structure Baz :
+	string a,
+	integer b
+	
+	
+entrypoint :
+{
+	Baz baztest = "Test", 41
+	Foo footest = 666, baztest
+	
+	footest.b.b++
+	
+	assert(footest.b.b == 42)
+	
+	passtest()
+}

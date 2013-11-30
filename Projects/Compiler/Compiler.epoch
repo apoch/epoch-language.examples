@@ -1601,7 +1601,10 @@ ParseExpression : -> boolean matched = false
 	{
 		while(ParseExpressionOperator())
 		{
-			ParseExpressionTerm(false, matchedstatement)
+			if(!ParseExpressionTerm(false, matchedstatement))
+			{
+				return()
+			}
 		}
 	}
 
@@ -1661,12 +1664,6 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	{
 		IRAddLiteralReal(0.0)
 	}
-	elseif(ParsePreopStatement())
-	{
-	}
-	elseif(ParsePostopStatement())
-	{
-	}
 	elseif(ParseStatement(true))
 	{
 		matched = true
@@ -1708,7 +1705,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 
 ParseExpressionOperator : -> boolean matched = false
 {
-	string op = PeekToken(0)
+	string op = PeekToken(0)	
 	if(op == ")")
 	{
 		return()
@@ -1952,7 +1949,14 @@ ParsePreopStatement : -> boolean matched = false
 		
 		OnCodeGenRegisterPreOpStatement(PoolString(potential), PoolString(operand))
 		
-		// TODO - compound operand support
+		while(PeekToken(0) == ".")
+		{
+			PopToken()
+			operand = PeekToken(0)
+			PopToken()
+			
+			OnCodeGenAddPreOpCompoundOperand(PoolString(operand))
+		}
 		
 		matched = true
 	}
@@ -1981,12 +1985,21 @@ ParsePostopStatement : -> boolean matched = false
 	
 	if(recognized)
 	{
-		// TODO - compound operand support
-		
-		PopTokens(operandlength + 1)
-		
 		OnCodeGenRegisterPostOpStatement(PoolString(potential), PoolString(operand))
-		
+
+		if(operandlength > 1)
+		{
+			integer tokenindex = 2
+			while(tokenindex < operandlength)
+			{
+				operand = PeekToken(tokenindex)
+				OnCodeGenAddPreOpCompoundOperand(PoolString(operand))
+				tokenindex += 2
+			}
+		}
+
+		PopTokens(operandlength + 1)
+				
 		matched = true
 	}
 }
@@ -3631,6 +3644,16 @@ FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, no
 AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
 {
 	AppendCompoundMember(a.LHS, a.LHS.next, membername)
+}
+
+AppendCompoundMemberHelper : PreOpStatement ref s, integer membername
+{
+	AppendCompoundMember(s.Operand, s.Operand.next, membername)
+}
+
+AppendCompoundMemberHelper : PostOpStatement ref s, integer membername
+{
+	AppendCompoundMember(s.Operand, s.Operand.next, membername)
 }
 
 AppendCompoundMember : simplelist<integer> ref members, simplelist<integer> ref tail, integer membername
@@ -5769,6 +5792,26 @@ OnCodeGenRegisterPreOpStatement : integer operator, integer operand
 	AppendEntryToCurrentCodeBlock(cbe)
 }
 
+OnCodeGenAddPreOpCompoundOperand : integer operand
+{
+	FindLastPreOpAndAppendCompoundMemberHelper(CurrentCodeBlockStack.value, operand)
+}
+
+FindLastPreOpAndAppendCompoundMemberHelper : CodeBlock ref codeblock, integer operand
+{
+	FindLastPreOpAndAppendCompoundMember(codeblock.Entries, codeblock.Entries.next, operand)
+}
+
+FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
+{
+	FindLastPreOpAndAppendCompoundMember(tail, tail.next, membername)
+}
+
+FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
+{
+	AppendCompoundMemberHelper(entries.value, membername)
+}
+
 OnCodeGenRegisterPostOpStatement : integer operator, integer operand
 {
 	simplelist<integer> operandlist = operand, nothing
@@ -6378,26 +6421,32 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 
 
 TypeInference : PreOpStatement ref statement, InferenceContext ref context -> boolean success = true
-{
-	// TODO - support compound operands
-	
+{	
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
-
+	
 	integer operandtype = MakeNonReferenceType(var.VarType)
+
+	if(countnonzero(statement.Operand) > 1)
+	{
+		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
+	}
 	
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
 }
 
 
 TypeInference : PostOpStatement ref statement, InferenceContext ref context -> boolean success = true
-{
-	// TODO - support compound operands
-	
+{	
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
 
 	integer operandtype = MakeNonReferenceType(var.VarType)
+	
+	if(countnonzero(statement.Operand) > 1)
+	{
+		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
+	}
 	
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
 }
