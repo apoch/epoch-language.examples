@@ -1813,6 +1813,47 @@ ParseAssignment : -> boolean matched = false
 	
 	PopTokens(lhslength + 1)
 	
+	boolean haschain = true
+	while(haschain)
+	{
+		lhslength = 1
+		while(PeekToken(lhslength) == ".")
+		{
+			lhslength += 2
+		}
+			
+		if(PeekToken(lhslength) == "=")
+		{
+			if(assignmenttoken != "=")
+			{
+				print("Cannot chain assignments with side effects")
+				return()
+			}
+			
+			if(lhslength == 1)
+			{
+				OnCodeGenChainAssignment(PoolString("="), PoolString(PeekToken(0)), 0, 0)
+			}
+			else
+			{
+				OnCodeGenChainAssignmentCompound(PoolString("="), PoolString(PeekToken(0)), 0, 0)
+				integer tokenindex = 2
+				while(tokenindex < lhslength)
+				{
+					OnCodeGenChainAssignmentCompoundMember(PoolString(PeekToken(tokenindex)))
+					tokenindex += 2
+				}
+				OnCodeGenChainAssignmentCompoundEnd()
+			}			
+			
+			PopTokens(lhslength + 1)
+		}
+		else
+		{
+			haschain = false
+		}
+	}
+	
 	if(ParseExpression())
 	{
 		matched = true
@@ -2683,6 +2724,8 @@ structure ParentheticalExpression :
 
 type OptionalTemplateArgs : TemplateArgumentList | nothing
 
+type ExpressionOrAssignment : Expression | Assignment | AssignmentCompound
+
 structure Statement :
 	integer Name,
 	OptionalExpressionList Parameters,
@@ -2695,14 +2738,14 @@ structure Assignment :
 	integer LHSName,
 	integer LHSType,
 	integer Annotation,
-	Expression ref RHS
+	ExpressionOrAssignment RHS
 
 structure AssignmentCompound :
 	integer Operator,
-	simplelist<integer> ref LHS,
+	simplelist<integer> LHS,			// TODO - JIT bug - making this a reference type causes bogosity
 	integer LHSType,
 	integer Annotation,
-	Expression ref RHS
+	ExpressionOrAssignment RHS
 
 structure PreOpStatement :
 	integer Operator,
@@ -3545,7 +3588,8 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean 
 OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	Expression tempexpr = dummyatomlist, 0
-	Assignment assignment = operator, lhsname, lhstype, annotation, tempexpr
+	ExpressionOrAssignment rhs = tempexpr
+	Assignment assignment = operator, lhsname, lhstype, annotation, rhs
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 
@@ -3556,11 +3600,21 @@ OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, i
 }
 
 
+OnCodeGenChainAssignment : integer operator, integer lhsname, integer lhstype, integer annotation
+{
+	Expression tempexpr = dummyatomlist, 0
+	ExpressionOrAssignment rhs = tempexpr
+	Assignment assignment = operator, lhsname, lhstype, annotation, rhs
+	AppendEntryToCurrentAssignmentChain(assignment)
+}
+
+
 OnCodeGenEnterAssignmentCompound : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	simplelist<integer> idlist = lhsname, nothing
 	Expression tempexpr = dummyatomlist, 0
-	AssignmentCompound assignment = operator, idlist, lhstype, annotation, tempexpr
+	ExpressionOrAssignment rhs = tempexpr
+	AssignmentCompound assignment = operator, idlist, lhstype, annotation, rhs
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 }
@@ -3579,12 +3633,172 @@ OnCodeGenAssignmentCompoundEnd :
 }
 
 
+
+OnCodeGenChainAssignmentCompound : integer operator, integer lhsname, integer lhstype, integer annotation
+{
+	simplelist<integer> idlist = lhsname, nothing
+	Expression tempexpr = dummyatomlist, 0
+	ExpressionOrAssignment rhs = tempexpr
+	AssignmentCompound assignment = operator, idlist, lhstype, annotation, rhs
+	AppendEntryToCurrentAssignmentChain(assignment)
+}
+
+OnCodeGenChainAssignmentCompoundMember : integer membername
+{
+	FindCurrentFunctionAndChainCompoundMember(membername)
+}
+
+OnCodeGenChainAssignmentCompoundEnd :
+{
+}
+
+
 OnCodeGenEnterSubStatement :
 {
 	ContextStackEntry entry = STACK_TYPE_SUBSTATEMENT, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
 }
 
+
+
+AppendEntryToCurrentAssignmentChain : Assignment ref a
+{
+	AppendEntryToCurrentAssignmentChainWorker(CurrentCodeBlockStack, a)
+}
+
+AppendEntryToCurrentAssignmentChain : AssignmentCompound ref a
+{
+	AppendEntryToCurrentAssignmentChainWorker(CurrentCodeBlockStack, a)
+}
+
+AppendEntryToCurrentAssignmentChainWorker : list<OptionalCodeBlock> ref blockstack, Assignment ref a
+{
+	AppendEntryToAssignmentChain(blockstack, blockstack.next, a)
+}
+
+AppendEntryToCurrentAssignmentChainWorker : list<OptionalCodeBlock> ref blockstack, AssignmentCompound ref a
+{
+	AppendEntryToAssignmentChain(blockstack, blockstack.next, a)
+}
+
+AppendEntryToAssignmentChain : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref tail, Assignment ref a
+{
+	AppendEntryToAssignmentChain(tail, tail.next, a)
+}
+
+AppendEntryToAssignmentChain : list<OptionalCodeBlock> ref stack, nothing, Assignment ref a
+{
+	GetTailAssignmentAndChain(stack.value, a)
+}
+
+
+AppendEntryToAssignmentChain : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref tail, AssignmentCompound ref a
+{
+	AppendEntryToAssignmentChain(tail, tail.next, a)
+}
+
+AppendEntryToAssignmentChain : list<OptionalCodeBlock> ref stack, nothing, AssignmentCompound ref a
+{
+	GetTailAssignmentAndChain(stack.value, a)
+}
+
+
+GetTailAssignmentAndChain : CodeBlock ref codeblock, Assignment ref a
+{
+	FindTailAssignmentAndChain(codeblock.Entries, codeblock.Entries.next, a)
+}
+
+GetTailAssignmentAndChain : CodeBlock ref codeblock, AssignmentCompound ref a
+{
+	FindTailAssignmentAndChain(codeblock.Entries, codeblock.Entries.next, a)
+}
+
+
+FindTailAssignmentAndChain : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, Assignment ref a
+{
+	FindTailAssignmentAndChain(tail, tail.next, a)
+}
+
+FindTailAssignmentAndChain : list<CodeBlockEntry> ref entries, nothing, Assignment ref a
+{
+	ChainAssignment(entries.value, a)
+}
+
+FindTailAssignmentAndChain : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, AssignmentCompound ref a
+{
+	FindTailAssignmentAndChain(tail, tail.next, a)
+}
+
+FindTailAssignmentAndChain : list<CodeBlockEntry> ref entries, nothing, AssignmentCompound ref a
+{
+	ChainAssignment(entries.value, a)
+}
+
+ChainAssignment : Assignment ref a, Assignment ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+ChainAssignment : AssignmentCompound ref a, Assignment ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+
+ChainAssignment : Assignment ref a, AssignmentCompound ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+ChainAssignment : AssignmentCompound ref a, AssignmentCompound ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+
+AddAssignmentToChain : Assignment ref tomodify, Assignment ref a, Assignment ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+AddAssignmentToChain : Assignment ref tomodify, Expression ref expr, Assignment ref newtail
+{
+	ExpressionOrAssignment wrap = newtail
+	tomodify.RHS = wrap
+}
+
+AddAssignmentToChain : AssignmentCompound ref tomodify, Assignment ref a, Assignment ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+AddAssignmentToChain : AssignmentCompound ref tomodify, Expression ref expr, Assignment ref newtail
+{
+	ExpressionOrAssignment wrap = newtail
+	tomodify.RHS = wrap
+}
+
+AddAssignmentToChain : Assignment ref tomodify, Assignment ref a, AssignmentCompound ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+AddAssignmentToChain : Assignment ref tomodify, Expression ref expr, AssignmentCompound ref newtail
+{
+	ExpressionOrAssignment wrap = newtail
+	tomodify.RHS = wrap
+}
+
+AddAssignmentToChain : AssignmentCompound ref tomodify, Assignment ref a, AssignmentCompound ref newtail
+{
+	AddAssignmentToChain(a, a.RHS, newtail)
+}
+
+AddAssignmentToChain : AssignmentCompound ref tomodify, Expression ref expr, AssignmentCompound ref newtail
+{
+	ExpressionOrAssignment wrap = newtail
+	tomodify.RHS = wrap
+}
 
 
 AppendEntryToCurrentCodeBlock : CodeBlockEntry ref cbe
@@ -3609,11 +3823,20 @@ FindCurrentFunctionAndAppendCompoundMember : integer membername
 	FindLastAssignmentAndAppendCompoundMemberHelper(CurrentCodeBlockStack.value, membername)
 }
 
+FindCurrentFunctionAndChainCompoundMember : integer membername
+{
+	FindLastAssignmentAndChainCompoundMemberHelper(CurrentCodeBlockStack.value, membername)
+}
 
 
 FindLastAssignmentAndAppendCompoundMemberHelper : CodeBlock ref code, integer membername
 {
 	FindLastAssignmentAndAppendCompoundMember(code.Entries, code.Entries.next, membername)
+}
+
+FindLastAssignmentAndChainCompoundMemberHelper : CodeBlock ref code, integer membername
+{
+	FindLastAssignmentAndChainCompoundMember(code.Entries, code.Entries.next, membername)
 }
 
 
@@ -3657,6 +3880,60 @@ FindLastAssignmentAndAppendCompoundMember : list<CodeBlockEntry> ref entries, no
 {
 	AppendCompoundMemberHelper(entries.value, membername)
 }
+
+
+FindLastAssignmentAndChainCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
+{
+	FindLastAssignmentAndChainCompoundMember(tail, tail.next, membername)
+}
+
+FindLastAssignmentAndChainCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
+{
+	ChainCompoundMemberHelper(entries.value, membername)
+}
+
+
+ChainCompoundMemberHelper : Assignment ref a, integer membername
+{
+	ChainCompoundMember(a, a.RHS, membername)
+}
+
+ChainCompoundMemberHelper : AssignmentCompound ref a, integer membername
+{
+	ChainCompoundMember(a, a.RHS, membername)
+}
+
+ChainCompoundMember : Assignment ref tomodify, Assignment ref rhs, integer membername
+{
+	ChainCompoundMember(rhs, rhs.RHS, membername)
+}
+
+ChainCompoundMember : AssignmentCompound ref tomodify, Assignment ref rhs, integer membername
+{
+	ChainCompoundMember(rhs, rhs.RHS, membername)
+}
+
+ChainCompoundMember : Assignment ref tomodify, AssignmentCompound ref rhs, integer membername
+{
+	ChainCompoundMember(rhs, rhs.RHS, membername)
+}
+
+ChainCompoundMember : AssignmentCompound ref tomodify, AssignmentCompound ref rhs, integer membername
+{
+	ChainCompoundMember(rhs, rhs.RHS, membername)
+}
+
+ChainCompoundMember : Assignment ref tomodify, Expression ref rhs, integer membername
+{
+	print("Fatal error - parser tried to associate a member with a non-compound assignment")
+	assert(false)
+}
+
+ChainCompoundMember : AssignmentCompound ref tomodify, Expression ref rhs, integer membername
+{
+	AppendCompoundMemberHelper(tomodify, membername)
+}
+
 
 AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
 {
@@ -3770,12 +4047,45 @@ FindLastAssignmentAndSetExpression : list<CodeBlockEntry> ref codeblockentries, 
 
 SetAssignmentExpression : Assignment ref assignment, Expression ref expression
 {
-	assignment.RHS = expression
+	FollowChainAndSetExpression(assignment, assignment.RHS, expression)
 }
 
 SetAssignmentExpression : AssignmentCompound ref assignment, Expression ref expression
 {
-	assignment.RHS = expression
+	FollowChainAndSetExpression(assignment, assignment.RHS, expression)
+}
+
+
+FollowChainAndSetExpression : Assignment ref assignment, Assignment ref rhs, Expression ref expression
+{
+	FollowChainAndSetExpression(rhs, rhs.RHS, expression)
+}
+
+FollowChainAndSetExpression : Assignment ref assignment, AssignmentCompound ref rhs, Expression ref expression
+{
+	FollowChainAndSetExpression(rhs, rhs.RHS, expression)
+}
+
+FollowChainAndSetExpression : AssignmentCompound ref assignment, Assignment ref rhs, Expression ref expression
+{
+	FollowChainAndSetExpression(rhs, rhs.RHS, expression)
+}
+
+FollowChainAndSetExpression : AssignmentCompound ref assignment, AssignmentCompound ref rhs, Expression ref expression
+{
+	FollowChainAndSetExpression(rhs, rhs.RHS, expression)
+}
+
+FollowChainAndSetExpression : Assignment ref tomodify, Expression ref rhs, Expression ref newrhs
+{
+	ExpressionOrAssignment wrap = newrhs
+	tomodify.RHS = wrap
+}
+
+FollowChainAndSetExpression : AssignmentCompound ref tomodify, Expression ref rhs, Expression ref newrhs
+{
+	ExpressionOrAssignment wrap = newrhs
+	tomodify.RHS = wrap
 }
 
 
@@ -4089,17 +4399,45 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 	}
 }
 
+CodeGenEmitAssignmentRHS : Expression ref expr
+{
+	CodeGenEmitExpressionAtoms(expr.Atoms, false, false)
+}
+
+CodeGenEmitAssignmentRHS : Assignment ref a
+{
+	CodeGenEmitAssignmentRHS(a.RHS)
+		
+	integer frames = 0
+	integer index = FindVariable(a.LHSName, frames)
+	OnBytecodeBindReference(frames, index)
+
+	if((a.LHSType & 0x7f000000) == 0x07000000)
+	{
+		OnBytecodeAssignSumType()
+	}
+	else
+	{
+		OnBytecodeAssign()
+	}
+	
+	CodeGenEmitBindingsForVariable(a.LHSName)
+	OnBytecodeReadReference()
+}
+
 CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 {
 	boolean sideeffects = false
-	if(GetPooledString(GlobalStrings, a.Operator) != "=")
+	
+	string op = substring(GetPooledString(GlobalStrings, a.Operator), 0, 1)
+	if(op != "=")			// TODO - Pathetic hack
 	{
 		sideeffects = true
 		CodeGenEmitBindingsForVariable(a.LHSName)
 		OnBytecodeReadReference()
 	}
 
-	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+	CodeGenEmitAssignmentRHS(a.RHS)
 	
 	if(sideeffects)
 	{
@@ -4135,7 +4473,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 		OnBytecodeReadReference()
 	}
 
-	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+	CodeGenEmitAssignmentRHS(a.RHS)
 	
 	if(sideeffects)
 	{
@@ -6968,6 +7306,11 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 }
 
 
+GetAssignmentRHSType : Expression ref expr -> integer rettype = expr.Type
+GetAssignmentRHSType : Assignment ref assignment -> integer rettype = GetAssignmentRHSType(assignment.RHS)
+GetAssignmentRHSType : AssignmentCompound ref assignment -> integer rettype = GetAssignmentRHSType(assignment.RHS)
+
+
 TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
 {
 	Variable var = 0, 0, 0, 0
@@ -6979,20 +7322,19 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
 		print("Failed to infer type of RHS of assignment")
-		DumpExpressionAtoms(assignment.RHS.Atoms)
 		success = false
 	}
 		
 	assignment.LHSType = var.VarType
 	
-	if(assignment.LHSType != assignment.RHS.Type)
+	if(assignment.LHSType != GetAssignmentRHSType(assignment.RHS))
 	{
 		// TODO - check type of RHS vs. LHS?
 		
-		assignment.Annotation = assignment.RHS.Type
+		assignment.Annotation = GetAssignmentRHSType(assignment.RHS)
 	}
 	
-	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, assignment.RHS.Type)
+	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, GetAssignmentRHSType(assignment.RHS))
 }
 
 TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
@@ -7006,20 +7348,19 @@ TypeInference : AssignmentCompound ref assignment, InferenceContext ref context 
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
 		print("Failed to infer type of RHS of assignment")
-		DumpExpressionAtoms(assignment.RHS.Atoms)
 		success = false
 	}
 	
 	assignment.LHSType = lhstype
 
-	if(assignment.LHSType != assignment.RHS.Type)
+	if(assignment.LHSType != GetAssignmentRHSType(assignment.RHS))
 	{
 		// TODO - check type of RHS vs. LHS?
 		
-		assignment.Annotation = assignment.RHS.Type
+		assignment.Annotation = GetAssignmentRHSType(assignment.RHS)
 	}
 	
-	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, assignment.RHS.Type)
+	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, GetAssignmentRHSType(assignment.RHS))
 }
 
 TypeInference : EntityChain ref chain, InferenceContext ref context -> boolean success = TypeInference(chain.Entries, context)
@@ -9315,7 +9656,7 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 	}
 }
 
-FindAssignmentOperator : integer operatorname, integer lhstype, integer rhstype -> integer overloadname = 0
+FindAssignmentOperator : integer operatorname, integer lhstype, integer rhstype -> integer overloadname = operatorname
 {
 	string readable = GetPooledString(GlobalStrings, operatorname)
 	if(readable == "+=")

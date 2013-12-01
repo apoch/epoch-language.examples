@@ -1,0 +1,23 @@
+//
+// CHAINEDASSIGN.EPOCH
+//
+// Test of chained assignments
+//
+
+
+entrypoint :
+{
+	integer foo = 0
+	integer bar = 0
+	integer baz = 0
+	
+	foo = bar = baz = 42
+	
+	assert(foo == 42)
+	assert(bar == 42)
+	assert(baz == 42)
+	
+	passtest()
+}
+
+
