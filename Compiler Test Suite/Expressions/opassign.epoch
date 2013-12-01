@@ -1,0 +1,26 @@
+//
+// OPASSIGN.EPOCH
+//
+// Test of assignments with side effects
+//
+
+
+structure test :
+	integer a,
+	string b
+
+
+entrypoint :
+{
+	integer foo = 40
+	test baz = 660, "quux"
+	
+	foo += 2
+	baz.a += 6
+	
+	assert(foo == 42)
+	assert(baz.a == 666)
+	
+	passtest()
+}
+

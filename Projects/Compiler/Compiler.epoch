@@ -1775,18 +1775,33 @@ ParseAssignment : -> boolean matched = false
 		lhslength += 2
 	}
 	
-	if(PeekToken(lhslength) != "=")
+	string assignmenttoken = PeekToken(lhslength)
+	boolean recognized = false
+	if(assignmenttoken == "=")
+	{
+		recognized = true
+	}
+	elseif(assignmenttoken == "+=")
+	{
+		recognized = true
+	}
+	elseif(assignmenttoken == "-=")
+	{
+		recognized = true
+	}
+	
+	if(!recognized)
 	{
 		return()
 	}
 	
 	if(lhslength == 1)
 	{
-		OnCodeGenEnterAssignment(PoolString(PeekToken(0)), 0, 0)
+		OnCodeGenEnterAssignment(PoolString(assignmenttoken), PoolString(PeekToken(0)), 0, 0)
 	}
 	else
 	{
-		OnCodeGenEnterAssignmentCompound(PoolString(PeekToken(0)), 0, 0)
+		OnCodeGenEnterAssignmentCompound(PoolString(assignmenttoken), PoolString(PeekToken(0)), 0, 0)
 		integer tokenindex = 2
 		while(tokenindex < lhslength)
 		{
@@ -2676,12 +2691,14 @@ structure Statement :
 	OptionalTemplateArgs TemplateArgs
 
 structure Assignment :
+	integer Operator,
 	integer LHSName,
 	integer LHSType,
 	integer Annotation,
 	Expression ref RHS
 
 structure AssignmentCompound :
+	integer Operator,
 	simplelist<integer> ref LHS,
 	integer LHSType,
 	integer Annotation,
@@ -3525,10 +3542,10 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean 
 	prepend<Expression>(ScratchExpressions, expr)
 }
 
-OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
+OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	Expression tempexpr = dummyatomlist, 0
-	Assignment assignment = lhsname, lhstype, annotation, tempexpr
+	Assignment assignment = operator, lhsname, lhstype, annotation, tempexpr
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 
@@ -3539,11 +3556,11 @@ OnCodeGenEnterAssignment : integer lhsname, integer lhstype, integer annotation
 }
 
 
-OnCodeGenEnterAssignmentCompound : integer lhsname, integer lhstype, integer annotation
+OnCodeGenEnterAssignmentCompound : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	simplelist<integer> idlist = lhsname, nothing
 	Expression tempexpr = dummyatomlist, 0
-	AssignmentCompound assignment = idlist, lhstype, annotation, tempexpr
+	AssignmentCompound assignment = operator, idlist, lhstype, annotation, tempexpr
 	CodeBlockEntry cbe = assignment
 	AppendEntryToCurrentCodeBlock(cbe)
 }
@@ -4074,7 +4091,20 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 {
+	boolean sideeffects = false
+	if(GetPooledString(GlobalStrings, a.Operator) != "=")
+	{
+		sideeffects = true
+		CodeGenEmitBindingsForVariable(a.LHSName)
+		OnBytecodeReadReference()
+	}
+
 	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+	
+	if(sideeffects)
+	{
+		OnBytecodeInvoke(a.Operator)
+	}
 
 	if(a.Annotation != 0)
 	{
@@ -4097,7 +4127,20 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 
 CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 {
+	boolean sideeffects = false
+	if(GetPooledString(GlobalStrings, a.Operator) != "=")
+	{
+		sideeffects = true
+		CodeGenEmitBindingsForOperand(a.LHS)
+		OnBytecodeReadReference()
+	}
+
 	CodeGenEmitExpressionAtoms(a.RHS.Atoms, false, false)
+	
+	if(sideeffects)
+	{
+		OnBytecodeInvoke(a.Operator)
+	}
 
 	if(a.Annotation != 0)
 	{
@@ -4132,6 +4175,13 @@ CodeGenEmitBindingsForOperand : simplelist<integer> ref operand
 
 	integer structurename = GetNameOfStructureByType(FindVariableType(operand.value))
 	BindAssignmentMembers(operand.next, structurename)
+}
+
+CodeGenEmitBindingsForVariable : integer operand
+{
+	integer frames = 0
+	integer index = FindVariable(operand, frames)
+	OnBytecodeBindReference(frames, index)	
 }
 
 
@@ -6941,6 +6991,8 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 		
 		assignment.Annotation = assignment.RHS.Type
 	}
+	
+	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, assignment.RHS.Type)
 }
 
 TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
@@ -6966,6 +7018,8 @@ TypeInference : AssignmentCompound ref assignment, InferenceContext ref context 
 		
 		assignment.Annotation = assignment.RHS.Type
 	}
+	
+	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, assignment.RHS.Type)
 }
 
 TypeInference : EntityChain ref chain, InferenceContext ref context -> boolean success = TypeInference(chain.Entries, context)
@@ -9257,6 +9311,25 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 		if(operandtype == 0x01000001)
 		{
 			overloadname = FindString(GlobalStrings, "--@@integer")
+		}
+	}
+}
+
+FindAssignmentOperator : integer operatorname, integer lhstype, integer rhstype -> integer overloadname = 0
+{
+	string readable = GetPooledString(GlobalStrings, operatorname)
+	if(readable == "+=")
+	{
+		if((lhstype == 0x01000001) && (rhstype == 0x01000001))
+		{
+			overloadname = FindString(GlobalStrings, "+=@@integer")
+		}
+	}
+	elseif(readable == "-=")
+	{
+		if((lhstype == 0x01000001) && (rhstype == 0x01000001))
+		{
+			overloadname = FindString(GlobalStrings, "-=@@integer")
 		}
 	}
 }
