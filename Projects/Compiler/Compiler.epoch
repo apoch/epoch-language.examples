@@ -7592,7 +7592,7 @@ SetAtomType : Statement ref atom, integer typeid
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> boolean demotedtoright = false
 {
 	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, funcname, funcret)
-	
+		
 	if(IsOperatorInvoke(atoms.value))
 	{
 		if(counter > 0)
@@ -7611,7 +7611,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	{
 		list<InferencePossibility> out = scratchpossibility, nothing
 		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, funcname, funcret)
-		
+				
 		if(counter == 1)
 		{
 			list<InferencePossibility> filtered = scratchpossibility, nothing
@@ -7622,7 +7622,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		{
 			stack.value.PossibilityList = out
 		}
-
+		
 		if(CountPossibilities(stack.value.PossibilityList) == 1)
 		{
 			if(listcontains(stack.value.PossibilityList.value.ParameterTypes.value.Types, 0x01000002))
@@ -7640,19 +7640,20 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		{
 			DemoteAtomType(atoms)
 		}
-	
-		if(AllOptionsConsumed(stack.value.PossibilityList.value.ParameterTypes))
-		{
-			TypePossibilityList rettypes = stack.value.PossibilityList.value.ReturnType
-			PopExpressionInferenceStack(stack, stack.next)
-			AddPossibleParamTypeForAllOverloads(stack.value.PossibilityList, rettypes)
-		}
 		
 		++counter
 		if(counter > 1)
 		{
 			SetOperatorAtomToOverload(atoms, stack.value.PossibilityList.value.FunctionName, counter)
 			++counter
+		}
+	
+		if(AllOptionsConsumed(stack.value.PossibilityList.value.ParameterTypes))
+		{
+			TypePossibilityList rettypes = stack.value.PossibilityList.value.ReturnType
+			rettypes.Consumed = true
+			PopExpressionInferenceStack(stack, stack.next)			
+			AddPossibleParamTypeForAllOverloads(stack.value.PossibilityList, rettypes)			
 		}
 	}
 }
@@ -7670,7 +7671,7 @@ AddPossibleParamTypeForAllOverloads : nothing, TypePossibilityList ref paramtype
 
 AllOptionsConsumed : list<TypePossibilityList> ref options -> boolean allconsumed = true
 {
-	if(!options.value.Consumed)
+	if((!options.value.Consumed) && (countnonzero(options.value.Types) > 0))
 	{
 		allconsumed = false
 	}
@@ -7733,14 +7734,13 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 		
 		simplelist<integer> types = 0, nothing
 		EliminateImpossibleType(params.value.Types, poss.Types, types)
-		
-		params.value.Types = types
-		
+				
 		if(countnonzero(types) == 0)
 		{
 			valid = false
 		}
 		
+		params.value.Types = types
 		params.value.Consumed = true
 	}
 	else
@@ -7751,6 +7751,9 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 		}
 	}
 }
+
+
+EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, integer funcname, boolean funcret -> true
 
 
 SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
