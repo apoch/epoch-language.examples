@@ -1,0 +1,20 @@
+//
+// UNARYOPERATOR.EPOCH
+//
+// Basic test of unary operators
+//
+
+
+entrypoint :
+{
+	boolean flag = false
+	boolean flag2 = !flag
+	
+	assert(flag2 == true)
+	assert(!!flag2 == true)
+	assert(!!!flag2 == false)
+	assert(true == !flag)
+	
+	passtest()
+}
+
