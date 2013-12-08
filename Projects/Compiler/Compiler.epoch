@@ -499,6 +499,15 @@ Lex : string code, integer len [nogc]
 				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
 			}
 		}
+		
+		// Handle negated literals (slightly hacky)
+		if(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+		{
+			if(Classify(charat(code, index + 1), state) == CHARACTER_CLASS_LITERAL)
+			{
+				state = CHARACTER_CLASS_LITERAL
+			}
+		}
 
 
 		if(state != prevstate)
@@ -532,6 +541,18 @@ IsValidPunctuation : string token -> boolean valid = false
 		valid = true
 	}
 	elseif(token == "!=")
+	{
+		valid = true
+	}
+	elseif(token == "++")
+	{
+		valid = true
+	}
+	elseif(token == "--")
+	{
+		valid = true
+	}
+	elseif(token == "->")
 	{
 		valid = true
 	}
@@ -645,10 +666,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
-		}
 		else
 		{
 			class = CHARACTER_CLASS_LITERAL
@@ -659,10 +676,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
-		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
@@ -675,10 +688,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
-		}
 		else
 		{
 			class = CHARACTER_CLASS_LITERAL
@@ -689,10 +698,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
-		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
@@ -705,10 +710,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
-		}
 		else
 		{
 			class = CHARACTER_CLASS_LITERAL
@@ -719,10 +720,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
-		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
@@ -735,10 +732,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
-		}
 		else
 		{
 			class = CHARACTER_CLASS_LITERAL
@@ -749,10 +742,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
-		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
@@ -765,10 +754,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
-		}
 		else
 		{
 			class = CHARACTER_CLASS_LITERAL
@@ -779,10 +764,6 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
 			class = CHARACTER_CLASS_IDENTIFIER
-		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
-		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
 		}
 		else
 		{
