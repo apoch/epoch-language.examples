@@ -10399,6 +10399,10 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 		simplelist<integer> temp = 0, nothing
 		InferenceContext context = 0, 0, temp, false, 0, false
 		TypeInference(Functions.value, context)
+		
+		
+		TemplateInstance instance = defname, instancename, args
+		prepend<TemplateInstance>(TemplateFunctionInstances, instance)
 	}
 	else
 	{
@@ -10417,12 +10421,23 @@ DoParameterInstantiation : nothing, list<TemplateParameter> ref templateparams, 
 DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	integer newtype = MapTemplateType(params.value.TypeNameHandle, templateparams, templateargs)
+		
+	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue, nothing
+	PropagateTemplateArgsForParameter(p, params.value.TemplateArgs, templateargs)
 	
-	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue, params.value.TemplateArgs
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 	DoParameterInstantiation(params.next, templateparams, templateargs)
 }
+
+
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateArgument> ref args
+{
+	TemplateArgumentList wrap = args
+	p.TemplateArgs = wrap
+}
+
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateArgument> ref args
 
 
 DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
