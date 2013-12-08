@@ -10295,12 +10295,12 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, false
 		prepend<StructureDefinition>(Structures, struct)
 
+		TemplateInstance instance = defname, instancename, args
+		prepend<TemplateInstance>(TemplateStructureInstances, instance)
+
 		simplelist<integer> temp = 0, nothing
 		InferenceContext context = 0, 0, temp, false, 0, false
 		TypeInference(Structures.value, context)
-		
-		TemplateInstance instance = defname, instancename, args
-		prepend<TemplateInstance>(TemplateStructureInstances, instance)
 	}
 	else
 	{
