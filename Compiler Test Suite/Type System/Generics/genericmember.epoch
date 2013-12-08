@@ -1,0 +1,28 @@
+//
+// GENERICMEMBER.EPOCH
+//
+// Test of structures with members which instantiate templates
+//
+
+
+structure template<type T> :
+	T field,
+	string tag
+	
+structure container :
+	template<integer> numeric,
+	string text
+	
+	
+entrypoint :
+{
+	template<integer> numeric = 42, "Test"
+	container c = numeric, "Outer"
+	
+	assert(c.numeric.field == 42)
+	assert(c.numeric.tag == "Test")
+	assert(c.text == "Outer")
+	
+	passtest()
+}
+

@@ -948,6 +948,8 @@ ParseSumType : -> boolean matched = false
 		return()
 	}
 	
+	string sumtypename = PeekToken(1)
+
 	if(PeekToken(2) == "<")
 	{
 		PopTokens(3)
@@ -962,24 +964,8 @@ ParseSumType : -> boolean matched = false
 		{
 			return()
 		}
-		
-		if(PeekToken(3) == "<")
-		{
-			if(PeekToken(6) != "|")
-			{
-				return()
-			}
-		}
-		elseif(!PeekWithExpectation(3, "|"))
-		{
-			return()
-		}
 	}
 	elseif(!PeekWithExpectation(2, ":"))
-	{
-		return()
-	}
-	elseif(!PeekWithExpectation(4, "|"))
 	{
 		return()
 	}
@@ -988,7 +974,6 @@ ParseSumType : -> boolean matched = false
 		PopToken()
 	}
 	
-	string sumtypename = PeekToken(0)
 	integer typename = PoolString(sumtypename)
 	integer typeid = (++GlobalSumTypeCounter)
 	PopTokens(2)
@@ -996,8 +981,14 @@ ParseSumType : -> boolean matched = false
 	ParseSumTypeBases(typename, typeid)
 	
 	string finalbasename = PeekToken(0)	
-	OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(finalbasename))
+	OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
 	PopToken()
+	
+	if(templated)
+	{
+		SetUpSumTypeTemplate(SumTypes, typeid)
+	}
+	
 	matched = true
 }
 
@@ -1009,17 +1000,17 @@ ParseSumTypeBases : integer typename, integer typeid
 	while(hasmorebases)
 	{
 		string basename = PeekToken(0)
-		
+
 		if(PeekToken(1) == "<")
 		{
-			integer baselookahead = ParseTemplateArgs(1)
-			PopTokens(baselookahead + 3)
-			
-			// TODO - register templated sum type base
+			integer baselookahead = ParseTemplateArgs(2)
+			PopTokens(baselookahead + 2)
+
+			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename), true)
 		}
 		else
 		{
-			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename))
+			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename), false)
 			PopTokens(2)
 		}
 
@@ -1144,8 +1135,6 @@ ParseStructure : -> boolean matched = false
 					PopTokens(memberlookahead + 1)
 					membername = PeekToken(0)
 					PopToken()
-					
-					// TODO - do something with templated members!
 				}
 				else
 				{
@@ -1161,7 +1150,7 @@ ParseStructure : -> boolean matched = false
 				PopToken()
 			}
 			
-			OnCodeGenRegisterStructureMemVar(structurenamehandle, structuretype, PoolString(membername), PoolString(membertypename), isref)
+			OnCodeGenRegisterStructureMemVar(structurenamehandle, structuretype, PoolString(membername), PoolString(membertypename), isref, membertemplated)
 		}
 		
 		if(PeekToken(0) != ",")
@@ -2700,7 +2689,8 @@ structure TypeAlias :
 structure StructureMemberVariable :
 	integer Name,
 	integer Type,
-	integer TypeNameHandle
+	integer TypeNameHandle,
+	OptionalTemplateArgs TemplateArgs
 
 structure StructureMemberFunctionRef :
 	integer Name,
@@ -2881,11 +2871,15 @@ structure ContextStackEntry :
 	integer EntryType,
 	integer EntryName
 
+structure SumTypeBase :
+	integer Name,
+	OptionalTemplateArgs TemplateArgs
 
 structure SumType :
 	integer Name,
 	integer Type,
-	simplelist<integer> Bases
+	list<SumTypeBase> ref Bases,
+	boolean IsTemplate
 
 
 structure FunctionSignature :
@@ -2929,6 +2923,10 @@ structure TemplateFunction :
 
 structure TemplateStructure :
 	integer StructureDefName,
+	list<TemplateParameter> ref Parameters
+
+structure TemplateSumType :
+	integer SumTypeName,
 	list<TemplateParameter> ref Parameters
 
 structure TemplateInstance :
@@ -2977,7 +2975,7 @@ OnCodeGenRegisterString : integer handle, string data
 	}
 }
 
-OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle, boolean isref
+OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle, boolean isref, boolean templated
 {
 	integer refnum = 0
 	if(isref)
@@ -2985,7 +2983,16 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 		refnum = 0x80000000
 	}
 
-	StructureMemberVariable member = membername, refnum, typenamehandle
+	StructureMemberVariable member = membername, refnum, typenamehandle, nothing
+	if(templated)
+	{
+		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
+		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+		member.TemplateArgs = arglist
+		
+		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+	}
+	
 	StructureMember memwrap = member
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
@@ -3122,31 +3129,75 @@ FindStructureAndSetConstructors : nothing, integer structurename, integer constr
 
 
 
-OnCodeGenRegisterSumTypeBase : integer sumtypename, integer sumtypeid, integer basetypeid
+OnCodeGenRegisterSumTypeBase : integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated
 {
-	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid)
+	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid, templated)
 }
 
 
-FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid
+FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated
 {
 	if(sumtypes.value.Type == sumtypeid)
 	{
-		simpleprepend<integer>(sumtypes.value.Bases, basetypeid)
+		SumTypeBase base = basetypeid, nothing
+		
+		if(templated)
+		{
+			PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
+			TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+			base.TemplateArgs = arglist
+			
+			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+		}
+		
+		prepend<SumTypeBase>(sumtypes.value.Bases, base)
 	}
 	else
 	{
-		FindSumTypeAndAddBase(sumtypes.next, sumtypename, sumtypeid, basetypeid)
+		FindSumTypeAndAddBase(sumtypes.next, sumtypename, sumtypeid, basetypeid, templated)
 	}
 }
 
-FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer basetypeid
+FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated
 {
-	simplelist<integer> bases = basetypeid, nothing
-	SumType st = sumtypename, sumtypeid, bases
+	SumTypeBase base = basetypeid, nothing
+	if(templated)
+	{
+		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
+		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+		base.TemplateArgs = arglist
+		
+		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+	}	
+	
+	list<SumTypeBase> bases = base, nothing
+	SumType st = sumtypename, sumtypeid, bases, false
 	prepend<SumType>(SumTypes, st)
 }
 
+
+SetUpSumTypeTemplate : list<SumType> ref sumtypes, integer sumtypeid
+{
+	if(sumtypes.value.Type == sumtypeid)
+	{
+		sumtypes.value.IsTemplate = true
+		CreateSumTypeTemplateAndAttachParams(sumtypes.value.Name, TemplateParameterQueue)
+		
+		// Reset template parameter queue
+		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
+		TemplateParameterQueue = dummylist
+	}
+	else
+	{
+		SetUpSumTypeTemplate(sumtypes.next, sumtypeid)
+	}
+}
+
+SetUpSumTypeTemplate : nothing, integer sumtypeid
+{
+	print("Sum type not found!")
+	assert(false)
+}
 
 
 OnCodeGenRegisterScope : integer scopename, integer parentname
@@ -5060,7 +5111,7 @@ CodeGenEmitSumTypes : nothing
 
 CodeGenEmitSingleSumType : SumType ref sumtype
 {
-	if(sumtype.Type != 0)
+	if((sumtype.Type != 0) && (!sumtype.IsTemplate))
 	{
 		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
 		OnBytecodeEmitInteger(sumtype.Type)
@@ -5069,11 +5120,11 @@ CodeGenEmitSingleSumType : SumType ref sumtype
 	}
 }
 
-CountSumTypeBases : simplelist<integer> ref bases -> integer count = 0
+CountSumTypeBases : list<SumTypeBase> ref bases -> integer count = 0
 {
 	count = CountSumTypeBases(bases.next)
 
-	if(bases.value != 0)	
+	if(bases.value.Name != 0)
 	{
 		++count
 	}
@@ -5081,13 +5132,13 @@ CountSumTypeBases : simplelist<integer> ref bases -> integer count = 0
 
 CountSumTypeBases : nothing -> integer count = 0
 
-CodeGenEmitSumTypeBase : simplelist<integer> ref bases
+CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases
 {
 	CodeGenEmitSumTypeBase(bases.next)
 
-	if(bases.value != 0)
+	if(bases.value.Name != 0)
 	{
-		OnBytecodeEmitInteger(bases.value)
+		OnBytecodeEmitInteger(bases.value.Name)
 	}
 }
 
@@ -5132,7 +5183,7 @@ SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetype
 {
 	if(sumtypes.value.Type == sumtypeid)
 	{
-		hasbase = listcontains(sumtypes.value.Bases, basetypeid)
+		hasbase = CheckBaseTypes(sumtypes.value.Bases, basetypeid)
 	}
 	else
 	{
@@ -5141,6 +5192,22 @@ SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetype
 }
 
 SumTypeHasBase : nothing, integer sumtypeid, integer basetypeid -> false
+
+
+CheckBaseTypes : list<SumTypeBase> ref bases, integer basetypeid -> boolean hasbase = false
+{
+	if(bases.value.Name == basetypeid)
+	{
+		hasbase = true
+	}
+	else
+	{
+		hasbase = CheckBaseTypes(bases.next, basetypeid)
+	}
+}
+
+CheckBaseTypes : nothing, integer basetypeid -> false
+
 
 
 
@@ -6275,11 +6342,12 @@ FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> int
 FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0
 
 
-GetBaseMaxSize : simplelist<integer> ref basetypes, integer ref outsize
+GetBaseMaxSize : list<SumTypeBase> ref basetypes, integer ref outsize
 {
-	if(basetypes.value != 0)
+	integer typename = basetypes.value.Name
+	if(typename != 0)
 	{
-		integer thissize = GetTypeSize(basetypes.value)
+		integer thissize = GetTypeSize(typename)
 		if(thissize > outsize)
 		{
 			outsize = thissize
@@ -6603,9 +6671,12 @@ TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> bool
 {
 	if(sumtypes.value.Type != 0)
 	{
-		if(!ResolveSumTypeBases(sumtypes.value.Bases))
+		if(!sumtypes.value.IsTemplate)
 		{
-			success = false
+			if(!ResolveSumTypeBases(sumtypes.value.Bases))
+			{
+				success = false
+			}
 		}
 	}
 	
@@ -6615,20 +6686,23 @@ TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> bool
 	}
 }
 
-ResolveSumTypeBases : simplelist<integer> ref bases -> boolean success = true
+ResolveSumTypeBases : list<SumTypeBase> ref bases -> boolean success = true
 {
-	if(bases.value != 0)
+	if(bases.value.Name != 0)
 	{
-		integer resolvedtype = GetTypeByName(bases.value)
+		integer resolvedtype = GetTypeByName(bases.value.Name)
 		if(resolvedtype == 0)
 		{
-			print("Sum type has unknown base type")
-			success = false
+			resolvedtype = GetTypeByName(InstantiateStructureTemplate(bases.value.Name, bases.value.TemplateArgs))
+			
+			if(resolvedtype == 0)
+			{
+				print("Sum type has unknown base type")
+				success = false
+			}
 		}
-		else
-		{
-			bases.value = resolvedtype
-		}
+
+		bases.value.Name = resolvedtype
 	}
 	
 	if(!ResolveSumTypeBases(bases.next))
@@ -6705,7 +6779,12 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 	}
 
 	integer pretype = memvar.Type
-	memvar.Type = GetTypeByName(memvar.TypeNameHandle)
+	memvar.Type = GetTypeByName(InstantiateStructureTemplate(memvar.TypeNameHandle, memvar.TemplateArgs))
+	if(memvar.Type == 0)
+	{
+		memvar.Type = GetTypeByName(memvar.TypeNameHandle)
+	}
+	
 	if(memvar.Type == 0)
 	{
 		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
@@ -8792,20 +8871,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 }
 
 
-simpleprependall<type T> : simplelist<T> ref input, simplelist<T> ref newentries
+PrependSumTypeBases : simplelist<integer> ref input, list<SumTypeBase> ref newentries
 {
-	simpleprepend<T>(input, newentries.value)
-	simpleprependall<T>(input, newentries.next)
+	simpleprepend<integer>(input, newentries.value.Name)
+	PrependSumTypeBases(input, newentries.next)
 }
 
-simpleprependall<type T> : simplelist<T> ref input, nothing
+PrependSumTypeBases : simplelist<integer> ref input, nothing
 
 
 FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid, simplelist<integer> ref types
 {
 	if(sumtypes.value.Type == sumtypeid)
 	{
-		simpleprependall<integer>(types, sumtypes.value.Bases)
+		PrependSumTypeBases(types, sumtypes.value.Bases)
 	}
 	else
 	{
@@ -10037,6 +10116,16 @@ CreateStructureTemplateAndAttachParams : integer structurename, list<TemplatePar
 }
 
 
+CreateSumTypeTemplateAndAttachParams : integer typename, list<TemplateParameter> ref paramqueue
+{
+	list<TemplateParameter> dummyparams = scratchtemplateparam, nothing
+	TransferTemplateParamsFromQueue(dummyparams, paramqueue)
+
+	TemplateSumType templtype = typename, dummyparams
+	prepend<TemplateSumType>(TemplateSumTypes, templtype)
+}
+
+
 
 TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<TemplateParameter> ref queue
 {
@@ -10137,9 +10226,43 @@ FindStructureTemplateAndInstantiate : list<TemplateStructure> ref templates, int
 	}
 }
 
-FindStructureTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+FindStructureTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateSumType(defname, args)
+
+
+InstantiateSumType : integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
-	print("Error - no template provided, cannot create instance!")
+	integer existing = FindExistingTemplateInstance(TemplateSumTypeInstances, defname, args)
+	if(existing != 0)
+	{
+		instancename = existing
+		return()
+	}
+	
+	instancename = FindSumTypeTemplateAndInstantiate(TemplateSumTypes, defname, args)
+}
+
+FindSumTypeTemplateAndInstantiate : list<TemplateSumType> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	if(templates.value.SumTypeName == defname)
+	{
+		string mangledname = MangleTemplateName(defname, args)
+		instancename = PoolString(mangledname)
+		
+		// TODO - validate that args suit the formal template parameters!
+
+		DoSumTypeInstantiation(SumTypes, defname, instancename, templates.value.Parameters, args)		
+	}
+	else
+	{
+		instancename = FindSumTypeTemplateAndInstantiate(templates.next, defname, args)
+	}
+}
+
+
+FindSumTypeTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
+	string namestr = GetPooledString(GlobalStrings, defname)
+	print("Error - no template provided for '" ; namestr ; "', cannot create instance!")
 }
 
 
@@ -10161,6 +10284,9 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		simplelist<integer> temp = 0, nothing
 		InferenceContext context = 0, 0, temp, false, 0, false
 		TypeInference(Structures.value, context)
+		
+		TemplateInstance instance = defname, instancename, args
+		prepend<TemplateInstance>(TemplateStructureInstances, instance)
 	}
 	else
 	{
@@ -10168,11 +10294,36 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 	}
 }
 
+
+DoSumTypeInstantiation : list<SumType> ref sumtypes, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	if(sumtypes.value.Name == defname)
+	{
+		assert(sumtypes.value.IsTemplate)
+		
+		++GlobalSumTypeCounter
+		
+		list<SumTypeBase> bases = dummybasetype, nothing
+		DoBaseTypeInstantiation(sumtypes.value.Bases, bases, params, args)
+		
+		SumType st = instancename, GlobalSumTypeCounter, bases, false
+		prepend<SumType>(SumTypes, st)
+
+		ResolveSumTypeBases(SumTypes.value.Bases)
+		
+		TemplateInstance instance = defname, instancename, args
+		prepend<TemplateInstance>(TemplateSumTypeInstances, instance)
+	}
+	else
+	{
+		DoSumTypeInstantiation(sumtypes.next, defname, instancename, params, args)
+	}
+}
+
 PopMember : list<StructureMember> ref members, list<StructureMember> ref tail
 {
 	members = tail
 }
-
 
 DoMemberListInstantiation : list<StructureMember> ref members, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
@@ -10185,11 +10336,30 @@ DoMemberListInstantiation : nothing, list<StructureMember> ref out, list<Templat
 DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	if(memvar.Name != 0)
-	{
+	{	
 		integer newtype = MapTemplateType(memvar.TypeNameHandle, params, args)
-		StructureMemberVariable newmemvar = memvar.Name, 0, newtype
+		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, memvar.TemplateArgs
 		StructureMember newmember = newmemvar
 		AppendStructureMember(out, out.next, newmember)
+	}
+}
+
+DoBaseTypeInstantiation : list<SumTypeBase> ref bases, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	InstantiateBaseType(bases.value, out, params, args)	
+	DoBaseTypeInstantiation(bases.next, out, params, args)
+}
+
+DoBaseTypeInstantiation : nothing, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+
+
+InstantiateBaseType : SumTypeBase ref in, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	if(in.Name != 0)
+	{
+		integer newtype = MapTemplateType(in.Name, params, args)
+		SumTypeBase newbase = newtype, nothing
+		prepend<SumTypeBase>(out, newbase)
 	}
 }
 
@@ -10262,7 +10432,7 @@ DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonym
 	OnCodeGenExitContext()
 }
 
-DoReturnInstantiation : nothing, integer funcname, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+DoReturnInstantiation : nothing, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 
 
 MapTemplateType : integer typenamehandle, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs -> integer newtypename = typenamehandle
@@ -10298,7 +10468,14 @@ MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = Ge
 MangleTemplateArguments : nothing -> ""
 
 
-FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplate(defname, args)
+
+
+InstantiateStructureTemplate : integer defname, TemplateArgumentList ref args -> integer instancename = InstantiateStructureTemplate(defname, args.Args)
+
+InstantiateStructureTemplate : integer defname, nothing -> integer instancename = 0
+
+InstantiateStructureTemplate : integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
 	integer existing = FindExistingTemplateInstance(TemplateStructureInstances, defname, args)
 	if(existing != 0)
@@ -11260,13 +11437,13 @@ global
 	FunctionDefinition dummyfunc = 0, false, nothing, nothing, false, 0, nothing, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
-
-	simplelist<integer> dummybases = 0, nothing
-	SumType dummysumtype = 0, 0, dummybases
+	SumTypeBase dummybasetype = 0, nothing
+	list<SumTypeBase> dummybases = dummybasetype, nothing
+	SumType dummysumtype = 0, 0, dummybases, false
 	list<SumType> SumTypes = dummysumtype, nothing
 
 
-	StructureMemberVariable dummymember = 0, 0, 0
+	StructureMemberVariable dummymember = 0, 0, 0, nothing
 	list<StructureMember> dummymembers = dummymember, nothing
 	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers, false
 	list<StructureDefinition> Structures = dummystruct, nothing
@@ -11372,9 +11549,13 @@ global
 	TemplateInstance dummytemplateinst = 0, 0, scratchtemplateargs
 	list<TemplateInstance> TemplateFunctionInstances = dummytemplateinst, nothing
 	list<TemplateInstance> TemplateStructureInstances = dummytemplateinst, nothing
+	list<TemplateInstance> TemplateSumTypeInstances = dummytemplateinst, nothing
 
 	TemplateStructure dummystructuretemplate = 0, dummytemplateparams
 	list<TemplateStructure> TemplateStructures = dummystructuretemplate, nothing
+	
+	TemplateSumType dummysumtypetemplate = 0, dummytemplateparams
+	list<TemplateSumType> TemplateSumTypes = dummysumtypetemplate, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1

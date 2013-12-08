@@ -1,0 +1,21 @@
+//
+// GENERICSUMTYPE.EPOCH
+//
+// Simple test of genericity and sum types
+//
+
+
+type nodetype : container<integer> | nothing
+
+structure container<type T> :
+	T value,
+	nodetype next
+	
+	
+entrypoint :
+{
+	container<integer> test = 42, nothing
+	assert(test.value == 42)
+	passtest()
+}
+
