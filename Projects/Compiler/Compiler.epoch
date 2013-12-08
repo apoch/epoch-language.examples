@@ -3304,7 +3304,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istem
 	
 	if(istemplate)
 	{
-		CreateFunctionTemplateAndAttachParams(rawfuncname, TemplateParameterQueue)
+		CreateFunctionTemplateAndAttachParams(funcname, TemplateParameterQueue)
 		
 		// Reset template parameter queue
 		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
@@ -8328,7 +8328,7 @@ ConstructVariableFromStatement : Statement ref statement, integer scopename, int
 	integer varname = ExtractConstructorIdentifier(statement.Parameters)
 		
 	if(varname != 0)
-	{
+	{	
 		// TODO - this is a HACK to bypass shadowing checks. We should check for actual variable shadowing instead.
 		Variable var = 0, 0, 0, 0
 		FindVariableDataInScope(scopename, varname, var)
@@ -10202,7 +10202,25 @@ InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref arg
 	}
 	
 	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, args.Args)
+	EnumerateOverloadsAndInstantiate(Overloads, templatename, args.Args)
 }
+
+
+EnumerateOverloadsAndInstantiate : list<Overload> ref overloads, integer templatename, list<TemplateArgument> ref args
+{
+	if(overloads.value.NormalName == templatename)
+	{
+		integer existing = FindExistingTemplateInstance(TemplateFunctionInstances, overloads.value.MangledName, args)
+		if(existing == 0)
+		{
+			FindFunctionTemplateAndInstantiate(TemplateFunctions, overloads.value.MangledName, args)
+		}
+	}
+	
+	EnumerateOverloadsAndInstantiate(overloads.next, templatename, args)
+}
+
+EnumerateOverloadsAndInstantiate : nothing, integer templatename, list<TemplateArgument> ref args
 
 
 FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
@@ -10210,7 +10228,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 	if(templates.value.FunctionDefName == defname)
 	{
 		string mangledname = MangleTemplateName(defname, args)
-		instancename = PoolString(mangledname)
+		instancename = RegisterOverloadForFunction(PoolString(mangledname))
 		
 		// TODO - validate that args suit the formal template parameters!
 		
@@ -10419,24 +10437,24 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 		IREnterFunction(instancename)
 		OnCodeGenEnterFunctionBody(instancename)
 
-		// TODO - instantiate code body of function templates!
-		//ParseCodeBlock()
+		DoCodeBlockInstantiation(functions.value.Code, params, args)
 		
 		IRExitFunction()
 
-		Overload overload = defname, instancename
-		prepend<Overload>(Overloads, overload)
+		//Overload overload = defname, instancename
+		//prepend<Overload>(Overloads, overload)
 
-		Overload overload2 = instancename, instancename
-		prepend<Overload>(Overloads, overload2)
-		
-		simplelist<integer> temp = 0, nothing
-		InferenceContext context = 0, 0, temp, false, 0, false
-		TypeInference(Functions.value, context)
+		//Overload overload2 = instancename, instancename
+		//prepend<Overload>(Overloads, overload2)
 		
 		
 		TemplateInstance instance = defname, instancename, args
 		prepend<TemplateInstance>(TemplateFunctionInstances, instance)
+
+
+		simplelist<integer> temp = 0, nothing
+		InferenceContext context = 0, 0, temp, false, 0, false
+		TypeInference(Functions.value, context)
 	}
 	else
 	{
@@ -10457,7 +10475,7 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 	integer newtype = MapTemplateType(params.value.TypeNameHandle, templateparams, templateargs)
 		
 	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue, nothing
-	PropagateTemplateArgsForParameter(p, params.value.TemplateArgs, templateargs)
+	PropagateTemplateArgsForParameter(p, params.value.TemplateArgs, templateparams, templateargs)
 	
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
@@ -10465,13 +10483,14 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 }
 
 
-PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateArgument> ref args
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	TemplateArgumentList wrap = args
+	RemapAllTemplateArguments(wrap, params, args)
 	p.TemplateArgs = wrap
 }
 
-PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateArgument> ref args
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 
 
 DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
@@ -10612,6 +10631,16 @@ InstantiateSingleAtom : Statement ref atom, boolean inret, list<TemplateParamete
 	IRExitStatement()
 }
 
+
+InstantiateSingleAtom : AtomSentinel ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+
+InstantiateSingleAtom : boolean ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	OnCodeGenRegisterLiteralBoolean(atom)
+}
+
+
+
 InstantiateStatement : integer statementname, boolean inret, nothing, list<TemplateArgument> ref templateargs
 {
 	OnCodeGenEnterStatement(statementname, 0, inret, false)
@@ -10650,6 +10679,62 @@ InstantiateExpressionList : list<Expression> ref exprs, boolean inret, list<Temp
 }
 
 InstantiateExpressionList : nothing, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs, integer count
+
+
+DoCodeBlockInstantiation : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+
+DoCodeBlockInstantiation : CodeBlock ref code, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	InstantiateCodeBlockEntries(code.Entries, templateparams, templateargs)
+}
+
+InstantiateCodeBlockEntries : list<CodeBlockEntry> ref entries, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	InstantiateCodeBlockEntry(entries.value, templateparams, templateargs)
+	InstantiateCodeBlockEntries(entries.next, templateparams, templateargs)
+}
+
+InstantiateCodeBlockEntries : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+
+
+
+// TODO - support all code block entry types
+InstantiateCodeBlockEntry : Statement ref s, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	InstantiateStatement(s.Name, true, s.TemplateArgs, templateargs)
+	InstantiateExpressionList(s.Parameters, false, templateparams, templateargs, 0)
+	
+	IRExitStatement()
+}
+
+InstantiateCodeBlockEntry : Assignment ref a, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	// TODO - chained assignment support
+	
+	OnCodeGenEnterAssignment(a.Operator, a.LHSName, 0, 0)
+	InstantiateExpression(a.RHS, false, templateparams, templateargs)
+	OnCodeGenExitContext()
+}
+
+InstantiateCodeBlockEntry : AssignmentCompound ref a, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	// TODO - chained assignment support
+	
+	OnCodeGenEnterAssignmentCompound(a.Operator, a.LHS.value, 0, 0)
+	InstantiateCompoundAssignmentLHS(a.LHS.next)
+	OnCodeGenAssignmentCompoundEnd()
+
+	InstantiateExpression(a.RHS, false, templateparams, templateargs)
+	OnCodeGenExitContext()
+}
+
+InstantiateCompoundAssignmentLHS : simplelist<integer> ref lhs
+{
+	OnCodeGenAssignmentCompoundMember(lhs.value)
+	InstantiateCompoundAssignmentLHS(lhs.next)
+}
+
+InstantiateCompoundAssignmentLHS : nothing
 
 
 
