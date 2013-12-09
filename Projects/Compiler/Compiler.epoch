@@ -10201,7 +10201,7 @@ InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref arg
 		return()
 	}
 	
-	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, args.Args)
+	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, templatename, args.Args)
 	EnumerateOverloadsAndInstantiate(Overloads, templatename, args.Args)
 }
 
@@ -10213,7 +10213,7 @@ EnumerateOverloadsAndInstantiate : list<Overload> ref overloads, integer templat
 		integer existing = FindExistingTemplateInstance(TemplateFunctionInstances, overloads.value.MangledName, args)
 		if(existing == 0)
 		{
-			FindFunctionTemplateAndInstantiate(TemplateFunctions, overloads.value.MangledName, args)
+			FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, overloads.value.MangledName, args)
 		}
 	}
 	
@@ -10223,7 +10223,7 @@ EnumerateOverloadsAndInstantiate : list<Overload> ref overloads, integer templat
 EnumerateOverloadsAndInstantiate : nothing, integer templatename, list<TemplateArgument> ref args
 
 
-FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integer basename, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
 	if(templates.value.FunctionDefName == defname)
 	{
@@ -10232,11 +10232,15 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		
 		// TODO - validate that args suit the formal template parameters!
 		
+		string basenamemangled = MangleTemplateName(basename, args)
+		Overload overload = PoolString(basenamemangled), instancename
+		prepend<Overload>(Overloads, overload)
+		
 		DoFunctionInstantiation(Functions, defname, instancename, templates.value.Parameters, args)
 	}
 	else
 	{
-		instancename = FindFunctionTemplateAndInstantiate(templates.next, defname, args)
+		instancename = FindFunctionTemplateAndInstantiate(templates.next, basename, defname, args)
 	}
 }
 
@@ -10536,7 +10540,7 @@ MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = Ge
 MangleTemplateArguments : nothing -> ""
 
 
-FindFunctionTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplate(defname, args)
+FindFunctionTemplateAndInstantiate : nothing, integer basename, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplate(defname, args)
 
 
 InstantiateStructureTemplate : integer defname, TemplateArgumentList ref args -> integer instancename = InstantiateStructureTemplate(defname, args.Args)
@@ -11567,6 +11571,22 @@ EmitSubstring : buffer ref b, integer ref size, string s, integer bytes
 {
 	writebuffer(b, size, s, bytes)
 	size += bytes
+}
+
+
+
+
+DumpOverloadList : list<Overload> ref overloads
+{
+	DumpOverload(overloads.value)
+	DumpOverloadList(overloads.next)
+}
+
+DumpOverloadList : nothing
+
+DumpOverload : Overload ref overload
+{
+	print(GetPooledString(GlobalStrings, overload.NormalName) ; " -> " ; GetPooledString(GlobalStrings, overload.MangledName))
 }
 
 
