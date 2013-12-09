@@ -2838,6 +2838,7 @@ structure Overload :
 	integer MangledName
 
 structure FunctionDefinition :
+	integer RawName,
 	integer Name,
 	boolean IsTemplate,
 	OptionalExpression Return,
@@ -2941,6 +2942,7 @@ structure TemplateInstance :
 
 OnCodeGenProcessProgram :
 {
+	GenerateTypeMatcherMappings(Functions)
 	GeneratePendingTypeMatchers(PendingTypeMatchers)
 
 	CodeGenEmitStrings(GlobalStrings)
@@ -3296,7 +3298,7 @@ CountOverloads : nothing, integer rawname -> 0
 
 OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istemplate
 {
-	FunctionDefinition func = funcname, istemplate, nothing, nothing, false, 0, nothing, false
+	FunctionDefinition func = rawfuncname, funcname, istemplate, nothing, nothing, false, 0, nothing, false
 	prepend<FunctionDefinition>(Functions, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
@@ -6588,6 +6590,13 @@ EnsureTypeMatcherIsConfigured : list<FunctionDefinition> ref functions, integer 
 	EnsureTypeMatcherIsConfigured(functions.next, overloadname, matchername)
 }
 
+EnsureTypeMatcherIsConfigured : nothing, integer overloadname, integer matchername
+{
+	print("Failed to generate type matcher " ; GetPooledString(GlobalStrings, matchername))
+	print("Missing overload " ; GetPooledString(GlobalStrings, overloadname))
+	assert(false)
+}
+
 
 CreateTypeMatcherEntryForFunction : FunctionDefinition ref func, integer matchername
 {
@@ -7198,6 +7207,61 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 }
 
 
+PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname, integer paramcount
+{
+	if(overloads.value.NormalName == rawname)
+	{
+		if(paramcount == GetFunctionParameterCount(Functions, overloads.value.MangledName))
+		{			
+			if(!IsFunctionTemplate(Functions, overloads.value.MangledName))
+			{				
+				FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName)
+			}
+		}
+	}
+
+	PopulateAllOverloadTypeMatchers(overloads.next, rawname, paramcount)
+}
+
+PopulateAllOverloadTypeMatchers : nothing, integer rawname, integer paramcount
+
+
+
+GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
+{
+	if(functions.value.Name != 0)
+	{
+		if(!functions.value.IsTemplate)
+		{
+			if(AnyPendingTypeMatcherPointsToFunction(PendingTypeMatchers, functions.value.Name))
+			{
+				PopulateAllOverloadTypeMatchers(Overloads, functions.value.Name, CountUnresolvedParameters(functions.value.Params))
+			}
+		}
+	}
+
+	GenerateTypeMatcherMappings(functions.next)
+}
+
+GenerateTypeMatcherMappings : nothing
+
+
+AnyPendingTypeMatcherPointsToFunction : list<PendingTypeMatcher> ref pending, integer mangledname -> boolean ret = false
+{
+	if(pending.value.OverloadName == mangledname)
+	{
+		ret = true
+	}
+	else
+	{
+		ret = AnyPendingTypeMatcherPointsToFunction(pending.next, mangledname)
+	}
+}
+
+AnyPendingTypeMatcherPointsToFunction : nothing, integer mangledname -> false
+
+
+
 GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer funcname -> integer count = 0
 {
 	if(functions.value.Name == funcname)
@@ -7223,6 +7287,20 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 	}
 }
 
+
+IsFunctionTemplate : list<FunctionDefinition> ref functions, integer funcname -> boolean istemplate = false
+{
+	if(functions.value.Name == funcname)
+	{
+		istemplate = functions.value.IsTemplate
+	}
+	else
+	{
+		istemplate = IsFunctionTemplate(functions.next, funcname)
+	}
+}
+
+IsFunctionTemplate : nothing, integer funcname -> false
 
 
 CountUnresolvedParameters : FunctionParams ref params -> integer count = CountUnresolvedParametersUnwrapped(params.Params)
@@ -8739,6 +8817,16 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			if(paramindex == 0)
 			{
 				simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+			}
+		}
+	}
+	elseif(readablename == "print")
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
 			}
 		}
 	}
@@ -10426,7 +10514,7 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 	{
 		assert(functions.value.IsTemplate)
 		
-		FunctionDefinition func = instancename, false, nothing, nothing, functions.value.AnonymousReturn, 0, nothing, false
+		FunctionDefinition func = defname, instancename, false, nothing, nothing, functions.value.AnonymousReturn, 0, nothing, false
 		prepend<FunctionDefinition>(Functions, func)
 
 		list<OptionalCodeBlock> newstack = nothing, nothing
@@ -10444,13 +10532,6 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 		DoCodeBlockInstantiation(functions.value.Code, params, args)
 		
 		IRExitFunction()
-
-		//Overload overload = defname, instancename
-		//prepend<Overload>(Overloads, overload)
-
-		//Overload overload2 = instancename, instancename
-		//prepend<Overload>(Overloads, overload2)
-		
 		
 		TemplateInstance instance = defname, instancename, args
 		prepend<TemplateInstance>(TemplateFunctionInstances, instance)
@@ -10643,6 +10724,10 @@ InstantiateSingleAtom : boolean ref atom, boolean inret, list<TemplateParameter>
 	OnCodeGenRegisterLiteralBoolean(atom)
 }
 
+InstantiateSingleAtom : StringHandleAtom ref atom, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	OnCodeGenRegisterLiteralString(atom.Handle)
+}
 
 
 InstantiateStatement : integer statementname, boolean inret, nothing, list<TemplateArgument> ref templateargs
@@ -11609,7 +11694,7 @@ global
 	Overload dummyoverload = 0, 0
 	list<Overload> Overloads = dummyoverload, nothing
 
-	FunctionDefinition dummyfunc = 0, false, nothing, nothing, false, 0, nothing, false
+	FunctionDefinition dummyfunc = 0, 0, false, nothing, nothing, false, 0, nothing, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 	SumTypeBase dummybasetype = 0, nothing
