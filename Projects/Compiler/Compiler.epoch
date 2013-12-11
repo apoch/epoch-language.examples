@@ -783,6 +783,83 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
+	elseif(c == "x")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "a")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "b")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "c")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "d")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "e")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "f")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}	
 }
 
 
@@ -1813,6 +1890,14 @@ ParseExpressionOperator : -> boolean matched = false
 	{
 		knownoperator = true
 	}
+	elseif(op == "<")
+	{
+		knownoperator = true
+	}
+	elseif(op == "&")
+	{
+		knownoperator = true
+	}
 	elseif(op == "&&")
 	{
 		knownoperator = true
@@ -2058,17 +2143,12 @@ ParsePreopStatement : boolean substatement -> boolean matched = false
 	
 	if(recognized)
 	{
-		if(substatement)
-		{
-			OnCodeGenEnterSubStatement()
-		}
-
 		PopToken()
 		
 		string operand = PeekToken(0)
 		PopToken()
 		
-		OnCodeGenRegisterPreOpStatement(PoolString(potential), PoolString(operand))
+		OnCodeGenPreparePreOpStatement(PoolString(potential), PoolString(operand))
 		
 		while(PeekToken(0) == ".")
 		{
@@ -2076,13 +2156,10 @@ ParsePreopStatement : boolean substatement -> boolean matched = false
 			operand = PeekToken(0)
 			PopToken()
 			
-			OnCodeGenAddPreOpCompoundOperand(PoolString(operand))
+			OnCodeGenPreparePreOpCompoundOperand(PoolString(operand))
 		}
-
-		if(substatement)
-		{
-			IRExitStatement()
-		}
+		
+		OnCodeGenCompletePreOpStatement(substatement)
 		
 		matched = true
 	}
@@ -2789,10 +2866,6 @@ structure ExpressionList :
 type OptionalExpressionList : ExpressionList | nothing
 
 
-structure ParentheticalExpression :
-	Expression ref Inner
-
-
 type OptionalTemplateArgs : TemplateArgumentList | nothing
 
 type ExpressionOrAssignment : Expression | Assignment | AssignmentCompound
@@ -2820,11 +2893,19 @@ structure AssignmentCompound :
 
 structure PreOpStatement :
 	integer Operator,
-	simplelist<integer> ref Operand
+	simplelist<integer> ref Operand,
+	integer Type
 
 structure PostOpStatement :
 	integer Operator,
-	simplelist<integer> ref Operand
+	simplelist<integer> ref Operand,
+	integer Type
+
+type ExpressionOrPrePostOp : Expression | PreOpStatement | PostOpStatement
+
+
+structure ParentheticalExpression :
+	ExpressionOrPrePostOp Inner
 
 
 type CodeBlockEntry : Statement | PreOpStatement | PostOpStatement |
@@ -3456,7 +3537,9 @@ OnCodeGenExitContext :
 	}
 	elseif(entrytype == STACK_TYPE_PARENTHETICAL)
 	{
-		ParentheticalExpression parenthetical = ScratchExpressions.value
+		Expression expr = ScratchExpressions.value
+		ExpressionOrPrePostOp epp = expr
+		ParentheticalExpression parenthetical = epp
 		ExpressionAtom atom = parenthetical
 		PopExpression(ScratchExpressions, ScratchExpressions.next)
 		PlaceAtomInScratchExpression(atom)
@@ -6337,12 +6420,33 @@ OnCodeGenRegisterParenthetical :
 }
 
 
-OnCodeGenRegisterPreOpStatement : integer operator, integer operand
+OnCodeGenPreparePreOpStatement : integer operator, integer operand
 {
 	simplelist<integer> operandlist = operand, nothing
-	PreOpStatement preop = operator, operandlist
-	CodeBlockEntry cbe = preop
-	AppendEntryToCurrentCodeBlock(cbe)
+	PreOpStatement preop = operator, operandlist, 0
+
+	PreOpOnDeck = preop
+}
+
+OnCodeGenPreparePreOpCompoundOperand : integer operand
+{
+	AppendCompoundMemberHelper(PreOpOnDeck, operand)
+}
+
+OnCodeGenCompletePreOpStatement : boolean substatement
+{
+	if(substatement)
+	{
+		ExpressionOrPrePostOp wrap = PreOpOnDeck
+		ParentheticalExpression parenthetical = wrap
+		ExpressionAtom atom = parenthetical
+		PlaceAtomInScratchExpression(atom)
+	}
+	else
+	{
+		CodeBlockEntry cbe = PreOpOnDeck
+		AppendEntryToCurrentCodeBlock(cbe)
+	}
 }
 
 OnCodeGenAddPreOpCompoundOperand : integer operand
@@ -6368,7 +6472,7 @@ FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing
 OnCodeGenRegisterPostOpStatement : integer operator, integer operand
 {
 	simplelist<integer> operandlist = operand, nothing
-	PostOpStatement postop = operator, operandlist
+	PostOpStatement postop = operator, operandlist, 0
 	CodeBlockEntry cbe = postop
 	AppendEntryToCurrentCodeBlock(cbe)
 }
@@ -7004,6 +7108,7 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 	}
 	
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+	statement.Type = operandtype		// TODO - maybe don't assume that the operator returns the same type as it takes?
 }
 
 
@@ -7020,6 +7125,7 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 	}
 	
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+	statement.Type = operandtype
 }
 
 
@@ -8101,13 +8207,17 @@ GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref
 		
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
-		AddPossibleParameter(possibilities.Types, parenthetical.Inner.Type)
+		AddPossibleParameter(possibilities.Types, GetParentheticalType(parenthetical.Inner))
 	}
 	else
 	{
 		print("Parenthetical expression failed type inference")
 	}
 }
+
+GetParentheticalType : PreOpStatement ref statement -> integer rettype = statement.Type
+GetParentheticalType : PostOpStatement ref statement -> integer rettype = statement.Type
+GetParentheticalType : Expression ref expr -> integer rettype = expr.Type
 
 GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities
 {
@@ -8397,6 +8507,18 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
 	{
 		precedence = 0
 	}
+	elseif(basename == "<")
+	{
+		precedence = 0
+	}
+	elseif(basename == "&&")
+	{
+		precedence = 0
+	}
+	elseif(basename == "&")
+	{
+		precedence = 1		// TODO - revisit all operator precedences
+	}
 	elseif(basename == ";")
 	{
 		precedence = 3
@@ -8672,6 +8794,10 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, ">@@integer"), 0x01000001, 0x01000001, 0x01000003)
 	}
+	elseif(basename == "<")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "<@@integer"), 0x01000001, 0x01000001, 0x01000003)
+	}	
 	elseif(basename == "+")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
@@ -8688,6 +8814,14 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	elseif(basename == "/")
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "/@@integer"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basename == "&")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&"), 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basename == "&&")
+	{
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&"), 0x01000003, 0x01000003, 0x01000003)
 	}
 	elseif(basename == ";")
 	{
@@ -11848,6 +11982,10 @@ global
 	
 	TemplateSumType dummysumtypetemplate = 0, dummytemplateparams
 	list<TemplateSumType> TemplateSumTypes = dummysumtypetemplate, nothing
+	
+	simplelist<integer> dummycompound = 0, nothing
+	PreOpStatement PreOpOnDeck = 0, dummycompound, 0
+	PostOpStatement PostOpOnDeck = 0, dummycompound, 0
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
