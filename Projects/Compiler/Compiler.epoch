@@ -324,7 +324,12 @@ ReadFile : string filename, integer ref len -> string contents = ""
 
 Parse : string code, integer len -> boolean success = false
 {
+	integer startlexms = timeGetTime()
 	Lex(code, len)
+	integer durationlexms = timeGetTime() - startlexms
+	
+	print("Lexical analysis completed in " ; cast(string, durationlexms) ; "ms")
+
 
 	// Discard the dummy token
 	PopToken()
@@ -526,7 +531,7 @@ Lex : string code, integer len [nogc]
 }
 
 
-IsValidPunctuation : string token -> boolean valid = false
+IsValidPunctuation : string token -> boolean valid = false [nogc]
 {
 	if(token == "+=")
 	{
@@ -553,6 +558,10 @@ IsValidPunctuation : string token -> boolean valid = false
 		valid = true
 	}
 	elseif(token == "->")
+	{
+		valid = true
+	}
+	elseif(token == "&&")
 	{
 		valid = true
 	}
@@ -602,6 +611,10 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
 	elseif(c == "=")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == "&")
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
@@ -1702,6 +1715,11 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	{
 		IRAddLiteralReal(0.0)
 	}
+	elseif(ParsePreopStatement(true))
+	{
+		matched = true
+		return()
+	}
 	elseif(ParseStatement(true))
 	{
 		matched = true
@@ -1792,6 +1810,10 @@ ParseExpressionOperator : -> boolean matched = false
 		knownoperator = true
 	}
 	elseif(op == ">")
+	{
+		knownoperator = true
+	}
+	elseif(op == "&&")
 	{
 		knownoperator = true
 	}
@@ -1974,7 +1996,7 @@ ParseCodeBlock :
 		if(ParseEntity())
 		{
 		}
-		elseif(ParsePreopStatement())
+		elseif(ParsePreopStatement(false))
 		{
 		}
 		elseif(ParsePostopStatement())
@@ -2020,7 +2042,7 @@ ParseEntityCode : -> boolean matched = false
 }
 
 
-ParsePreopStatement : -> boolean matched = false
+ParsePreopStatement : boolean substatement -> boolean matched = false
 {
 	boolean recognized = false
 	string potential = PeekToken(0)
@@ -2036,6 +2058,11 @@ ParsePreopStatement : -> boolean matched = false
 	
 	if(recognized)
 	{
+		if(substatement)
+		{
+			OnCodeGenEnterSubStatement()
+		}
+
 		PopToken()
 		
 		string operand = PeekToken(0)
@@ -2050,6 +2077,11 @@ ParsePreopStatement : -> boolean matched = false
 			PopToken()
 			
 			OnCodeGenAddPreOpCompoundOperand(PoolString(operand))
+		}
+
+		if(substatement)
+		{
+			IRExitStatement()
 		}
 		
 		matched = true
