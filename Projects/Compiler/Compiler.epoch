@@ -7814,7 +7814,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		
 	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
 	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, scopename, flag)
-	
+		
 	integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
 	if(possibilitycount == 1)
 	{
@@ -7960,7 +7960,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 			unarycompensate = true
 		}
 	}
-		
+
 	if(IsOperatorInvoke(atoms.value))
 	{
 		if(counter > 0)
@@ -8821,7 +8821,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	}
 	elseif(basename == "&&")
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&"), 0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&&"), 0x01000003, 0x01000003, 0x01000003)
 	}
 	elseif(basename == ";")
 	{
@@ -9705,20 +9705,23 @@ FilterTypesForDemotion : simplelist<integer> ref in, simplelist<integer> ref out
 
 CheckIfContainsOnlyDemotedOverloads : list<InferencePossibility> ref in, boolean ref hasdemoted, boolean ref hassuperior, boolean ref hasother
 {
-	if(in.value.ParameterTypes.value.Types.value == 0x01000001)
+	if(in.value.FunctionName != 0)
 	{
-		hassuperior = true
-	}
-	elseif(in.value.ParameterTypes.value.Types.value == 0x01000002)
-	{
-		hasdemoted = true
-	}
-	elseif(in.value.ParameterTypes.value.Types.value == 0)
-	{
-	}
-	else
-	{
-		hasother = true
+		if(in.value.ParameterTypes.value.Types.value == 0x01000001)
+		{
+			hassuperior = true
+		}
+		elseif(in.value.ParameterTypes.value.Types.value == 0x01000002)
+		{
+			hasdemoted = true
+		}
+		elseif(in.value.ParameterTypes.value.Types.value == 0)
+		{
+		}
+		else
+		{
+			hasother = true
+		}
 	}
 	
 	CheckIfContainsOnlyDemotedOverloads(in.next, hasdemoted, hassuperior, hasother)
