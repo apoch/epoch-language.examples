@@ -1,0 +1,22 @@
+//
+// SINGLEMEMBER.EPOCH
+//
+// Test to ensure single-member structures work correctly
+//
+
+
+structure Basic :
+	integer Field
+	
+	
+entrypoint :
+{
+	Basic b = 42
+	Basic c = b
+	
+	assert(b.Field == 42)
+	assert(c.Field == 42)
+	
+	passtest()
+}
+

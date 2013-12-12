@@ -2346,6 +2346,10 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 	{
 		ret = listval
 	}
+	elseif(listval == MakeNonReferenceType(value))
+	{
+		ret = listval
+	}
 	else
 	{
 		ret = TypeListContains(thelist.next, value)
@@ -6783,7 +6787,13 @@ DumpTypeList : simplelist<integer> ref types
 {
 	if(types.value != 0)
 	{
-		print(" Potential type: " ; GetPooledString(GlobalStrings, GetNameOfType(types.value)))
+		string refflag = ""
+		if(IsReferenceType(types.value))
+		{
+			refflag = " ref"
+		}
+		
+		print(" Potential type: " ; GetPooledString(GlobalStrings, GetNameOfType(types.value)) ; refflag)
 	}
 	
 	DumpTypeList(types.next)
@@ -7442,6 +7452,22 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 	{
 		count = 2
 	}
+	elseif(readablename == "writebuffer")
+	{
+		count = 3
+	}
+	elseif(readablename == "writebuffer@@string")
+	{
+		count = 4
+	}
+	elseif(readablename == "writebuffer@@multiple")
+	{
+		count = 4
+	}
+	elseif(readablename == "writebuffer@@real")
+	{
+		count = 3
+	}
 }
 
 
@@ -7512,6 +7538,30 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 			overloadname = nolen
 		}
 	}
+	elseif(readablename == "writebuffer")
+	{
+		integer normal = PoolString("writebuffer")
+		integer withstr = PoolString("writebuffer@@string")
+		integer multiple = PoolString("writebuffer@@multiple")
+		integer withreal = PoolString("writebuffer@@real")
+		
+		if(FunctionMatchesParameterTypes(nothing, normal, types))
+		{
+			overloadname = normal
+		}
+		elseif(FunctionMatchesParameterTypes(nothing, withstr, types))
+		{
+			overloadname = withstr
+		}		
+		elseif(FunctionMatchesParameterTypes(nothing, multiple, types))
+		{
+			overloadname = multiple
+		}		
+		elseif(FunctionMatchesParameterTypes(nothing, withreal, types))
+		{
+			overloadname = withreal
+		}		
+	}
 	else
 	{
 		if(ConstructorMatchesParameterTypes(Structures, rawname, types))
@@ -7552,6 +7602,36 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x02000000)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(readablename == "writebuffer")
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x02000001)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(readablename == "writebuffer@@string")
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x02000000)
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x02000001)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(readablename == "writebuffer@@multiple")
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x02000001)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(readablename == "writebuffer@@real")
+	{
+		simplelist<integer> ptypes = 0x01000004, nothing
+		simpleprepend<integer>(ptypes, 0x01000001)
+		simpleprepend<integer>(ptypes, 0x02000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	else
@@ -9168,6 +9248,86 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
 			}
 		}
+	}
+	elseif(readablename == "writebuffer")
+	{
+		if(paramcount == 3)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(readablename == "writebuffer@@string")
+	{
+		if(paramcount == 4)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 3)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(readablename == "writebuffer@@multiple")
+	{
+		if(paramcount == 4)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 3)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(readablename == "writebuffer@@real")
+	{
+		if(paramcount == 3)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
 	}	
 }
 
@@ -9613,7 +9773,12 @@ MakeParametersReferencesForConstructor : list<StructureDefinition> ref structure
 {
 	if(structures.value.ConstructorName == constructorname)
 	{
-		MakeParametersReferencesForStructureMembers(structures.value.Members, params.Expressions.next)
+		boolean ok = MakeParametersReferencesForStructureMembers(structures.value.Members, params.Expressions.next)
+		if(!ok)
+		{
+			print("Failed to generate call to constructor " ; GetPooledString(GlobalStrings, constructorname))
+			assert(false)
+		}
 	}
 	else
 	{
@@ -9625,7 +9790,7 @@ MakeParametersReferencesForConstructor : list<StructureDefinition> ref structure
 MakeParametersReferencesForConstructor : nothing, integer constructorname, ExpressionList ref params
 
 
-MakeParametersReferencesForStructureMembers : list<StructureMember> ref members, list<Expression> ref params
+MakeParametersReferencesForStructureMembers : list<StructureMember> ref members, list<Expression> ref params -> boolean ret = true
 {
 	if(IsMemberReferenceType(members.value))
 	{
@@ -9635,10 +9800,24 @@ MakeParametersReferencesForStructureMembers : list<StructureMember> ref members,
 		}
 	}
 	
-	MakeParametersReferencesForStructureMembers(members.next, params.next)
+	ret = MakeParametersReferencesForStructureMembers(members.next, params.next)
 }
 
-MakeParametersReferencesForStructureMembers : nothing, nothing
+
+MakeParametersReferencesForStructureMembers : list<StructureMember> ref members, nothing -> false
+{
+	if(GetMemberName(members.value) != 0)
+	{
+		print("Constructor has too few arguments!")
+	}
+}
+
+MakeParametersReferencesForStructureMembers : nothing, list<Expression> ref params -> false
+{
+	print("Constructor has too many arguments!")
+}
+
+MakeParametersReferencesForStructureMembers : nothing, nothing -> true
 
 
 
@@ -9837,6 +10016,18 @@ InitBuiltInOverloads :
 	
 	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
 	prepend<Overload>(Overloads, castinttostr)
+
+	Overload writebuffernormal = PoolString("writebuffer"), PoolString("writebuffer")
+	prepend<Overload>(Overloads, writebuffernormal)
+
+	Overload writebuffermultiple = PoolString("writebuffer"), PoolString("writebuffer@@multiple")
+	prepend<Overload>(Overloads, writebuffermultiple)
+
+	Overload writebufferstring = PoolString("writebuffer"), PoolString("writebuffer@@string")
+	prepend<Overload>(Overloads, writebufferstring)
+
+	Overload writebufferreal = PoolString("writebuffer"), PoolString("writebuffer@@real")
+	prepend<Overload>(Overloads, writebufferreal)
 }
 
 
@@ -11970,8 +12161,8 @@ global
 	integer GlobalCodeBlockName = 0
 
 	list<Entity> chaincontents = dummyentity, nothing
-	OptionalEntityList chaincontentswrap = chaincontents
-	EntityChain dummychain = chaincontentswrap
+	EntityList foo = chaincontents
+	EntityChain dummychain = foo
 	list<EntityChain> ChainStack = dummychain, nothing
 
 

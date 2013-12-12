@@ -1,0 +1,25 @@
+//
+// COPYCONSTRUCT.EPOCH
+//
+// Basic test of copy constructor support
+//
+
+
+structure Demo :
+	integer FieldOne,
+	string FieldTwo,
+	real FieldThree
+	
+	
+entrypoint :
+{
+	Demo d = 42, "test", 3.14159
+	
+	Demo copy = d
+	
+	assert(copy.FieldOne == 42)
+	assert(copy.FieldTwo == "test")
+	
+	passtest()
+}
+
