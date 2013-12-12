@@ -3474,7 +3474,8 @@ AppendUnresolvedParameterToFunction : FunctionDefinition ref func, FunctionParam
 AppendUnresolvedParameterToFunction : FunctionDefinition ref func, nothing, UnresolvedParameter ref p
 {
 	list<UnresolvedParameter> newlist = p, nothing
-	OptionalParameters params = newlist
+	FunctionParams fp = newlist
+	OptionalParameters params = fp
 	func.Params = params
 }
 
@@ -4827,6 +4828,7 @@ BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurenam
 	OnBytecodeBindStructReference(membertype, memberoffset)
 
 	// Recurse
+	assert(membertype != 0)
 	BindAssignmentMembers(lhsmembers.next, GetNameOfType(membertype))
 }
 
@@ -4840,6 +4842,14 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, integer sc
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(scopename, rootname, var)
 	
+	if(var.Name == 0)
+	{
+		print("Assignment has bogus LHS")
+		assert(false)
+	}
+	
+	assert(var.VarType != 0)
+	
 	integer vartypename = GetNameOfType(var.VarType)
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(assignment.LHS.next, vartypename)
 }
@@ -4847,6 +4857,7 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, integer sc
 ComputeCompoundAssignmentLHSTypeMembers : simplelist<integer> ref lhsmembers, integer structurename -> integer typeid = 0
 {
 	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
+	assert(membertype != 0)
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(lhsmembers.next, GetNameOfType(membertype))
 }
 
@@ -5093,6 +5104,7 @@ EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(EmittingFunctionName, bindings.value.Identifier, var)
 	
+	assert(var.VarType != 0)
 	integer lhstypename = GetNameOfType(var.VarType)
 
 	integer memtype = GetStructureMemberType(Structures, lhstypename, tail.value.Identifier)
@@ -5177,12 +5189,18 @@ GetStructureMemberType : list<StructureDefinition> ref structures, integer struc
 }
 
 GetStructureMemberType : nothing, integer structurename, integer membername -> integer rtype = 0
+{
+	print("Bogus structure!")
+	assert(false)
+}
+
 
 GetMemberType : list<StructureMember> ref members, integer membername -> integer rtype = 0
 {
 	if(GetMemberName(members.value) == membername)
 	{
 		rtype = GetMemberTypeDecompose(members.value)
+		assert(rtype != 0)
 	}
 	else
 	{
@@ -5191,6 +5209,11 @@ GetMemberType : list<StructureMember> ref members, integer membername -> integer
 }
 
 GetMemberType : nothing, integer membername -> integer rtype = 0
+{
+	print("Bogus structure member!")
+	assert(false)
+}
+
 
 GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
 
@@ -7130,10 +7153,17 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
 	
+	if(var.Name == 0)
+	{
+		print("Cannot operate on variable, it doesn't exist!")
+		assert(false)
+	}
+	
 	integer operandtype = MakeNonReferenceType(var.VarType)
 
 	if(countnonzero(statement.Operand) > 1)
 	{
+		assert(operandtype != 0)
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
 	
@@ -7146,11 +7176,18 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 {	
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(context.ScopeName, statement.Operand.value, var)
-
+	
+	if(var.Name == 0)
+	{
+		print("Cannot operate on variable, it doesn't exist!")
+		assert(false)
+	}
+	
 	integer operandtype = MakeNonReferenceType(var.VarType)
 	
 	if(countnonzero(statement.Operand) > 1)
 	{
+		assert(operandtype != 0)
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
 	
@@ -7186,6 +7223,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
+			assert(vartype != 0)
 			statement.Name = GetNameOfType(vartype)
 		}
 		
@@ -7239,6 +7277,11 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				success = false
 				print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+				
+				//print("Provided parameters:")
+				//DumpTypeList(paramtypes)
+				
+				//DumpAllOverloadParameters(Overloads, statement.Name)
 			}
 		}
 		
@@ -7272,6 +7315,35 @@ CountExpressions : list<Expression> ref exprs -> integer count = 1
 {
 	count += CountExpressions(exprs.next)
 }
+
+
+DumpAllOverloadParameters : list<Overload> ref overloads, integer rawname
+{
+	if(overloads.value.NormalName == rawname)
+	{
+		DumpFunctionParameters(Functions, overloads.value.MangledName)
+	}
+
+	DumpAllOverloadParameters(overloads.next, rawname)
+}
+
+DumpAllOverloadParameters : nothing, integer rawname
+
+
+DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcname
+{
+	if(functions.value.Name == funcname)
+	{
+		print(GetPooledString(GlobalStrings, funcname))
+		DumpUnresolvedParameters(functions.value.Params)
+	}
+	else
+	{
+		DumpFunctionParameters(functions.next, funcname)
+	}
+}
+
+DumpFunctionParameters : nothing, integer funcname
 
 
 AnnotateAllParameters : ExpressionList ref exprs
@@ -7452,6 +7524,10 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 	elseif(readablename == "substring@@nolength")
 	{
 		count = 2
+	}
+	elseif(readablename == "unescape")
+	{
+		count = 1
 	}
 	elseif(readablename == "writebuffer")
 	{
@@ -7635,6 +7711,11 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simpleprepend<integer>(ptypes, 0x02000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
+	elseif(readablename == "unescape")
+	{
+		simplelist<integer> ptypes = 0x02000000, nothing
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
 	else
 	{
 		match = ConstructorMatchesParameterTypes(Structures, funcname, types)
@@ -7707,6 +7788,15 @@ CheckParameterTypesForMatch : list<UnresolvedParameter> ref params, simplelist<i
 CheckParameterTypesForMatch : simplelist<integer> ref atypes, simplelist<integer> ref btypes -> boolean match = TypesMatch(atypes, btypes)
 
 
+DumpUnresolvedParameters : list<UnresolvedParameter> ref params
+{
+	print(GetPooledString(GlobalStrings, GetNameOfType(params.value.ResolvedType)))
+	DumpUnresolvedParameters(params.next)
+}
+
+DumpUnresolvedParameters : nothing
+
+
 TypesMatch : simplelist<integer> ref a, simplelist<integer> ref b -> boolean match = true
 {
 	if(a.value != b.value)
@@ -7754,13 +7844,13 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 	if(resolved != expected)
 	{
 		match = false
+		return()
 	}
-	else
-	{
-		listnode<UnresolvedParameter> n = params.next
-		simplelistnode<integer> nt = types.next
-		match = ResolvedTypesMatch(n, nt)			// TODO - this is some kind of compiler bug... or maybe a runtime bug?!
-	}
+
+
+	listnode<UnresolvedParameter> n = params.next
+	simplelistnode<integer> nt = types.next
+	match = ResolvedTypesMatch(n, nt)			// TODO - this is some kind of compiler bug... or maybe a runtime bug?!
 }
 
 
@@ -8333,7 +8423,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, in
 		return()
 	}
 
-	if(!parenthetical)
+	if((!parenthetical) && (!funcret))
 	{
 		AddPossibleParameter(possibilities.Types, 0x01000000)
 	}
@@ -9193,6 +9283,16 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "unescape")
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
 	elseif(readablename == "substring@@withlength")
 	{
 		if(paramcount == 3)
@@ -9225,7 +9325,35 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@boolean_to_integer")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+			}
+		}
+	}
 	elseif(readablename == "cast@@real_to_integer")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
+	elseif(readablename == "cast@@real_to_string")
 	{
 		if(paramcount == 2)
 		{
@@ -9267,6 +9395,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@integer_to_integer16")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}	
 	elseif(readablename == "writebuffer")
 	{
 		if(paramcount == 3)
@@ -9526,9 +9668,17 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(scopename, lhs.Handle, var)
 	
+	if(var.Name == 0)
+	{
+		print("Member access is bogus!")
+		assert(false)
+	}
+	
+	assert(var.VarType != 0)
 	integer lhstypename = GetNameOfType(var.VarType)
 	
 	integer rhstype = GetStructureMemberType(Structures, lhstypename, rhs.Handle)
+	assert(rhstype != 0)
 	integer rhstypename = GetNameOfType(rhstype)
 
 	RefBinding lhsbinding = lhs.Handle, lhstypename, false, false
@@ -9544,6 +9694,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 
 CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, CompoundAtom ref lhs, IdentifierAtom ref rhs, integer scopename
 {
+	assert(lhs.Type != 0)
 	integer typename = GetNameOfType(lhs.Type)
 	
 	RefBinding temp = rhs.Handle, typename, false, false
@@ -9648,6 +9799,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x02000001		// buffer type signature
 	}
+	elseif(readablename == "unescape")
+	{
+		returntype = 0x02000000		// string type signature
+	}	
 	elseif(readablename == "substring@@withlength")
 	{
 		returntype = 0x02000000		// string type signature
@@ -9660,14 +9815,26 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x01000001		// integer type signature
 	}
-	elseif(readablename == "cast@@integer16_to_integer")
+	elseif(readablename == "cast@@boolean_to_integer")
 	{
 		returntype = 0x01000001		// integer type signature
 	}	
+	elseif(readablename == "cast@@integer16_to_integer")
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(readablename == "cast@@integer_to_integer16")
+	{
+		returntype = 0x01000002		// integer16 type signature
+	}
 	elseif(readablename == "cast@@integer_to_string")
 	{
 		returntype = 0x02000000		// string type signature
 	}
+	elseif(readablename == "cast@@real_to_string")
+	{
+		returntype = 0x02000000		// string type signature
+	}	
 	elseif(readablename == "length")
 	{
 		returntype = 0x01000001		// integer type signature
@@ -9902,6 +10069,11 @@ PerformDemotion : list<ExpressionAtom> ref atoms, integer ref atom
 
 PerformDemotion : list<ExpressionAtom> ref atoms, IdentifierAtom ref atom
 
+PerformDemotion : list<ExpressionAtom> ref atoms, Statement ref atom
+{
+	assert(atom.Type == 0x01000002)
+}
+
 
 DumpOverloadList : list<InferencePossibility> ref possibilities
 {
@@ -10053,8 +10225,17 @@ InitBuiltInOverloads :
 	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
 	prepend<Overload>(Overloads, castinttostr)
 	
+	Overload castrealtostr = PoolString("cast"), PoolString("cast@@real_to_string")
+	prepend<Overload>(Overloads, castrealtostr)
+	
+	Overload castbooltoint = PoolString("cast"), PoolString("cast@@boolean_to_integer")
+	prepend<Overload>(Overloads, castbooltoint)
+
 	Overload castint16toint = PoolString("cast"), PoolString("cast@@integer16_to_integer")
 	prepend<Overload>(Overloads, castint16toint)
+	
+	Overload castinttoint16 = PoolString("cast"), PoolString("cast@@integer_to_integer16")
+	prepend<Overload>(Overloads, castinttoint16)	
 
 	Overload writebuffernormal = PoolString("writebuffer"), PoolString("writebuffer")
 	prepend<Overload>(Overloads, writebuffernormal)
@@ -10073,14 +10254,14 @@ InitBuiltInOverloads :
 
 CheckMemberTypes : list<StructureMember> ref members, simplelist<integer> ref types -> boolean match = true
 {
-	integer membertype = GetMemberTypeDecompose(members.value)
-	integer curtype = types.value
+	integer membertype = MakeNonReferenceType(GetMemberTypeDecompose(members.value))
+	integer curtype = MakeNonReferenceType(types.value)
 
 	if(membertype == curtype)
 	{
 		match = CheckMemberTypes(members.next, types.next)
 	}
-	elseif(SumTypeHasBase(SumTypes, membertype, MakeNonReferenceType(curtype)))
+	elseif(SumTypeHasBase(SumTypes, membertype, curtype))
 	{
 		match = CheckMemberTypes(members.next, types.next)
 	}
@@ -10141,6 +10322,7 @@ PrependFunctionParameter : list<FunctionDefinition> ref functions, integer funcn
 {
 	if(functions.value.Name == funcname)
 	{
+		assert(paramtype != 0)
 		UnresolvedParameter p = paramname, GetNameOfType(paramtype), paramtype, IsReferenceType(paramtype), nothing, nothing
 		PrependUnresolvedParameter(functions.value.Params, p)
 	}
@@ -10251,7 +10433,13 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 		simplelist<integer> paramtypes = 0, nothing
 		GetFunctionParameterTypes(functions.value.Params, paramtypes)
 		
-		typeid = FindFunctionSignatureType(FunctionSignatures, paramtypes, GetNameOfType(GetFunctionReturnType(functions, funcname)))
+		integer rettypename = 0
+		integer rettype = GetFunctionReturnType(functions, funcname)
+		if(rettype != 0)
+		{
+			rettypename = GetNameOfType(rettype)
+		}
+		typeid = FindFunctionSignatureType(FunctionSignatures, paramtypes, rettypename)
 	}
 	else
 	{
@@ -10268,6 +10456,9 @@ GetFunctionParameterTypes : FunctionParams ref params, simplelist<integer> ref o
 GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<integer> ref outtypenames
 {
 	GetFunctionParameterTypes(params.next, outtypenames)
+	
+	assert(params.value.ResolvedType != 0)
+	
 	simpleprepend<integer>(outtypenames, GetNameOfType(params.value.ResolvedType))
 }
 
@@ -10618,10 +10809,22 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		{
 			overloadname = PoolString("cast@@integer_to_string")
 		}
+		elseif((idtype == 0x02000000) && (origintype == 0x01000004))
+		{
+			overloadname = PoolString("cast@@real_to_string")
+		}		
 		elseif((idtype == 0x01000001) && (origintype == 0x01000002))
 		{
 			overloadname = PoolString("cast@@integer16_to_integer")
 		}
+		elseif((idtype == 0x01000002) && (origintype == 0x01000001))
+		{
+			overloadname = PoolString("cast@@integer_to_integer16")
+		}		
+		elseif((idtype == 0x01000001) && (origintype == 0x01000003))
+		{
+			overloadname = PoolString("cast@@boolean_to_integer")
+		}	
 	}
 }
 
