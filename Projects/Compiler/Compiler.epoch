@@ -2399,7 +2399,7 @@ OnBytecodeGetSize : -> integer size = HackSize
 
 OnBytecodeEmitInteger : integer value
 {
-	writebuffer(Hack, HackSize, (value) & 0xff)
+	writebuffer(Hack, HackSize, value & 0xff)
 	++HackSize
 	writebuffer(Hack, HackSize, (value / 0x100) & 0xff)
 	++HackSize
@@ -2412,7 +2412,7 @@ OnBytecodeEmitInteger : integer value
 OnBytecodeEmitInteger16 : integer16 value
 {
 	integer v = cast(integer, value)
-	writebuffer(Hack, HackSize, (v) & 0xff)
+	writebuffer(Hack, HackSize, v & 0xff)
 	++HackSize
 	writebuffer(Hack, HackSize, (v / 0x100) & 0xff)
 	++HackSize
@@ -6808,7 +6808,8 @@ structure InferenceContext :
 	simplelist<integer> ref ExpectedTypes,
 	boolean FunctionReturn,
 	integer NumParameters,
-	boolean TopLevelStatement
+	boolean TopLevelStatement,
+	boolean Parenthetical
 
 structure TypePossibilityList :
 	simplelist<integer> ref Types,
@@ -6826,7 +6827,7 @@ structure ExpressionInferenceStackEntry :
 IRTypeInference : -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext context = 0, 0, temp, false, 0, false
+	InferenceContext context = 0, 0, temp, false, 0, false, false
 	
 	if(!TypeInference(SumTypes, context))
 	{
@@ -6840,7 +6841,7 @@ IRTypeInference : -> boolean success = true
 
 	if(GlobalCodeBlockName != 0)
 	{
-		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0, false
+		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0, false, false
 		if(!TypeInference(GlobalCodeBlock, globalcontext))
 		{
 			success = false
@@ -7018,7 +7019,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	func.InferenceDone = true
 
 	simplelist<integer> temp = 0, nothing
-	InferenceContext innercontext = func.Name, 0, temp, false, 0, false
+	InferenceContext innercontext = func.Name, 0, temp, false, 0, false, false
 	
 	
 	if(!TypeInference(func.Params, innercontext))
@@ -7029,7 +7030,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	
 
 	simplelist<integer> tempret = 0, nothing
-	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false
+	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false, false
 
 	if(!TypeInference(func.Return, retcontext))
 	{
@@ -7204,7 +7205,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	}
 	else
 	{
-		InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel
+		InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel, false
 
 		if(!TypeInference(statement.Parameters, newcontext))
 		{
@@ -7774,7 +7775,7 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 	FindVariableDataInScope(context.ScopeName, assignment.LHSName, var)
 
 	simplelist<integer> temp = var.VarType, nothing
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false
 
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
@@ -7800,7 +7801,7 @@ TypeInference : AssignmentCompound ref assignment, InferenceContext ref context 
 	integer lhstype = ComputeCompoundAssignmentLHSType(assignment, hack)
 	
 	simplelist<integer> temp = lhstype, nothing
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false
 
 	if(!TypeInference(assignment.RHS, newcontext))
 	{
@@ -7840,7 +7841,7 @@ TypeInference : list<Entity> ref entities, InferenceContext ref context -> boole
 TypeInference : Entity ref entity, InferenceContext ref context -> boolean success = true
 {
 	simplelist<integer> temp = 0x01000003, nothing			// TODO - don't assume all entities take a boolean!
-	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false
+	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false
 	
 	if(!TypeInference(entity.Param, newcontext))
 	{
@@ -7866,7 +7867,7 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 {
 	simplelist<integer> temp = 0, nothing
 	GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
-	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement
+	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement, false
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
@@ -7912,7 +7913,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	integer scopename = context.ScopeName
 		
 	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
-	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, scopename, flag)
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, scopename, flag, context.Parenthetical)
 		
 	integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
 	if(possibilitycount == 1)
@@ -8046,9 +8047,9 @@ SetAtomType : CompoundAtom ref atom, integer typeid
 SetAtomType : Statement ref atom, integer typeid
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> boolean demotedtoright = false
+WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret, boolean parenthetical -> boolean demotedtoright = false
 {
-	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, funcname, funcret)
+	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, funcname, funcret, parenthetical)
 	boolean unarycompensate = false
 	
 	if(IsOperatorInvoke(tail.value))
@@ -8077,7 +8078,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	else
 	{
 		list<InferencePossibility> out = scratchpossibility, nothing
-		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, funcname, funcret)
+		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, funcname, funcret, parenthetical)
 				
 		if(counter == 1)
 		{
@@ -8164,7 +8165,7 @@ PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, lis
 PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, nothing
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret -> false
+WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, integer funcname, boolean funcret, boolean parenthetical -> false
 {
 	if(IsOperatorInvoke(atoms.value))
 	{
@@ -8173,7 +8174,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 	else
 	{
 		TypePossibilityList poss = scratchparams
-		GetAtomType(atoms.value, poss, funcname, funcret)
+		GetAtomType(atoms.value, poss, funcname, funcret, parenthetical)
 
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
 		prepend<InferencePossibility>(stack.value.PossibilityList, newpossibility)
@@ -8181,28 +8182,28 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 }
 
 
-EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref possibilities, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer funcname, boolean funcret
+EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref possibilities, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer funcname, boolean funcret, boolean parenthetical
 {
 	if(possibilities.value.FunctionName != 0)
 	{
-		if(EliminateImpossibleParameters(possibilities.value.ParameterTypes, atom, funcname, funcret))
+		if(EliminateImpossibleParameters(possibilities.value.ParameterTypes, atom, funcname, funcret, parenthetical))
 		{
 			prepend<InferencePossibility>(out, possibilities.value)
 		}
 	}
 	
-	EliminateImpossibleParametersForAllOverloads(possibilities.next, out, atom, funcname, funcret)
+	EliminateImpossibleParametersForAllOverloads(possibilities.next, out, atom, funcname, funcret, parenthetical)
 }
 
-EliminateImpossibleParametersForAllOverloads : nothing, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer funcname, boolean funcret
+EliminateImpossibleParametersForAllOverloads : nothing, list<InferencePossibility> ref out, ExpressionAtom ref atom, integer funcname, boolean funcret, boolean parenthetical
 
 
-EliminateImpossibleParameters : list<TypePossibilityList> ref params, ExpressionAtom ref atom, integer funcname, boolean funcret -> boolean valid = true
+EliminateImpossibleParameters : list<TypePossibilityList> ref params, ExpressionAtom ref atom, integer funcname, boolean funcret, boolean parenthetical -> boolean valid = true
 {
 	if(!params.value.Consumed)
 	{
 		TypePossibilityList poss = scratchparams
-		GetAtomType(atom, poss, funcname, funcret)
+		GetAtomType(atom, poss, funcname, funcret, parenthetical)
 		
 		simplelist<integer> types = 0, nothing
 		EliminateImpossibleType(params.value.Types, poss.Types, types)
@@ -8217,7 +8218,7 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 	}
 	else
 	{
-		if(!EliminateImpossibleParameters(params.next, atom, funcname, funcret))
+		if(!EliminateImpossibleParameters(params.next, atom, funcname, funcret, parenthetical))
 		{
 			valid = false
 		}
@@ -8225,7 +8226,7 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 }
 
 
-EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, integer funcname, boolean funcret -> true
+EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, integer funcname, boolean funcret, boolean parenthetical -> true
 
 
 SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
@@ -8271,25 +8272,25 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
 
 
-GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
-GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x02000000) }
-GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000001) }
-GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000002) }
-GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000003) }
-GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, 0x01000004) }
+GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
+GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x02000000) }
+GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000002) }
+GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000003) }
+GetAtomType : real               ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000004) }
 
-GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
 {
 	AddPossibleParameter(possibilities.Types, 0x01000001)
 	AddPossibleParameter(possibilities.Types, 0x01000002)			// Allow demotion later
 }
 
-GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret { AddPossibleParameter(possibilities.Types, atom.Type)  }
+GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, atom.Type)  }
 
-GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
 {	
 	simplelist<integer> temp = 0, nothing
-	InferenceContext newcontext = funcname, statement.Name, temp, funcret, 0, false
+	InferenceContext newcontext = funcname, statement.Name, temp, funcret, 0, false, false
 	
 	if(TypeInference(statement, newcontext))
 	{
@@ -8297,12 +8298,12 @@ GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, in
 	}
 }
 
-GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
 
-GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean isinparenthetical
 {
 	simplelist<integer> temp = 0, nothing
-	InferenceContext newcontext = funcname, 0, temp, funcret, 0, false
+	InferenceContext newcontext = funcname, 0, temp, funcret, 0, false, true
 		
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
@@ -8323,7 +8324,7 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 	AddPossibilityPerOperatorOverload(atom.OperatorName, possibilities)
 }
 
-GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret
+GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
 {	
 	if(GetPooledString(GlobalStrings, atom.Handle) == "nothing")
 	{
@@ -8332,7 +8333,10 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, in
 		return()
 	}
 
-	AddPossibleParameter(possibilities.Types, 0x01000000)
+	if(!parenthetical)
+	{
+		AddPossibleParameter(possibilities.Types, 0x01000000)
+	}
 	
 	if(GetTypeByName(atom.Handle) != 0)
 	{
@@ -8965,7 +8969,7 @@ FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integ
 		if(!functions.value.InferenceDone)
 		{
 			simplelist<integer> temp = 0, nothing
-			InferenceContext context = 0, 0, temp, false, 0, false
+			InferenceContext context = 0, 0, temp, false, 0, false, false
 			
 			TypeInference(functions.value, context)
 		}
@@ -9026,7 +9030,7 @@ GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname
 		if(!functions.value.InferenceDone)
 		{
 			simplelist<integer> temp = 0, nothing
-			InferenceContext context = 0, 0, temp, false, 0, false
+			InferenceContext context = 0, 0, temp, false, 0, false, false
 
 			TypeInference(functions.value, context)
 		}
@@ -10813,7 +10817,7 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		prepend<TemplateInstance>(TemplateStructureInstances, instance)
 
 		simplelist<integer> temp = 0, nothing
-		InferenceContext context = 0, 0, temp, false, 0, false
+		InferenceContext context = 0, 0, temp, false, 0, false, false
 		TypeInference(Structures.value, context)
 	}
 	else
@@ -10942,7 +10946,7 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 
 
 		simplelist<integer> temp = 0, nothing
-		InferenceContext context = 0, 0, temp, false, 0, false
+		InferenceContext context = 0, 0, temp, false, 0, false, false
 		TypeInference(Functions.value, context)
 	}
 	else

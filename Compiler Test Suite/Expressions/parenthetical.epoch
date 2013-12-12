@@ -13,6 +13,7 @@ entrypoint :
 	foo(1 + (23 * bar() / 7) + baz())
 
 	assert(test == 4)
+	assert((test) == 4)
 
 	passtest()
 }
