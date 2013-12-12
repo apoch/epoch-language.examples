@@ -1,0 +1,38 @@
+//
+// MULTIPLEINSTANCE.EPOCH
+//
+// Test of instantiating templates with different arguments
+//
+
+type listnode<type T> : list<T> | nothing
+
+structure list<type T> :
+	T value,
+	listnode<T> next
+
+
+prepend<type T> : list<T> ref thelist, T value
+{
+	list<T> newlist = value, thelist
+	thelist = newlist
+}
+
+
+
+entrypoint :
+{
+	list<integer> numericlist = 42, nothing
+	prepend<integer>(numericlist, 666)
+	prepend<integer>(numericlist, 1)
+	
+	assert(numericlist.value == 1)
+	
+	list<string> textlist = "test", nothing
+	prepend<string>(textlist, "Foo")
+	prepend<string>(textlist, "Bar")
+	
+	assert(textlist.value == "Bar")
+	
+	passtest()
+}
+

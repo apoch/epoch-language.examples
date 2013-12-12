@@ -9253,6 +9253,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@integer16_to_integer")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000002)	// integer16 type signature
+			}
+		}
+	}
 	elseif(readablename == "writebuffer")
 	{
 		if(paramcount == 3)
@@ -9332,7 +9346,17 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 				simpleprepend<integer>(types, 0x01000004)	// real type signature
 			}
 		}
-	}	
+	}
+	elseif(readablename == "length")
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
 }
 
 
@@ -9636,9 +9660,17 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x01000001		// integer type signature
 	}
+	elseif(readablename == "cast@@integer16_to_integer")
+	{
+		returntype = 0x01000001		// integer type signature
+	}	
 	elseif(readablename == "cast@@integer_to_string")
 	{
 		returntype = 0x02000000		// string type signature
+	}
+	elseif(readablename == "length")
+	{
+		returntype = 0x01000001		// integer type signature
 	}
 }
 
@@ -10020,6 +10052,9 @@ InitBuiltInOverloads :
 	
 	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
 	prepend<Overload>(Overloads, castinttostr)
+	
+	Overload castint16toint = PoolString("cast"), PoolString("cast@@integer16_to_integer")
+	prepend<Overload>(Overloads, castint16toint)
 
 	Overload writebuffernormal = PoolString("writebuffer"), PoolString("writebuffer")
 	prepend<Overload>(Overloads, writebuffernormal)
@@ -10583,6 +10618,10 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		{
 			overloadname = PoolString("cast@@integer_to_string")
 		}
+		elseif((idtype == 0x01000001) && (origintype == 0x01000002))
+		{
+			overloadname = PoolString("cast@@integer16_to_integer")
+		}
 	}
 }
 
@@ -10793,6 +10832,13 @@ FindSumTypeTemplateAndInstantiate : list<TemplateSumType> ref templates, integer
 
 FindSumTypeTemplateAndInstantiate : nothing, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
+	integer t = GetTypeByName(defname)
+	if(t != 0)
+	{
+		instancename = defname
+		return()
+	}
+
 	string namestr = GetPooledString(GlobalStrings, defname)
 	print("Error - no template provided for '" ; namestr ; "', cannot create instance!")
 }
@@ -10870,12 +10916,23 @@ DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember
 	if(memvar.Name != 0)
 	{	
 		integer newtype = MapTemplateType(memvar.TypeNameHandle, params, args)
-		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, memvar.TemplateArgs
+		
+		TemplateArgumentList newargs = scratchtemplatearglist
+		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, newargs
+		CopyTemplateArgs(memvar.TemplateArgs, newmemvar.TemplateArgs)
 		RemapAllTemplateArguments(newmemvar.TemplateArgs, params, args)
 		StructureMember newmember = newmemvar
 		AppendStructureMember(out, out.next, newmember)
 	}
 }
+
+CopyTemplateArgs : TemplateArgumentList ref in, TemplateArgumentList ref out
+{
+	TemplateArgumentList copy = in
+	out = copy
+}
+
+CopyTemplateArgs : nothing, TemplateArgumentList ref out
 
 DoBaseTypeInstantiation : list<SumTypeBase> ref bases, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
@@ -10892,7 +10949,9 @@ InstantiateBaseType : SumTypeBase ref in, list<SumTypeBase> ref out, list<Templa
 	{
 		integer newtype = MapTemplateType(in.Name, params, args)
 		
-		SumTypeBase newbase = newtype, in.TemplateArgs
+		TemplateArgumentList newargs = scratchtemplatearglist
+		SumTypeBase newbase = newtype, newargs
+		CopyTemplateArgs(in.TemplateArgs, newbase.TemplateArgs)
 		RemapAllTemplateArguments(newbase.TemplateArgs, params, args)
 		prepend<SumTypeBase>(out, newbase)
 	}
@@ -11023,7 +11082,7 @@ MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string 
 
 MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, args.value.ReplaceWith)
 {
-	mangled = mangled; MangleTemplateArguments(args.next)
+	mangled = mangled ; MangleTemplateArguments(args.next)
 }
 
 MangleTemplateArguments : nothing -> ""
