@@ -1820,13 +1820,20 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 			else
 			{
 				integer literalvalue = cast(integer, term)
-				if(literalvalue != 0)
+				if(substring(term, 0, 2) == "0x")
 				{
 					IRAddLiteralInteger(literalvalue)
 				}
 				else
 				{
-					IRAddLiteralIdentifier(term)
+					if(literalvalue != 0)
+					{
+						IRAddLiteralInteger(literalvalue)
+					}
+					else
+					{
+						IRAddLiteralIdentifier(term)
+					}
 				}
 			}
 		}
@@ -2303,6 +2310,12 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 	
 	if((value & 0x7f000000) == 0x07000000)
 	{
+		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
+		{
+			ret = value
+			return()
+		}
+		
 		if(SumTypeHasBase(SumTypes, MakeNonReferenceType(value), MakeNonReferenceType(listval)))
 		{
 			ret = value
@@ -2312,6 +2325,12 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 	
 	if((listval & 0x7f000000) == 0x07000000)
 	{
+		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
+		{
+			ret = value
+			return()
+		}		
+		
 		if(SumTypeHasBase(SumTypes, listval, MakeNonReferenceType(value)))
 		{
 			ret = value
@@ -9136,6 +9155,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@integer_to_string")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}	
 }
 
 
@@ -9438,6 +9471,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(readablename == "cast@@real_to_integer")
 	{
 		returntype = 0x01000001		// integer type signature
+	}
+	elseif(readablename == "cast@@integer_to_string")
+	{
+		returntype = 0x02000000		// string type signature
 	}
 }
 
@@ -9797,6 +9834,9 @@ InitBuiltInOverloads :
 	
 	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer")
 	prepend<Overload>(Overloads, castrealtoint)
+	
+	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
+	prepend<Overload>(Overloads, castinttostr)
 }
 
 
@@ -10343,6 +10383,10 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		if((idtype == 0x01000001) && (origintype == 0x01000004))
 		{
 			overloadname = PoolString("cast@@real_to_integer")
+		}
+		elseif((idtype == 0x02000000) && (origintype == 0x01000001))
+		{
+			overloadname = PoolString("cast@@integer_to_string")
 		}
 	}
 }

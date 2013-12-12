@@ -10,6 +10,11 @@ entrypoint :
 	integer i = cast(integer, r)
 
 	assert(i == 42)
+	
+	
+	string test = cast(string, i) ; "test"
+	assert(test == "42test")
+	
 
 	passtest()
 }
