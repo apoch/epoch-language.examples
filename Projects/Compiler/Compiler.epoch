@@ -44,14 +44,6 @@ prepend<type T> : list<T> ref thelist, T ref value
 }
 
 
-getelement : simplelist<integer> ref thelist, integer index -> integer value = thelist.value
-{
-	if(index > 0)
-	{
-		value = getelement(thelist.next, index - 1)
-	}
-}
-
 
 
 
@@ -2275,7 +2267,8 @@ RegisterLiteralFunctionParam : real literalvalue
 
 map<type T> : list<T> ref thelist, (func : T)
 {
-	func(thelist.value)
+	// TODO - figure out why this expression doesn't coalesce correctly
+	//func(thelist.value)
 	map<T>(thelist.next, func)
 }
 
@@ -2380,21 +2373,6 @@ OnBytecodeEmitBytes : integer bytes, integer size
 	writebuffer(Hack, HackSize, bytes, size)
 	HackSize += size
 }
-
-
-//
-// Callback used to retrieve a bytecode stream's pointer
-//
-
-OnBytecodeGetBuffer : -> buffer ret = Hack
-
-
-//
-// Callback used to retrieve the size of a bytecode stream
-//
-
-OnBytecodeGetSize : -> integer size = HackSize
-
 
 
 OnBytecodeEmitInteger : integer value
@@ -3360,6 +3338,10 @@ StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varnam
 		{
 			size = 8
 		}
+		elseif(vartype == 0x01000003)
+		{
+			size = 1
+		}
 
 		integer offset = -1
 		if(origin == 1)			// VARIABLE_ORIGIN_PARAMETER
@@ -3679,7 +3661,8 @@ PlaceAtomInScratchExpression : ExpressionAtom ref atom
 	if(ExpressionAtomIsSentinel(ScratchExpressions.value.Atoms.value))
 	{
 		list<ExpressionAtom> atoms = atom, nothing
-		ScratchExpressions.value = Expression(atoms, 0)
+		Expression newexpr = atoms, 0
+		ScratchExpressions.value = newexpr
 	}
 	else
 	{
@@ -3842,7 +3825,8 @@ OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, i
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, lhsname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpressions.value = Expression(dummyatomlist, 0)
+	Expression blank = dummyatomlist, 0
+	ScratchExpressions.value = blank
 }
 
 
@@ -3875,7 +3859,8 @@ OnCodeGenAssignmentCompoundEnd :
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	ScratchExpressions.value = Expression(dummyatomlist, 0)
+	Expression blank = dummyatomlist, 0
+	ScratchExpressions.value = blank
 }
 
 
@@ -4358,10 +4343,13 @@ SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, nothing
 
 CodeGenEmitStrings : list<StringTableEntry> ref table
 {
-	map<StringTableEntry>(table, CodeGenEmitSingleString)
+	CodeGenEmitSingleString(table.value)
+	CodeGenEmitStrings(table.next)
 }
 
-CodeGenEmitSingleString : StringTableEntry entry			// TODO - this should be passed by ref
+CodeGenEmitStrings : nothing
+
+CodeGenEmitSingleString : StringTableEntry ref entry
 {
 	if(entry.Handle != 0)
 	{
@@ -4475,7 +4463,10 @@ CountScopeVariables : list<Variable> ref variables, integer ref count
 {
 	if(variables.value.Name != 0)
 	{
-		++count
+		if(variables.value.VarType != 0x00000004)
+		{
+			++count
+		}
 	}
 
 	CountScopeVariables(variables.next, count)
@@ -4503,14 +4494,16 @@ CodeGenEmitSingleVariable : Variable ref var, integer funcname
 			basetype = FindTypeAliasBase(TypeAliases, basetype)
 		}
 
-
-		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
+		if(basetype != 0x00000004)
 		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
-		}
-		else
-		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
+			if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
+			{
+				OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
+			}
+			else
+			{
+				OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
+			}
 		}
 	}
 }
@@ -4776,12 +4769,10 @@ CodeGenEmitSingleCodeBlockEntry : PreOpStatement ref preop
 	OnBytecodeInvoke(preop.Operator)
 	CodeGenEmitBindingsForOperand(preop.Operand)
 	OnBytecodeAssign()
-	// TODO - push extra copy of value LAST if in a parenthetical
 }
 
 CodeGenEmitSingleCodeBlockEntry : PostOpStatement ref postop
 {
-	// TODO - push extra copy of value FIRST if in a parenthetical
 	CodeGenEmitBindingsForOperand(postop.Operand)
 	OnBytecodeReadReference()
 	OnBytecodeInvoke(postop.Operator)
@@ -5022,7 +5013,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 				OnBytecodePushLiteralFunction(idatom.Handle)
 			}
 			else
-			{
+			{		
 				if(idatom.IsReference)
 				{	
 					integer frames = 0
@@ -5037,6 +5028,10 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 					if(frames == 0)
 					{
 						OnBytecodePushVarValue(idatom.Handle, idatom.Type)
+					}
+					elseif(IsReferenceType(idatom.Type))
+					{
+						OnBytecodeBindReference(frames, index)
 					}
 					else
 					{
@@ -5075,7 +5070,26 @@ CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
 
 CodeGenEmitSingleAtom : ParentheticalExpression ref expr, boolean constructor
 {
-	CodeGenEmitExpression(expr.Inner, false, false)
+	CodeGenDecomposeParenthetical(expr.Inner)
+}
+
+CodeGenDecomposeParenthetical : Expression ref expr
+{
+	CodeGenEmitExpression(expr, false, false)
+}
+
+CodeGenDecomposeParenthetical : PreOpStatement ref statement
+{
+	CodeGenEmitSingleCodeBlockEntry(statement)
+	CodeGenEmitBindingsForOperand(statement.Operand)
+	OnBytecodeReadReference()
+}
+
+CodeGenDecomposeParenthetical : PostOpStatement ref statement
+{
+	CodeGenEmitBindingsForOperand(statement.Operand)
+	OnBytecodeReadReference()
+	CodeGenEmitSingleCodeBlockEntry(statement)
 }
 
 CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
@@ -5489,7 +5503,7 @@ FindVariableInSingleScope : list<Variable> ref vars, integer varname, integer re
 {
 	if(vars.value.Name != varname)
 	{
-		if(vars.value.Name != 0)
+		if((vars.value.Name != 0) && (vars.value.VarType != 0x00000004))
 		{
 			++index
 		}
@@ -5526,7 +5540,7 @@ FindReturnVariableInSingleScope : list<Variable> ref vars, integer ref index
 {
 	if(vars.value.Origin != 2)		// VARIABLE_ORIGIN_RETURN
 	{
-		if(vars.value.Name != 0)
+		if((vars.value.Name != 0) && (vars.value.VarType != 0x00000004))
 		{
 			++index
 		}
@@ -6408,7 +6422,13 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
 	
 	if(paramtypenames.value != 0)
 	{
-		OnCodeGenRegisterFunctionSigParam(GetTypeByName(paramtypenames.value))		// TODO - defer higher order function parameter type resolution until type inference
+		integer paramtype = GetTypeByName(paramtypenames.value)
+		if(paramtype == 0)
+		{
+			paramtype = paramtypenames.value
+		}
+		
+		OnCodeGenRegisterFunctionSigParam(paramtype)		// TODO - defer higher order function parameter type resolution until type inference
 	}
 }
 
@@ -7277,11 +7297,6 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				success = false
 				print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-				
-				//print("Provided parameters:")
-				//DumpTypeList(paramtypes)
-				
-				//DumpAllOverloadParameters(Overloads, statement.Name)
 			}
 		}
 		
@@ -7392,6 +7407,21 @@ AddTypeAnnotation : Expression ref expr
 	ExpressionAtom wrap = atom
 	AppendAtomToExpression(expr.Atoms, expr.Atoms.next, wrap)
 }
+
+
+ExpressionIsAnnotated : list<ExpressionAtom> ref atoms -> boolean ret = false
+{
+	if(IsTypeAnnotationAtom(atoms.value))
+	{
+		ret = true
+	}
+	else
+	{
+		ret = ExpressionIsAnnotated(atoms.next)
+	}
+}
+
+ExpressionIsAnnotated : nothing -> false
 
 
 AccumulateParameterTypes : simplelist<integer> ref types, OptionalExpressionList ref exprs
@@ -7685,7 +7715,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
-		simpleprepend<integer>(ptypes, 0x02000001)
+		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	elseif(readablename == "writebuffer@@string")
@@ -7693,7 +7723,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x02000000)
 		simpleprepend<integer>(ptypes, 0x01000001)
-		simpleprepend<integer>(ptypes, 0x02000001)
+		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	elseif(readablename == "writebuffer@@multiple")
@@ -7701,14 +7731,14 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
 		simpleprepend<integer>(ptypes, 0x01000001)
-		simpleprepend<integer>(ptypes, 0x02000001)
+		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	elseif(readablename == "writebuffer@@real")
 	{
 		simplelist<integer> ptypes = 0x01000004, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
-		simpleprepend<integer>(ptypes, 0x02000001)
+		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	elseif(readablename == "unescape")
@@ -8415,7 +8445,7 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 }
 
 GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
-{	
+{
 	if(GetPooledString(GlobalStrings, atom.Handle) == "nothing")
 	{
 		atom.Type = 0x00000004
@@ -8478,6 +8508,25 @@ IsOperatorInvoke : Statement		   ref nonsentinel -> false
 IsOperatorInvoke : RefBinding              ref nonsentinel -> false
 IsOperatorInvoke : CompoundAtom		   ref nonsentinel -> false
 IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
+
+
+
+
+IsTypeAnnotationAtom : TypeAnnotationAtom 	   ref nonsentinel -> true
+
+IsTypeAnnotationAtom : AtomSentinel 	   ref sentinel    -> false
+IsTypeAnnotationAtom : StringHandleAtom 	   ref nonsentinel -> false
+IsTypeAnnotationAtom : IdentifierAtom 	   ref nonsentinel -> false
+IsTypeAnnotationAtom : integer 		   ref nonsentinel -> false
+IsTypeAnnotationAtom : integer16 		   ref nonsentinel -> false
+IsTypeAnnotationAtom : boolean 		   ref nonsentinel -> false
+IsTypeAnnotationAtom : real 		   ref nonsentinel -> false
+IsTypeAnnotationAtom : Statement		   ref nonsentinel -> false
+IsTypeAnnotationAtom : RefBinding              ref nonsentinel -> false
+IsTypeAnnotationAtom : CompoundAtom		   ref nonsentinel -> false
+IsTypeAnnotationAtom : ParentheticalExpression ref nonsentinel -> false
+IsTypeAnnotationAtom : OperatorInvokeAtom 	   ref nonsentinel -> false
+
 
 
 IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismemberaccess = false
@@ -8930,7 +8979,7 @@ DumpAtom : CompoundAtom            ref nonsentinel { print("Compound") }
 
 DumpAtom : Statement		   ref nonsentinel
 {
-	print("Statement")
+	print("Statement " ; GetPooledString(GlobalStrings, nonsentinel.Name))
 	print("BEGIN PARAMS")
 	DumpParameterAtoms(nonsentinel.Parameters)
 	print("END PARAMS")
@@ -9367,6 +9416,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(readablename == "cast@@string_to_real")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
 	elseif(readablename == "cast@@integer_to_string")
 	{
 		if(paramcount == 2)
@@ -9378,6 +9441,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			elseif(paramindex == 1)
 			{
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(readablename == "cast@@string_to_integer")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
 			}
 		}
 	}
@@ -9415,7 +9492,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 		{
 			if(paramindex == 0)
 			{
-				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
 			}
 			elseif(paramindex == 1)
 			{
@@ -9433,7 +9510,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 		{
 			if(paramindex == 0)
 			{
-				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
 			}
 			elseif(paramindex == 1)
 			{
@@ -9455,7 +9532,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 		{
 			if(paramindex == 0)
 			{
-				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
 			}
 			elseif(paramindex == 1)
 			{
@@ -9477,7 +9554,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 		{
 			if(paramindex == 0)
 			{
-				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
 			}
 			elseif(paramindex == 1)
 			{
@@ -9498,6 +9575,38 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 				simpleprepend<integer>(types, 0x02000000)	// string type signature
 			}
 		}
+	}
+	elseif(readablename == "widenfromptr")
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(readablename == "cmdlineget")
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}		
+	}
+	elseif(readablename == "cmdlinegetcount")
+	{
+		// no params
+	}
+	elseif(readablename == "cmdlineisvalid")
+	{
+		// no params
 	}
 }
 
@@ -9834,10 +9943,34 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(readablename == "cast@@real_to_string")
 	{
 		returntype = 0x02000000		// string type signature
-	}	
+	}
+	elseif(readablename == "cast@@string_to_real")
+	{
+		returntype = 0x01000004		// real type signature
+	}
+	elseif(readablename == "cast@@string_to_integer")
+	{
+		returntype = 0x01000001		// integer type signature
+	}
 	elseif(readablename == "length")
 	{
 		returntype = 0x01000001		// integer type signature
+	}
+	elseif(readablename == "cmdlineget")
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(readablename == "widenfromptr")
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(readablename == "cmdlinegetcount")
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(readablename == "cmdlineisvalid")
+	{
+		returntype = 0x01000003		// boolean type signature
 	}
 }
 
@@ -9991,6 +10124,42 @@ MakeParametersReferencesForConstructor : list<StructureDefinition> ref structure
 
 
 MakeParametersReferencesForConstructor : nothing, integer constructorname, ExpressionList ref params
+{
+	MakeParametersReferencesForBuiltIn(constructorname, params)
+}
+
+MakeParametersReferencesForBuiltIn : integer funcname, ExpressionList ref params
+{
+	string readablename = GetPooledString(GlobalStrings, funcname)
+	if(readablename == "writebuffer")
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(readablename == "writebuffer@@string")
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(readablename == "writebuffer@@multiple")
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(readablename == "writebuffer@@real")
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+}
 
 
 MakeParametersReferencesForStructureMembers : list<StructureMember> ref members, list<Expression> ref params -> boolean ret = true
@@ -10225,6 +10394,9 @@ InitBuiltInOverloads :
 	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
 	prepend<Overload>(Overloads, castinttostr)
 	
+	Overload caststrtoint = PoolString("cast"), PoolString("cast@@string_to_integer")
+	prepend<Overload>(Overloads, caststrtoint)
+
 	Overload castrealtostr = PoolString("cast"), PoolString("cast@@real_to_string")
 	prepend<Overload>(Overloads, castrealtostr)
 	
@@ -10236,6 +10408,9 @@ InitBuiltInOverloads :
 	
 	Overload castinttoint16 = PoolString("cast"), PoolString("cast@@integer_to_integer16")
 	prepend<Overload>(Overloads, castinttoint16)	
+
+	Overload caststrtoreal = PoolString("cast"), PoolString("cast@@string_to_real")
+	prepend<Overload>(Overloads, caststrtoreal)	
 
 	Overload writebuffernormal = PoolString("writebuffer"), PoolString("writebuffer")
 	prepend<Overload>(Overloads, writebuffernormal)
@@ -10410,6 +10585,10 @@ SignatureMatchesParams : list<Parameter> ref params, simplelist<integer> ref par
 	{
 		match = SignatureMatchesParams(params.next, paramtypes)
 	}
+	elseif(paramtypes.value == 0)
+	{
+		match = SignatureMatchesParams(params, paramtypes.next)
+	}
 	elseif(params.value.Type != GetTypeByName(paramtypes.value))
 	{
 		match = false
@@ -10439,7 +10618,7 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 		{
 			rettypename = GetNameOfType(rettype)
 		}
-		typeid = FindFunctionSignatureType(FunctionSignatures, paramtypes, rettypename)
+		typeid = FindOrCreateFunctionSignatureType(paramtypes, rettypename)
 	}
 	else
 	{
@@ -10824,7 +11003,15 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		elseif((idtype == 0x01000001) && (origintype == 0x01000003))
 		{
 			overloadname = PoolString("cast@@boolean_to_integer")
-		}	
+		}
+		elseif((idtype == 0x01000004) && (origintype == 0x02000000))
+		{
+			overloadname = PoolString("cast@@string_to_real")
+		}
+		elseif((idtype == 0x01000001) && (origintype == 0x02000000))
+		{
+			overloadname = PoolString("cast@@string_to_integer")
+		}
 	}
 }
 
@@ -11228,14 +11415,45 @@ DoParameterInstantiation : nothing, list<TemplateParameter> ref templateparams, 
 DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	integer newtype = MapTemplateType(params.value.TypeNameHandle, templateparams, templateargs)
-		
-	UnresolvedParameter p = params.value.NameHandle, newtype, params.value.ResolvedType, params.value.HasRefTag, params.value.PatternMatchValue, nothing
+	integer resolvedtype = params.value.ResolvedType
+	
+	if((resolvedtype & 0x7f000000) == 0x09000000)
+	{
+		resolvedtype = InstantiateFunctionSignature(FunctionSignatures, resolvedtype, templateparams, templateargs)
+		newtype = GetNameOfType(resolvedtype)
+	}
+	
+	UnresolvedParameter p = params.value.NameHandle, newtype, resolvedtype, params.value.HasRefTag, params.value.PatternMatchValue, nothing
 	PropagateTemplateArgsForParameter(p, params.value.TemplateArgs, templateparams, templateargs)
 	
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 	DoParameterInstantiation(params.next, templateparams, templateargs)
 }
+
+InstantiateFunctionSignature : list<FunctionSignature> ref sigs, integer targettype, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs -> integer ret = 0
+{
+	if(sigs.value.Name == targettype)
+	{
+		FunctionSignature clone = sigs.value
+		clone.ReturnTypeName = MapTemplateType(clone.ReturnTypeName, templateparams, templateargs)
+		RemapSignatureParamTypes(clone.Parameters, templateparams, templateargs)
+		
+		ret = FindOrCreateFunctionSignatureType(clone)
+	}
+	else
+	{
+		ret = InstantiateFunctionSignature(sigs.next, targettype, templateparams, templateargs)
+	}
+}
+
+RemapSignatureParamTypes : list<Parameter> ref parameters, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	parameters.value.Type = GetTypeByName(MapTemplateType(parameters.value.Type, templateparams, templateargs))	
+	RemapSignatureParamTypes(parameters.next, templateparams, templateargs)
+}
+
+RemapSignatureParamTypes : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 
 
 PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateParameter> ref params, list<TemplateArgument> ref args
@@ -11525,11 +11743,13 @@ structure tailhack :
 // EXE generation stuff
 //
 
+RoundUp : integer in -> integer out = ((in / 0x1000) + 1) * 0x1000
+
 WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
 
 MakeExe : string filename
 {
-	integer imagesize = 0x6000		// TODO - fix this! Actually compute virtual size taken by the image
+	integer imagesize = 0x5000 + RoundUp(HackSize)
 	integer resourcesize = 0
 
 
@@ -12198,7 +12418,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitByte(headerbuffer, headersize, 0x02)			// MajorLinkerVersion
 	EmitByte(headerbuffer, headersize, 0x00)			// MinorLinkerVersion
 	
-	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfCode
+	EmitInteger(headerbuffer, headersize, RoundUp(HackSize))			// SizeOfCode
 	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfInitializedData
 	EmitInteger(headerbuffer, headersize, 0)			// SizeOfUninitializedData
 	EmitInteger(headerbuffer, headersize, 0x2000)			// AddressOfEntryPoint
@@ -12224,10 +12444,10 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger16(headerbuffer, headersize, 3)			// Subsystem
 	EmitInteger16(headerbuffer, headersize, 0)			// DllCharacteristics
 
-	EmitInteger(headerbuffer, headersize, 0x10000)			// SizeOfStackReserve
-	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfStackCommit
-	EmitInteger(headerbuffer, headersize, 0x10000)			// SizeOfHeapReserve
-	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfHeapCommit
+	EmitInteger(headerbuffer, headersize, 0x800000)			// SizeOfStackReserve
+	EmitInteger(headerbuffer, headersize, 0x80000)			// SizeOfStackCommit
+	EmitInteger(headerbuffer, headersize, 0x500000)			// SizeOfHeapReserve
+	EmitInteger(headerbuffer, headersize, 0x50000)			// SizeOfHeapCommit
 	EmitInteger(headerbuffer, headersize, 0)			// LoaderFlags
 	EmitInteger(headerbuffer, headersize, 0x10)			// NumberOfRvaAndSizes
 	
