@@ -1,0 +1,29 @@
+//
+// MULTIPLECALLS.EPOCH
+//
+// Regression test for calling functions on both sides of a binary operator
+//
+
+
+type Dummy : string | integer
+
+
+foo : integer ignored -> integer ret = 21
+foo : string ignored -> integer ret = 21
+
+
+entrypoint :
+{
+	integer test = 0
+	
+	Dummy one = 666
+	Dummy two = "test"
+	
+	test = foo(one) + foo(two)
+	
+	assert(test == 42)
+	
+	passtest()
+}
+
+

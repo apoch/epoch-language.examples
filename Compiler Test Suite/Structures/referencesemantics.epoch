@@ -14,6 +14,11 @@ entrypoint :
 	test foo = 0
 	func(foo)
 	assert(foo.field == 42)
+	
+	test bar = 666
+	mutate(bar, foo)
+	assert(bar.field == 42)
+	
 	passtest()
 }
 
@@ -23,3 +28,7 @@ func : test ref param
 	param.field = 42
 }
 
+mutate : test ref a, test ref b
+{
+	a = b
+}

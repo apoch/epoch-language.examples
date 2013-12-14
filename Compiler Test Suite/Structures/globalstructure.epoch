@@ -1,0 +1,47 @@
+//
+// GLOBALSTRUCTURE.EPOCH
+//
+// Test of structure-typed global variables and some miscellaenous errata
+//
+
+
+structure Thing :
+	integer foo,
+	string bar
+
+structure Container :
+	Thing ref a,
+	integer b
+
+global
+{
+	boolean Waste = true
+	Thing GlobalThing = 42, "test"
+	
+	Container GlobalContainer = GlobalThing, 0
+}
+
+
+entrypoint :
+{
+	Container c = GlobalThing, 666
+	
+	assert(c.a.foo == 42)
+	assert(c.a.bar == "test")
+	assert(c.b == 666)
+	
+	Container d = Thing(42, "test"), 666
+	
+	assert(d.a.foo == 42)
+	assert(d.a.bar == "test")
+	assert(d.b == 666)
+	
+	GlobalContainer.a = Thing(666, GlobalThing.bar)
+
+	assert(GlobalContainer.a.foo == 666)
+	assert(GlobalContainer.a.bar == "test")
+	assert(GlobalContainer.b == 0)
+	
+	passtest()
+}
+

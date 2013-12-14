@@ -9,14 +9,19 @@ entrypoint :
 {
 	n = n + 1
 	assert(n == 42)
+	
+	assert(test == "foo")
+	
 	passtest()
 }
 
 
 
 global
-{
+{	boolean pad = true
 	integer n = 41
+	string test = "foo"
+	buffer hack = 42
 }
 
 
