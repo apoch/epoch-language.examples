@@ -1,0 +1,39 @@
+//
+// REFCOMPOUND.EPOCH
+//
+// Regression test for assignments and compound right-hand sides
+//
+
+
+structure Foo :
+	integer Field,
+	string Tag
+	
+structure Bar :
+	Foo ref WrappedA,
+	Foo ref WrappedB
+	
+	
+Process : Bar ref in, Foo ref out
+{
+	out = in.WrappedB
+}
+
+
+entrypoint :
+{
+	Foo alpha = 42, "Test"
+	Foo beta = 666, "Stuff"
+	
+	Bar gamma = alpha, beta
+	
+	Foo omega = 0, ""
+	
+	Process(gamma, omega)
+	
+	assert(omega.Field == 666)
+	assert(omega.Tag == "Stuff")
+	
+	passtest()
+}
+

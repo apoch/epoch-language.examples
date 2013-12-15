@@ -7534,9 +7534,12 @@ GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
 	{
 		if(!functions.value.IsTemplate)
 		{
-			if(AnyPendingTypeMatcherPointsToFunction(PendingTypeMatchers, functions.value.Name))
+			integer rawname = FindFunctionRawName(Overloads, functions.value.Name)
+			integer paramcount = CountUnresolvedParameters(functions.value.Params)
+		
+			if(AnyPendingTypeMatcherPointsToAnyOverload(Overloads, rawname, paramcount))
 			{
-				PopulateAllOverloadTypeMatchers(Overloads, functions.value.Name, CountUnresolvedParameters(functions.value.Params))
+				PopulateAllOverloadTypeMatchers(Overloads, functions.value.Name, paramcount)
 			}
 		}
 	}
@@ -7545,6 +7548,41 @@ GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
 }
 
 GenerateTypeMatcherMappings : nothing
+
+
+AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer rawname, integer paramcount -> boolean ret = false
+{
+	if(overloads.value.NormalName == rawname)
+	{
+		if(GetFunctionParameterCount(Functions, overloads.value.MangledName) == paramcount)
+		{
+			if(AnyPendingTypeMatcherPointsToFunction(PendingTypeMatchers, overloads.value.MangledName))
+			{
+				ret = true
+				return()
+			}
+		}
+	}
+	
+	ret = AnyPendingTypeMatcherPointsToAnyOverload(overloads.next, rawname, paramcount)
+}
+
+AnyPendingTypeMatcherPointsToAnyOverload : nothing, integer rawname, integer paramcount -> boolean ret = false
+
+
+FindFunctionRawName : list<Overload> ref overloads, integer targetmangledname -> integer rawname = 0
+{
+	if(overloads.value.MangledName == targetmangledname)
+	{
+		rawname = overloads.value.NormalName
+	}
+	else
+	{
+		rawname = FindFunctionRawName(overloads.next, targetmangledname)
+	}
+}
+
+FindFunctionRawName : nothing, integer targetmangledname -> integer rawname = targetmangledname
 
 
 AnyPendingTypeMatcherPointsToFunction : list<PendingTypeMatcher> ref pending, integer mangledname -> boolean ret = false
@@ -7631,7 +7669,7 @@ CountUnresolvedParametersUnwrapped : list<UnresolvedParameter> ref params -> int
 {
 	if(params.value.NameHandle != 0)
 	{
-		 ++count
+		++count
 	}
 	elseif(GetOptionalExpressionType(params.value.PatternMatchValue) != 0)
 	{
@@ -12605,7 +12643,6 @@ DumpOverloadList : list<Overload> ref overloads
 	DumpOverloadList(overloads.next)
 }
 
-DumpOverloadList : nothing
 
 DumpOverload : Overload ref overload
 {
