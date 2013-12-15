@@ -1350,9 +1350,11 @@ ParseFunctionParams : integer rawname, integer mangledname
 		if(typetoken == "nothing")
 		{
 			integer pooledhandle = PoolString(typetoken)
+			integer nothinghandle = PoolString("nothing@@" ; cast(string, GlobalNothingCounter))
+			++GlobalNothingCounter
 			
 			PopToken()
-			IRRegisterFunctionParam(pooledhandle, pooledhandle, false, false)
+			IRRegisterFunctionParam(nothinghandle, pooledhandle, false, false)
 		}
 		elseif(typetoken == "(")
 		{
@@ -2556,11 +2558,11 @@ OnBytecodePushVarValue : integer name, integer typeid
 	}
 	elseif(family == 0x03000000)			// Structure family signature
 	{
-		OnBytecodeCopyStructure()
+		//OnBytecodeCopyStructure()
 	}
 	elseif(family == 0x08000000)			// Template instance family signature
 	{
-		OnBytecodeCopyStructure()
+		//OnBytecodeCopyStructure()
 	}
 }
 
@@ -2876,7 +2878,8 @@ structure Statement :
 	OptionalExpressionList Parameters,
 	integer Type,
 	boolean TopLevel,
-	OptionalTemplateArgs TemplateArgs
+	OptionalTemplateArgs TemplateArgs,
+	boolean InferenceDone
 
 structure Assignment :
 	integer Operator,
@@ -3777,7 +3780,7 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 
 OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel, boolean hastemplateargs
 {
-	Statement statement = statementname, nothing, statementtype, toplevel, nothing
+	Statement statement = statementname, nothing, statementtype, toplevel, nothing, false
 	
 	if(hastemplateargs)
 	{
@@ -4463,10 +4466,7 @@ CountScopeVariables : list<Variable> ref variables, integer ref count
 {
 	if(variables.value.Name != 0)
 	{
-		if(variables.value.VarType != 0x00000004)
-		{
-			++count
-		}
+		++count
 	}
 
 	CountScopeVariables(variables.next, count)
@@ -4494,16 +4494,13 @@ CodeGenEmitSingleVariable : Variable ref var, integer funcname
 			basetype = FindTypeAliasBase(TypeAliases, basetype)
 		}
 
-		if(basetype != 0x00000004)
+		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
 		{
-			if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
-			{
-				OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
-			}
-			else
-			{
-				OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
-			}
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
+		}
+		else
+		{
+			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
 		}
 	}
 }
@@ -5183,7 +5180,8 @@ GetSizeOfStructureByType : nothing, integer typeid -> integer name = 0
 
 GetTotalMemberSize : list<StructureMember> ref members -> integer size = 0
 {
-	size = GetMemberSize(members.value) + GetTotalMemberSize(members.next)
+	integer recursedsize = GetTotalMemberSize(members.next)
+	size = GetMemberSize(members.value) + recursedsize
 }
 
 GetTotalMemberSize : nothing -> integer size = 0
@@ -5503,7 +5501,7 @@ FindVariableInSingleScope : list<Variable> ref vars, integer varname, integer re
 {
 	if(vars.value.Name != varname)
 	{
-		if((vars.value.Name != 0) && (vars.value.VarType != 0x00000004))
+		if(vars.value.Name != 0)
 		{
 			++index
 		}
@@ -5540,7 +5538,7 @@ FindReturnVariableInSingleScope : list<Variable> ref vars, integer ref index
 {
 	if(vars.value.Origin != 2)		// VARIABLE_ORIGIN_RETURN
 	{
-		if((vars.value.Name != 0) && (vars.value.VarType != 0x00000004))
+		if(vars.value.Name != 0)
 		{
 			++index
 		}
@@ -7218,6 +7216,14 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 
 TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
 {
+	if(statement.InferenceDone)
+	{
+		return()
+	}
+	
+	statement.InferenceDone = true
+
+	integer originalname = statement.Name
 	statement.Name = InstantiateFunctionTemplate(statement.Name, statement.TemplateArgs)
 
 	integer paramcount = CountExpressions(statement.Parameters)
@@ -7317,7 +7323,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		elseif(IsPendingTypeMatcher(PendingTypeMatchers, statement.Name))
 		{
-			AnnotateAllParameters(statement.Parameters)
+			AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
 		}
 	}
 }
@@ -7361,18 +7367,43 @@ DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcnam
 DumpFunctionParameters : nothing, integer funcname
 
 
-AnnotateAllParameters : ExpressionList ref exprs
+AnnotateAllParameters : ExpressionList ref exprs, integer statementname, integer paramindex, integer paramcount, boolean toplevel
 {
-	AnnotateAllParameters(exprs.Expressions)
+	AnnotateAllParameters(exprs.Expressions, statementname, paramindex, paramcount, toplevel)
 }
 
-AnnotateAllParameters : list<Expression> ref params
+AnnotateAllParameters : list<Expression> ref params, integer statementname, integer paramindex, integer paramcount, boolean toplevel
 {
-	AddTypeAnnotation(params.value)
-	AnnotateAllParameters(params.next)
+	if((params.value.Type & 0x7f000000) != 0x07000000)
+	{
+		AddTypeAnnotation(params.value)
+	}
+	elseif(IsRefBind(params.value.Atoms.value))
+	{
+		TypeAnnotationAtom atom = 5
+		ExpressionAtom wrap = atom
+		AppendAtomToExpression(params.value.Atoms, params.value.Atoms.next, wrap)
+	}
+	
+	AnnotateAllParameters(params.next, statementname, paramindex + 1, paramcount, toplevel)
 }
 
-AnnotateAllParameters : nothing
+AnnotateAllParameters : nothing, integer statementname, integer paramindex, integer paramcount, boolean toplevel
+
+
+AnyTypeIsReferenceType : simplelist<integer> ref types -> boolean isref = false
+{
+	if(IsReferenceType(types.value))
+	{
+		isref = true
+	}
+	else
+	{
+		isref = AnyTypeIsReferenceType(types.next)
+	}
+}
+
+AnyTypeIsReferenceType : nothing -> false
 
 
 AnnotateNonReferenceParameters : ExpressionList ref exprs
@@ -8510,6 +8541,20 @@ IsOperatorInvoke : CompoundAtom		   ref nonsentinel -> false
 IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
 
 
+IsRefBind : IdentifierAtom ref atom -> atom.IsReference
+IsRefBind : RefBinding ref atom -> true
+
+IsRefBind : TypeAnnotationAtom 	   ref nonsentinel -> false
+IsRefBind : AtomSentinel 	   ref sentinel    -> false
+IsRefBind : StringHandleAtom 	   ref nonsentinel -> false
+IsRefBind : integer 		   ref nonsentinel -> false
+IsRefBind : integer16 		   ref nonsentinel -> false
+IsRefBind : boolean 		   ref nonsentinel -> false
+IsRefBind : real 		   ref nonsentinel -> false
+IsRefBind : Statement		   ref nonsentinel -> false
+IsRefBind : CompoundAtom		   ref nonsentinel -> false
+IsRefBind : ParentheticalExpression ref nonsentinel -> false
+IsRefBind : OperatorInvokeAtom 	   ref nonsentinel -> false
 
 
 IsTypeAnnotationAtom : TypeAnnotationAtom 	   ref nonsentinel -> true
@@ -9607,6 +9652,11 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 	elseif(readablename == "cmdlineisvalid")
 	{
 		// no params
+	}
+	else
+	{
+		print(readablename ; " - not defined")
+		assert(false)
 	}
 }
 
@@ -10750,6 +10800,9 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 
 FindAssignmentOperator : integer operatorname, integer lhstype, integer rhstype -> integer overloadname = operatorname
 {
+	lhstype = MakeNonReferenceType(lhstype)
+	rhstype = MakeNonReferenceType(rhstype)
+
 	string readable = GetPooledString(GlobalStrings, operatorname)
 	if(readable == "+=")
 	{
@@ -11625,7 +11678,7 @@ InstantiateStatement : integer statementname, boolean inret, nothing, list<Templ
 
 InstantiateStatement : integer statementname, boolean inret, TemplateArgumentList ref args, list<TemplateArgument> ref templateargs
 {
-	Statement statement = statementname, nothing, 0, inret, args
+	Statement statement = statementname, nothing, 0, inret, args, false
 	PropagateTemplateArgsForStatement(statement, args, templateargs)
 	OnCodeGenEmplaceStatement(statement)
 }
@@ -12620,7 +12673,7 @@ global
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
 	Expression dummyexpression = dummyatomlist, 0
 	list<Expression> ScratchExpressions = dummyexpression, nothing
-	Statement dummystatement = 0, nothing, 0, false, nothing
+	Statement dummystatement = 0, nothing, 0, false, nothing, false
 	list<Statement> SubStatements = dummystatement, nothing
 
 	Parameter dummyparam = 0, 0
@@ -12725,6 +12778,8 @@ global
 	integer GlobalSumTypeCounter = 0x07000000
 	integer GlobalTemplateInstanceCounter = 0x08000000
 	integer GlobalFunctionTypeCounter = 0x09000000
+	
+	integer GlobalNothingCounter = 0
 }
 
 

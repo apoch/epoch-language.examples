@@ -1,0 +1,45 @@
+//
+// SUMTYPEREF.EPOCH
+//
+// Test of sum types and references
+//
+
+
+structure Alpha :
+	integer Field
+
+structure Beta :
+	string Field
+	
+	
+type Gamma : Alpha | Beta | nothing
+
+
+Test : Alpha ref a, Gamma ref g
+{
+	assert(a.Field == 42)
+}
+
+Test : Beta ref b, Gamma ref g
+{
+	assert(b.Field == "Test")
+}
+
+Test : nothing, Gamma ref g
+
+
+entrypoint :
+{
+	Alpha a = 42
+	Beta b = "Test"
+	
+	Gamma ga = a
+	Gamma gb = b
+	Gamma gg = nothing
+	
+	Test(ga, gg)
+	Test(gb, gg)
+	Test(gg, gg)
+	
+	passtest()
+}

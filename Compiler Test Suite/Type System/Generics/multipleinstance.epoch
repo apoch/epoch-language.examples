@@ -18,6 +18,28 @@ prepend<type T> : list<T> ref thelist, T value
 }
 
 
+pop<type T> : list<T> ref thelist, list<T> ref tail
+{
+	thelist = tail
+}
+
+pop<type T> : list<T> ref thelist, nothing
+{
+	assert(false)
+}
+
+
+TryPop :
+{
+	pop<string>(textlist, textlist.next)
+}
+
+
+global
+{
+	list<string> textlist = "test", nothing
+}
+
 
 entrypoint :
 {
@@ -27,11 +49,15 @@ entrypoint :
 	
 	assert(numericlist.value == 1)
 	
-	list<string> textlist = "test", nothing
+	
 	prepend<string>(textlist, "Foo")
 	prepend<string>(textlist, "Bar")
 	
 	assert(textlist.value == "Bar")
+	
+	TryPop()
+	
+	assert(textlist.value == "Foo")
 	
 	passtest()
 }

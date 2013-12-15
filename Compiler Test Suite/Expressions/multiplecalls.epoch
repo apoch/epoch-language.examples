@@ -5,12 +5,15 @@
 //
 
 
-type Dummy : string | integer
+type Dummy : string | integer | nothing
 
 
-foo : integer ignored -> integer ret = 21
-foo : string ignored -> integer ret = 21
+foo : integer ignored -> integer ret = 10
+foo : string ignored -> integer ret = 32
+foo : nothing -> integer ret = 42
 
+
+bar : Dummy ref d -> integer ret = foo(d)
 
 entrypoint :
 {
@@ -20,7 +23,13 @@ entrypoint :
 	Dummy two = "test"
 	
 	test = foo(one) + foo(two)
+	assert(test == 42)
 	
+	test = bar(one) + bar(two)
+	assert(test == 42)
+	
+	Dummy n = nothing
+	test = bar(n)
 	assert(test == 42)
 	
 	passtest()
