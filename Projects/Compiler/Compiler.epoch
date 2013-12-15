@@ -8543,6 +8543,7 @@ IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
 
 IsRefBind : IdentifierAtom ref atom -> atom.IsReference
 IsRefBind : RefBinding ref atom -> true
+IsRefBind : CompoundAtom		   ref nonsentinel -> true
 
 IsRefBind : TypeAnnotationAtom 	   ref nonsentinel -> false
 IsRefBind : AtomSentinel 	   ref sentinel    -> false
@@ -8552,7 +8553,6 @@ IsRefBind : integer16 		   ref nonsentinel -> false
 IsRefBind : boolean 		   ref nonsentinel -> false
 IsRefBind : real 		   ref nonsentinel -> false
 IsRefBind : Statement		   ref nonsentinel -> false
-IsRefBind : CompoundAtom		   ref nonsentinel -> false
 IsRefBind : ParentheticalExpression ref nonsentinel -> false
 IsRefBind : OperatorInvokeAtom 	   ref nonsentinel -> false
 
@@ -9652,11 +9652,6 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 	elseif(readablename == "cmdlineisvalid")
 	{
 		// no params
-	}
-	else
-	{
-		print(readablename ; " - not defined")
-		assert(false)
 	}
 }
 
