@@ -10112,7 +10112,7 @@ AnnotateTypeMatchedParamsFromConstructor : list<StructureMember> ref members, li
 	integer membertype = GetMemberTypeDecompose(members.value)
 	if((membertype & 0x7f000000) == 0x07000000)
 	{
-		if(paramexprs.value.Type != membertype)
+		if(MakeNonReferenceType(paramexprs.value.Type) != MakeNonReferenceType(membertype))
 		{
 			AddTypeAnnotation(paramexprs.value)
 		}

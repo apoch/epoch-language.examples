@@ -17,6 +17,9 @@ structure Bar :
 Process : Bar ref in, Foo ref out
 {
 	out = in.WrappedB
+	
+	Bar temp = out, out
+	assert(temp.WrappedA.Field == 666)
 }
 
 

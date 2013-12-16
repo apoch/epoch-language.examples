@@ -9,6 +9,26 @@ type listnode<type T> : list<T> | nothing
 structure list<type T> :
 	T value,
 	listnode<T> next
+	
+	
+type reflistnode<type T> : reflist<T> | nothing
+
+structure reflist<type T> :
+	T ref value,
+	reflistnode<T> next
+	
+	
+type variant : string | integer
+
+check : string ref s
+{
+	assert(s == "Test")
+}
+
+check : integer ref i
+{
+	assert(false)
+}
 
 
 prepend<type T> : list<T> ref thelist, T value
@@ -58,6 +78,10 @@ entrypoint :
 	TryPop()
 	
 	assert(textlist.value == "Foo")
+	
+	
+	reflist<variant> test = "Test", nothing
+	check(test.value)
 	
 	passtest()
 }

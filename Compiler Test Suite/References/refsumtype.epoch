@@ -1,0 +1,32 @@
+//
+// REFSUMTYPE.EPOCH
+//
+// Regression test for references to sum types
+//
+
+
+type Variant : string | integer
+
+
+structure Wrapper :
+	Variant a,
+	string tag
+
+
+test : Variant ref in, string ref intag
+{
+	Wrapper w = in, intag
+	
+	assert(w.tag == "Test")
+}
+
+	
+entrypoint :
+{
+	string str = "Test"
+	Variant foo = 42
+	test(foo, str)
+	
+	passtest()
+}
+
