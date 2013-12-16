@@ -8581,7 +8581,13 @@ IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
 
 IsRefBind : IdentifierAtom ref atom -> atom.IsReference
 IsRefBind : RefBinding ref atom -> true
-IsRefBind : CompoundAtom		   ref nonsentinel -> true
+IsRefBind : CompoundAtom		   ref nonsentinel -> boolean ret = true
+{
+	if(!IsReferenceType(nonsentinel.Type))
+	{
+		ret = false
+	}
+}
 
 IsRefBind : TypeAnnotationAtom 	   ref nonsentinel -> false
 IsRefBind : AtomSentinel 	   ref sentinel    -> false
@@ -10135,10 +10141,7 @@ AnnotateTypeMatchedParams : list<UnresolvedParameter> ref params, list<Expressio
 {
 	if((params.value.ResolvedType & 0x7f000000) == 0x07000000)
 	{
-		//if(paramexprs.value.Type != params.value.ResolvedType)
-		//{
-			AddTypeAnnotation(paramexprs.value)
-		//}
+		AddTypeAnnotation(paramexprs.value)
 	}
 
 	listnode<UnresolvedParameter> np = params.next
