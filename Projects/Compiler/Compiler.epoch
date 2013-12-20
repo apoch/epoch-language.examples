@@ -161,51 +161,111 @@ PrepareStringTable :
 {
 	integer counter = 0
 	OnCodeGenRegisterString((++counter), "+")
+	PooledStringHandleForPlus = counter
+	
 	OnCodeGenRegisterString((++counter), "-")
+	PooledStringHandleForMinus = counter
+	
 	OnCodeGenRegisterString((++counter), "*")
+	PooledStringHandleForMultiply = counter
+	
 	OnCodeGenRegisterString((++counter), "/")
+	PooledStringHandleForDivide = counter
+	
 	OnCodeGenRegisterString((++counter), "+=@@real")
 	OnCodeGenRegisterString((++counter), "+@@real")
 	OnCodeGenRegisterString((++counter), "-=@@real")
 	OnCodeGenRegisterString((++counter), "-@@real")
 	OnCodeGenRegisterString((++counter), "*@@real")
 	OnCodeGenRegisterString((++counter), "/@@real")
+	
 	OnCodeGenRegisterString((++counter), "+=@@integer")
+	PooledStringHandleForIncrementAssignInteger = counter
+	
 	OnCodeGenRegisterString((++counter), "+@@integer")
+	
 	OnCodeGenRegisterString((++counter), "-=@@integer")
+	PooledStringHandleForDecrementAssignInteger = counter
+	
 	OnCodeGenRegisterString((++counter), "-@@integer")
 	OnCodeGenRegisterString((++counter), "*@@integer")
 	OnCodeGenRegisterString((++counter), "/@@integer")
+	
 	OnCodeGenRegisterString((++counter), "++@@integer")
+	PooledStringHandleForPrePostIncrementInteger = counter
+	
 	OnCodeGenRegisterString((++counter), "--@@integer")
 	OnCodeGenRegisterString((++counter), "!@@integer")
 	OnCodeGenRegisterString((++counter), "++@@real")
 	OnCodeGenRegisterString((++counter), "--@@real")
+	
 	OnCodeGenRegisterString((++counter), "+=")
+	PooledStringHandleForIncrementAssign = counter
+	
 	OnCodeGenRegisterString((++counter), "-=")
+	PooledStringHandleForDecrementAssign = counter
+	
 	OnCodeGenRegisterString((++counter), "!")
+	PooledStringHandleForUnaryNot = counter
+	
 	OnCodeGenRegisterString((++counter), "++")
 	OnCodeGenRegisterString((++counter), "--")
+	
 	OnCodeGenRegisterString((++counter), "&")
+	PooledStringHandleForBitwiseAnd = counter
+	
 	OnCodeGenRegisterString((++counter), "&&")
+	PooledStringHandleForBooleanAnd = counter
+	
 	OnCodeGenRegisterString((++counter), "!@@boolean")
+	PooledStringHandleForUnaryNotBoolean = counter
+	
 	OnCodeGenRegisterString((++counter), "cmdlineisvalid")
 	OnCodeGenRegisterString((++counter), "cmdlinegetcount")
 	OnCodeGenRegisterString((++counter), "cmdlineget")
+	
 	OnCodeGenRegisterString((++counter), "==")
+	PooledStringHandleForEquality = counter
+	
 	OnCodeGenRegisterString((++counter), "!=")
+	PooledStringHandleForInequality = counter
+	
 	OnCodeGenRegisterString((++counter), ">")
+	PooledStringHandleForGreaterThan = counter
+	
 	OnCodeGenRegisterString((++counter), "<")
+	PooledStringHandleForLessThan = counter
+	
 	OnCodeGenRegisterString((++counter), "==@@integer")
+	PooledStringHandleForEqualityInteger = counter
+	
 	OnCodeGenRegisterString((++counter), "==@@integer16")
+	PooledStringHandleForEqualityInteger16 = counter
+
 	OnCodeGenRegisterString((++counter), "!=@@integer")
+	PooledStringHandleForInequalityInteger = counter
+
 	OnCodeGenRegisterString((++counter), "==@@boolean")
+	PooledStringHandleForEqualityBoolean = counter
+
 	OnCodeGenRegisterString((++counter), "!=@@boolean")
+	PooledStringHandleForInequalityBoolean = counter
+	
 	OnCodeGenRegisterString((++counter), "==@@string")
+	PooledStringHandleForEqualityString = counter
+	
 	OnCodeGenRegisterString((++counter), "!=@@string")
+	PooledStringHandleForInequalityString = counter
+	
 	OnCodeGenRegisterString((++counter), "==@@real")
+	PooledStringHandleForEqualityReal = counter
+	
 	OnCodeGenRegisterString((++counter), ">@@integer")
+	PooledStringHandleForGreaterThanInteger = counter
+	
 	OnCodeGenRegisterString((++counter), "<@@integer")
+	PooledStringHandleForLessThanInteger = counter
+	
 	OnCodeGenRegisterString((++counter), ">@@real")
 	OnCodeGenRegisterString((++counter), "<@@real")
 	OnCodeGenRegisterString((++counter), "print")
@@ -231,19 +291,38 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "writebuffer@@string")
 	OnCodeGenRegisterString((++counter), "writebuffer@@multiple")
 	OnCodeGenRegisterString((++counter), "writebuffer@@real")
+	
 	OnCodeGenRegisterString((++counter), "unescape")
+	PooledStringHandleForUnescape = counter
+	
 	OnCodeGenRegisterString((++counter), "substring")
+	
 	OnCodeGenRegisterString((++counter), "substring@@withlength")
+	PooledStringHandleForSubstringWithLength = counter
+	
 	OnCodeGenRegisterString((++counter), "substring@@nolength")
+	PooledStringHandleForSubstringNoLength = counter
+	
 	OnCodeGenRegisterString((++counter), ";")
+	PooledStringHandleForStringConcat = counter
+	
 	OnCodeGenRegisterString((++counter), "length")
 	OnCodeGenRegisterString((++counter), "narrowstring")
 	OnCodeGenRegisterString((++counter), "widenfromptr")
 	OnCodeGenRegisterString((++counter), "widenfrombuffer")
+	
 	OnCodeGenRegisterString((++counter), "string")
+	PooledStringHandleForString = counter
+
 	OnCodeGenRegisterString((++counter), "integer")
+	PooledStringHandleForInteger = counter
+
 	OnCodeGenRegisterString((++counter), "integer16")
+	PooledStringHandleForInteger16 = counter
+	
 	OnCodeGenRegisterString((++counter), "real")
+	PooledStringHandleForReal = counter
+	
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_string")
 	OnCodeGenRegisterString((++counter), "cast@@string_to_integer")
 	OnCodeGenRegisterString((++counter), "cast@@real_to_integer")
@@ -255,15 +334,35 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_integer16")
 	OnCodeGenRegisterString((++counter), "cast@@integer16_to_integer")
 	OnCodeGenRegisterString((++counter), "cast@@string_to_real")
+	
 	OnCodeGenRegisterString((++counter), "boolean")
+	PooledStringHandleForBoolean = counter
+	
 	OnCodeGenRegisterString((++counter), "buffer")
+	PooledStringHandleForBuffer = counter
+	
 	OnCodeGenRegisterString((++counter), "nothing")
+	PooledStringHandleForNothing = counter
+	
 	OnCodeGenRegisterString((++counter), "buffer@@copy")
+	
 	OnCodeGenRegisterString((++counter), "cast")
+	PooledStringHandleForCast = counter
+	
 	OnCodeGenRegisterString((++counter), ".")
+	PooledStringHandleForMemberAccess = counter
+	
 	OnCodeGenRegisterString((++counter), "identifier")
+	PooledStringHandleForIdentifier = counter
+	
 	OnCodeGenRegisterString((++counter), "function")
+	
+	OnCodeGenRegisterString((++counter), "@@anonymousret")
+	PooledStringHandleForAnonymousRet = counter
 
+	OnCodeGenRegisterString((++counter), "=")
+	PooledStringHandleForAssignment = counter
+	
 	CurrentStringHandle = counter + 1
 }
 
@@ -2558,7 +2657,7 @@ OnBytecodePushVarValue : integer name, integer typeid
 	}
 	elseif(family == 0x03000000)			// Structure family signature
 	{
-		//OnBytecodeCopyStructure()
+		//OnBytecodeCopyStructure()		// TODO - un-break value semantics!
 	}
 	elseif(family == 0x08000000)			// Template instance family signature
 	{
@@ -4665,8 +4764,7 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 {
 	boolean sideeffects = false
 	
-	string op = substring(GetPooledString(GlobalStrings, a.Operator), 0, 1)
-	if(op != "=")			// TODO - Pathetic hack
+	if(a.Operator != PooledStringHandleForAssignment)
 	{
 		sideeffects = true
 		CodeGenEmitBindingsForVariable(a.LHSName)
@@ -4702,7 +4800,7 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 {
 	boolean sideeffects = false
-	if(GetPooledString(GlobalStrings, a.Operator) != "=")
+	if(a.Operator != PooledStringHandleForAssignment)
 	{
 		sideeffects = true
 		CodeGenEmitBindingsForOperand(a.LHS)
@@ -5916,7 +6014,7 @@ EmitCtorTag : integer funcname
 
 EmitConstructor : StructureDefinition ref def
 {
-	integer idhandle = FindString(GlobalStrings, "identifier")
+	integer idhandle = PooledStringHandleForIdentifier
 
 	OnBytecodeLexicalScope(def.ConstructorName, 0, CountMembers(def.Members) + 1)
 	OnBytecodeLexicalScopeEntry(idhandle, 0x81000000, 1)
@@ -5953,7 +6051,7 @@ EmitAnonConstructor : StructureDefinition ref def
 EmitCopyConstructor : StructureDefinition ref def
 {
 	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
-	OnBytecodeLexicalScopeEntry(FindString(GlobalStrings, "identifier"), 0x81000000, 1)
+	OnBytecodeLexicalScopeEntry(PooledStringHandleForIdentifier, 0x81000000, 1)
 	OnBytecodeLexicalScopeEntry(def.Name, def.Type, 1)
 
 	OnBytecodeEnterFunction(def.CopyConstructorName)
@@ -6040,35 +6138,35 @@ GetNameOfType : integer typeid -> integer name = 0
 	typeid = MakeNonReferenceType(typeid)
 	if(typeid == 0x01000001)
 	{
-		name = FindString(GlobalStrings, "integer")
+		name = PooledStringHandleForInteger
 	}
 	elseif(typeid == 0x01000002)
 	{
-		name = FindString(GlobalStrings, "integer16")
+		name = PooledStringHandleForInteger16
 	}
 	elseif(typeid == 0x01000003)
 	{
-		name = FindString(GlobalStrings, "boolean")
+		name = PooledStringHandleForBoolean
 	}
 	elseif(typeid == 0x01000004)
 	{
-		name = FindString(GlobalStrings, "real")
+		name = PooledStringHandleForReal
 	}
 	elseif(typeid == 0x02000000)
 	{
-		name = FindString(GlobalStrings, "string")
+		name = PooledStringHandleForString
 	}
 	elseif(typeid == 0x02000001)
 	{
-		name = FindString(GlobalStrings, "buffer")
+		name = PooledStringHandleForBuffer
 	}
 	elseif(typeid == 0x00000004)
 	{
-		name = FindString(GlobalStrings, "nothing")
+		name = PooledStringHandleForNothing
 	}
 	elseif(typeid == 0x01000000)
 	{
-		name = FindString(GlobalStrings, "identifier")
+		name = PooledStringHandleForIdentifier
 	}
 	elseif(IsStructureType(typeid))
 	{
@@ -6099,35 +6197,35 @@ GetTypeByName : integer name -> integer typeid = 0
 	}
 	name = unaliasedname
 
-	if(name == FindString(GlobalStrings, "identifier"))
+	if(name == PooledStringHandleForIdentifier)
 	{
 		typeid = 0x01000000
 	}
-	elseif(name == FindString(GlobalStrings, "integer"))
+	elseif(name == PooledStringHandleForInteger)
 	{
 		typeid = 0x01000001
 	}
-	elseif(name == FindString(GlobalStrings, "integer16"))
+	elseif(name == PooledStringHandleForInteger16)
 	{
 		typeid = 0x01000002
 	}
-	elseif(name == FindString(GlobalStrings, "boolean"))
+	elseif(name == PooledStringHandleForBoolean)
 	{
 		typeid = 0x01000003
 	}
-	elseif(name == FindString(GlobalStrings, "real"))
+	elseif(name == PooledStringHandleForReal)
 	{
 		typeid = 0x01000004
 	}
-	elseif(name == FindString(GlobalStrings, "string"))
+	elseif(name == PooledStringHandleForString)
 	{
 		typeid = 0x02000000
 	}
-	elseif(name == FindString(GlobalStrings, "nothing"))
+	elseif(name == PooledStringHandleForNothing)
 	{
 		typeid = 0x00000004
 	}
-	elseif(name == FindString(GlobalStrings, "buffer"))
+	elseif(name == PooledStringHandleForBuffer)
 	{
 		typeid = 0x02000001
 	}
@@ -7084,7 +7182,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	{
 		if(func.AnonymousReturn)
 		{
-			OnCodeGenRegisterVariable(func.Name, PoolString("@@anonymousret"), rettype, 2)
+			OnCodeGenRegisterVariable(func.Name, PooledStringHandleForAnonymousRet, rettype, 2)
 		}
 	}
 	
@@ -7281,8 +7379,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		simplelist<integer> paramtypes = 0, nothing
 		AccumulateParameterTypes(paramtypes, statement.Parameters)
 		
-		// This is the worst hack EVER.
-		if(GetPooledString(GlobalStrings, statement.Name) == "cast")
+		if(statement.Name == PooledStringHandleForCast)
 		{
 			statement.Name = GetCastOverload(statement.Parameters)
 			
@@ -7539,7 +7636,7 @@ GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
 		
 			if(AnyPendingTypeMatcherPointsToAnyOverload(Overloads, rawname, paramcount))
 			{
-				PopulateAllOverloadTypeMatchers(Overloads, functions.value.Name, paramcount)
+				PopulateAllOverloadTypeMatchers(Overloads, rawname, paramcount)
 			}
 		}
 	}
@@ -7616,15 +7713,15 @@ GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer func
 GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 {
 	string readablename = GetPooledString(GlobalStrings, funcname)
-	if(readablename == "substring@@withlength")
+	if(funcname == PooledStringHandleForSubstringWithLength)
 	{
 		count = 3
 	}
-	elseif(readablename == "substring@@nolength")
+	elseif(funcname == PooledStringHandleForSubstringNoLength)
 	{
 		count = 2
 	}
-	elseif(readablename == "unescape")
+	elseif(funcname == PooledStringHandleForUnescape)
 	{
 		count = 1
 	}
@@ -7702,8 +7799,8 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 	string readablename = GetPooledString(GlobalStrings, rawname)
 	if(readablename == "substring")
 	{
-		integer withlen = PoolString("substring@@withlength")
-		integer nolen = PoolString("substring@@nolength")
+		integer withlen = PooledStringHandleForSubstringWithLength
+		integer nolen = PooledStringHandleForSubstringNoLength
 		
 		if(FunctionMatchesParameterTypes(nothing, withlen, types))
 		{
@@ -7767,14 +7864,14 @@ FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer 
 FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> ref types -> boolean match = false
 {
 	string readablename = GetPooledString(GlobalStrings, funcname)
-	if(readablename == "substring@@withlength")
+	if(funcname == PooledStringHandleForSubstringWithLength)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
 		simpleprepend<integer>(ptypes, 0x02000000)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "substring@@nolength")
+	elseif(funcname == PooledStringHandleForSubstringNoLength)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x02000000)
@@ -7810,7 +7907,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "unescape")
+	elseif(funcname == PooledStringHandleForUnescape)
 	{
 		simplelist<integer> ptypes = 0x02000000, nothing
 		match = CheckParameterTypesForMatch(types, ptypes)
@@ -8515,7 +8612,7 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 
 GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, integer funcname, boolean funcret, boolean parenthetical
 {
-	if(GetPooledString(GlobalStrings, atom.Handle) == "nothing")
+	if(atom.Handle == PooledStringHandleForNothing)
 	{
 		atom.Type = 0x00000004
 		AddPossibleParameter(possibilities.Types, 0x00000004)
@@ -8620,7 +8717,7 @@ IsTypeAnnotationAtom : OperatorInvokeAtom 	   ref nonsentinel -> false
 
 IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismemberaccess = false
 {
-	if(GetPooledString(GlobalStrings, nonsentinel.OperatorName) == ".")
+	if(nonsentinel.OperatorName == PooledStringHandleForMemberAccess)
 	{
 		ismemberaccess = true
 	}
@@ -8815,8 +8912,7 @@ ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
 
 IsUnaryOperator : OperatorInvokeAtom ref atom -> boolean isunary = false
 {
-	string basename = GetPooledString(GlobalStrings, atom.OperatorName)
-	if(basename == "!")
+	if(atom.OperatorName == PooledStringHandleForUnaryNot)
 	{
 		isunary = true
 	}
@@ -8825,62 +8921,61 @@ IsUnaryOperator : OperatorInvokeAtom ref atom -> boolean isunary = false
 
 GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
 {
-	string basename = GetPooledString(GlobalStrings, atom.OperatorName)
-	if(basename == "==")
+	if(atom.OperatorName == PooledStringHandleForEquality)
 	{
 		precedence = 0
 	}
-	elseif(basename == "!=")
+	elseif(atom.OperatorName == PooledStringHandleForInequality)
 	{
 		precedence = 0
 	}
-	elseif(basename == ">")
+	elseif(atom.OperatorName == PooledStringHandleForGreaterThan)
 	{
 		precedence = 0
 	}
-	elseif(basename == "<")
+	elseif(atom.OperatorName == PooledStringHandleForLessThan)
 	{
 		precedence = 0
 	}
-	elseif(basename == "&&")
+	elseif(atom.OperatorName == PooledStringHandleForBooleanAnd)
 	{
 		precedence = 0
 	}
-	elseif(basename == "&")
+	elseif(atom.OperatorName == PooledStringHandleForBitwiseAnd)
 	{
 		precedence = 1		// TODO - revisit all operator precedences
 	}
-	elseif(basename == ";")
+	elseif(atom.OperatorName == PooledStringHandleForStringConcat)
 	{
 		precedence = 3
 	}
-	elseif(basename == "+")
+	elseif(atom.OperatorName == PooledStringHandleForPlus)
 	{
 		precedence = 5
 	}
-	elseif(basename == "-")
+	elseif(atom.OperatorName == PooledStringHandleForMinus)
 	{
 		precedence = 5
 	}
-	elseif(basename == "*")
+	elseif(atom.OperatorName == PooledStringHandleForMultiply)
 	{
 		precedence = 9
 	}
-	elseif(basename == "/")
+	elseif(atom.OperatorName == PooledStringHandleForDivide)
 	{
 		precedence = 9
 	}
-	elseif(basename == "!")
+	elseif(atom.OperatorName == PooledStringHandleForUnaryNot)
 	{
 		precedence = 10
 	}
-	elseif(basename == ".")
+	elseif(atom.OperatorName == PooledStringHandleForMemberAccess)
 	{
 		precedence = 11
 	}
 	else
 	{
-		print("Unknown operator " ; basename)
+		print("Unknown operator " ; GetPooledString(GlobalStrings, atom.OperatorName))
 		assert(false)
 	}
 }
@@ -9106,61 +9201,60 @@ DumpParameterAtoms : nothing
 
 AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossibility> ref possibilities
 {
-	string basename = GetPooledString(GlobalStrings, basenamehandle)
-	if(basename == "==")
+	if(basenamehandle == PooledStringHandleForEquality)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer"),   0x01000001, 0x01000001, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@integer16"), 0x01000002, 0x01000002, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@boolean"),   0x01000003, 0x01000003, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@real"),      0x01000004, 0x01000004, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "==@@string"),    0x02000000, 0x02000000, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityInteger,   0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityInteger16, 0x01000002, 0x01000002, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityBoolean,   0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityReal,      0x01000004, 0x01000004, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityString,    0x02000000, 0x02000000, 0x01000003)
 	}
-	elseif(basename == "!=")
+	elseif(basenamehandle == PooledStringHandleForInequality)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "!=@@integer"), 0x01000001, 0x01000001, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "!=@@boolean"), 0x01000003, 0x01000003, 0x01000003)
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "!=@@string"),  0x02000000, 0x02000000, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityInteger, 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityBoolean, 0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityString,  0x02000000, 0x02000000, 0x01000003)
 	}
-	elseif(basename == ">")
+	elseif(basenamehandle == PooledStringHandleForGreaterThan)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, ">@@integer"), 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForGreaterThanInteger, 0x01000001, 0x01000001, 0x01000003)
 	}
-	elseif(basename == "<")
+	elseif(basenamehandle == PooledStringHandleForLessThan)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "<@@integer"), 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForLessThanInteger, 0x01000001, 0x01000001, 0x01000003)
 	}	
-	elseif(basename == "+")
+	elseif(basenamehandle == PooledStringHandleForPlus)
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@integer"), 0x01000001, 0x01000001, 0x01000001)
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "+@@real"), 0x01000004, 0x01000004, 0x01000004)
 	}
-	elseif(basename == "-")
+	elseif(basenamehandle == PooledStringHandleForMinus)
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "-@@integer"), 0x01000001, 0x01000001, 0x01000001)
 	}
-	elseif(basename == "*")
+	elseif(basenamehandle == PooledStringHandleForMultiply)
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "*@@integer"), 0x01000001, 0x01000001, 0x01000001)
 	}
-	elseif(basename == "/")
+	elseif(basenamehandle == PooledStringHandleForDivide)
 	{
 		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "/@@integer"), 0x01000001, 0x01000001, 0x01000001)
 	}
-	elseif(basename == "&")
+	elseif(basenamehandle == PooledStringHandleForBitwiseAnd)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&"), 0x01000001, 0x01000001, 0x01000001)
+		AddBinaryPossibility(possibilities, PooledStringHandleForBitwiseAnd, 0x01000001, 0x01000001, 0x01000001)
 	}
-	elseif(basename == "&&")
+	elseif(basenamehandle == PooledStringHandleForBooleanAnd)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, "&&"), 0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForBooleanAnd, 0x01000003, 0x01000003, 0x01000003)
 	}
-	elseif(basename == ";")
+	elseif(basenamehandle == PooledStringHandleForStringConcat)
 	{
-		AddBinaryPossibility(possibilities, FindString(GlobalStrings, ";"), 0x02000000, 0x02000000, 0x02000000)
+		AddBinaryPossibility(possibilities, PooledStringHandleForStringConcat, 0x02000000, 0x02000000, 0x02000000)
 	}
-	elseif(basename == "!")
+	elseif(basenamehandle == PooledStringHandleForUnaryNot)
 	{
-		AddUnaryPossibility(possibilities, FindString(GlobalStrings, "!@@boolean"), 0x01000003, 0x01000003)
+		AddUnaryPossibility(possibilities, PooledStringHandleForUnaryNotBoolean, 0x01000003, 0x01000003)
 	}
 	else
 	{
@@ -9327,7 +9421,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "integer")
+	elseif(funcname == PooledStringHandleForInteger)
 	{
 		if(paramcount == 2)
 		{
@@ -9341,7 +9435,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "integer16")
+	elseif(funcname == PooledStringHandleForInteger16)
 	{
 		if(paramcount == 2)
 		{
@@ -9355,7 +9449,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "boolean")
+	elseif(funcname == PooledStringHandleForBoolean)
 	{
 		if(paramcount == 2)
 		{
@@ -9369,7 +9463,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "real")
+	elseif(funcname == PooledStringHandleForReal)
 	{
 		if(paramcount == 2)
 		{
@@ -9383,7 +9477,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "string")
+	elseif(funcname == PooledStringHandleForString)
 	{
 		if(paramcount == 2)
 		{
@@ -9397,7 +9491,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "buffer")
+	elseif(funcname == PooledStringHandleForBuffer)
 	{
 		if(paramcount == 2)
 		{
@@ -9421,7 +9515,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "unescape")
+	elseif(funcname == PooledStringHandleForUnescape)
 	{
 		if(paramcount == 1)
 		{
@@ -9431,7 +9525,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "substring@@withlength")
+	elseif(funcname == PooledStringHandleForSubstringWithLength)
 	{
 		if(paramcount == 3)
 		{
@@ -9449,7 +9543,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "substring@@nolength")
+	elseif(funcname == PooledStringHandleForSubstringNoLength)
 	{
 		if(paramcount == 2)
 		{
@@ -9997,15 +10091,15 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x02000001		// buffer type signature
 	}
-	elseif(readablename == "unescape")
+	elseif(builtinname == PooledStringHandleForUnescape)
 	{
 		returntype = 0x02000000		// string type signature
 	}	
-	elseif(readablename == "substring@@withlength")
+	elseif(builtinname == PooledStringHandleForSubstringWithLength)
 	{
 		returntype = 0x02000000		// string type signature
 	}
-	elseif(readablename == "substring@@nolength")
+	elseif(builtinname == PooledStringHandleForSubstringNoLength)
 	{
 		returntype = 0x02000000		// string type signature
 	}
@@ -10468,10 +10562,10 @@ StripDemotedTypes : nothing, simplelist<integer> ref out
 
 InitBuiltInOverloads :
 {
-	Overload substrlength = PoolString("substring"), PoolString("substring@@withlength")
+	Overload substrlength = PoolString("substring"), PooledStringHandleForSubstringWithLength
 	prepend<Overload>(Overloads, substrlength)
 
-	Overload substrnolen = PoolString("substring"), PoolString("substring@@nolength")
+	Overload substrnolen = PoolString("substring"), PooledStringHandleForSubstringNoLength
 	prepend<Overload>(Overloads, substrnolen)
 	
 	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer")
@@ -10822,7 +10916,7 @@ FindPrePostOperatorOverload : integer operatorname, integer operandtype -> integ
 	{
 		if(operandtype == 0x01000001)
 		{
-			overloadname = FindString(GlobalStrings, "++@@integer")
+			overloadname = PooledStringHandleForPrePostIncrementInteger
 		}
 	}
 	elseif(readable == "--")
@@ -10839,19 +10933,18 @@ FindAssignmentOperator : integer operatorname, integer lhstype, integer rhstype 
 	lhstype = MakeNonReferenceType(lhstype)
 	rhstype = MakeNonReferenceType(rhstype)
 
-	string readable = GetPooledString(GlobalStrings, operatorname)
-	if(readable == "+=")
+	if(operatorname == PooledStringHandleForIncrementAssign)
 	{
 		if((lhstype == 0x01000001) && (rhstype == 0x01000001))
 		{
-			overloadname = FindString(GlobalStrings, "+=@@integer")
+			overloadname = PooledStringHandleForIncrementAssignInteger
 		}
 	}
-	elseif(readable == "-=")
+	elseif(operatorname == PooledStringHandleForDecrementAssign)
 	{
 		if((lhstype == 0x01000001) && (rhstype == 0x01000001))
 		{
-			overloadname = FindString(GlobalStrings, "-=@@integer")
+			overloadname = PooledStringHandleForDecrementAssignInteger
 		}
 	}
 }
@@ -12815,6 +12908,50 @@ global
 	integer GlobalFunctionTypeCounter = 0x09000000
 	
 	integer GlobalNothingCounter = 0
+	
+	integer PooledStringHandleForBoolean = 0
+	integer PooledStringHandleForInteger = 0
+	integer PooledStringHandleForInteger16 = 0
+	integer PooledStringHandleForString = 0
+	integer PooledStringHandleForReal = 0
+	integer PooledStringHandleForBuffer = 0
+	integer PooledStringHandleForNothing = 0
+	integer PooledStringHandleForIdentifier = 0
+	integer PooledStringHandleForAnonymousRet = 0
+	integer PooledStringHandleForAssignment = 0
+	integer PooledStringHandleForCast = 0
+	integer PooledStringHandleForMemberAccess = 0
+	integer PooledStringHandleForSubstringWithLength = 0
+	integer PooledStringHandleForSubstringNoLength = 0
+	integer PooledStringHandleForUnescape = 0
+	integer PooledStringHandleForUnaryNot = 0
+	integer PooledStringHandleForUnaryNotBoolean = 0
+	integer PooledStringHandleForIncrementAssign = 0
+	integer PooledStringHandleForIncrementAssignInteger = 0
+	integer PooledStringHandleForDecrementAssign = 0
+	integer PooledStringHandleForDecrementAssignInteger = 0
+	integer PooledStringHandleForEquality = 0
+	integer PooledStringHandleForInequality = 0
+	integer PooledStringHandleForGreaterThan = 0
+	integer PooledStringHandleForLessThan = 0
+	integer PooledStringHandleForBooleanAnd = 0
+	integer PooledStringHandleForBitwiseAnd = 0
+	integer PooledStringHandleForStringConcat = 0
+	integer PooledStringHandleForPlus = 0
+	integer PooledStringHandleForMinus = 0
+	integer PooledStringHandleForMultiply = 0
+	integer PooledStringHandleForDivide = 0
+	integer PooledStringHandleForEqualityInteger = 0
+	integer PooledStringHandleForEqualityInteger16 = 0
+	integer PooledStringHandleForEqualityBoolean = 0
+	integer PooledStringHandleForEqualityReal = 0
+	integer PooledStringHandleForEqualityString = 0
+	integer PooledStringHandleForInequalityInteger = 0
+	integer PooledStringHandleForInequalityBoolean = 0
+	integer PooledStringHandleForInequalityString = 0
+	integer PooledStringHandleForGreaterThanInteger = 0
+	integer PooledStringHandleForLessThanInteger = 0
+	integer PooledStringHandleForPrePostIncrementInteger = 0
 }
 
 
