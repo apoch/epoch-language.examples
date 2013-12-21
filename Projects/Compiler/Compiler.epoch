@@ -287,15 +287,24 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "nogc")
 	OnCodeGenRegisterString((++counter), "sizeof")
 	OnCodeGenRegisterString((++counter), "marshalstructure")
+	
 	OnCodeGenRegisterString((++counter), "writebuffer")
+	PooledStringHandleForWriteBuffer = counter
+	
 	OnCodeGenRegisterString((++counter), "writebuffer@@string")
+	PooledStringHandleForWriteBufferString = counter
+	
 	OnCodeGenRegisterString((++counter), "writebuffer@@multiple")
+	PooledStringHandleForWriteBufferMultiple = counter
+	
 	OnCodeGenRegisterString((++counter), "writebuffer@@real")
+	PooledStringHandleForWriteBufferReal = counter
 	
 	OnCodeGenRegisterString((++counter), "unescape")
 	PooledStringHandleForUnescape = counter
 	
 	OnCodeGenRegisterString((++counter), "substring")
+	PooledStringHandleForSubstring = counter
 	
 	OnCodeGenRegisterString((++counter), "substring@@withlength")
 	PooledStringHandleForSubstringWithLength = counter
@@ -7073,9 +7082,9 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	}
 	
 	string readablename = GetPooledString(GlobalStrings, structuredef.Name)
-	integer ctorname = PoolString(readablename ; "@@constructor")
-	integer anonname = PoolString(readablename ; "@@anonconstructor")
-	integer copyname = PoolString(readablename ; "@@copyconstructor")
+	integer ctorname = PoolStringFast(readablename ; "@@constructor")
+	integer anonname = PoolStringFast(readablename ; "@@anonconstructor")
+	integer copyname = PoolStringFast(readablename ; "@@copyconstructor")
 	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
 	
 	Overload anonoverload = ctorname, anonname
@@ -7712,7 +7721,6 @@ GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer func
 
 GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 {
-	string readablename = GetPooledString(GlobalStrings, funcname)
 	if(funcname == PooledStringHandleForSubstringWithLength)
 	{
 		count = 3
@@ -7725,19 +7733,19 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1
 	{
 		count = 1
 	}
-	elseif(readablename == "writebuffer")
+	elseif(funcname == PooledStringHandleForWriteBuffer)
 	{
 		count = 3
 	}
-	elseif(readablename == "writebuffer@@string")
+	elseif(funcname == PooledStringHandleForWriteBufferString)
 	{
 		count = 4
 	}
-	elseif(readablename == "writebuffer@@multiple")
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
 	{
 		count = 4
 	}
-	elseif(readablename == "writebuffer@@real")
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
 	{
 		count = 3
 	}
@@ -7796,8 +7804,7 @@ CheckForNeededTypeMatcher : nothing -> false
 
 FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> ref types -> integer overloadname = 0
 {
-	string readablename = GetPooledString(GlobalStrings, rawname)
-	if(readablename == "substring")
+	if(rawname == PooledStringHandleForSubstring)
 	{
 		integer withlen = PooledStringHandleForSubstringWithLength
 		integer nolen = PooledStringHandleForSubstringNoLength
@@ -7811,12 +7818,12 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 			overloadname = nolen
 		}
 	}
-	elseif(readablename == "writebuffer")
+	elseif(rawname == PooledStringHandleForWriteBuffer)
 	{
-		integer normal = PoolString("writebuffer")
-		integer withstr = PoolString("writebuffer@@string")
-		integer multiple = PoolString("writebuffer@@multiple")
-		integer withreal = PoolString("writebuffer@@real")
+		integer normal = PooledStringHandleForWriteBuffer
+		integer withstr = PooledStringHandleForWriteBufferString
+		integer multiple = PooledStringHandleForWriteBufferMultiple
+		integer withreal = PooledStringHandleForWriteBufferReal
 		
 		if(FunctionMatchesParameterTypes(nothing, normal, types))
 		{
@@ -7863,7 +7870,6 @@ FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer 
 
 FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> ref types -> boolean match = false
 {
-	string readablename = GetPooledString(GlobalStrings, funcname)
 	if(funcname == PooledStringHandleForSubstringWithLength)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
@@ -7877,14 +7883,14 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simpleprepend<integer>(ptypes, 0x02000000)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "writebuffer")
+	elseif(funcname == PooledStringHandleForWriteBuffer)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
 		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "writebuffer@@string")
+	elseif(funcname == PooledStringHandleForWriteBufferString)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x02000000)
@@ -7892,7 +7898,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "writebuffer@@multiple")
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
@@ -7900,7 +7906,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		simpleprepend<integer>(ptypes, 0x82000001)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
-	elseif(readablename == "writebuffer@@real")
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
 	{
 		simplelist<integer> ptypes = 0x01000004, nothing
 		simpleprepend<integer>(ptypes, 0x01000001)
@@ -9055,12 +9061,16 @@ PoolString : string s -> integer handle = FindString(GlobalStrings, s)
 {
 	if(handle == 0)
 	{
-		++CurrentStringHandle
-		OnCodeGenRegisterString(CurrentStringHandle, s)
-		handle = CurrentStringHandle
+		handle = PoolStringFast(s)
 	}
 }
 
+PoolStringFast : string s -> integer handle = 0
+{
+	++CurrentStringHandle
+	OnCodeGenRegisterString(CurrentStringHandle, s)
+	handle = CurrentStringHandle
+}
 
 
 IREnterProgram :
@@ -9677,7 +9687,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}	
-	elseif(readablename == "writebuffer")
+	elseif(funcname == PooledStringHandleForWriteBuffer)
 	{
 		if(paramcount == 3)
 		{
@@ -9695,7 +9705,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "writebuffer@@string")
+	elseif(funcname == PooledStringHandleForWriteBufferString)
 	{
 		if(paramcount == 4)
 		{
@@ -9717,7 +9727,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "writebuffer@@multiple")
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
 	{
 		if(paramcount == 4)
 		{
@@ -9739,7 +9749,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
-	elseif(readablename == "writebuffer@@real")
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
 	{
 		if(paramcount == 3)
 		{
@@ -10318,29 +10328,28 @@ MakeParametersReferencesForConstructor : nothing, integer constructorname, Expre
 
 MakeParametersReferencesForBuiltIn : integer funcname, ExpressionList ref params
 {
-	string readablename = GetPooledString(GlobalStrings, funcname)
-	if(readablename == "writebuffer")
+	if(funcname == PooledStringHandleForWriteBuffer)
 	{
 		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
 		{
 			print("WARNING: failed to bind reference")
 		}
 	}
-	elseif(readablename == "writebuffer@@string")
+	elseif(funcname == PooledStringHandleForWriteBufferString)
 	{
 		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
 		{
 			print("WARNING: failed to bind reference")
 		}
 	}
-	elseif(readablename == "writebuffer@@multiple")
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
 	{
 		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
 		{
 			print("WARNING: failed to bind reference")
 		}
 	}
-	elseif(readablename == "writebuffer@@real")
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
 	{
 		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
 		{
@@ -10570,10 +10579,10 @@ StripDemotedTypes : nothing, simplelist<integer> ref out
 
 InitBuiltInOverloads :
 {
-	Overload substrlength = PoolString("substring"), PooledStringHandleForSubstringWithLength
+	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength
 	prepend<Overload>(Overloads, substrlength)
 
-	Overload substrnolen = PoolString("substring"), PooledStringHandleForSubstringNoLength
+	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength
 	prepend<Overload>(Overloads, substrnolen)
 	
 	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer")
@@ -10600,16 +10609,16 @@ InitBuiltInOverloads :
 	Overload caststrtoreal = PoolString("cast"), PoolString("cast@@string_to_real")
 	prepend<Overload>(Overloads, caststrtoreal)	
 
-	Overload writebuffernormal = PoolString("writebuffer"), PoolString("writebuffer")
+	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PoolString("writebuffer")
 	prepend<Overload>(Overloads, writebuffernormal)
 
-	Overload writebuffermultiple = PoolString("writebuffer"), PoolString("writebuffer@@multiple")
+	Overload writebuffermultiple = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@multiple")
 	prepend<Overload>(Overloads, writebuffermultiple)
 
-	Overload writebufferstring = PoolString("writebuffer"), PoolString("writebuffer@@string")
+	Overload writebufferstring = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@string")
 	prepend<Overload>(Overloads, writebufferstring)
 
-	Overload writebufferreal = PoolString("writebuffer"), PoolString("writebuffer@@real")
+	Overload writebufferreal = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@real")
 	prepend<Overload>(Overloads, writebufferreal)
 }
 
@@ -11009,7 +11018,7 @@ EnsurePatternMatcherExists : list<PendingPatternMatcher> ref patternmatchers, in
 
 EnsurePatternMatcherExists : nothing, integer rawname, integer mangledname
 {
-	PendingPatternMatcher pm = rawname, mangledname, PoolString(GetPooledString(GlobalStrings, rawname) ; "@@patternmatch")
+	PendingPatternMatcher pm = rawname, mangledname, PoolStringFast(GetPooledString(GlobalStrings, rawname) ; "@@patternmatch")
 	prepend<PendingPatternMatcher>(PendingPatternMatchers, pm)
 }
 
@@ -12960,6 +12969,11 @@ global
 	integer PooledStringHandleForGreaterThanInteger = 0
 	integer PooledStringHandleForLessThanInteger = 0
 	integer PooledStringHandleForPrePostIncrementInteger = 0
+	integer PooledStringHandleForWriteBuffer = 0
+	integer PooledStringHandleForWriteBufferString = 0
+	integer PooledStringHandleForWriteBufferMultiple = 0
+	integer PooledStringHandleForWriteBufferReal = 0
+	integer PooledStringHandleForSubstring = 0
 }
 
 
