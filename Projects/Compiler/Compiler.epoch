@@ -3060,7 +3060,8 @@ type OptionalParameters : FunctionParams | nothing
 
 structure Overload :
 	integer NormalName,
-	integer MangledName
+	integer MangledName,
+	ContextNode<FunctionDefinition> Implementation
 
 structure FunctionDefinition :
 	integer RawName,
@@ -3159,6 +3160,12 @@ structure TemplateInstance :
 	integer DefName,
 	integer InstanceName,
 	list<TemplateArgument> ref Arguments
+	
+	
+type ContextNode<type T> : T | nothing
+
+structure ContextWrapper<type T> :
+	ContextNode<T> ref Wrapped
 
 
 //
@@ -3507,7 +3514,7 @@ RegisterOverloadForFunction : integer rawname -> integer mangledname = rawname
 		mangledname = PoolString(GetPooledString(GlobalStrings, rawname) ; "@overload@" ; cast(string, existingcount))
 	}
 	
-	Overload overload = rawname, mangledname
+	Overload overload = rawname, mangledname, nothing
 	prepend<Overload>(Overloads, overload)
 }
 
@@ -3525,10 +3532,28 @@ CountOverloads : list<Overload> ref overloads, integer rawname -> integer count 
 CountOverloads : nothing, integer rawname -> 0
 
 
+AttachContextToOverload : list<Overload> ref overloads, integer mangledname, FunctionDefinition ref func
+{
+	if(overloads.value.MangledName == mangledname)
+	{
+		overloads.value.Implementation = func
+	}
+	else
+	{
+		AttachContextToOverload(overloads.next, mangledname, func)
+	}
+}
+
+
 OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istemplate
 {
 	FunctionDefinition func = rawfuncname, funcname, istemplate, nothing, nothing, false, 0, nothing, false
 	prepend<FunctionDefinition>(Functions, func)
+	
+	if(funcname != rawfuncname)
+	{
+		AttachContextToOverload(Overloads, funcname, func)
+	}
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
@@ -5910,7 +5935,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 		
 		integer baseconstructorname = PoolString(GetPooledString(GlobalStrings, rawfuncname) ; "@@constructor")
 		
-		Overload overload = baseconstructorname, funcname
+		Overload overload = baseconstructorname, funcname, nothing
 		prepend<Overload>(Overloads, overload)
 		
 		PrependFunctionParameter(Functions, funcname, PoolString("@id"), 0x81000000)		// reference to identifier type signature
@@ -7087,10 +7112,10 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	integer copyname = PoolStringFast(readablename ; "@@copyconstructor")
 	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
 	
-	Overload anonoverload = ctorname, anonname
+	Overload anonoverload = ctorname, anonname, nothing
 	prepend<Overload>(Overloads, anonoverload)
 	
-	Overload copyoverload = ctorname, copyname
+	Overload copyoverload = ctorname, copyname, nothing
 	prepend<Overload>(Overloads, copyoverload)
 }
 
@@ -7412,16 +7437,33 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 		}
 		
+		ContextWrapper<FunctionDefinition> contextfunc = nothing
+		boolean isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+		
 		if(context.FunctionReturn)
 		{
 			statement.Type = vartype
 		}
 		else
 		{
-			statement.Type = GetFunctionReturnType(Functions, statement.Name)
+			if(isuserfunc)
+			{
+				statement.Type = InferFunctionReturnType(contextfunc.Wrapped)
+			}
+			else
+			{
+				statement.Type = GetFunctionReturnType(Functions, statement.Name)
+			}
 		}
 		
-		MakeParametersReferences(Functions, statement.Name, statement.Parameters)
+		if(isuserfunc)
+		{
+			WalkFunctionParamsAndSetReferencesShim(contextfunc.Wrapped, statement.Parameters)
+		}
+		else
+		{
+			MakeParametersReferences(Functions, statement.Name, statement.Parameters)
+		}
 
 		if(vartype != 0)
 		{
@@ -7471,6 +7513,22 @@ DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcnam
 }
 
 DumpFunctionParameters : nothing, integer funcname
+
+
+FetchFunctionForContext : list<FunctionDefinition> ref functions, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
+{
+	if(functions.value.Name == funcname)
+	{
+		wrap.Wrapped = functions.value
+		found = true
+	}
+	else
+	{
+		FetchFunctionForContext(functions.next, wrap, funcname)
+	}
+}
+
+FetchFunctionForContext : nothing, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> false
 
 
 AnnotateAllParameters : ExpressionList ref exprs, integer statementname, integer paramindex, integer paramcount, boolean toplevel
@@ -7586,7 +7644,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 {
 	if(overloads.value.NormalName == rawname)
 	{	
-		if(FunctionMatchesParameterTypes(Functions, overloads.value.MangledName, types))
+		if(FunctionWrapperMatchesParameterTypes(overloads.value.Implementation, overloads.value.MangledName, types))
 		{
 			integer matchername = CheckForNeededPatternMatcher(PendingPatternMatchers, rawname)
 			if(matchername != 0)
@@ -7599,7 +7657,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 			}		
 			return()
 		}
-		elseif(countnonzero(types) == GetFunctionParameterCount(Functions, overloads.value.MangledName))
+		elseif(countnonzero(types) == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
 		{
 			if(CheckForNeededTypeMatcher(types))
 			{
@@ -7613,12 +7671,22 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 	overloadname = FindOverloadWithParameterTypes(overloads.next, rawname, types)
 }
 
+GetFunctionWrapperParameterCount : FunctionDefinition ref func, integer mangledname -> integer count = 0
+{
+	count = CountUnresolvedParameters(func.Params)
+}
+
+GetFunctionWrapperParameterCount : nothing, integer mangledname -> integer count = 0
+{
+	count = GetFunctionParameterCount(Functions, mangledname)
+}
+
 
 PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname, integer paramcount
 {
 	if(overloads.value.NormalName == rawname)
 	{
-		if(paramcount == GetFunctionParameterCount(Functions, overloads.value.MangledName))
+		if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
 		{			
 			if(!IsFunctionTemplate(Functions, overloads.value.MangledName))
 			{				
@@ -7660,7 +7728,7 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 {
 	if(overloads.value.NormalName == rawname)
 	{
-		if(GetFunctionParameterCount(Functions, overloads.value.MangledName) == paramcount)
+		if(GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName) == paramcount)
 		{
 			if(AnyPendingTypeMatcherPointsToFunction(PendingTypeMatchers, overloads.value.MangledName))
 			{
@@ -7853,6 +7921,17 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 			overloadname = rawname
 		}
 	}
+}
+
+
+FunctionWrapperMatchesParameterTypes : FunctionDefinition ref func, integer funcname, simplelist<integer> ref types -> boolean match = false
+{
+	match = CheckParameterTypesForMatch(func.Params, types)
+}
+
+FunctionWrapperMatchesParameterTypes : nothing, integer funcname, simplelist<integer> ref types -> boolean match = false
+{
+	match = FunctionMatchesParameterTypes(Functions, funcname, types)
 }
 
 
@@ -9293,13 +9372,33 @@ EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer f
 {
 	if(overloads.value.NormalName == funcname)
 	{
-		FindFunctionAndAddParameterTypes(Functions, overloads.value.MangledName, paramindex, paramcount, toplevel, types)
+		AddParameterTypesForOverloadImplementation(overloads.value.Implementation, overloads.value.MangledName, paramindex, paramcount, toplevel, types)
 	}
 	
 	EnumerateOverloadsAndAddParameterTypes(overloads.next, funcname, paramindex, paramcount, toplevel, types)
 }
 
 EnumerateOverloadsAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+
+
+AddParameterTypesForOverloadImplementation : FunctionDefinition ref func, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+{
+	if(!func.InferenceDone)
+	{
+		simplelist<integer> temp = 0, nothing
+		InferenceContext context = 0, 0, temp, false, 0, false, false
+		
+		TypeInference(func, context)
+	}
+
+	UnwrapParamsForTypeRetrieval(func.Params, paramindex, paramcount, types)
+}
+
+AddParameterTypesForOverloadImplementation : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+{
+	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, paramcount, toplevel, types)
+}
+
 
 
 FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
@@ -9324,11 +9423,7 @@ FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integ
 
 FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	if(StructureConstructorExists(Structures, funcname))
-	{
-		FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, paramcount, toplevel, types)
-	}
-	else
+	if(!FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, paramcount, toplevel, types))
 	{
 		FindBuiltinAndAddParameterTypes(funcname, paramindex, paramcount, types)
 	}
@@ -9363,19 +9458,25 @@ RetrieveParamType : nothing, integer paramindex, simplelist<integer> ref types
 }
 
 
+InferFunctionReturnType : FunctionDefinition ref func -> integer rettype = 0
+{
+	if(!func.InferenceDone)
+	{
+		simplelist<integer> temp = 0, nothing
+		InferenceContext context = 0, 0, temp, false, 0, false, false
+
+		TypeInference(func, context)
+	}
+
+	rettype = GetOptionalExpressionType(func.Return)
+}
+
+
 GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname -> integer rettype = 0
 {
 	if(functions.value.Name == funcname)
 	{
-		if(!functions.value.InferenceDone)
-		{
-			simplelist<integer> temp = 0, nothing
-			InferenceContext context = 0, 0, temp, false, 0, false, false
-
-			TypeInference(functions.value, context)
-		}
-
-		rettype = GetOptionalExpressionType(functions.value.Return)
+		rettype = InferFunctionReturnType(functions.value)
 	}
 	else
 	{
@@ -9834,7 +9935,7 @@ FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid
 }
 
 
-FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> boolean hit = false
 {
 	integer membercount = CountMembers(structures.value.Members)
 
@@ -9848,10 +9949,12 @@ FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, 
 		{
 			FindMemberAndAddParameterTypes(structures.value.Members, paramindex - 1, types)
 		}
+		hit = true
 	}
 	elseif((structures.value.AnonConstructorName == funcname) && (paramcount == membercount))
 	{
 		FindMemberAndAddParameterTypes(structures.value.Members, paramindex, types)
+		hit = true
 	}
 	elseif((toplevel) && (structures.value.CopyConstructorName == funcname) && (paramcount == 2))
 	{
@@ -9863,14 +9966,15 @@ FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, 
 		{
 			simpleprepend<integer>(types, structures.value.Type)
 		}
+		hit = true
 	}
 	else
 	{
-		FindConstructorAndAddParameterTypes(structures.next, funcname, paramindex, paramcount, toplevel, types)
+		hit = FindConstructorAndAddParameterTypes(structures.next, funcname, paramindex, paramcount, toplevel, types)
 	}
 }
 
-FindConstructorAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+FindConstructorAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> false
 
 
 FindMemberAndAddParameterTypes : list<StructureMember> ref members, integer paramindex, simplelist<integer> ref types
@@ -10394,6 +10498,10 @@ IsMemberReferenceType : StructureMemberVariable ref memvar -> boolean isref = Is
 IsMemberReferenceType : StructureMemberFunctionRef ref memfunc -> false
 
 
+WalkFunctionParamsAndSetReferencesShim : FunctionDefinition ref func, OptionalExpressionList ref optexprs
+{
+	WalkFunctionParamsAndSetReferences(func.Params, optexprs)
+}
 
 WalkFunctionParamsAndSetReferences : nothing, ExpressionList ref paramexprs
 
@@ -10579,46 +10687,46 @@ StripDemotedTypes : nothing, simplelist<integer> ref out
 
 InitBuiltInOverloads :
 {
-	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength
+	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength, nothing
 	prepend<Overload>(Overloads, substrlength)
 
-	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength
+	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength, nothing
 	prepend<Overload>(Overloads, substrnolen)
 	
-	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer")
+	Overload castrealtoint = PoolString("cast"), PoolString("cast@@real_to_integer"), nothing
 	prepend<Overload>(Overloads, castrealtoint)
 	
-	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string")
+	Overload castinttostr = PoolString("cast"), PoolString("cast@@integer_to_string"), nothing
 	prepend<Overload>(Overloads, castinttostr)
 	
-	Overload caststrtoint = PoolString("cast"), PoolString("cast@@string_to_integer")
+	Overload caststrtoint = PoolString("cast"), PoolString("cast@@string_to_integer"), nothing
 	prepend<Overload>(Overloads, caststrtoint)
 
-	Overload castrealtostr = PoolString("cast"), PoolString("cast@@real_to_string")
+	Overload castrealtostr = PoolString("cast"), PoolString("cast@@real_to_string"), nothing
 	prepend<Overload>(Overloads, castrealtostr)
 	
-	Overload castbooltoint = PoolString("cast"), PoolString("cast@@boolean_to_integer")
+	Overload castbooltoint = PoolString("cast"), PoolString("cast@@boolean_to_integer"), nothing
 	prepend<Overload>(Overloads, castbooltoint)
 
-	Overload castint16toint = PoolString("cast"), PoolString("cast@@integer16_to_integer")
+	Overload castint16toint = PoolString("cast"), PoolString("cast@@integer16_to_integer"), nothing
 	prepend<Overload>(Overloads, castint16toint)
 	
-	Overload castinttoint16 = PoolString("cast"), PoolString("cast@@integer_to_integer16")
+	Overload castinttoint16 = PoolString("cast"), PoolString("cast@@integer_to_integer16"), nothing
 	prepend<Overload>(Overloads, castinttoint16)	
 
-	Overload caststrtoreal = PoolString("cast"), PoolString("cast@@string_to_real")
+	Overload caststrtoreal = PoolString("cast"), PoolString("cast@@string_to_real"), nothing
 	prepend<Overload>(Overloads, caststrtoreal)	
 
-	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PoolString("writebuffer")
+	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PoolString("writebuffer"), nothing
 	prepend<Overload>(Overloads, writebuffernormal)
 
-	Overload writebuffermultiple = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@multiple")
+	Overload writebuffermultiple = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@multiple"), nothing
 	prepend<Overload>(Overloads, writebuffermultiple)
 
-	Overload writebufferstring = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@string")
+	Overload writebufferstring = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@string"), nothing
 	prepend<Overload>(Overloads, writebufferstring)
 
-	Overload writebufferreal = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@real")
+	Overload writebufferreal = PooledStringHandleForWriteBuffer, PoolString("writebuffer@@real"), nothing
 	prepend<Overload>(Overloads, writebufferreal)
 }
 
@@ -10810,7 +10918,7 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 		GetFunctionParameterTypes(functions.value.Params, paramtypes)
 		
 		integer rettypename = 0
-		integer rettype = GetFunctionReturnType(functions, funcname)
+		integer rettype = InferFunctionReturnType(functions.value)
 		if(rettype != 0)
 		{
 			rettypename = GetNameOfType(rettype)
@@ -11357,7 +11465,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		// TODO - validate that args suit the formal template parameters!
 		
 		string basenamemangled = MangleTemplateName(basename, args)
-		Overload overload = PoolString(basenamemangled), instancename
+		Overload overload = PoolString(basenamemangled), instancename, nothing
 		prepend<Overload>(Overloads, overload)
 		
 		DoFunctionInstantiation(Functions, defname, instancename, templates.value.Parameters, args)
@@ -12779,7 +12887,7 @@ global
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
 	
-	Overload dummyoverload = 0, 0
+	Overload dummyoverload = 0, 0, nothing
 	list<Overload> Overloads = dummyoverload, nothing
 
 	FunctionDefinition dummyfunc = 0, 0, false, nothing, nothing, false, 0, nothing, false
