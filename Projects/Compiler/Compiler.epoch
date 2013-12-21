@@ -3587,7 +3587,7 @@ OnCodeGenEnterFunctionReturn : integer funcname, boolean anonymous
 	ContextStackEntry entry = STACK_TYPE_FUNCRET, funcname
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	Expression d = dummyexpression
+	Expression d = dummyatomlist, 0
 	ScratchExpressions.value = d
 
 	Functions.value.AnonymousReturn = anonymous
@@ -3722,7 +3722,7 @@ SetReturnExpression : FunctionDefinition ref funcdef, Expression ref expr
 {
 	funcdef.Return = expr
 
-	Expression d = dummyexpression
+	Expression d = dummyatomlist, 0
 	ScratchExpressions.value = d
 }
 
@@ -6408,7 +6408,7 @@ OnCodeGenEnterEntity : integer entityname, integer postfixtag
 	Entity entity = entityname, postfixtag, nothing, nothing
 	prepend<Entity>(EntityStack, entity)
 
-	Expression d = dummyexpression
+	Expression d = dummyatomlist, 0
 	ScratchExpressions.value = d
 }
 
@@ -6577,7 +6577,7 @@ OnCodeGenRegisterParenthetical :
 	ContextStackEntry entry = STACK_TYPE_PARENTHETICAL, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	Expression d = dummyexpression
+	Expression d = dummyatomlist, 0
 	prepend<Expression>(ScratchExpressions, d)
 }
 
@@ -6696,7 +6696,7 @@ OnCodeGenShiftParameter :
 		AppendExpressionToSubStatement(ScratchExpressions.value)
 	}
 
-	Expression d = dummyexpression
+	Expression d = dummyatomlist, 0
 	ScratchExpressions.value = d
 }
 
@@ -8190,7 +8190,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	CoalesceMemberAccesses(expression.Atoms, context.ScopeName)
 	ShuntingYard(expression.Atoms)
 
-	InferencePossibility temp = scratchpossibility
+	InferencePossibility temp = 0, scratchparampossibles, scratchreturns
 	list<InferencePossibility> possibilities = temp, nothing
 	ExpressionInferenceStackEntry stackentry = possibilities
 	list<ExpressionInferenceStackEntry> stack = stackentry, nothing
@@ -8404,10 +8404,8 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	
 		if(AllOptionsConsumed(stack.value.PossibilityList.value.ParameterTypes))
 		{
-			TypePossibilityList rettypes = stack.value.PossibilityList.value.ReturnType
-			rettypes.Consumed = true
-			PopExpressionInferenceStack(stack, stack.next)			
-			AddPossibleParamTypeForAllOverloads(stack.value.PossibilityList, rettypes)			
+			stack.value.PossibilityList.value.ReturnType.Consumed = true
+			CopyReturnTypeToParamTypes(stack, stack.next)
 		}
 	}
 	
@@ -8416,6 +8414,16 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		++counter
 	}	
 }
+
+
+CopyReturnTypeToParamTypes : list<ExpressionInferenceStackEntry> ref stack, list<ExpressionInferenceStackEntry> ref tail
+{
+	AddPossibleParamTypeForAllOverloads(tail.value.PossibilityList, stack.value.PossibilityList.value.ReturnType)
+	PopExpressionInferenceStack(stack, tail)
+}
+
+CopyReturnTypeToParamTypes : list<ExpressionInferenceStackEntry> ref stack, nothing
+
 
 
 AddPossibleParamTypeForAllOverloads : list<InferencePossibility> ref possibilities, TypePossibilityList ref paramtypes
@@ -8459,7 +8467,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 	}
 	else
 	{
-		TypePossibilityList poss = scratchparams
+		TypePossibilityList poss = scratchpossibletypes, false
 		GetAtomType(atoms.value, poss, funcname, funcret, parenthetical)
 
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
@@ -8488,7 +8496,7 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 {
 	if(!params.value.Consumed)
 	{
-		TypePossibilityList poss = scratchparams
+		TypePossibilityList poss = scratchpossibletypes, false
 		GetAtomType(atom, poss, funcname, funcret, parenthetical)
 		
 		simplelist<integer> types = 0, nothing
