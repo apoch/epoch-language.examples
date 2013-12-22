@@ -1067,6 +1067,7 @@ ParseGlobalBlock : -> boolean matched = false
 	integer blockname = PoolString("@@globalblock")
 	OnCodeGenRegisterScope(blockname, 0)
 	OnCodeGenRegisterGlobalBlock(blockname)
+	CacheGlobalCodeBlock(Scopes)
 	
 	while(PeekToken(0) != "}")
 	{
@@ -1386,7 +1387,7 @@ ParseFunction : -> boolean matched = false
 	PopTokens(2)
 	
 	integer rawnamehandle = PoolString(functionname)
-	integer namehandle = RegisterOverloadForFunction(rawnamehandle)
+	integer namehandle = RegisterOverloadForFunction(functionname, rawnamehandle)
 	
 	OnCodeGenRegisterFunction(namehandle, rawnamehandle, templated)
 	ParseFunctionParams(rawnamehandle, namehandle)
@@ -3506,12 +3507,12 @@ OnCodeGenRegisterGlobalBlock : integer name
 }
 
 
-RegisterOverloadForFunction : integer rawname -> integer mangledname = rawname
+RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
 	integer existingcount = CountOverloads(Overloads, rawname)
 	if(existingcount > 0)
 	{
-		mangledname = PoolString(GetPooledString(GlobalStrings, rawname) ; "@overload@" ; cast(string, existingcount))
+		mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
 	}
 	
 	Overload overload = rawname, mangledname, nothing
@@ -4656,6 +4657,8 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 {
 	if(def.Name != 0)
 	{
+		FindScopeAndSetContext(Scopes, def.Name)
+		
 		EmittingFunctionName = def.Name
 		OnBytecodeEnterFunction(def.Name)
 		CodeGenEmitFunctionReturn(def.Return)
@@ -4684,6 +4687,19 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 			}
 		}
 		OnBytecodeExitFunction()
+	}
+}
+
+
+FindScopeAndSetContext : list<Scope> ref scopes, integer scopename
+{
+	if(scopes.value.Name == scopename)
+	{
+		EmittingScope.Wrapped = scopes.value
+	}
+	else
+	{
+		FindScopeAndSetContext(scopes.next, scopename)
 	}
 }
 
@@ -5600,12 +5616,18 @@ TypeMatcherExists : nothing, integer matchername -> boolean ret = false
 
 
 
-FindVariable : integer name, integer ref frames -> integer index = FindVariableInScope(EmittingFunctionName, name)
+FindVariable : integer name, integer ref frames -> integer index = -1
 {
+	FindVariableInSingleScope(EmittingScope.Wrapped, name, index)
+
 	if(index < 0)
 	{
-		index = FindVariableInScope(GlobalCodeBlockName, name)
-		frames = -1
+		index = FindVariableInScopeList(Scopes, EmittingFunctionName, name)
+		if(index < 0)
+		{
+			index = FindVariableInScopeList(Scopes, GlobalCodeBlockName, name)
+			frames = -1
+		}
 	}
 }
 
@@ -5628,6 +5650,10 @@ FindVariableInScopeList : list<Scope> ref scopes, integer scopename, integer var
 
 FindVariableInScopeList : nothing, integer scopename, integer varname -> integer index = -1
 
+FindVariableInSingleScope : Scope ref scope, integer varname, integer ref index
+{
+	FindVariableInSingleScope(scope.Variables, varname, index)
+}
 
 FindVariableInSingleScope : list<Variable> ref vars, integer varname, integer ref index
 {
@@ -5729,7 +5755,26 @@ FindVariableType : integer varname -> integer rettype = 0
 
 FindVariableDataInScope : integer scopename, integer varname, Variable ref outvar 
 	->
-	boolean found = FindVariableDataInScopeList(Scopes, scopename, varname, outvar)
+	boolean found = false
+{
+	if(scopename == EmittingFunctionName)
+	{
+		found = FindVariableDataInSingleScope(EmittingScope.Wrapped, varname, outvar)
+		if(!found)
+		{
+			found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
+		}
+		
+		return()
+	}
+	elseif(scopename == GlobalCodeBlockName)
+	{
+		found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
+		return()
+	}
+
+	found = FindVariableDataInScopeList(Scopes, scopename, varname, outvar)
+}
 
 FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer varname, Variable ref outvar -> boolean found = false
 {
@@ -5738,7 +5783,7 @@ FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer
 		found = FindVariableDataInSingleScope(scopes.value.Variables, varname, outvar)
 		if((!found) && (GlobalCodeBlockName != 0) && (scopename != GlobalCodeBlockName))
 		{
-			found = FindVariableDataInScopeList(Scopes, GlobalCodeBlockName, varname, outvar)
+			found = FindVariableDataInScope(GlobalCodeBlockName, varname, outvar)
 		}
 	}
 	else
@@ -5748,6 +5793,11 @@ FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer
 }
 
 FindVariableDataInScopeList : nothing, integer scopename, integer varname, Variable ref outvar -> boolean found = false
+
+FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref outvar -> boolean found = false
+{
+	found = FindVariableDataInSingleScope(scope.Variables, varname, outvar)
+}
 
 FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variable ref outvar -> boolean found = false
 {
@@ -6828,12 +6878,6 @@ CodeBlockDepth : nothing -> 0
 
 IRProcess : -> boolean success = true
 {
-	if(!IRCompileTimeCodeExecution())
-	{
-		success = false
-		return()
-	}
-
 	if(!IRTypeInference())
 	{
 		success = false
@@ -6847,38 +6891,6 @@ IRProcess : -> boolean success = true
 	}
 }
 
-
-IRCompileTimeCodeExecution : -> boolean success = true
-{
-	if(!CompileTimeCodeExecution(Functions))
-	{
-		success = false
-	}
-}
-
-
-
-CompileTimeCodeExecution : nothing -> true
-
-
-CompileTimeCodeExecution : list<FunctionDefinition> ref functions -> boolean success = true
-{
-	if(!CompileTimeCodeExecution(functions.value))
-	{
-		success = false
-	}
-	
-	if(!CompileTimeCodeExecution(functions.next))
-	{
-		success = false
-	}
-}
-
-
-CompileTimeCodeExecution : FunctionDefinition ref func -> boolean success = true
-{
-	// TODO
-}
 
 GeneratePendingTypeMatchers : list<PendingTypeMatcher> ref pendingmatchers -> boolean success = true
 {
@@ -7467,7 +7479,14 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 		if(vartype != 0)
 		{
-			InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
+			if(isuserfunc)
+			{
+				AnnotateTypeMatchedParamsForWrapper(contextfunc.Wrapped, statement.Parameters)
+			}
+			else
+			{
+				InsertAnnotationsForTypeMatchedParams(Functions, statement.Name, statement.Parameters)
+			}
 		}
 		elseif(IsPendingTypeMatcher(PendingTypeMatchers, statement.Name))
 		{
@@ -7475,6 +7494,20 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 	}
 }
+
+
+AnnotateTypeMatchedParamsForWrapper : FunctionDefinition ref func, OptionalExpressionList ref exprs
+{
+	AnnotateTypeMatchedParamsForWrapperUnwrap(func, exprs)
+}
+
+AnnotateTypeMatchedParamsForWrapperUnwrap : FunctionDefinition ref func, ExpressionList ref exprs
+{
+	AnnotateTypeMatchedParams(func.Params, exprs.Expressions)
+}
+
+AnnotateTypeMatchedParamsForWrapperUnwrap : FunctionDefinition ref func, nothing
+
 
 CountExpressions : nothing -> 0
 
@@ -11460,7 +11493,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 	if(templates.value.FunctionDefName == defname)
 	{
 		string mangledname = MangleTemplateName(defname, args)
-		instancename = RegisterOverloadForFunction(PoolString(mangledname))
+		instancename = RegisterOverloadForFunction(mangledname, PoolString(mangledname))
 		
 		// TODO - validate that args suit the formal template parameters!
 		
@@ -11676,39 +11709,44 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defnam
 {
 	if(functions.value.Name == defname)
 	{
-		assert(functions.value.IsTemplate)
-		
-		FunctionDefinition func = defname, instancename, false, nothing, nothing, functions.value.AnonymousReturn, 0, nothing, false
-		prepend<FunctionDefinition>(Functions, func)
-
-		list<OptionalCodeBlock> newstack = nothing, nothing
-		CurrentCodeBlockStack = newstack
-		
-		DoParameterInstantiation(functions.value.Params, params, args)
-		DoReturnInstantiation(functions.value.Return, instancename, functions.value.AnonymousReturn, params, args)
-
-		// TODO - traverse template and instantiate the following stuff
-		//ParseFunctionTags(namehandle, rawnamehandle)
-
-		IREnterFunction(instancename)
-		OnCodeGenEnterFunctionBody(instancename)
-
-		DoCodeBlockInstantiation(functions.value.Code, params, args)
-		
-		IRExitFunction()
-		
-		TemplateInstance instance = defname, instancename, args
-		prepend<TemplateInstance>(TemplateFunctionInstances, instance)
-
-
-		simplelist<integer> temp = 0, nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false
-		TypeInference(Functions.value, context)
+		FunctionInstantiationInner(functions.value, defname, instancename, params, args)
 	}
 	else
 	{
 		DoFunctionInstantiation(functions.next, defname, instancename, params, args)
 	}
+}
+
+FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	assert(originalfunc.IsTemplate)
+	
+	FunctionDefinition func = defname, instancename, false, nothing, nothing, originalfunc.AnonymousReturn, 0, nothing, false
+	prepend<FunctionDefinition>(Functions, func)
+
+	list<OptionalCodeBlock> newstack = nothing, nothing
+	CurrentCodeBlockStack = newstack
+	
+	DoParameterInstantiation(originalfunc.Params, params, args)
+	DoReturnInstantiation(originalfunc.Return, instancename, originalfunc.AnonymousReturn, params, args)
+
+	// TODO - traverse template and instantiate the following stuff
+	//ParseFunctionTags(namehandle, rawnamehandle)
+
+	IREnterFunction(instancename)
+	OnCodeGenEnterFunctionBody(instancename)
+
+	DoCodeBlockInstantiation(originalfunc.Code, params, args)
+	
+	IRExitFunction()
+	
+	TemplateInstance instance = defname, instancename, args
+	prepend<TemplateInstance>(TemplateFunctionInstances, instance)
+
+
+	simplelist<integer> temp = 0, nothing
+	InferenceContext context = 0, 0, temp, false, 0, false, false
+	TypeInference(func, context)
 }
 
 
@@ -12871,6 +12909,19 @@ DumpOverload : Overload ref overload
 }
 
 
+CacheGlobalCodeBlock : list<Scope> ref scopes
+{
+	if(scopes.value.Name == GlobalCodeBlockName)
+	{
+		GlobalScope.Wrapped = scopes.value
+	}
+	else
+	{
+		CacheGlobalCodeBlock(scopes.next)
+	}
+}
+
+
 //
 // Global state (just a hack while we bootstrap!)
 //
@@ -13082,6 +13133,10 @@ global
 	integer PooledStringHandleForWriteBufferMultiple = 0
 	integer PooledStringHandleForWriteBufferReal = 0
 	integer PooledStringHandleForSubstring = 0
+	
+	
+	ContextWrapper<Scope> GlobalScope = nothing
+	ContextWrapper<Scope> EmittingScope = nothing
 }
 
 
