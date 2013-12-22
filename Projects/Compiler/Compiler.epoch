@@ -423,6 +423,7 @@ PrepareStringTable :
 	PooledStringHandleForAssignment = counter
 	
 	CurrentStringHandle = counter + 1
+	FirstNonBuiltInStringHandle = CurrentStringHandle
 }
 
 
@@ -2985,7 +2986,8 @@ structure StructureDefinition :
 structure IdentifierAtom :
 	integer Handle,
 	integer Type,
-	boolean IsReference
+	boolean IsReference,
+	boolean IsFunction
 
 structure StringHandleAtom :
 	integer Handle
@@ -3957,14 +3959,14 @@ OnCodeGenRegisterOperatorInvoke : integer ophandle
 
 OnCodeGenRegisterAtomIdentifier : integer idhandle, integer idtype
 {
-	IdentifierAtom id = idhandle, idtype, false
+	IdentifierAtom id = idhandle, idtype, false, false
 	ExpressionAtom atom = id
 	PlaceAtomInScratchExpression(atom)
 }
 
 OnCodeGenRegisterAtomIdentifierReference : integer idhandle
 {
-	IdentifierAtom id = idhandle, 0, true
+	IdentifierAtom id = idhandle, 0, true, false
 	ExpressionAtom atom = id
 	PlaceAtomInScratchExpression(atom)
 }
@@ -5236,7 +5238,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 	}
 	else
 	{
-		if(FunctionIsAutoGenOrHasIR(idatom.Handle))
+		if(idatom.IsFunction) //if(FunctionIsAutoGenOrHasIR(idatom.Handle))
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
@@ -7344,8 +7346,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	
 
 	simplelist<integer> tempret = 0, nothing
-	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false, false, scopewrap
-	SetScopeForContext(Scopes, retcontext)
+	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false, false, innercontext.ScopeRef
 
 	if(!TypeInference(func.Return, retcontext))
 	{
@@ -8091,6 +8092,10 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 		{
 			overloadname = withreal
 		}		
+	}
+	elseif(IsRecognizedBuiltIn(rawname))
+	{
+		overloadname = rawname
 	}
 	else
 	{
@@ -9093,6 +9098,8 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	{
 		if(FunctionExists(Functions, atom.Handle))
 		{
+			atom.IsFunction = true
+		
 			// TODO - overload resolution on higher order function name
 			integer sigtype = FindFunctionAndGetSignatureType(Functions, atom.Handle)
 			AddPossibleParameter(possibilities.Types, sigtype)
@@ -13530,8 +13537,19 @@ global
 	integer PooledStringHandleForPlusInteger = 0
 	integer PooledStringHandleForPlusReal = 0
 	
+	integer FirstNonBuiltInStringHandle = 0
+	
 	ContextWrapper<Scope> GlobalScope = nothing
 	ContextWrapper<Scope> EmittingScope = nothing
 }
 
+
+IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false
+{
+	// This is a REALLY bad hack.
+	if(namehandle < FirstNonBuiltInStringHandle)
+	{
+		recognized = true
+	}
+}
 
