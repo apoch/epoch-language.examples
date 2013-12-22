@@ -475,12 +475,7 @@ ReadFile : string filename, integer ref len -> string contents = ""
 
 Parse : string code, integer len -> boolean success = false
 {
-	integer startlexms = timeGetTime()
 	Lex(code, len)
-	integer durationlexms = timeGetTime() - startlexms
-	
-	print("Lexical analysis completed in " ; cast(string, durationlexms) ; "ms")
-
 
 	// Discard the dummy token
 	PopToken()
@@ -490,10 +485,7 @@ Parse : string code, integer len -> boolean success = false
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		if(ParseGlobalBlock())
-		{
-		}
-		elseif(ParseSumType())
+		if(ParseSumType())
 		{
 		}
 		elseif(ParseWeakAlias())
@@ -503,6 +495,9 @@ Parse : string code, integer len -> boolean success = false
 		{
 		}
 		elseif(ParseStructure())
+		{
+		}
+		elseif(ParseGlobalBlock())
 		{
 		}
 		elseif(!ParseFunction())
@@ -619,18 +614,18 @@ Lex : string code, integer len [nogc]
 		}
 		elseif(state == CHARACTER_CLASS_COMMENT)
 		{
-			if(c == unescape("\r"))
+			if(c == CharacterCarriageReturn)
 			{
 				state = CHARACTER_CLASS_WHITE
 			}
-			elseif(c == unescape("\n"))
+			elseif(c == CharacterLineFeed)
 			{
 				state = CHARACTER_CLASS_WHITE
 			}
 		}
 		elseif(state == CHARACTER_CLASS_STRING_LITERAL)
 		{
-			if(c == unescape("\'"))
+			if(c == CharacterQuote)
 			{
 				state = CHARACTER_CLASS_WHITE
 				PushToken(substring(code, lasttokenstart, index - lasttokenstart + 1))
@@ -725,15 +720,15 @@ IsWhitespace : string c -> boolean white = false [nogc]
 	{
 		white = true
 	}
-	elseif(c == unescape("\r"))
+	elseif(c == CharacterCarriageReturn)
 	{
 		white = true
 	}
-	elseif(c == unescape("\n"))
+	elseif(c == CharacterLineFeed)
 	{
 		white = true
 	}
-	elseif(c == unescape("\t"))
+	elseif(c == CharacterTab)
 	{
 		white = true
 	}
@@ -741,88 +736,71 @@ IsWhitespace : string c -> boolean white = false [nogc]
 
 Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 {
-	if(c == "{")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "}")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == ":")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "(")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == ")")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "=")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == "&")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == ",")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == unescape("\'"))
-	{
-		class = CHARACTER_CLASS_STRING_LITERAL
-	}
-	elseif(c == "+")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == "-")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == "<")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == ">")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
-	}
-	elseif(c == ".")
+	if(c == "a")
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
 			class = CHARACTER_CLASS_LITERAL
 		}
-		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+		else
 		{
-			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
+	}
+	elseif(c == "b")
+	{
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
 		}
 		else
 		{
-			class = CHARACTER_CLASS_PUNCTUATION
+			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == ";")
+	elseif(c == "c")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
 	}
-	elseif(c == "!")
+	elseif(c == "d")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
 	}
-	elseif(c == "[")
+	elseif(c == "e")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
 	}
-	elseif(c == "]")
+	elseif(c == "f")
 	{
-		class = CHARACTER_CLASS_PUNCTUATION
+		if(currentclass == CHARACTER_CLASS_LITERAL)
+		{
+			class = CHARACTER_CLASS_LITERAL
+		}
+		else
+		{
+			class = CHARACTER_CLASS_IDENTIFIER
+		}
 	}
 	elseif(c == "0")
 	{
@@ -945,72 +923,90 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "a")
+
+	elseif(c == "{")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "}")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == ":")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "(")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == ")")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == "=")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == "&")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == ",")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION
+	}
+	elseif(c == CharacterQuote)
+	{
+		class = CHARACTER_CLASS_STRING_LITERAL
+	}
+	elseif(c == "+")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == "-")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == "<")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == ">")
+	{
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
+	}
+	elseif(c == ".")
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
 			class = CHARACTER_CLASS_LITERAL
 		}
+		elseif(currentclass == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
+		{
+			class = CHARACTER_CLASS_PUNCTUATION_COMPOUND		// hack!
+		}
 		else
 		{
-			class = CHARACTER_CLASS_IDENTIFIER
+			class = CHARACTER_CLASS_PUNCTUATION
 		}
 	}
-	elseif(c == "b")
+	elseif(c == ";")
 	{
-		if(currentclass == CHARACTER_CLASS_LITERAL)
-		{
-			class = CHARACTER_CLASS_LITERAL
-		}
-		else
-		{
-			class = CHARACTER_CLASS_IDENTIFIER
-		}
+		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "c")
+	elseif(c == "!")
 	{
-		if(currentclass == CHARACTER_CLASS_LITERAL)
-		{
-			class = CHARACTER_CLASS_LITERAL
-		}
-		else
-		{
-			class = CHARACTER_CLASS_IDENTIFIER
-		}
+		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == "d")
+	elseif(c == "[")
 	{
-		if(currentclass == CHARACTER_CLASS_LITERAL)
-		{
-			class = CHARACTER_CLASS_LITERAL
-		}
-		else
-		{
-			class = CHARACTER_CLASS_IDENTIFIER
-		}
+		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "e")
+	elseif(c == "]")
 	{
-		if(currentclass == CHARACTER_CLASS_LITERAL)
-		{
-			class = CHARACTER_CLASS_LITERAL
-		}
-		else
-		{
-			class = CHARACTER_CLASS_IDENTIFIER
-		}
+		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "f")
-	{
-		if(currentclass == CHARACTER_CLASS_LITERAL)
-		{
-			class = CHARACTER_CLASS_LITERAL
-		}
-		else
-		{
-			class = CHARACTER_CLASS_IDENTIFIER
-		}
-	}	
 }
 
 
@@ -1509,7 +1505,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 	{
 		if(typetoken == "nothing")
 		{
-			integer pooledhandle = PoolString(typetoken)
+			integer pooledhandle = PooledStringHandleForNothing
 			integer nothinghandle = PoolString("nothing@@" ; cast(string, GlobalNothingCounter))
 			++GlobalNothingCounter
 			
@@ -1674,7 +1670,7 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 			}
 			
 			string parameter = PeekToken(0)
-			if(substring(parameter, 0, 1) == unescape("\'"))
+			if(substring(parameter, 0, 1) == CharacterQuote)
 			{
 				parameter = substring(parameter, 1, length(parameter) - 2)
 			}
@@ -1959,7 +1955,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	}
 	else
 	{
-		if(substring(term, 0, 1) == unescape("\'"))
+		if(substring(term, 0, 1) == CharacterQuote)
 		{
 			string stringliteral = substring(term, 1, length(term) - 2)
 			IRAddLiteralString(stringliteral)			
@@ -2012,10 +2008,18 @@ ParseExpressionOperator : -> boolean matched = false
 	{
 		return()
 	}
+	elseif(length(op) > 2)
+	{
+		return()
+	}
 	
 
 	boolean knownoperator = false
-	if(op == "+")
+	if(op == ".")
+	{
+		knownoperator = true
+	}
+	elseif(op == "+")
 	{
 		knownoperator = true
 	}
@@ -2036,10 +2040,6 @@ ParseExpressionOperator : -> boolean matched = false
 		knownoperator = true
 	}
 	elseif(op == "!=")
-	{
-		knownoperator = true
-	}
-	elseif(op == ".")
 	{
 		knownoperator = true
 	}
@@ -2071,7 +2071,6 @@ ParseExpressionOperator : -> boolean matched = false
 		matched = true
 	}
 }
-
 
 ParseAssignment : -> boolean matched = false
 {
@@ -11097,7 +11096,7 @@ InitBuiltInOverloads :
 	Overload castrealtoint = PooledStringHandleForCast, PooledStringHandleForCastRealToInteger, nothing
 	prepend<Overload>(Overloads, castrealtoint)
 	
-	Overload castinttostr = PooledStringHandleForCast, PoolString("cast@@integer_to_string"), nothing
+	Overload castinttostr = PooledStringHandleForCast, PooledStringHandleForCastIntegerToString, nothing
 	prepend<Overload>(Overloads, castinttostr)
 	
 	Overload caststrtoint = PooledStringHandleForCast, PoolString("cast@@string_to_integer"), nothing
@@ -13541,6 +13540,11 @@ global
 	
 	ContextWrapper<Scope> GlobalScope = nothing
 	ContextWrapper<Scope> EmittingScope = nothing
+	
+	string CharacterCarriageReturn = unescape("\r")
+	string CharacterLineFeed = unescape("\n")
+	string CharacterTab = unescape("\t")
+	string CharacterQuote = unescape("\'")
 }
 
 
