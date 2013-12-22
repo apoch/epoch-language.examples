@@ -3095,7 +3095,7 @@ type OptionalEntityList : EntityList | nothing
 
 structure EntityChain :
 	OptionalEntityList Entries
-		
+
 		
 structure UnresolvedParameter :
 	integer NameHandle,
@@ -7213,11 +7213,9 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	
 	Overload anonoverload = ctorname, anonname, nothing
 	prepend<Overload>(Overloads, anonoverload)
-	FindFunctionAndAddOverload(Functions, anonoverload)
 	
 	Overload copyoverload = ctorname, copyname, nothing
 	prepend<Overload>(Overloads, copyoverload)
-	FindFunctionAndAddOverload(Functions, copyoverload)
 }
 
 
@@ -8306,6 +8304,13 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 {
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, assignment.LHSName, var)
+	
+	if(var.Name == 0)
+	{
+		success = false
+		print("Assignment to non-existent variable " ; GetPooledString(GlobalStrings, assignment.LHSName))
+		return()
+	}
 
 	simplelist<integer> temp = var.VarType, nothing
 	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false, context.ScopeRef
