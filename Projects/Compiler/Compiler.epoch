@@ -7847,6 +7847,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 			if(CheckForNeededTypeMatcher(types))
 			{
 				overloadname = FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName)
+				FindOverloadWithParameterTypes(overloads.next, rawname, types)
 				return()
 			}
 		}
