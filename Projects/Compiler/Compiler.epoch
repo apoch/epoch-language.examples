@@ -3125,7 +3125,7 @@ structure FunctionDefinition :
 	integer InvokeTag,
 	OptionalParameters Params,
 	boolean InferenceDone,
-	list<Overload> ref Overloads
+	list<Overload> Overloads
 	
 
 structure Variable :
@@ -3593,6 +3593,8 @@ FindFunctionAndAddOverload : list<FunctionDefinition> ref functions, Overload re
 	}
 }
 
+FindFunctionAndAddOverload : nothing, Overload ref overload
+
 
 CountOverloads : list<Overload> ref overloads, integer rawname -> integer count = 0
 {
@@ -3628,7 +3630,11 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istem
 	if(funcname != rawfuncname)
 	{
 		AttachContextToOverload(Overloads, funcname, func)
+		AttachContextToFunction(Functions, rawfuncname, funcname, func)
 	}
+	
+	Overload selfoverload = rawfuncname, funcname, func
+	prepend<Overload>(func.Overloads, selfoverload)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
@@ -3642,6 +3648,20 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, boolean istem
 		TemplateParameterQueue = dummylist
 	}
 }
+
+
+AttachContextToFunction : list<FunctionDefinition> ref functions, integer rawfuncname, integer mangledfuncname, FunctionDefinition ref func
+{
+	if(functions.value.Name == rawfuncname)
+	{
+		AttachContextToOverload(functions.value.Overloads, mangledfuncname, func)
+	}
+	else
+	{
+		AttachContextToFunction(functions.next, rawfuncname, mangledfuncname, func)
+	}
+}
+
 
 IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref, boolean templated
 {
@@ -7621,6 +7641,10 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 FindOverloadWithParameterTypesFast : FunctionDefinition ref func, integer rawname, simplelist<integer> ref paramtypes -> integer overloadname = rawname
 {
 	overloadname = FindOverloadWithParameterTypes(func.Overloads, rawname, paramtypes)
+	if(overloadname == 0)
+	{
+		overloadname = FindOverloadWithParameterTypes(Overloads, rawname, paramtypes)
+	}
 }
 
 
@@ -7868,12 +7892,12 @@ GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
 	{
 		if(!functions.value.IsTemplate)
 		{
-			integer rawname = FindFunctionRawName(Overloads, functions.value.Name)
+			integer rawname = functions.value.RawName
 			integer paramcount = CountUnresolvedParameters(functions.value.Params)
 		
-			if(AnyPendingTypeMatcherPointsToAnyOverload(Overloads, rawname, paramcount))
+			if(AnyPendingTypeMatcherPointsToAnyOverload(functions.value.Overloads, rawname, paramcount))
 			{
-				PopulateAllOverloadTypeMatchers(Overloads, rawname, paramcount)
+				PopulateAllOverloadTypeMatchers(functions.value.Overloads, rawname, paramcount)
 			}
 		}
 	}
@@ -7902,21 +7926,6 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 }
 
 AnyPendingTypeMatcherPointsToAnyOverload : nothing, integer rawname, integer paramcount -> boolean ret = false
-
-
-FindFunctionRawName : list<Overload> ref overloads, integer targetmangledname -> integer rawname = 0
-{
-	if(overloads.value.MangledName == targetmangledname)
-	{
-		rawname = overloads.value.NormalName
-	}
-	else
-	{
-		rawname = FindFunctionRawName(overloads.next, targetmangledname)
-	}
-}
-
-FindFunctionRawName : nothing, integer targetmangledname -> integer rawname = targetmangledname
 
 
 AnyPendingTypeMatcherPointsToFunction : list<PendingTypeMatcher> ref pending, integer mangledname -> boolean ret = false
@@ -11643,11 +11652,12 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		// TODO - validate that args suit the formal template parameters!
 		
 		string basenamemangled = MangleTemplateName(basename, args)
-		Overload overload = PoolString(basenamemangled), instancename, nothing
+		integer bnmh = PoolString(basenamemangled)
+		Overload overload = bnmh, instancename, nothing
 		prepend<Overload>(Overloads, overload)
 		FindFunctionAndAddOverload(Functions, overload)
-		
-		DoFunctionInstantiation(Functions, defname, instancename, templates.value.Parameters, args)
+				
+		DoFunctionInstantiation(Functions, bnmh, defname, instancename, templates.value.Parameters, args)
 	}
 	else
 	{
@@ -11853,25 +11863,31 @@ RemapAllTemplateArguments : list<TemplateArgument> ref toremap, list<TemplatePar
 RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 
 
-DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	if(functions.value.Name == defname)
 	{
-		FunctionInstantiationInner(functions.value, defname, instancename, params, args)
+		FunctionInstantiationInner(functions.value, basenamemangled, defname, instancename, params, args)
 	}
 	else
 	{
-		DoFunctionInstantiation(functions.next, defname, instancename, params, args)
+		DoFunctionInstantiation(functions.next, basenamemangled, defname, instancename, params, args)
 	}
 }
 
-FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	assert(originalfunc.IsTemplate)
 	
-	FunctionDefinition func = defname, instancename, false, nothing, nothing, originalfunc.AnonymousReturn, 0, nothing, false, dummyoverloadlist
+	FunctionDefinition func = defname, instancename, false, nothing, nothing, originalfunc.AnonymousReturn, 0, nothing, false, originalfunc.Overloads
 	prepend<FunctionDefinition>(Functions, func)
-
+	
+	Overload selfoverload = defname, instancename, func
+	prepend<Overload>(func.Overloads, selfoverload)
+	
+	AttachContextToOverload(func.Overloads, instancename, func)
+	AttachContextToOverload(Overloads, instancename, func)
+		
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
 	
