@@ -5715,7 +5715,7 @@ TypeMatcherExists : nothing, integer matchername -> boolean ret = false
 
 
 
-FindVariable : integer name, integer ref frames -> integer index = -1
+FindVariable : integer name, integer ref frames -> integer index = 0
 {
 	FindVariableInSingleScope(EmittingScope.Wrapped, name, index)
 
