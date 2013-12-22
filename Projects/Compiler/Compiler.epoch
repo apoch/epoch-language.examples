@@ -9545,10 +9545,33 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 
 GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	FindFunctionAndAddParameterTypes(Functions, funcname, paramindex, paramcount, toplevel, types)
+	boolean found = FindFunctionParamTypesAndRecurseToOverloads(Functions, funcname, paramindex, paramcount, toplevel, types)
+	FindFunctionAndAddParameterTypes(nothing, funcname, paramindex, paramcount, toplevel, types)
 	
-	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
+	if(!found)
+	{
+		EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
+	}
 }
+
+FindFunctionParamTypesAndRecurseToOverloads : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> boolean found = false
+{
+	if(functions.value.Name == funcname)
+	{
+		InferFunctionParameterTypes(functions.value, paramindex, paramcount, toplevel, types)
+		
+		EnumerateOverloadsAndAddParameterTypes(functions.value.Overloads, funcname, paramindex, paramcount, toplevel, types)
+		
+		found = true
+	}
+	else
+	{
+		found = FindFunctionParamTypesAndRecurseToOverloads(functions.next, funcname, paramindex, paramcount, toplevel, types)
+	}
+}
+
+FindFunctionParamTypesAndRecurseToOverloads : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> false
+
 
 EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
@@ -9583,21 +9606,26 @@ AddParameterTypesForOverloadImplementation : nothing, integer funcname, integer 
 }
 
 
+InferFunctionParameterTypes : FunctionDefinition ref function, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+{
+	if(!function.InferenceDone)
+	{
+		simplelist<integer> temp = 0, nothing
+		ContextWrapper<Scope> scopewrap = nothing
+		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap
+		
+		TypeInference(function, context)
+	}
+	
+	UnwrapParamsForTypeRetrieval(function.Params, paramindex, paramcount, types)
+}
+
 
 FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	if(functions.value.Name == funcname)
 	{
-		if(!functions.value.InferenceDone)
-		{
-			simplelist<integer> temp = 0, nothing
-			ContextWrapper<Scope> scopewrap = nothing
-			InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap
-			
-			TypeInference(functions.value, context)
-		}
-		
-		UnwrapParamsForTypeRetrieval(functions.value.Params, paramindex, paramcount, types)
+		InferFunctionParameterTypes(functions.value, paramindex, paramcount, toplevel, types)
 	}
 	else
 	{
