@@ -3264,6 +3264,8 @@ OnCodeGenRegisterString : integer handle, string data
 {
 	StringTableEntry entry = handle, data
 	prepend<StringTableEntry>(GlobalStrings, entry)
+	
+	PlaceDataInTrie(GlobalStringTrie, data, handle)
 
 	if(handle > CurrentStringHandle)
 	{
@@ -5729,12 +5731,9 @@ FindVariable : integer name, integer ref frames -> integer index = 0
 
 	if(index < 0)
 	{
-		index = FindVariableInScopeList(Scopes, EmittingFunctionName, name)
-		if(index < 0)
-		{
-			index = FindVariableInScopeList(Scopes, GlobalCodeBlockName, name)
-			frames = -1
-		}
+		index = 0
+		FindVariableInSingleScope(GlobalScope.Wrapped, name, index)
+		frames = -1
 	}
 }
 
@@ -6314,32 +6313,6 @@ EmitMemberDataCopy : StructureMemberFunctionRef ref member, integer idhandle
 }
 
 
-FindString : list<StringTableEntry> ref strings, string target -> integer handle = 0
-{
-	listnode<StringTableEntry> fsnode = strings
-	while(!IsNothing(fsnode))
-	{
-		if(NodeMatchesString(fsnode, target))
-		{
-			handle = GetNodeHandle(fsnode)
-			return()
-		}
-	
-		fsnode = GetNext(fsnode)
-	}
-}
-
-IsNothing : nothing -> true
-IsNothing : list<StringTableEntry> ref strings -> false
-
-GetNext : list<StringTableEntry> ref strings -> listnode<StringTableEntry> ret = strings.next
-
-NodeMatchesString : list<StringTableEntry> ref strings, string target -> boolean match = (strings.value.Data == target)
-
-
-GetNodeHandle : list<StringTableEntry> ref strings -> strings.value.Handle
-
-
 GetNameOfType : integer typeid -> integer name = 0
 {
 	typeid = MakeNonReferenceType(typeid)
@@ -6396,6 +6369,11 @@ GetNameOfType : integer typeid -> integer name = 0
 
 GetTypeByName : integer name -> integer typeid = 0
 {
+	if(name == 0)
+	{
+		return()
+	}
+
 	integer unaliasedname = UnaliasType(TypeWeakAliases, name)
 	while(unaliasedname != name)
 	{
@@ -6445,17 +6423,17 @@ GetTypeByName : integer name -> integer typeid = 0
 			return()
 		}
 		
-		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
-		if(strongaliastype != 0)
-		{
-			typeid = strongaliastype
-			return()
-		}
-		
 		integer sumtype = FindSumTypeByName(SumTypes, name)
 		if(sumtype != 0)
 		{			
 			typeid = sumtype
+			return()
+		}
+		
+		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
+		if(strongaliastype != 0)
+		{
+			typeid = strongaliastype
 			return()
 		}
 	}
@@ -6926,7 +6904,7 @@ CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
 	{
 		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
 		CodeGenEmitCodeBlock(block)
-		OnBytecodeInvokeOffset(FindString(GlobalStrings, "entrypoint"))
+		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringTrie, "entrypoint"))
 		OnBytecodeHalt()
 	}
 }
@@ -9512,7 +9490,7 @@ IRValidate : -> true
 
 
 
-PoolString : string s -> integer handle = FindString(GlobalStrings, s)
+PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s)
 {
 	if(handle == 0)
 	{
@@ -13555,6 +13533,8 @@ global
 	string CharacterLineFeed = unescape("\n")
 	string CharacterTab = unescape("\t")
 	string CharacterQuote = unescape("\'")
+	
+	Trie GlobalStringTrie = "", nothing, 0
 }
 
 
@@ -13566,4 +13546,68 @@ IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false
 		recognized = true
 	}
 }
+
+
+structure Trie :
+	string Character,
+	listnode<Trie> Children,
+	integer Handle
+
+PlaceDataInTrie : Trie ref trie, string data, integer handle
+{
+	if(length(data) == 0)
+	{
+		trie.Handle = handle
+		return()
+	}
+	
+	PlaceDataInTrieChild(trie.Children, trie, substring(data, 0, 1), substring(data, 1), handle)
+}
+
+PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string character, string remainder, integer handle
+{
+	if(children.value.Character == character)
+	{
+		PlaceDataInTrie(children.value, remainder, handle)
+	}
+	else
+	{
+		PlaceDataInTrieChild(children.next, originaltrie, character, remainder, handle)
+	}
+}
+
+PlaceDataInTrieChild : nothing, Trie ref originaltrie, string character, string remainder, integer handle
+{
+	Trie newtrie = character, nothing, 0
+	PlaceDataInTrie(newtrie, remainder, handle)
+	
+	list<Trie> newtrielist = newtrie, originaltrie.Children
+	originaltrie.Children = newtrielist
+}
+
+
+FindHandleInTrie : Trie ref trie, string data -> integer handle = 0
+{
+	if(length(data) == 0)
+	{
+		handle = trie.Handle
+		return()
+	}
+	
+	handle = FindHandleInTrieChildren(trie.Children, substring(data, 0, 1), substring(data, 1))
+}
+
+FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string remainder -> integer handle = 0
+{
+	if(triechildren.value.Character == character)
+	{
+		handle = FindHandleInTrie(triechildren.value, remainder)
+		return()
+	}
+	
+	handle = FindHandleInTrieChildren(triechildren.next, character, remainder)
+}
+
+FindHandleInTrieChildren : nothing, string character, string remainder -> integer handle = 0
+
 
