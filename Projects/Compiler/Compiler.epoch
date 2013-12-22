@@ -31,13 +31,13 @@ structure list<type T> :
 // List manipulation functions
 //
 
-simpleprepend<type T> : simplelist<T> ref thelist, T value
+simpleprepend<type T> : simplelist<T> ref thelist, T value [nogc]
 {
 	simplelist<T> newlist = value, thelist
 	thelist = newlist
 }
 
-prepend<type T> : list<T> ref thelist, T ref value
+prepend<type T> : list<T> ref thelist, T ref value [nogc]
 {
 	list<T> newlist = value, thelist
 	thelist = newlist
@@ -62,19 +62,19 @@ ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll
 
 
 
-simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value
+simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value [nogc]
 {
 	simplelist<T> newlist = value, nothing
 	thelist.next = newlist
 }
 
-simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tail, T value
+simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tail, T value [nogc]
 {
 	simple_append_recurse<T>(tail, tail.next, value)
 }
 
 
-simple_append<type T> : simplelist<T> ref thelist, T value
+simple_append<type T> : simplelist<T> ref thelist, T value [nogc]
 {
 	simple_append_recurse<T>(thelist, thelist.next, value)
 }
@@ -1048,12 +1048,12 @@ DumpStream : simplelist<string> ref tokens
 DumpStream : nothing
 
 
-PopToken :
+PopToken : [nogc]
 {
 	PopTokenFromStream(TokenStream, TokenStream.next)
 }
 
-PopTokens : integer count
+PopTokens : integer count [nogc]
 {
 	while(count > 0)
 	{
@@ -1062,20 +1062,20 @@ PopTokens : integer count
 	}
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail
+PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail [nogc]
 {
 	tokens = tail
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, nothing
+PopTokenFromStream : simplelist<string> ref tokens, nothing [nogc]
 {
 	tokens.value = ""
 }
 
 
-PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement)
+PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement) [nogc]
 
-PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value
+PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value [nogc]
 {
 	if(displacement > 0)
 	{
@@ -1083,11 +1083,11 @@ PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> strin
 	}
 }
 
-PeekTokenInStream : nothing, integer displacement -> ""
+PeekTokenInStream : nothing, integer displacement -> "" [nogc]
 
 
 
-PeekWithExpectation : integer displacement, string expected -> boolean found = false
+PeekWithExpectation : integer displacement, string expected -> boolean found = false [nogc]
 {
 	string token = PeekToken(displacement)
 	if(token == expected)
@@ -1437,8 +1437,11 @@ ParseFunction : -> boolean matched = false
 	integer namehandle = RegisterOverloadForFunction(functionname, rawnamehandle)
 	
 	OnCodeGenRegisterFunction(namehandle, rawnamehandle, functionname, templated)
-	ParseFunctionParams(rawnamehandle, namehandle)
-	ParseFunctionReturn(namehandle)
+	if(PeekToken(0) != "[")
+	{
+		ParseFunctionParams(rawnamehandle, namehandle)
+		ParseFunctionReturn(namehandle)
+	}
 	ParseFunctionTags(namehandle, rawnamehandle)
 
 	if(!PeekWithExpectation(0, "{"))
@@ -2440,7 +2443,7 @@ map<type T> : nothing, (func : T)
 }
 
 
-listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = false
+listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = false [nogc]
 {
 	if(thelist.value == value)
 	{
@@ -2452,7 +2455,7 @@ listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = f
 	}
 }
 
-listcontains : nothing, integer value -> boolean contains = false
+listcontains : nothing, integer value -> boolean contains = false [nogc]
 
 
 
@@ -2521,7 +2524,7 @@ TypeListContains : nothing, integer value -> 0
 // Callback used to emit a byte to a bytecode stream
 //
 
-OnBytecodeEmitByte : integer b
+OnBytecodeEmitByte : integer b [nogc]
 {
 	writebuffer(Hack, HackSize, b)
 	++HackSize
@@ -2532,14 +2535,14 @@ OnBytecodeEmitByte : integer b
 // Callback used to emit a series of bytes to a bytecode stream
 //
 
-OnBytecodeEmitBytes : integer bytes, integer size
+OnBytecodeEmitBytes : integer bytes, integer size [nogc]
 {
 	writebuffer(Hack, HackSize, bytes, size)
 	HackSize += size
 }
 
 
-OnBytecodeEmitInteger : integer value
+OnBytecodeEmitInteger : integer value [nogc]
 {
 	writebuffer(Hack, HackSize, value & 0xff)
 	++HackSize
@@ -2551,7 +2554,7 @@ OnBytecodeEmitInteger : integer value
 	++HackSize
 }
 
-OnBytecodeEmitInteger16 : integer16 value
+OnBytecodeEmitInteger16 : integer16 value [nogc]
 {
 	integer v = cast(integer, value)
 	writebuffer(Hack, HackSize, v & 0xff)
@@ -2560,33 +2563,33 @@ OnBytecodeEmitInteger16 : integer16 value
 	++HackSize
 }
 
-OnBytecodeEmitReal : real value
+OnBytecodeEmitReal : real value [nogc]
 {
 	writebuffer(Hack, HackSize, value)
 	HackSize = HackSize + 4
 }
 
-OnBytecodeEmitString : string value
+OnBytecodeEmitString : string value [nogc]
 {
 	integer len = (length(value) + 1) * 2
 	writebuffer(Hack, HackSize, value, len)
 	HackSize += len
 }
 
-OnBytecodeEmitBoolean : boolean value
+OnBytecodeEmitBoolean : boolean value [nogc]
 {
 	OnBytecodeEmitByte(cast(integer, value))
 }
 
 
-OnBytecodePoolString : integer handle, string data
+OnBytecodePoolString : integer handle, string data [nogc]
 {
 	OnBytecodeEmitByte(0x10)			// PoolString instruction
 	OnBytecodeEmitInteger(handle)
 	OnBytecodeEmitString(data)
 }
 
-OnBytecodeLexicalScope : integer name, integer parent, integer count
+OnBytecodeLexicalScope : integer name, integer parent, integer count [nogc]
 {
 	OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
 	OnBytecodeEmitInteger(name)
@@ -2594,7 +2597,7 @@ OnBytecodeLexicalScope : integer name, integer parent, integer count
 	OnBytecodeEmitInteger(count)
 }
 
-OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin
+OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin [nogc]
 {
 	OnBytecodeEmitInteger(varname)
 	OnBytecodeEmitInteger(vartype)
@@ -2602,89 +2605,89 @@ OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin
 	OnBytecodeEmitBoolean(false)
 }
 
-OnBytecodeInvokeOffset : integer name
+OnBytecodeInvokeOffset : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
 	OnBytecodeEmitInteger(name)
 	OnBytecodeEmitInteger(0)
 }
 
-OnBytecodeHalt :
+OnBytecodeHalt : [nogc]
 {
 	OnBytecodeEmitByte(0x00)			// Halt instruction
 }
 
-OnBytecodeEnterFunction : integer name
+OnBytecodeEnterFunction : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodeExitFunction :
+OnBytecodeExitFunction : [nogc]
 {
 	OnBytecodeEmitByte(0x09)			// Return instruction
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
 }
 
-OnBytecodeInvoke : integer target
+OnBytecodeInvoke : integer target [nogc]
 {
 	OnBytecodeEmitByte(0x07)			// Invoke instruction
 	OnBytecodeEmitInteger(target)
 }
 
-OnBytecodeEnterEntity : integer tag, integer name
+OnBytecodeEnterEntity : integer tag, integer name [nogc]
 {
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(tag)
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodeExitEntity :
+OnBytecodeExitEntity : [nogc]
 {
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
 }
 
-OnBytecodeBeginChain :
+OnBytecodeBeginChain : [nogc]
 {
 	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
 }
 
-OnBytecodeEndChain :
+OnBytecodeEndChain : [nogc]
 {
 	OnBytecodeEmitByte(0x0e)			// EndChain instruction
 }
 
-OnBytecodeDefineStructure : integer typeid, integer nummembers
+OnBytecodeDefineStructure : integer typeid, integer nummembers [nogc]
 {
 	OnBytecodeEmitByte(0x14)			// DefineStructure instruction
 	OnBytecodeEmitInteger(typeid)
 	OnBytecodeEmitInteger(nummembers)
 }
 
-OnBytecodeStructureMember : integer name, integer typeid
+OnBytecodeStructureMember : integer name, integer typeid [nogc]
 {
 	OnBytecodeEmitInteger(name)
 	OnBytecodeEmitInteger(typeid)
 }
 
-OnBytecodeReadReference :
+OnBytecodeReadReference : [nogc]
 {
 	OnBytecodeEmitByte(0x17)			// ReadRef instruction
 }
 
-OnBytecodeReadReferenceAnnotated :
+OnBytecodeReadReferenceAnnotated : [nogc]
 {
 	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
 }
 
-OnBytecodeAllocStructure : integer typeid
+OnBytecodeAllocStructure : integer typeid [nogc]
 {
 	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
 	OnBytecodeEmitInteger(typeid)
 }
 
-OnBytecodeBindReference : integer frameskip, integer index
+OnBytecodeBindReference : integer frameskip, integer index [nogc]
 {
 	if(index < 0)
 	{
@@ -2697,18 +2700,18 @@ OnBytecodeBindReference : integer frameskip, integer index
 	OnBytecodeEmitInteger(index)
 }
 
-OnBytecodeAssign :
+OnBytecodeAssign : [nogc]
 {
 	OnBytecodeEmitByte(0x06)			// Assign instruction
 }
 
-OnBytecodePushVarValueNoCopy : integer name
+OnBytecodePushVarValueNoCopy : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x05)			// Read instruction
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodePushVarValue : integer name, integer typeid
+OnBytecodePushVarValue : integer name, integer typeid [nogc]
 {
 	OnBytecodePushVarValueNoCopy(name)
 	
@@ -2728,104 +2731,104 @@ OnBytecodePushVarValue : integer name, integer typeid
 	}
 }
 
-OnBytecodeCopyBuffer :
+OnBytecodeCopyBuffer : [nogc]
 {
 	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
 }
 
-OnBytecodeCopyStructure :
+OnBytecodeCopyStructure : [nogc]
 {
 	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
 }
 
-OnBytecodeCopyToStructure : integer structurename, integer membername
+OnBytecodeCopyToStructure : integer structurename, integer membername [nogc]
 {
 	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
 	OnBytecodeEmitInteger(structurename)
 	OnBytecodeEmitInteger(membername)
 }
 
-OnBytecodeSetReturnRegister : integer varindex
+OnBytecodeSetReturnRegister : integer varindex [nogc]
 {
 	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
 	OnBytecodeEmitInteger(varindex)
 }
 
-OnBytecodePushVarNoCopy : integer varname
+OnBytecodePushVarNoCopy : integer varname [nogc]
 {
 	OnBytecodeEmitByte(0x05)			// Read instruction
 	OnBytecodeEmitInteger(varname)
 }
 
-OnBytecodeInvokeIndirect : integer varname
+OnBytecodeInvokeIndirect : integer varname [nogc]
 {
 	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
 	OnBytecodeEmitInteger(varname)
 }
 
-OnBytecodeEnterPatternResolver : integer name
+OnBytecodeEnterPatternResolver : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(0x02)			// EntityTags::PatternMatchingResolver
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodeExitPatternResolver :
+OnBytecodeExitPatternResolver : [nogc]
 {
 	OnBytecodeHalt()
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
 }
 
-OnBytecodeConstructSumType :
+OnBytecodeConstructSumType : [nogc]
 {
 	OnBytecodeEmitByte(0x21)			// ConstructSumType instruction
 }
 
-OnBytecodeEnterTypeResolver : integer name
+OnBytecodeEnterTypeResolver : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(0x05)			// EntityTags::TypeResolver
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodeExitTypeResolver :
+OnBytecodeExitTypeResolver : [nogc]
 {
 	OnBytecodeHalt()
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
 }
 
-OnBytecodePopStack : integer bytes
+OnBytecodePopStack : integer bytes [nogc]
 {
 	OnBytecodeEmitByte(0x04)			// Pop instruction
 	OnBytecodeEmitInteger(bytes)
 }
 
-OnBytecodeBindRefByHandle : integer id
+OnBytecodeBindRefByHandle : integer id [nogc]
 {
 	OnBytecodeEmitByte(0x1d)
 	OnBytecodeEmitInteger(id)
 }
 
-OnBytecodeBindStructReference : integer membertype, integer memberoffset
+OnBytecodeBindStructReference : integer membertype, integer memberoffset [nogc]
 {
 	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
 	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
 	OnBytecodeEmitInteger(memberoffset)
 }
 
-OnBytecodePushType : integer typeid
+OnBytecodePushType : integer typeid [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(typeid)
 }
 
-OnBytecodeAssignSumType :
+OnBytecodeAssignSumType : [nogc]
 {
 	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
 }
 
-OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, integer size
+OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, integer size [nogc]
 {
 	if(isparam)
 	{
@@ -2841,56 +2844,56 @@ OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, intege
 	OnBytecodeEmitInteger(size)
 }
 
-OnBytecodePushBoolean : boolean literal
+OnBytecodePushBoolean : boolean literal [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
 	OnBytecodeEmitBoolean(literal)
 }
 
-OnBytecodePushLiteralString : integer literalhandle
+OnBytecodePushLiteralString : integer literalhandle [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x02000000)		// String type signature
 	OnBytecodeEmitInteger(literalhandle)
 }
 
-OnBytecodePushLiteralInteger : integer literal
+OnBytecodePushLiteralInteger : integer literal [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(literal)
 }
 
-OnBytecodePushLiteralInteger16 : integer16 literal
+OnBytecodePushLiteralInteger16 : integer16 literal [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000002)		// Integer16 type signature
 	OnBytecodeEmitInteger16(literal)
 }
 
-OnBytecodePushTypeAnnotation : integer annotation
+OnBytecodePushTypeAnnotation : integer annotation [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(annotation)
 }
 
-OnBytecodePushLiteralFunction : integer name
+OnBytecodePushLiteralFunction : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x09000000)		// Function family signature (N.B. not the actual function type!)
 	OnBytecodeEmitInteger(name)
 }
 
-OnBytecodePushLiteralReal : real value
+OnBytecodePushLiteralReal : real value [nogc]
 {
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000004)		// Real type signature
 	OnBytecodeEmitReal(value)
 }
 
-OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount
+OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount [nogc]
 {
 	OnBytecodeEmitByte(0x28)			// FuncSig instruction
 	OnBytecodeEmitInteger(typeid)
@@ -2898,7 +2901,7 @@ OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer param
 	OnBytecodeEmitInteger(paramcount)
 }
 
-OnBytecodeEmitFunctionSigParam : integer paramtype
+OnBytecodeEmitFunctionSigParam : integer paramtype [nogc]
 {
 	OnBytecodeEmitInteger(paramtype)
 	OnBytecodeEmitBoolean(false)
@@ -3264,7 +3267,7 @@ OnCodeGenProcessProgram :
 	CodeGenEmitConstructors(Structures)
 }
 
-OnCodeGenRegisterString : integer handle, string data
+OnCodeGenRegisterString : integer handle, string data [nogc]
 {
 	StringTableEntry entry = handle, data
 	prepend<StringTableEntry>(GlobalStrings, entry)
@@ -5068,8 +5071,9 @@ CodeGenEmitEntityList : nothing
 
 BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurename
 {
-	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
-	integer memberoffset = GetStructureMemberOffset(Structures, structurename, lhsmembers.value)
+	integer membertype = 0
+	integer memberoffset = 0
+	GetStructureMemberTypeAndOffset(Structures, structurename, lhsmembers.value, membertype, memberoffset)
 
 	OnBytecodeBindStructReference(membertype, memberoffset)
 
@@ -5087,11 +5091,6 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref 
 	
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(scope, rootname, var)
-	
-	if(var.Name == 0)
-	{
-		FindVariableDataInSingleScope(GlobalScope.Wrapped, rootname, var)
-	}
 	
 	if(var.Name == 0)
 	{
@@ -5323,8 +5322,10 @@ CodeGenEmitSingleAtom : Statement ref atom, boolean constructor
 
 CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
 {
-	integer memtype = GetStructureMemberType(Structures, atom.StructureName, atom.Identifier)
-	integer memoffset = GetStructureMemberOffset(Structures, atom.StructureName, atom.Identifier)
+	integer memtype = 0
+	integer memoffset = 0
+	GetStructureMemberTypeAndOffset(Structures, atom.StructureName, atom.Identifier, memtype, memoffset)
+	
 	OnBytecodeBindStructReference(memtype, memoffset)
 }
 
@@ -5380,9 +5381,11 @@ EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 	
 	assertmsg(var.VarType != 0, "Compound bindings reference bogus variable")
 	integer lhstypename = GetNameOfType(var.VarType)
-
-	integer memtype = GetStructureMemberType(Structures, lhstypename, tail.value.Identifier)
-	integer memoffset = GetStructureMemberOffset(Structures, lhstypename, tail.value.Identifier)
+		
+	integer memtype = 0
+	integer memoffset = 0
+	GetStructureMemberTypeAndOffset(Structures, lhstypename, tail.value.Identifier, memtype, memoffset)
+	
 	OnBytecodeBindStructReference(memtype, memoffset)
 
 	EmitCompoundSubsequentBindings(tail.next)
@@ -5451,6 +5454,21 @@ GetTotalMemberSize : nothing -> integer size = 0
 
 
 
+GetStructureMemberTypeAndOffset : list<StructureDefinition> ref structures, integer structurename, integer membername, integer ref memtype, integer ref memoffset
+{
+	if(structures.value.Name == structurename)
+	{
+		memtype = 0
+		memoffset = 0
+		GetMemberTypeAndOffset(structures.value.Members, membername, memtype, memoffset)
+	}
+	else
+	{
+		GetStructureMemberTypeAndOffset(structures.next, structurename, membername, memtype, memoffset)
+	}
+}
+
+
 GetStructureMemberType : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer rtype = 0
 {
 	if(structures.value.Name == structurename)
@@ -5484,6 +5502,30 @@ GetMemberType : list<StructureMember> ref members, integer membername -> integer
 }
 
 GetMemberType : nothing, integer membername -> integer rtype = 0
+{
+	print("Bogus structure member!")
+	assert(false)
+}
+
+
+GetMemberTypeAndOffset : list<StructureMember> ref members, integer membername, integer ref memtype, integer ref memoffset
+{
+	integer thisname = GetMemberName(members.value)
+	if(thisname == membername)
+	{
+		memtype = GetMemberTypeDecompose(members.value)
+	}
+	else
+	{
+		if(thisname != 0)
+		{
+			memoffset += GetMemberSize(members.value)
+		}
+		GetMemberTypeAndOffset(members.next, membername, memtype, memoffset)
+	}
+}
+
+GetMemberTypeAndOffset : nothing, integer membername, integer ref memtype, integer ref memoffset
 {
 	print("Bogus structure member!")
 	assert(false)
@@ -5744,24 +5786,6 @@ FindVariable : integer name, integer ref frames -> integer index = 0
 }
 
 
-
-FindVariableInScope : integer scopename, integer varname -> integer index = FindVariableInScopeList(Scopes, scopename, varname)
-
-FindVariableInScopeList : list<Scope> ref scopes, integer scopename, integer varname -> integer index = -1
-{
-	if(scopes.value.Name == scopename)
-	{
-		index = 0
-		FindVariableInSingleScope(scopes.value.Variables, varname, index)
-	}
-	else
-	{
-		index = FindVariableInScopeList(scopes.next, scopename, varname)
-	}
-}
-
-FindVariableInScopeList : nothing, integer scopename, integer varname -> integer index = -1
-
 FindVariableInSingleScope : Scope ref scope, integer varname, integer ref index
 {
 	FindVariableInSingleScope(scope.Variables, varname, index)
@@ -5786,22 +5810,19 @@ FindVariableInSingleScope : nothing, integer varname, integer ref index
 }
 
 
-FindReturnVariableIndex : -> integer index = FindReturnVariableInScopeList(Scopes, EmittingFunctionName)
-
-FindReturnVariableName: -> integer index = FindReturnVariableNameInScopeList(Scopes, EmittingFunctionName)
-
-
-FindReturnVariableInScopeList : list<Scope> ref scopes, integer scopename -> integer index = -1
+FindReturnVariableIndex : -> integer index = 0
 {
-	if(scopes.value.Name == scopename)
-	{
-		index = 0
-		FindReturnVariableInSingleScope(scopes.value.Variables, index)
-	}
-	else
-	{
-		index = FindReturnVariableInScopeList(scopes.next, scopename)
-	}
+	FindReturnVariableInSingleScope(EmittingScope.Wrapped, index)
+}
+
+FindReturnVariableName: -> integer name = 0
+{
+	FindReturnVariableNameInSingleScope(EmittingScope.Wrapped, name)
+}
+
+FindReturnVariableInSingleScope : Scope ref scope, integer ref index
+{
+	FindReturnVariableInSingleScope(scope.Variables, index)
 }
 
 FindReturnVariableInSingleScope : list<Variable> ref vars, integer ref index
@@ -5822,17 +5843,9 @@ FindReturnVariableInSingleScope : nothing, integer ref index
 	index = -1
 }
 
-
-FindReturnVariableNameInScopeList : list<Scope> ref scopes, integer scopename -> integer name = 0
+FindReturnVariableNameInSingleScope : Scope ref scope, integer ref name
 {
-	if(scopes.value.Name == scopename)
-	{
-		FindReturnVariableNameInSingleScope(scopes.value.Variables, name)
-	}
-	else
-	{
-		name = FindReturnVariableNameInScopeList(scopes.next, scopename)
-	}
+	FindReturnVariableNameInSingleScope(scope.Variables, name)
 }
 
 FindReturnVariableNameInSingleScope : list<Variable> ref vars, integer ref name
@@ -5885,26 +5898,8 @@ FindVariableDataInScope : integer scopename, integer varname, Variable ref outva
 		return()
 	}
 
-	found = FindVariableDataInScopeList(Scopes, scopename, varname, outvar)
+	assertmsg(false, "Cannot find data in unknown scope")
 }
-
-FindVariableDataInScopeList : list<Scope> ref scopes, integer scopename, integer varname, Variable ref outvar -> boolean found = false
-{
-	if(scopes.value.Name == scopename)
-	{
-		found = FindVariableDataInSingleScope(scopes.value.Variables, varname, outvar)
-		if((!found) && (GlobalCodeBlockName != 0) && (scopename != GlobalCodeBlockName))
-		{
-			found = FindVariableDataInScope(GlobalCodeBlockName, varname, outvar)
-		}
-	}
-	else
-	{
-		found = FindVariableDataInScopeList(scopes.next, scopename, varname, outvar)
-	}
-}
-
-FindVariableDataInScopeList : nothing, integer scopename, integer varname, Variable ref outvar -> boolean found = false
 
 FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref outvar -> boolean found = false
 {
@@ -7326,9 +7321,8 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	func.InferenceDone = true
 
 	simplelist<integer> temp = 0, nothing
-	ContextWrapper<Scope> scopewrap = nothing
+	ContextWrapper<Scope> scopewrap = func.AttachedScope.Wrapped
 	InferenceContext innercontext = func.Name, 0, temp, false, 0, false, false, scopewrap
-	SetScopeForContext(Scopes, innercontext)
 	
 	
 	if(!TypeInference(func.Params, innercontext))
@@ -7529,11 +7523,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Name, var)
-	if(var.Name == 0)
-	{
-		FindVariableDataInSingleScope(GlobalScope.Wrapped, statement.Name, var)
-	}
-	
+
 	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
 	{
 		// TODO - type checking on higher order functions
@@ -7568,7 +7558,14 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
-			isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+			if(IsRecognizedBuiltIn(statement.Name))
+			{
+				isuserfunc = false
+			}
+			else
+			{
+				isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+			}
 		
 			simplelist<integer> paramtypes = 0, nothing
 			AccumulateParameterTypes(paramtypes, statement.Parameters)
@@ -7587,7 +7584,15 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			if(overloadname != 0)
 			{
 				statement.Name = overloadname
-				isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+
+				if(IsRecognizedBuiltIn(statement.Name))
+				{
+					isuserfunc = false
+				}
+				else
+				{
+					isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+				}
 			}
 			else
 			{
@@ -9529,16 +9534,6 @@ IREnterFunction : integer namehandle
 IRExitFunction :
 {
 	OnCodeGenExitContext()
-}
-
-IREnterCodeBlock :
-{
-	// TODO
-}
-
-IRExitCodeBlock :
-{
-	//OnCodeGenExitContext()
 }
 
 
@@ -12176,14 +12171,14 @@ RemapSignatureParamTypes : list<Parameter> ref parameters, list<TemplateParamete
 RemapSignatureParamTypes : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 
 
-PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateParameter> ref params, list<TemplateArgument> ref args [nogc]
 {
 	TemplateArgumentList wrap = args
 	RemapAllTemplateArguments(wrap, params, args)
 	p.TemplateArgs = wrap
 }
 
-PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args [nogc]
 
 
 DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
@@ -12196,7 +12191,7 @@ DoReturnInstantiation : Expression ref retexpr, integer funcname, boolean anonym
 DoReturnInstantiation : nothing, integer funcname, boolean anonymous, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 
 
-MapTemplateType : integer typenamehandle, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs -> integer newtypename = typenamehandle
+MapTemplateType : integer typenamehandle, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs -> integer newtypename = typenamehandle [nogc]
 {
 	if(templateparams.value.ParamName == typenamehandle)
 	{
@@ -12208,25 +12203,25 @@ MapTemplateType : integer typenamehandle, list<TemplateParameter> ref templatepa
 	}
 }
 
-MapTemplateType : integer typenamehandle, nothing, nothing -> typenamehandle
+MapTemplateType : integer typenamehandle, nothing, nothing -> typenamehandle [nogc]
 
 
-MangleTemplateNameByHandle : integer defname, nothing -> integer mangled = defname
+MangleTemplateNameByHandle : integer defname, nothing -> integer mangled = defname [nogc]
 
-MangleTemplateNameByHandle : integer defname, TemplateArgumentList ref args -> integer mangled = PoolString(MangleTemplateName(defname, args.Args))
+MangleTemplateNameByHandle : integer defname, TemplateArgumentList ref args -> integer mangled = PoolString(MangleTemplateName(defname, args.Args)) [nogc]
 
 
-MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, defname) ; "@@templateinst@"
+MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, defname) ; "@@templateinst@" [nogc]
 {
 	mangled = mangled ; MangleTemplateArguments(args)
 }
 
-MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = args.value.ReplaceWithString
+MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = args.value.ReplaceWithString [nogc]
 {
 	mangled = mangled ; MangleTemplateArguments(args.next)
 }
 
-MangleTemplateArguments : nothing -> ""
+MangleTemplateArguments : nothing -> "" [nogc]
 
 
 FindFunctionTemplateAndInstantiate : nothing, integer basename, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplate(defname, args)
@@ -12249,7 +12244,7 @@ InstantiateStructureTemplate : integer defname, list<TemplateArgument> ref args 
 }
 
 
-FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer defname, list<TemplateArgument> ref args -> integer instancename = 0 [nogc]
 {
 	if(instances.value.DefName == defname)
 	{
@@ -12263,11 +12258,11 @@ FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer def
 	instancename = FindExistingTemplateInstance(instances.next, defname, args)
 }
 
-FindExistingTemplateInstance : nothing, integer defname, list<TemplateArgument> ref args -> 0
+FindExistingTemplateInstance : nothing, integer defname, list<TemplateArgument> ref args -> 0 [nogc]
 
 
 
-TemplateArgumentsMatch : list<TemplateArgument> ref a, list<TemplateArgument> ref b -> boolean match = true
+TemplateArgumentsMatch : list<TemplateArgument> ref a, list<TemplateArgument> ref b -> boolean match = true [nogc]
 {
 	if(a.value.ReplaceWith != b.value.ReplaceWith)
 	{
@@ -12279,9 +12274,9 @@ TemplateArgumentsMatch : list<TemplateArgument> ref a, list<TemplateArgument> re
 	}
 }
 
-TemplateArgumentsMatch : nothing, list<TemplateArgument> ref b -> false
-TemplateArgumentsMatch : list<TemplateArgument> ref a, nothing -> false
-TemplateArgumentsMatch : nothing, nothing -> true
+TemplateArgumentsMatch : nothing, list<TemplateArgument> ref b -> false [nogc]
+TemplateArgumentsMatch : list<TemplateArgument> ref a, nothing -> false [nogc]
+TemplateArgumentsMatch : nothing, nothing -> true [nogc]
 
 
 
@@ -12463,7 +12458,7 @@ structure tailhack :
 // EXE generation stuff
 //
 
-RoundUp : integer in -> integer out = ((in / 0x1000) + 1) * 0x1000
+RoundUp : integer in -> integer out = ((in / 0x1000) + 1) * 0x1000			// TODO - this over-estimates if in is a perfect multiple of 0x1000
 
 WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
 
@@ -13227,7 +13222,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 }
 
 
-EmitInteger : buffer ref b, integer ref size, integer value
+EmitInteger : buffer ref b, integer ref size, integer value [nogc]
 {
 	writebuffer(b, size, (value) & 0xff)
 	++size
@@ -13239,7 +13234,7 @@ EmitInteger : buffer ref b, integer ref size, integer value
 	++size
 }
 
-EmitInteger16 : buffer ref b, integer ref size, integer16 value
+EmitInteger16 : buffer ref b, integer ref size, integer16 value [nogc]
 {
 	integer v = cast(integer, value)
 	writebuffer(b, size, (v) & 0xff)
@@ -13248,13 +13243,13 @@ EmitInteger16 : buffer ref b, integer ref size, integer16 value
 	++size
 }
 
-EmitByte : buffer ref b, integer ref size, integer value
+EmitByte : buffer ref b, integer ref size, integer value [nogc]
 {
 	writebuffer(b, size, (value) & 0xff)
 	++size
 }
 
-EmitPadding : buffer ref b, integer ref size, integer targetsize
+EmitPadding : buffer ref b, integer ref size, integer targetsize [nogc]
 {
 	while(size < targetsize)
 	{
@@ -13262,7 +13257,7 @@ EmitPadding : buffer ref b, integer ref size, integer targetsize
 	}
 }
 
-EmitSubstring : buffer ref b, integer ref size, string s, integer bytes
+EmitSubstring : buffer ref b, integer ref size, string s, integer bytes [nogc]
 {
 	writebuffer(b, size, s, bytes)
 	size += bytes
@@ -13284,7 +13279,7 @@ DumpOverload : Overload ref overload
 }
 
 
-CacheGlobalCodeBlock : list<Scope> ref scopes
+CacheGlobalCodeBlock : list<Scope> ref scopes [nogc]
 {
 	if(scopes.value.Name == GlobalCodeBlockName)
 	{
@@ -13550,7 +13545,7 @@ global
 }
 
 
-IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false
+IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false [nogc]
 {
 	// This is a REALLY bad hack.
 	if(namehandle < FirstNonBuiltInStringHandle)
@@ -13565,7 +13560,7 @@ structure Trie :
 	listnode<Trie> Children,
 	integer Handle
 
-PlaceDataInTrie : Trie ref trie, string data, integer handle
+PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 {
 	if(length(data) == 0)
 	{
@@ -13576,7 +13571,7 @@ PlaceDataInTrie : Trie ref trie, string data, integer handle
 	PlaceDataInTrieChild(trie.Children, trie, substring(data, 0, 1), substring(data, 1), handle)
 }
 
-PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string character, string remainder, integer handle
+PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string character, string remainder, integer handle [nogc]
 {
 	if(children.value.Character == character)
 	{
@@ -13588,7 +13583,7 @@ PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string ch
 	}
 }
 
-PlaceDataInTrieChild : nothing, Trie ref originaltrie, string character, string remainder, integer handle
+PlaceDataInTrieChild : nothing, Trie ref originaltrie, string character, string remainder, integer handle [nogc]
 {
 	Trie newtrie = character, nothing, 0
 	PlaceDataInTrie(newtrie, remainder, handle)
@@ -13598,7 +13593,7 @@ PlaceDataInTrieChild : nothing, Trie ref originaltrie, string character, string 
 }
 
 
-FindHandleInTrie : Trie ref trie, string data -> integer handle = 0
+FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
 {
 	if(length(data) == 0)
 	{
@@ -13609,7 +13604,7 @@ FindHandleInTrie : Trie ref trie, string data -> integer handle = 0
 	handle = FindHandleInTrieChildren(trie.Children, substring(data, 0, 1), substring(data, 1))
 }
 
-FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string remainder -> integer handle = 0
+FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string remainder -> integer handle = 0 [nogc]
 {
 	if(triechildren.value.Character == character)
 	{
@@ -13620,7 +13615,7 @@ FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string
 	handle = FindHandleInTrieChildren(triechildren.next, character, remainder)
 }
 
-FindHandleInTrieChildren : nothing, string character, string remainder -> integer handle = 0
+FindHandleInTrieChildren : nothing, string character, string remainder -> integer handle = 0 [nogc]
 
 
 assertmsg : boolean check, string message
