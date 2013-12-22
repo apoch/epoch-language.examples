@@ -1035,7 +1035,7 @@ quick_append : simplelist<string> ref tailnode, string token [nogc]
 
 quick_append : nothing, string token [nogc]
 {
-	assert(false)
+	assertmsg(false, "quick_append failure")
 }
 
 
@@ -1445,6 +1445,7 @@ ParseFunction : -> boolean matched = false
 	{
 		matched = true
 		IREnterFunction(namehandle)
+		Functions.value.AttachedScope.Wrapped = Scopes.value
 		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
@@ -1452,6 +1453,7 @@ ParseFunction : -> boolean matched = false
 
 	PopTokens(1)
 	IREnterFunction(namehandle)
+	Functions.value.AttachedScope.Wrapped = Scopes.value
 	OnCodeGenEnterFunctionBody(namehandle)
 
 	ParseCodeBlock()
@@ -3119,16 +3121,18 @@ structure Overload :
 
 structure FunctionDefinition :
 	integer RawName,
-	string RawNameString,
 	integer Name,
-	boolean IsTemplate,
 	OptionalExpression Return,
 	OptionalCodeBlock Code,
-	boolean AnonymousReturn,
-	integer InvokeTag,
 	OptionalParameters Params,
+	list<Overload> Overloads,
+	ContextWrapper<Scope> AttachedScope,
+	string RawNameString,
+	integer InvokeTag,
 	boolean InferenceDone,
-	list<Overload> Overloads
+	boolean IsTemplate,
+	boolean AnonymousReturn
+	
 	
 
 structure Variable :
@@ -3247,7 +3251,7 @@ OnCodeGenProcessProgram :
 	
 	if(GlobalCodeBlockName != 0)
 	{
-		CodeGenEmitSpecificScope(Scopes, GlobalCodeBlockName)
+		CodeGenEmitSpecificScope(GlobalScope.Wrapped)
 	}
 	
 	CodeGenEmitScopes(Scopes)
@@ -3634,8 +3638,15 @@ AttachContextToOverload : list<Overload> ref overloads, integer mangledname, Fun
 
 OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfuncnamestr, boolean istemplate
 {
-	FunctionDefinition func = rawfuncname, rawfuncnamestr, funcname, istemplate, nothing, nothing, false, 0, nothing, false, dummyoverloadlist
+	ContextWrapper<Scope> scopewrap = nothing
+	FunctionDefinition func = rawfuncname, funcname, nothing, nothing, nothing, dummyoverloadlist, scopewrap, rawfuncnamestr, 0, false, istemplate, false
 	prepend<FunctionDefinition>(Functions, func)
+	
+	// TODO - this is a weird bug. For some reason we don't init the field correctly in the above constructor
+	if(istemplate)
+	{
+		func.IsTemplate = true
+	}
 	
 	if(funcname != rawfuncname)
 	{
@@ -3765,7 +3776,7 @@ OnCodeGenExitContext :
 	}
 	elseif(entrytype == STACK_TYPE_FUNCTION)
 	{
-		assert(CodeBlockDepth(CurrentCodeBlockStack) == 1)
+		assertmsg(CodeBlockDepth(CurrentCodeBlockStack) == 1, "Code block depth is invalid")
 		SetFunctionCodeBlock(Functions.value, CurrentCodeBlockStack.value)
 	}
 	elseif(entrytype == STACK_TYPE_ENTITY_CODE)
@@ -4680,18 +4691,11 @@ CodeGenEmitSingleScope : Scope ref scope, integer funcname
 }
 
 
-CodeGenEmitSpecificScope : list<Scope> ref scopes, integer scopename
+CodeGenEmitSpecificScope : Scope ref scope
 {
-	if(scopes.value.Name == scopename)
-	{
-		integer varcount = CountScopeVariables(scopes.value)
-		OnBytecodeLexicalScope(scopes.value.Name, 0, varcount)
-		CodeGenEmitVariables(scopes.value.Variables, 0)
-	}
-	else
-	{
-		CodeGenEmitSpecificScope(scopes.next, scopename)
-	}
+	integer varcount = CountScopeVariables(scope)
+	OnBytecodeLexicalScope(scope.Name, 0, varcount)
+	CodeGenEmitVariables(scope.Variables, 0)
 }
 
 
@@ -4761,7 +4765,7 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 {
 	if(def.Name != 0)
 	{
-		FindScopeAndSetContext(Scopes, def.Name)
+		FindScopeAndSetContext(def)
 		
 		EmittingFunctionName = def.Name
 		OnBytecodeEnterFunction(def.Name)
@@ -4795,17 +4799,19 @@ CodeGenEmitSingleFunction : FunctionDefinition ref def
 }
 
 
-FindScopeAndSetContext : list<Scope> ref scopes, integer scopename
+FindScopeAndSetContext : FunctionDefinition ref func
 {
-	if(scopes.value.Name == scopename)
+	EmittingScope.Wrapped = func.AttachedScope.Wrapped
+	if(!HasScope(EmittingScope.Wrapped))
 	{
-		EmittingScope.Wrapped = scopes.value
-	}
-	else
-	{
-		FindScopeAndSetContext(scopes.next, scopename)
+		print("Function " ; GetPooledString(GlobalStrings, func.Name) ; " has no scope!")
+		assert(false)
 	}
 }
+
+HasScope : Scope ref scope -> true
+HasScope : nothing -> false
+
 
 CodeGenEmitFunctionReturn : Expression ref expr
 {
@@ -5068,7 +5074,7 @@ BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurenam
 	OnBytecodeBindStructReference(membertype, memberoffset)
 
 	// Recurse
-	assert(membertype != 0)
+	assertmsg(membertype != 0, "Member has no type!")
 	BindAssignmentMembers(lhsmembers.next, GetNameOfType(membertype))
 }
 
@@ -5093,7 +5099,7 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref 
 		assert(false)
 	}
 	
-	assert(var.VarType != 0)
+	assertmsg(var.VarType != 0, "Variable has no type!")
 	
 	integer vartypename = GetNameOfType(var.VarType)
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(assignment.LHS.next, vartypename)
@@ -5102,7 +5108,7 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref 
 ComputeCompoundAssignmentLHSTypeMembers : simplelist<integer> ref lhsmembers, integer structurename -> integer typeid = 0
 {
 	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
-	assert(membertype != 0)
+	assertmsg(membertype != 0, "Member in compound assignment has no type!")
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(lhsmembers.next, GetNameOfType(membertype))
 }
 
@@ -5372,7 +5378,7 @@ EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInScope(EmittingFunctionName, bindings.value.Identifier, var)
 	
-	assert(var.VarType != 0)
+	assertmsg(var.VarType != 0, "Compound bindings reference bogus variable")
 	integer lhstypename = GetNameOfType(var.VarType)
 
 	integer memtype = GetStructureMemberType(Structures, lhstypename, tail.value.Identifier)
@@ -5469,7 +5475,7 @@ GetMemberType : list<StructureMember> ref members, integer membername -> integer
 	if(GetMemberName(members.value) == membername)
 	{
 		rtype = GetMemberTypeDecompose(members.value)
-		assert(rtype != 0)
+		assertmsg(rtype != 0, "Member has no type; cannot return from GetMemberType")
 	}
 	else
 	{
@@ -7443,7 +7449,7 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 
 	if(countnonzero(statement.Operand) > 1)
 	{
-		assert(operandtype != 0)
+		assertmsg(operandtype != 0, "Pre-operation statement has no type")
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
 	
@@ -7467,7 +7473,7 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 	
 	if(countnonzero(statement.Operand) > 1)
 	{
-		assert(operandtype != 0)
+		assertmsg(operandtype != 0, "Post-operation statement has no type")
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
 	
@@ -7511,7 +7517,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
-			assert(vartype != 0)
+			assertmsg(vartype != 0, "Assumption failure in statement type inference")
 			statement.Name = GetNameOfType(vartype)
 		}
 		
@@ -8646,7 +8652,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			integer typecount = countnonzero(types)
 			if(typecount == 1)
 			{
-				assert(types.value != 0)
+				assertmsg(types.value != 0, "Inferred a non-type!")
 				expression.Type = types.value
 			}
 			elseif(typecount > 1)
@@ -8679,7 +8685,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			if(typecount == 1)
 			{
 				expression.Type = possibletypes.value
-				assert(expression.Type != 0)
+				assertmsg(expression.Type != 0, "Ruled out all types but a non-type!")
 			}
 			elseif(context.FunctionReturn)
 			{
@@ -9221,7 +9227,7 @@ AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 
 AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
 {
-	assert(functionname != 0)
+	assertmsg(functionname != 0, "Cannot configure inference possibility for nameless function")
 
 	simplelist<integer> p1t = param1type, nothing
 	simplelist<integer> p2t = param2type, nothing
@@ -9242,7 +9248,7 @@ AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer fun
 
 AddUnaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer rettype
 {
-	assert(functionname != 0)
+	assertmsg(functionname != 0, "Cannot configure inference possibility for nameless function")
 
 	simplelist<integer> p1t = param1type, nothing
 
@@ -10933,7 +10939,7 @@ PerformDemotion : list<ExpressionAtom> ref atoms, IdentifierAtom ref atom
 
 PerformDemotion : list<ExpressionAtom> ref atoms, Statement ref atom
 {
-	assert(atom.Type == 0x01000002)
+	assertmsg(atom.Type == 0x01000002, "Failed to demote statement type")
 }
 
 
@@ -12076,9 +12082,14 @@ DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer basena
 
 FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	assert(originalfunc.IsTemplate)
+	if(!originalfunc.IsTemplate)
+	{
+		print("Function is not template: " ; GetPooledString(GlobalStrings, defname))
+		assert(false)
+	}
 	
-	FunctionDefinition func = defname, GetPooledString(GlobalStrings, defname), instancename, false, nothing, nothing, originalfunc.AnonymousReturn, 0, nothing, false, originalfunc.Overloads
+	ContextWrapper<Scope> scopewrap = nothing
+	FunctionDefinition func = defname, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, defname), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
 	
 	Overload selfoverload = defname, instancename, func
@@ -12097,6 +12108,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	//ParseFunctionTags(namehandle, rawnamehandle)
 
 	IREnterFunction(instancename)
+	Functions.value.AttachedScope.Wrapped = Scopes.value
 	OnCodeGenEnterFunctionBody(instancename)
 
 	DoCodeBlockInstantiation(originalfunc.Code, params, args)
@@ -12108,7 +12120,6 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 
 
 	simplelist<integer> temp = 0, nothing
-	ContextWrapper<Scope> scopewrap = nothing
 	InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap
 	TypeInference(func, context)
 }
@@ -13306,7 +13317,8 @@ global
 	list<Overload> dummyoverloadlist = dummyoverload, nothing
 	list<Overload> Overloads = dummyoverload, nothing
 
-	FunctionDefinition dummyfunc = 0, "", 0, false, nothing, nothing, false, 0, nothing, false, dummyoverloadlist
+	ContextWrapper<Scope> dummyscopewrap = nothing
+	FunctionDefinition dummyfunc = 0, 0, nothing, nothing, nothing, dummyoverloadlist, dummyscopewrap, "", 0, false, false, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 	SumTypeBase dummybasetype = 0, nothing
@@ -13610,4 +13622,13 @@ FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string
 
 FindHandleInTrieChildren : nothing, string character, string remainder -> integer handle = 0
 
+
+assertmsg : boolean check, string message
+{
+	if(!check)
+	{
+		print(message)
+		assert(false)
+	}
+}
 
