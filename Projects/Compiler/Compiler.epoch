@@ -3216,6 +3216,10 @@ structure TemplateInstance :
 	list<TemplateArgument> ref Arguments
 	
 	
+structure ParameterTypeList :
+	simplelist<integer> ref Types
+	
+	
 type ContextNode<type T> : T | nothing
 
 structure ContextWrapper<type T> :
@@ -7863,7 +7867,7 @@ GetFunctionWrapperParameterCount : FunctionDefinition ref func, integer mangledn
 
 GetFunctionWrapperParameterCount : nothing, integer mangledname -> integer count = 0
 {
-	count = GetFunctionParameterCount(Functions, mangledname)
+	count = GetFunctionParameterCount(nothing, mangledname)
 }
 
 
@@ -8082,13 +8086,20 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 	}
 	else
 	{
-		if(ConstructorMatchesParameterTypes(Structures, rawname, types))
+		boolean matchesctor = false
+		if(ConstructorMatchesParameterTypes(Structures, rawname, types, matchesctor))
 		{
 			overloadname = rawname
 		}
-		elseif((!StructureConstructorExists(Structures, rawname)) && (!FunctionExists(Functions, rawname)))
-		{
-			overloadname = rawname
+		else
+		{	// TODO - this is a sloppy hack to work around the fact that operators don't short circuit properly yet
+			if(!matchesctor)
+			{
+				if(!FunctionExists(Functions, rawname))
+				{
+					overloadname = rawname
+				}
+			}
 		}
 	}
 }
@@ -8169,15 +8180,17 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 	}
 	else
 	{
-		match = ConstructorMatchesParameterTypes(Structures, funcname, types)
+		boolean ignored = false
+		match = ConstructorMatchesParameterTypes(Structures, funcname, types, ignored)
 	}
 }
 
 
-ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, integer ctorname, simplelist<integer> ref types -> boolean match = false
+ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, integer ctorname, simplelist<integer> ref types, boolean ref matchesctor -> boolean match = false
 {
 	if(structures.value.ConstructorName == ctorname)
 	{
+		matchesctor = true
 		if(types.value != 0x01000000)		// identifier type signature
 		{
 			return()
@@ -8187,10 +8200,12 @@ ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, int
 	}
 	elseif(structures.value.AnonConstructorName == ctorname)
 	{
+		matchesctor = true
 		match = CheckMemberTypes(structures.value.Members, types)
 	}
 	elseif(structures.value.CopyConstructorName == ctorname)
 	{
+		matchesctor = true
 		if(types.value != 0x01000000)		// identifier type signature
 		{
 			return()
@@ -8200,11 +8215,11 @@ ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, int
 	}
 	else
 	{
-		match = ConstructorMatchesParameterTypes(structures.next, ctorname, types)
+		match = ConstructorMatchesParameterTypes(structures.next, ctorname, types, matchesctor)
 	}
 }
 
-ConstructorMatchesParameterTypes : nothing, integer ctorname, simplelist<integer> ref types -> false
+ConstructorMatchesParameterTypes : nothing, integer ctorname, simplelist<integer> ref types, boolean ref matchesctor -> false
 
 
 CheckCopyType : simplelist<integer> ref a, integer b -> boolean match = (a.value == b)
@@ -8404,16 +8419,175 @@ TypeInference : Entity ref entity, InferenceContext ref context -> boolean succe
 
 TypeInference : ExpressionList ref parameters, InferenceContext ref context -> boolean success = true
 {
-	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0))
+	simplelist<integer> dummytypelist = 0, nothing
+	ParameterTypeList dummyparaminfo = dummytypelist
+	list<ParameterTypeList> paramtypeinfo = dummyparaminfo, nothing
+	
+	integer i = 1
+	while(i < context.NumParameters)
+	{
+		simplelist<integer> dummytypelist2 = 0, nothing
+		ParameterTypeList dummyparaminfo2 = dummytypelist2
+		prepend<ParameterTypeList>(paramtypeinfo, dummyparaminfo2)
+	
+		++i
+	}
+	
+	boolean hasallparams = GatherAllPossibleParamTypes(Functions, context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
+
+	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0, hasallparams, paramtypeinfo))
 	{
 		success = false
 	}
 }
 
-TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex -> boolean success = true
+
+GatherAllPossibleParamTypes : list<FunctionDefinition> ref functions, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
+{
+	if(functions.value.Name == funcname)
+	{
+		InferAllFunctionParameterTypes(functions.value, numparams, toplevel, outinfo)
+		
+		EnumerateOverloadsAndAddAllParameterTypes(functions.value.Overloads, numparams, toplevel, outinfo)
+		
+		found = true
+	}
+	else
+	{
+		found = GatherAllPossibleParamTypes(functions.next, funcname, numparams, toplevel, outinfo)
+	}
+}
+
+GatherAllPossibleParamTypes : nothing, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
+{
+	found = GatherAllPossibleParamTypesForConstructor(Structures, funcname, numparams, toplevel, outinfo)
+}
+
+GatherAllPossibleParamTypesForConstructor : list<StructureDefinition> ref structures, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
+{
+	if(structures.value.ConstructorName == funcname)
+	{
+		integer membercount = CountMembers(structures.value.Members)
+		if(numparams == (membercount + 1))
+		{
+			simpleprepend<integer>(outinfo.value.Types, 0x01000000)		// Identifier type signature
+			ExtractAllMemberTypes(structures.value.Members, outinfo.next)
+			found = true
+		}
+		
+		if(numparams == membercount)
+		{
+			ExtractAllMemberTypes(structures.value.Members, outinfo)
+			found = true
+		}
+		
+		if(numparams == 2)
+		{
+			AddTypeToParamTypeList(outinfo, 0x01000000)			// Identifier type signature
+			AddTypeToParamTypeList(outinfo.next, structures.value.Type)
+			found = true
+		}
+	}
+	else
+	{
+		found = GatherAllPossibleParamTypesForConstructor(structures.next, funcname, numparams, toplevel, outinfo)
+	}
+}
+
+GatherAllPossibleParamTypesForConstructor : nothing, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> false
+
+
+AddTypeToParamTypeList : list<ParameterTypeList> ref outinfo, integer ty
+{
+	simpleprepend<integer>(outinfo.value.Types, ty)
+}
+
+ExtractAllMemberTypes : list<StructureMember> ref members, list<ParameterTypeList> ref outinfo
+{
+	simpleprepend<integer>(outinfo.value.Types, GetMemberTypeDecompose(members.value))
+	ExtractAllMemberTypes(members.next, outinfo.next)
+}
+
+ExtractAllMemberTypes : nothing, nothing
+
+
+EnumerateOverloadsAndAddAllParameterTypes : list<Overload> ref overloads, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+{
+	AddAllParameterTypesForOverloadImplementation(overloads.value.Implementation, overloads.value.MangledName, numparams, toplevel, outinfo)
+	EnumerateOverloadsAndAddAllParameterTypes(overloads.next, numparams, toplevel, outinfo)
+}
+
+EnumerateOverloadsAndAddAllParameterTypes : nothing, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+
+
+AddAllParameterTypesForOverloadImplementation : FunctionDefinition ref function, integer mangledname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+{
+	InferAllFunctionParameterTypes(function, numparams, toplevel, outinfo)
+}
+
+AddAllParameterTypesForOverloadImplementation : nothing, integer mangledname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+
+
+InferAllFunctionParameterTypes : FunctionDefinition ref function, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+{
+	if(!function.InferenceDone)
+	{
+		simplelist<integer> temp = 0, nothing
+		ContextWrapper<Scope> scopewrap = nothing
+		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap
+		
+		TypeInference(function, context)
+	}
+	
+	UnwrapAllParamsForTypeRetrieval(function.Params, numparams, outinfo)
+}
+
+
+UnwrapAllParamsForTypeRetrieval : FunctionParams ref params, integer paramcount, list<ParameterTypeList> ref outinfo
+{
+	if(CountUnresolvedParameters(params) == paramcount)
+	{
+		RetrieveAllParamTypes(params.Params, outinfo)
+	}
+}
+
+UnwrapAllParamsForTypeRetrieval : nothing, integer paramcount, list<ParameterTypeList> ref outinfo
+
+
+RetrieveAllParamTypes : list<UnresolvedParameter> ref params, list<ParameterTypeList> ref outinfo
+{
+	simpleprepend<integer>(outinfo.value.Types, params.value.ResolvedType)
+	RetrieveAllParamTypes(params.next, outinfo.next)
+}
+
+RetrieveAllParamTypes : nothing, nothing
+
+
+GrabTypeListAtIndex : list<ParameterTypeList> ref paraminfo, integer paramindex, simplelist<integer> ref out
+{
+	if(paramindex == 0)
+	{
+		out = paraminfo.value.Types
+		return()
+	}
+	
+	GrabTypeListAtIndex(paraminfo.next, paramindex - 1, out)
+}
+
+
+TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex, boolean hasallparams, list<ParameterTypeList> ref paraminfo -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
+	
+	if(hasallparams)
+	{
+		GrabTypeListAtIndex(paraminfo, paramindex, temp)
+	}
+	else
+	{
+		GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
+	}
+	
 	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement, false, context.ScopeRef
 
 	if(!TypeInference(parameters.value, newcontext))
@@ -8426,13 +8600,13 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 		context.StatementName = newcontext.StatementName
 	}
 
-	if(!TypeInferenceExpressionList(parameters.next, context, paramindex + 1))
+	if(!TypeInferenceExpressionList(parameters.next, context, paramindex + 1, hasallparams, paraminfo))
 	{
 		success = false
 	}
 }
 
-TypeInferenceExpressionList : nothing, InferenceContext ref context, integer paramindex -> boolean success = true
+TypeInferenceExpressionList : nothing, InferenceContext ref context, integer paramindex, boolean hasallparams, list<ParameterTypeList> ref paraminfo -> boolean success = true
 
 
 TypeInference : Expression ref expression, InferenceContext ref context -> boolean success = true
@@ -8902,10 +9076,6 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(scope, atom.Handle, var)
-	if(var.Name == 0)
-	{
-		FindVariableDataInSingleScope(GlobalScope.Wrapped, atom.Handle, var)
-	}
 	
 	if(var.Name != 0)
 	{
@@ -9545,33 +9715,9 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 
 GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	boolean found = FindFunctionParamTypesAndRecurseToOverloads(Functions, funcname, paramindex, paramcount, toplevel, types)
 	FindFunctionAndAddParameterTypes(nothing, funcname, paramindex, paramcount, toplevel, types)
-	
-	if(!found)
-	{
-		EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
-	}
+	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
 }
-
-FindFunctionParamTypesAndRecurseToOverloads : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> boolean found = false
-{
-	if(functions.value.Name == funcname)
-	{
-		InferFunctionParameterTypes(functions.value, paramindex, paramcount, toplevel, types)
-		
-		EnumerateOverloadsAndAddParameterTypes(functions.value.Overloads, funcname, paramindex, paramcount, toplevel, types)
-		
-		found = true
-	}
-	else
-	{
-		found = FindFunctionParamTypesAndRecurseToOverloads(functions.next, funcname, paramindex, paramcount, toplevel, types)
-	}
-}
-
-FindFunctionParamTypesAndRecurseToOverloads : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> false
-
 
 EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
