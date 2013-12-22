@@ -2973,12 +2973,12 @@ type StructureMember : StructureMemberVariable | StructureMemberFunctionRef
 
 structure StructureDefinition :
 	integer Name,
-	string ReadableName,
 	integer Type,
 	integer ConstructorName,
 	integer AnonConstructorName,
 	integer CopyConstructorName,
 	list<StructureMember> ref Members,
+	string ReadableName,
 	boolean IsTemplate
 
 
@@ -3039,8 +3039,8 @@ structure Statement :
 	integer Name,
 	OptionalExpressionList Parameters,
 	integer Type,
-	boolean TopLevel,
 	OptionalTemplateArgs TemplateArgs,
+	boolean TopLevel,
 	boolean InferenceDone
 
 structure Assignment :
@@ -3339,7 +3339,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
 {
 	list<StructureMember> members = member, nothing
-	StructureDefinition def = structurename, GetPooledString(GlobalStrings, structurename), structuretype, 0, 0, 0, members, false
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, GetPooledString(GlobalStrings, structurename), false
 
 	AppendStructure(Structures, Structures.next, def)
 }
@@ -4018,7 +4018,7 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 
 OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel, boolean hastemplateargs
 {
-	Statement statement = statementname, nothing, statementtype, toplevel, nothing, false
+	Statement statement = statementname, nothing, statementtype, nothing, toplevel, false
 	
 	if(hastemplateargs)
 	{
@@ -11941,7 +11941,7 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		DoMemberListInstantiation(structures.value.Members, members, params, args)
 		PopMember(members, members.next)
 		
-		StructureDefinition struct = instancename, GetPooledString(GlobalStrings, instancename), GlobalTemplateInstanceCounter, 0, 0, 0, members, false
+		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, GetPooledString(GlobalStrings, instancename), false
 		prepend<StructureDefinition>(Structures, struct)
 
 		TemplateInstance instance = defname, instancename, args
@@ -12334,7 +12334,7 @@ InstantiateStatement : integer statementname, boolean inret, nothing, list<Templ
 
 InstantiateStatement : integer statementname, boolean inret, TemplateArgumentList ref args, list<TemplateArgument> ref templateargs
 {
-	Statement statement = statementname, nothing, 0, inret, args, false
+	Statement statement = statementname, nothing, 0, args, inret, false
 	PropagateTemplateArgsForStatement(statement, args, templateargs)
 	OnCodeGenEmplaceStatement(statement)
 }
@@ -13317,7 +13317,7 @@ global
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
 	list<StructureMember> dummymembers = dummymember, nothing
-	StructureDefinition dummystruct = 0, "", 0, 0, 0, 0, dummymembers, false
+	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers, "", false
 	list<StructureDefinition> Structures = dummystruct, nothing
 
 
@@ -13342,7 +13342,7 @@ global
 	list<ExpressionAtom> dummyatomlist = dummysentinel, nothing
 	Expression dummyexpression = dummyatomlist, 0
 	list<Expression> ScratchExpressions = dummyexpression, nothing
-	Statement dummystatement = 0, nothing, 0, false, nothing, false
+	Statement dummystatement = 0, nothing, 0, nothing, false, false
 	list<Statement> SubStatements = dummystatement, nothing
 
 	Parameter dummyparam = 0, 0
