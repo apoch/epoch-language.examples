@@ -7659,10 +7659,6 @@ ContextHasTypeMatcher : nothing -> false [nogc]
 FindOverloadWithParameterTypesFast : FunctionDefinition ref func, integer rawname, simplelist<integer> ref paramtypes -> integer overloadname = rawname
 {
 	overloadname = FindOverloadWithParameterTypes(func.Overloads, rawname, paramtypes)
-	if(overloadname == 0)
-	{
-		overloadname = FindOverloadWithParameterTypes(Overloads, rawname, paramtypes)
-	}
 }
 
 
@@ -12112,7 +12108,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	FunctionDefinition func = defname, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, defname), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
 	
-	Overload selfoverload = defname, instancename, func
+	Overload selfoverload = instancename, instancename, func
 	prepend<Overload>(func.Overloads, selfoverload)
 	
 	AttachContextToOverload(func.Overloads, instancename, func)
