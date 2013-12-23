@@ -44,12 +44,6 @@ prepend<type T> : list<T> ref thelist, T ref value [nogc]
 }
 
 
-structure Trie :
-	string Character,
-	listnode<Trie> Children,
-	integer Handle
-
-
 CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
 CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
 CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
@@ -13362,7 +13356,7 @@ global
 	integer CharacterOpenBracket = subchar("[", 0)
 	integer CharacterCloseBracket = subchar("]", 0)
 	
-	Trie GlobalStringTrie = "", nothing, 0
+	Trie GlobalStringTrie = 0, nothing, 0
 	
 	BTPayloadWrap fwewrap = dummyfunc
 	BinaryTree FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
@@ -13379,6 +13373,13 @@ IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false [nogc]
 }
 
 
+
+structure Trie :
+	integer Character,
+	listnode<Trie> Children,
+	integer Handle
+
+
 PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 {
 	if(length(data) == 0)
@@ -13387,10 +13388,10 @@ PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 		return()
 	}
 	
-	PlaceDataInTrieChild(trie.Children, trie, substring(data, 0, 1), substring(data, 1), handle)
+	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), substring(data, 1), handle)
 }
 
-PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string character, string remainder, integer handle [nogc]
+PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string remainder, integer handle [nogc]
 {
 	if(children.value.Character == character)
 	{
@@ -13402,7 +13403,7 @@ PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, string ch
 	}
 }
 
-PlaceDataInTrieChild : nothing, Trie ref originaltrie, string character, string remainder, integer handle [nogc]
+PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string remainder, integer handle [nogc]
 {
 	Trie newtrie = character, nothing, 0
 	PlaceDataInTrie(newtrie, remainder, handle)
@@ -13420,10 +13421,10 @@ FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
 		return()
 	}
 	
-	handle = FindHandleInTrieChildren(trie.Children, substring(data, 0, 1), substring(data, 1))
+	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), substring(data, 1))
 }
 
-FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string remainder -> integer handle = 0 [nogc]
+FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string remainder -> integer handle = 0 [nogc]
 {
 	if(triechildren.value.Character == character)
 	{
@@ -13434,7 +13435,7 @@ FindHandleInTrieChildren : list<Trie> ref triechildren, string character, string
 	handle = FindHandleInTrieChildren(triechildren.next, character, remainder)
 }
 
-FindHandleInTrieChildren : nothing, string character, string remainder -> integer handle = 0 [nogc]
+FindHandleInTrieChildren : nothing, integer character, string remainder -> integer handle = 0 [nogc]
 
 
 assertmsg : boolean check, string message
@@ -13620,43 +13621,54 @@ SetHeight : BinaryTree ref tree, integer newheight
 
 SearchBinaryTree : BinaryTree ref tree, integer target -> boolean found = false
 {
-	if(tree.Value == target)
+	BinaryTreeNode cur = tree
+	while(HasNode(cur))
 	{
-		found = true
-	}
-	elseif(target < tree.Value)
-	{
-		found = SearchBinaryTree(tree.Left, target)
-	}
-	elseif(target > tree.Value)
-	{
-		found = SearchBinaryTree(tree.Right, target)
+		integer curvalue = GetNodeValue(cur)
+		if(curvalue == target)
+		{
+			found = true
+			return()
+		}
+		elseif(target < curvalue)
+		{
+			cur = GetLeft(cur)
+		}
+		else
+		{
+			cur = GetRight(cur)
+		}
 	}
 }
-
-SearchBinaryTree : nothing, integer target -> false
-
 
 
 SearchBinaryTreeForPayload : BinaryTree ref tree, integer target, ContextWrapper<FunctionDefinition> ref out -> boolean found = false
-{
-	if(tree.Value == target)
+{	
+	BinaryTreeNode cur = tree
+	while(HasNode(cur))
 	{
-		LameHack(out, tree.Payload.Func)		// TODO - this is some kind of miscompile
-		found = true
-	}
-	elseif(target < tree.Value)
-	{
-		found = SearchBinaryTreeForPayload(tree.Left, target, out)
-	}
-	elseif(target > tree.Value)
-	{
-		found = SearchBinaryTreeForPayload(tree.Right, target, out)
+		integer curvalue = GetNodeValue(cur)
+		if(curvalue == target)
+		{
+			LameHack(out, cur)		// TODO - this is some kind of miscompile
+			found = true
+			return()
+		}
+		elseif(target < curvalue)
+		{
+			cur = GetLeft(cur)
+		}
+		else
+		{
+			cur = GetRight(cur)
+		}
 	}
 }
 
-SearchBinaryTreeForPayload : nothing, integer target, ContextWrapper<FunctionDefinition> ref out -> false
-
+LameHack : ContextWrapper<FunctionDefinition> ref out, BinaryTree ref tree
+{
+	LameHack(out, tree.Payload.Func)
+}
 
 LameHack : ContextWrapper<FunctionDefinition> ref out, FunctionDefinition ref func
 {
