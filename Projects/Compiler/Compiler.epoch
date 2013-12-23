@@ -3563,23 +3563,24 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 	Overload overload = rawname, mangledname, nothing
 	prepend<Overload>(Overloads, overload)
 	
-	FindFunctionAndAddOverload(Functions, overload)
+	FindFunctionAndAddOverload(overload)
 }
 
 
-FindFunctionAndAddOverload : list<FunctionDefinition> ref functions, Overload ref overload
+FindFunctionAndAddOverload : Overload ref overload
 {
-	if(functions.value.Name == overload.NormalName)
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, overload.NormalName, wrap)
+	if(found)
 	{
-		prepend<Overload>(functions.value.Overloads, overload)
-	}
-	else
-	{
-		FindFunctionAndAddOverload(functions.next, overload)
+		AddOverloadToFunc(wrap.Wrapped, overload)
 	}
 }
 
-FindFunctionAndAddOverload : nothing, Overload ref overload
+AddOverloadToFunc : FunctionDefinition ref func, Overload ref overload
+{
+	prepend<Overload>(func.Overloads, overload)
+}
 
 
 CountOverloads : list<Overload> ref overloads, integer rawname -> integer count = 0
@@ -3613,7 +3614,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = rawfuncname, funcname, nothing, nothing, nothing, dummyoverloadlist, scopewrap, rawfuncnamestr, 0, false, istemplate, false
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree(FunctionsWhichExist, funcname)
+	InsertIntoBinaryTree(FunctionsWhichExist, funcname, func)
 	
 	// TODO - this is a weird bug. For some reason we don't init the field correctly in the above constructor
 	if(istemplate)
@@ -6012,7 +6013,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 		Overload overload = baseconstructorname, funcname, nothing
 		prepend<Overload>(Overloads, overload)
 		
-		FindFunctionAndAddOverload(Functions, overload)
+		FindFunctionAndAddOverload(overload)
 		
 		PrependFunctionParameter(Functions, funcname, PoolString("@id"), 0x81000000)		// reference to identifier type signature
 	}
@@ -6910,26 +6911,22 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success =
 		OnCodeGenExitContext()
 	}
 	
-	EnsureTypeMatcherIsConfigured(Functions, matcher.OverloadName, matcher.MatcherName)
+	EnsureTypeMatcherIsConfigured(matcher.OverloadName, matcher.MatcherName)
 }
 
-EnsureTypeMatcherIsConfigured : list<FunctionDefinition> ref functions, integer overloadname, integer matchername
+EnsureTypeMatcherIsConfigured : integer overloadname, integer matchername
 {
-	if(functions.value.Name == overloadname)
-	{
-		WalkParametersForTypeMatcher(functions.value.Params, matchername, functions.value.Name)
-		return()
-	}
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	SearchBinaryTreeForPayload(FunctionsWhichExist, overloadname, wrap)
 
-	EnsureTypeMatcherIsConfigured(functions.next, overloadname, matchername)
+	WalkParametersForTypeMatcherContext(wrap.Wrapped, matchername)
 }
 
-EnsureTypeMatcherIsConfigured : nothing, integer overloadname, integer matchername
+WalkParametersForTypeMatcherContext : FunctionDefinition ref func, integer matchername
 {
-	print("Failed to generate type matcher " ; GetPooledString(GlobalStrings, matchername))
-	print("Missing overload " ; GetPooledString(GlobalStrings, overloadname))
-	assert(false)
+	WalkParametersForTypeMatcher(func.Params, matchername, func.Name)
 }
+
 
 WalkParametersForTypeMatcher : FunctionParams ref params, integer matchername, integer overloadname
 {
@@ -7445,7 +7442,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 			else
 			{
-				isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+				isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
 			}
 		
 			simplelist<integer> paramtypes = 0, nothing
@@ -7472,7 +7469,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 				}
 				else
 				{
-					isuserfunc = FetchFunctionForContext(Functions, contextfunc, statement.Name)
+					isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
 				}
 			}
 			else
@@ -7588,7 +7585,7 @@ DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcnam
 DumpFunctionParameters : nothing, integer funcname
 
 
-FetchFunctionForContext : list<FunctionDefinition> ref functions, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false [nogc]
+FetchFunctionForContextSlow : list<FunctionDefinition> ref functions, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
 {
 	if(functions.value.Name == funcname)
 	{
@@ -7597,11 +7594,18 @@ FetchFunctionForContext : list<FunctionDefinition> ref functions, ContextWrapper
 	}
 	else
 	{
-		found = FetchFunctionForContext(functions.next, wrap, funcname)
+		found = FetchFunctionForContextSlow(functions.next, wrap, funcname)
 	}
 }
 
-FetchFunctionForContext : nothing, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> false [nogc]
+FetchFunctionForContextSlow : nothing, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
+
+
+
+FetchFunctionForContext : ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
+{
+	found = SearchBinaryTreeForPayload(FunctionsWhichExist, funcname, wrap)
+}
 
 
 AnnotateAllParameters : ExpressionList ref exprs, integer statementname, integer paramindex, integer paramcount, boolean toplevel
@@ -7761,7 +7765,7 @@ PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname,
 	{
 		if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
 		{			
-			if(!IsFunctionTemplate(Functions, overloads.value.MangledName))
+			if(!IsFunctionTemplateFast(overloads.value.MangledName))
 			{				
 				FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName, overloads.value.Implementation)
 			}
@@ -7773,6 +7777,21 @@ PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname,
 
 PopulateAllOverloadTypeMatchers : nothing, integer rawname, integer paramcount
 
+
+
+IsFunctionTemplateFast : integer name -> boolean istemplate = false
+{
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, name, wrap)
+	if(!found)
+	{
+		assert(false)
+	}
+	
+	istemplate = CheckFuncTemplate(wrap.Wrapped)
+}
+
+CheckFuncTemplate : FunctionDefinition ref func -> boolean ret = func.IsTemplate
 
 
 GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
@@ -11729,7 +11748,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		integer bnmh = PoolString(basenamemangled)
 		Overload overload = bnmh, instancename, nothing
 		prepend<Overload>(Overloads, overload)
-		FindFunctionAndAddOverload(Functions, overload)
+		FindFunctionAndAddOverload(overload)
 				
 		DoFunctionInstantiation(Functions, bnmh, defname, instancename, templates.value.Parameters, args)
 	}
@@ -11957,7 +11976,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = defname, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, defname), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree(FunctionsWhichExist, instancename)
+	InsertIntoBinaryTree(FunctionsWhichExist, instancename, func)
 	
 	Overload selfoverload = instancename, instancename, func
 	prepend<Overload>(func.Overloads, selfoverload)
@@ -13457,7 +13476,8 @@ global
 	
 	Trie GlobalStringTrie = "", nothing, 0
 	
-	BinaryTree FunctionsWhichExist = 0, nothing, nothing, -1
+	BTPayloadWrap fwewrap = dummyfunc
+	BinaryTree FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
 }
 
 
@@ -13541,28 +13561,34 @@ assertmsg : boolean check, string message
 
 type BinaryTreeNode : BinaryTree | nothing
 
+structure BTPayloadWrap :
+	FunctionDefinition ref Func
+
 structure BinaryTree :
 	integer Value,
+	BTPayloadWrap Payload,	
 	BinaryTreeNode Left,
 	BinaryTreeNode Right,
 	integer Height
 
 
-InsertIntoBinaryTree : BinaryTree ref tree, integer value -> true
+InsertIntoBinaryTree : BinaryTree ref tree, integer value, FunctionDefinition ref payload -> true
 {
 	if(tree.Value > value)
 	{
-		if(!InsertIntoBinaryTree(tree.Left, value))
+		if(!InsertIntoBinaryTree(tree.Left, value, payload))
 		{
-			BinaryTree newtree = value, nothing, nothing, 0
+			BTPayloadWrap wrap = payload
+			BinaryTree newtree = value, wrap, nothing, nothing, 0
 			tree.Left = newtree
 		}
 	}
 	else
 	{
-		if(!InsertIntoBinaryTree(tree.Right, value))
+		if(!InsertIntoBinaryTree(tree.Right, value, payload))
 		{
-			BinaryTree newtree = value, nothing, nothing, 0
+			BTPayloadWrap wrap = payload
+			BinaryTree newtree = value, wrap, nothing, nothing, 0
 			tree.Right = newtree
 		}
 	}
@@ -13594,7 +13620,7 @@ InsertIntoBinaryTree : BinaryTree ref tree, integer value -> true
 	}
 }
 
-InsertIntoBinaryTree : nothing, integer value -> false
+InsertIntoBinaryTree : nothing, integer value, FunctionDefinition ref payload -> false
 
 RotateLL : BinaryTree ref tree
 {
@@ -13609,6 +13635,8 @@ RotateLL : BinaryTree ref tree
 	integer tempvalue = tree.Value
 	tree.Value = GetNodeValue(tree.Right)
 	SetNodeValue(tree.Right, tempvalue)
+		
+	SwapNodePayload(tree, tree.Right)
 	
 	SetHeight(tree.Right, RecomputeTreeDepth(tree.Right))
 	tree.Height = RecomputeTreeDepth(tree)
@@ -13643,6 +13671,8 @@ RotateRR : BinaryTree ref tree
 	integer tempvalue = tree.Value
 	tree.Value = GetNodeValue(tree.Left)
 	SetNodeValue(tree.Left, tempvalue)
+		
+	SwapNodePayload(tree, tree.Left)
 	
 	SetHeight(tree.Left, RecomputeTreeDepth(tree.Left))
 	tree.Height = RecomputeTreeDepth(tree)
@@ -13719,6 +13749,33 @@ SearchBinaryTree : BinaryTree ref tree, integer target -> boolean found = false
 SearchBinaryTree : nothing, integer target -> false
 
 
+
+SearchBinaryTreeForPayload : BinaryTree ref tree, integer target, ContextWrapper<FunctionDefinition> ref out -> boolean found = false
+{
+	if(tree.Value == target)
+	{
+		LameHack(out, tree.Payload.Func)		// TODO - this is some kind of miscompile
+		found = true
+	}
+	elseif(target < tree.Value)
+	{
+		found = SearchBinaryTreeForPayload(tree.Left, target, out)
+	}
+	elseif(target > tree.Value)
+	{
+		found = SearchBinaryTreeForPayload(tree.Right, target, out)
+	}
+}
+
+SearchBinaryTreeForPayload : nothing, integer target, ContextWrapper<FunctionDefinition> ref out -> false
+
+
+LameHack : ContextWrapper<FunctionDefinition> ref out, FunctionDefinition ref func
+{
+	out.Wrapped = func
+}
+
+
 ValidateBinaryTree : BinaryTree ref tree
 {
 	//print("NODE - value = " ; cast(string, tree.Value))
@@ -13747,5 +13804,10 @@ SetNodeValue : BinaryTree ref node, integer value
 	node.Value = value
 }
 
-
+SwapNodePayload : BinaryTree ref a, BinaryTree ref b
+{
+	BTPayloadWrap func = a.Payload.Func
+	a.Payload = b.Payload
+	b.Payload = func
+}
 
