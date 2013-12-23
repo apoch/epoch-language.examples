@@ -517,6 +517,11 @@ Parse : string code, integer len -> boolean success = false
 }
 
 
+// Evil, evil, evil hack
+EpochLib_SubstrCharDirect : integer pointer, integer pos -> integer ch = 0 [external("EpochLibrary.dll", "EpochLib_SubstrCharDirect")]
+EpochLib_StrPointer : string s -> integer pointer = 0 [external("EpochLibrary.dll", "EpochLib_StrPointer")]
+
+
 Lex : string code, integer len [nogc]
 {
 	integer index = 0
@@ -524,14 +529,16 @@ Lex : string code, integer len [nogc]
 
 	integer state = CHARACTER_CLASS_WHITE
 	integer prevstate = CHARACTER_CLASS_WHITE
-
+	
+	integer codeptr = EpochLib_StrPointer(code)
+	
 	while(index < len)
 	{
-		integer c = subchar(code, index)
+		integer c = EpochLib_SubstrCharDirect(codeptr, index)
 
 		if(state == CHARACTER_CLASS_WHITE)
 		{
-			if((c == CharacterSlash) && (subchar(code, index + 1) == CharacterSlash))
+			if((c == CharacterSlash) && (EpochLib_SubstrCharDirect(codeptr, index + 1) == CharacterSlash))
 			{
 				state = CHARACTER_CLASS_COMMENT
 			}
@@ -657,7 +664,7 @@ Lex : string code, integer len [nogc]
 		// Handle negated literals (slightly hacky)
 		if(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
 		{
-			if(Classify(subchar(code, index + 1), state) == CHARACTER_CLASS_LITERAL)
+			if(Classify(EpochLib_SubstrCharDirect(codeptr, index + 1), state) == CHARACTER_CLASS_LITERAL)
 			{
 				state = CHARACTER_CLASS_LITERAL
 			}
