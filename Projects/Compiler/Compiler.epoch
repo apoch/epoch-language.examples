@@ -520,7 +520,7 @@ Parse : string code, integer len -> boolean success = false
 // Evil, evil, evil hack
 EpochLib_SubstrCharDirect : integer pointer, integer pos -> integer ch = 0 [external("EpochLibrary.dll", "EpochLib_SubstrCharDirect")]
 EpochLib_StrPointer : string s -> integer pointer = 0 [external("EpochLibrary.dll", "EpochLib_StrPointer")]
-
+EpochLib_SubstrDirect : integer pointer, integer pos, integer length -> string s = "" [external("EpochLibrary.dll", "EpochLib_SubstrDirect")]
 
 Lex : string code, integer len [nogc]
 {
@@ -564,7 +564,7 @@ Lex : string code, integer len [nogc]
 
 			if(notidentifier)
 			{
-				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			}
 		}
 		elseif(state == CHARACTER_CLASS_PUNCTUATION)
@@ -578,7 +578,7 @@ Lex : string code, integer len [nogc]
 				state = Classify(c, state)
 			}
 
-			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+			PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			lasttokenstart = index
 		}
 		elseif(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
@@ -598,7 +598,7 @@ Lex : string code, integer len [nogc]
 			{
 				if((index - lasttokenstart) > 1)
 				{
-					string potentialtoken = substring(code, lasttokenstart, index - lasttokenstart)
+					string potentialtoken = EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart)
 					if(!IsValidPunctuation(potentialtoken))
 					{
 						PushToken(substring(potentialtoken, 0, length(potentialtoken) - 1))
@@ -611,7 +611,7 @@ Lex : string code, integer len [nogc]
 			{
 				if((index - lasttokenstart) > 1)
 				{
-					string potentialtoken = substring(code, lasttokenstart, index - lasttokenstart)
+					string potentialtoken = EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart)
 					if(!IsValidPunctuation(potentialtoken))
 					{
 						PushToken(substring(potentialtoken, 0, length(potentialtoken) - 1))
@@ -619,7 +619,7 @@ Lex : string code, integer len [nogc]
 					}
 				}
 				
-				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			}
 		}
 		elseif(state == CHARACTER_CLASS_COMMENT)
@@ -638,7 +638,7 @@ Lex : string code, integer len [nogc]
 			if(c == CharacterQuote)
 			{
 				state = CHARACTER_CLASS_WHITE
-				PushToken(substring(code, lasttokenstart, index - lasttokenstart + 1))
+				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart + 1))
 			}
 		}
 		elseif(state == CHARACTER_CLASS_LITERAL)
@@ -657,7 +657,7 @@ Lex : string code, integer len [nogc]
 
 			if(notliteral)
 			{
-				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
+				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			}
 		}
 		
@@ -682,7 +682,7 @@ Lex : string code, integer len [nogc]
 
 	if((lasttokenstart < len) && (state != CHARACTER_CLASS_WHITE))
 	{		
-		PushToken(substring(code, lasttokenstart, len - lasttokenstart))
+		PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, len - lasttokenstart))
 	}
 }
 
@@ -9074,9 +9074,9 @@ GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref
 	}
 }
 
-GetParentheticalType : PreOpStatement ref statement -> integer rettype = statement.Type
-GetParentheticalType : PostOpStatement ref statement -> integer rettype = statement.Type
-GetParentheticalType : Expression ref expr -> integer rettype = expr.Type
+GetParentheticalType : PreOpStatement ref statement -> integer rettype = statement.Type [nogc]
+GetParentheticalType : PostOpStatement ref statement -> integer rettype = statement.Type [nogc]
+GetParentheticalType : Expression ref expr -> integer rettype = expr.Type [nogc]
 
 GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> ref possibilities
 {
@@ -9136,25 +9136,25 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 }
 
 
-IsOperatorInvoke : OperatorInvokeAtom 	   ref nonsentinel -> true
+IsOperatorInvoke : OperatorInvokeAtom 	   ref nonsentinel -> true [nogc]
 
-IsOperatorInvoke : AtomSentinel 	   ref sentinel    -> false
-IsOperatorInvoke : StringHandleAtom 	   ref nonsentinel -> false
-IsOperatorInvoke : IdentifierAtom 	   ref nonsentinel -> false
-IsOperatorInvoke : TypeAnnotationAtom 	   ref nonsentinel -> false
-IsOperatorInvoke : integer 		   ref nonsentinel -> false
-IsOperatorInvoke : integer16 		   ref nonsentinel -> false
-IsOperatorInvoke : boolean 		   ref nonsentinel -> false
-IsOperatorInvoke : real 		   ref nonsentinel -> false
-IsOperatorInvoke : Statement		   ref nonsentinel -> false
-IsOperatorInvoke : RefBinding              ref nonsentinel -> false
-IsOperatorInvoke : CompoundAtom		   ref nonsentinel -> false
-IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false
+IsOperatorInvoke : AtomSentinel 	   ref sentinel    -> false [nogc]
+IsOperatorInvoke : StringHandleAtom 	   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : IdentifierAtom 	   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : TypeAnnotationAtom 	   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : integer 		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : integer16 		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : boolean 		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : real 		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : Statement		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : RefBinding              ref nonsentinel -> false [nogc]
+IsOperatorInvoke : CompoundAtom		   ref nonsentinel -> false [nogc]
+IsOperatorInvoke : ParentheticalExpression ref nonsentinel -> false [nogc]
 
 
-IsRefBind : IdentifierAtom ref atom -> atom.IsReference
-IsRefBind : RefBinding ref atom -> true
-IsRefBind : CompoundAtom		   ref nonsentinel -> boolean ret = true
+IsRefBind : IdentifierAtom ref atom -> atom.IsReference [nogc]
+IsRefBind : RefBinding ref atom -> true [nogc]
+IsRefBind : CompoundAtom		   ref nonsentinel -> boolean ret = true [nogc]
 {
 	if(!IsReferenceType(nonsentinel.Type))
 	{
@@ -9162,36 +9162,36 @@ IsRefBind : CompoundAtom		   ref nonsentinel -> boolean ret = true
 	}
 }
 
-IsRefBind : TypeAnnotationAtom 	   ref nonsentinel -> false
-IsRefBind : AtomSentinel 	   ref sentinel    -> false
-IsRefBind : StringHandleAtom 	   ref nonsentinel -> false
-IsRefBind : integer 		   ref nonsentinel -> false
-IsRefBind : integer16 		   ref nonsentinel -> false
-IsRefBind : boolean 		   ref nonsentinel -> false
-IsRefBind : real 		   ref nonsentinel -> false
-IsRefBind : Statement		   ref nonsentinel -> false
-IsRefBind : ParentheticalExpression ref nonsentinel -> false
-IsRefBind : OperatorInvokeAtom 	   ref nonsentinel -> false
+IsRefBind : TypeAnnotationAtom 	   ref nonsentinel -> false [nogc]
+IsRefBind : AtomSentinel 	   ref sentinel    -> false [nogc]
+IsRefBind : StringHandleAtom 	   ref nonsentinel -> false [nogc]
+IsRefBind : integer 		   ref nonsentinel -> false [nogc]
+IsRefBind : integer16 		   ref nonsentinel -> false [nogc]
+IsRefBind : boolean 		   ref nonsentinel -> false [nogc]
+IsRefBind : real 		   ref nonsentinel -> false [nogc]
+IsRefBind : Statement		   ref nonsentinel -> false [nogc]
+IsRefBind : ParentheticalExpression ref nonsentinel -> false [nogc]
+IsRefBind : OperatorInvokeAtom 	   ref nonsentinel -> false [nogc]
 
 
-IsTypeAnnotationAtom : TypeAnnotationAtom 	   ref nonsentinel -> true
+IsTypeAnnotationAtom : TypeAnnotationAtom 	   ref nonsentinel -> true [nogc]
 
-IsTypeAnnotationAtom : AtomSentinel 	   ref sentinel    -> false
-IsTypeAnnotationAtom : StringHandleAtom 	   ref nonsentinel -> false
-IsTypeAnnotationAtom : IdentifierAtom 	   ref nonsentinel -> false
-IsTypeAnnotationAtom : integer 		   ref nonsentinel -> false
-IsTypeAnnotationAtom : integer16 		   ref nonsentinel -> false
-IsTypeAnnotationAtom : boolean 		   ref nonsentinel -> false
-IsTypeAnnotationAtom : real 		   ref nonsentinel -> false
-IsTypeAnnotationAtom : Statement		   ref nonsentinel -> false
-IsTypeAnnotationAtom : RefBinding              ref nonsentinel -> false
-IsTypeAnnotationAtom : CompoundAtom		   ref nonsentinel -> false
-IsTypeAnnotationAtom : ParentheticalExpression ref nonsentinel -> false
-IsTypeAnnotationAtom : OperatorInvokeAtom 	   ref nonsentinel -> false
+IsTypeAnnotationAtom : AtomSentinel 	   ref sentinel    -> false [nogc]
+IsTypeAnnotationAtom : StringHandleAtom 	   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : IdentifierAtom 	   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : integer 		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : integer16 		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : boolean 		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : real 		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : Statement		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : RefBinding              ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : CompoundAtom		   ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : ParentheticalExpression ref nonsentinel -> false [nogc]
+IsTypeAnnotationAtom : OperatorInvokeAtom 	   ref nonsentinel -> false [nogc]
 
 
 
-IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismemberaccess = false
+IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismemberaccess = false [nogc]
 {
 	if(nonsentinel.OperatorName == PooledStringHandleForMemberAccess)
 	{
@@ -9199,46 +9199,46 @@ IsMemberAccessOperator : OperatorInvokeAtom 	 ref nonsentinel -> boolean ismembe
 	}
 }
 
-IsMemberAccessOperator : AtomSentinel 	   	 ref sentinel    -> false
-IsMemberAccessOperator : StringHandleAtom 	 ref nonsentinel -> false
-IsMemberAccessOperator : IdentifierAtom 	 ref nonsentinel -> false
-IsMemberAccessOperator : TypeAnnotationAtom 	 ref nonsentinel -> false
-IsMemberAccessOperator : integer 		 ref nonsentinel -> false
-IsMemberAccessOperator : integer16 		 ref nonsentinel -> false
-IsMemberAccessOperator : boolean 		 ref nonsentinel -> false
-IsMemberAccessOperator : real 		   	 ref nonsentinel -> false
-IsMemberAccessOperator : Statement		 ref nonsentinel -> false
-IsMemberAccessOperator : RefBinding              ref nonsentinel -> false
-IsMemberAccessOperator : CompoundAtom            ref nonsentinel -> false
-IsMemberAccessOperator : ParentheticalExpression ref nonsentinel -> false
+IsMemberAccessOperator : AtomSentinel 	   	 ref sentinel    -> false [nogc]
+IsMemberAccessOperator : StringHandleAtom 	 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : IdentifierAtom 	 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : TypeAnnotationAtom 	 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : integer 		 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : integer16 		 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : boolean 		 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : real 		   	 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : Statement		 ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : RefBinding              ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : CompoundAtom            ref nonsentinel -> false [nogc]
+IsMemberAccessOperator : ParentheticalExpression ref nonsentinel -> false [nogc]
 
 
 
-MarkAtomAsReference : OperatorInvokeAtom      ref atom -> false
-MarkAtomAsReference : AtomSentinel 	      ref atom -> false
-MarkAtomAsReference : StringHandleAtom 	      ref atom -> false
-MarkAtomAsReference : TypeAnnotationAtom      ref atom -> false
-MarkAtomAsReference : integer 		      ref atom -> false
-MarkAtomAsReference : integer16               ref atom -> false
-MarkAtomAsReference : boolean 		      ref atom -> false
-MarkAtomAsReference : real 		      ref atom -> false
-MarkAtomAsReference : Statement		      ref atom -> false
-MarkAtomAsReference : ParentheticalExpression ref atom -> false
+MarkAtomAsReference : OperatorInvokeAtom      ref atom -> false [nogc]
+MarkAtomAsReference : AtomSentinel 	      ref atom -> false [nogc]
+MarkAtomAsReference : StringHandleAtom 	      ref atom -> false [nogc]
+MarkAtomAsReference : TypeAnnotationAtom      ref atom -> false [nogc]
+MarkAtomAsReference : integer 		      ref atom -> false [nogc]
+MarkAtomAsReference : integer16               ref atom -> false [nogc]
+MarkAtomAsReference : boolean 		      ref atom -> false [nogc]
+MarkAtomAsReference : real 		      ref atom -> false [nogc]
+MarkAtomAsReference : Statement		      ref atom -> false [nogc]
+MarkAtomAsReference : ParentheticalExpression ref atom -> false [nogc]
 
-MarkAtomAsReference : RefBinding              ref atom -> true
+MarkAtomAsReference : RefBinding              ref atom -> true [nogc]
 
-MarkAtomAsReference : IdentifierAtom          ref atom -> true
+MarkAtomAsReference : IdentifierAtom          ref atom -> true [nogc]
 {
 	atom.IsReference = true
 }
 
-MarkAtomAsReference : CompoundAtom            ref atom -> true
+MarkAtomAsReference : CompoundAtom            ref atom -> true [nogc]
 {
 	atom.Type = MakeReferenceType(atom.Type)
 }
 
 
-AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
+AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype [nogc]
 {
 	simpleprepend<integer>(possibilities, paramtype)
 	
@@ -9248,7 +9248,7 @@ AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype
 	}
 }
 
-AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype
+AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype [nogc]
 {
 	assertmsg(functionname != 0, "Cannot configure inference possibility for nameless function")
 
@@ -9269,7 +9269,7 @@ AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer fun
 	prepend<InferencePossibility>(possibilities, possibility)
 }
 
-AddUnaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer rettype
+AddUnaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer rettype [nogc]
 {
 	assertmsg(functionname != 0, "Cannot configure inference possibility for nameless function")
 
@@ -9373,12 +9373,12 @@ ShuntingYardFlush : list<ExpressionAtom> ref outputqueue, list<ExpressionAtom> r
 	}
 }
 
-ShuntingYardPopStack : list<ExpressionAtom> ref opstack, list<ExpressionAtom> ref tail
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, list<ExpressionAtom> ref tail [nogc]
 {
 	opstack = tail
 }
 
-ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
+ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing [nogc]
 {
 	AtomSentinel sentinel = 0
 	list<ExpressionAtom> newlist = sentinel, nothing
@@ -9386,7 +9386,7 @@ ShuntingYardPopStack : list<ExpressionAtom> ref opstack, nothing
 }
 
 
-IsUnaryOperator : OperatorInvokeAtom ref atom -> boolean isunary = false
+IsUnaryOperator : OperatorInvokeAtom ref atom -> boolean isunary = false [nogc]
 {
 	if(atom.OperatorName == PooledStringHandleForUnaryNot)
 	{
@@ -9395,7 +9395,7 @@ IsUnaryOperator : OperatorInvokeAtom ref atom -> boolean isunary = false
 }
 
 
-GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0
+GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0 [nogc]
 {
 	if(atom.OperatorName == PooledStringHandleForEquality)
 	{
@@ -9479,25 +9479,25 @@ ExtractConstructorIdentifier : ExpressionList ref parameters -> integer varname 
 ExtractConstructorIdentifier : list<Expression> ref parameters -> integer varname = ExtractIdentifier(parameters.value)
 ExtractConstructorIdentifier : nothing -> 0
 
-ExtractIdentifier : Expression ref expression -> integer id = ExtractIdentifier(expression.Atoms.value)
+ExtractIdentifier : Expression ref expression -> integer id = ExtractIdentifier(expression.Atoms.value) [nogc]
 
-ExtractIdentifier : IdentifierAtom ref atom -> atom.Handle
+ExtractIdentifier : IdentifierAtom ref atom -> atom.Handle [nogc]
 {
 	atom.Type = 0x81000000		// HACK - reference to identifier
 }
 
-ExtractIdentifier : AtomSentinel 	    ref sentinel    -> 0
-ExtractIdentifier : StringHandleAtom 	    ref nonsentinel -> 0
-ExtractIdentifier : OperatorInvokeAtom 	    ref nonsentinel -> 0
-ExtractIdentifier : TypeAnnotationAtom 	    ref nonsentinel -> 0
-ExtractIdentifier : integer 		    ref nonsentinel -> 0
-ExtractIdentifier : integer16 		    ref nonsentinel -> 0
-ExtractIdentifier : boolean 		    ref nonsentinel -> 0
-ExtractIdentifier : real 		    ref nonsentinel -> 0
-ExtractIdentifier : Statement		    ref nonsentinel -> 0
-ExtractIdentifier : RefBinding              ref nonsentinel -> 0
-ExtractIdentifier : CompoundAtom            ref nonsentinel -> 0
-ExtractIdentifier : ParentheticalExpression ref nonsentinel -> 0
+ExtractIdentifier : AtomSentinel 	    ref sentinel    -> 0 [nogc]
+ExtractIdentifier : StringHandleAtom 	    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : OperatorInvokeAtom 	    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : TypeAnnotationAtom 	    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : integer 		    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : integer16 		    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : boolean 		    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : real 		    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : Statement		    ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : RefBinding              ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : CompoundAtom            ref nonsentinel -> 0 [nogc]
+ExtractIdentifier : ParentheticalExpression ref nonsentinel -> 0 [nogc]
 
 
 PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
@@ -9515,7 +9515,7 @@ PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
 
 
 
-PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s)
+PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s) [nogc]
 {
 	if(handle == 0)
 	{
@@ -9523,7 +9523,7 @@ PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s)
 	}
 }
 
-PoolStringFast : string s -> integer handle = 0
+PoolStringFast : string s -> integer handle = 0 [nogc]
 {
 	++CurrentStringHandle
 	OnCodeGenRegisterString(CurrentStringHandle, s)
@@ -11510,7 +11510,7 @@ SetOptionalExpressionType : Expression ref expr, integer typeid [nogc]
 
 
 
-CheckForNeededPatternMatcher : list<PendingPatternMatcher> ref patternmatchers, integer rawname -> integer matchername = 0
+CheckForNeededPatternMatcher : list<PendingPatternMatcher> ref patternmatchers, integer rawname -> integer matchername = 0 [nogc]
 {
 	if(patternmatchers.value.RawName == rawname)
 	{
@@ -11522,7 +11522,7 @@ CheckForNeededPatternMatcher : list<PendingPatternMatcher> ref patternmatchers, 
 	}
 }
 
-CheckForNeededPatternMatcher : nothing, integer rawname -> 0
+CheckForNeededPatternMatcher : nothing, integer rawname -> 0 [nogc]
 
 
 EnsurePatternMatcherExists : list<PendingPatternMatcher> ref patternmatchers, integer rawname, integer mangledname
