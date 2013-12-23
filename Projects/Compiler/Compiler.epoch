@@ -339,6 +339,9 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "substring@@nolength")
 	PooledStringHandleForSubstringNoLength = counter
 	
+	OnCodeGenRegisterString((++counter), "subchar")
+	PooledStringHandleForSubchar = counter
+	
 	OnCodeGenRegisterString((++counter), ";")
 	PooledStringHandleForStringConcat = counter
 	
@@ -524,11 +527,11 @@ Lex : string code, integer len [nogc]
 
 	while(index < len)
 	{
-		string c = charat(code, index)
+		integer c = subchar(code, index)
 
 		if(state == CHARACTER_CLASS_WHITE)
 		{
-			if((c == "/") && (charat(code, index + 1) == "/"))
+			if((c == CharacterSlash) && (subchar(code, index + 1) == CharacterSlash))
 			{
 				state = CHARACTER_CLASS_COMMENT
 			}
@@ -654,7 +657,7 @@ Lex : string code, integer len [nogc]
 		// Handle negated literals (slightly hacky)
 		if(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
 		{
-			if(Classify(charat(code, index + 1), state) == CHARACTER_CLASS_LITERAL)
+			if(Classify(subchar(code, index + 1), state) == CHARACTER_CLASS_LITERAL)
 			{
 				state = CHARACTER_CLASS_LITERAL
 			}
@@ -714,9 +717,9 @@ IsValidPunctuation : string token -> boolean valid = false [nogc]
 }
 
 
-IsWhitespace : string c -> boolean white = false [nogc]
+IsWhitespace : integer c -> boolean white = false [nogc]
 {
-	if(c == " ")
+	if(c == CharacterSpace)
 	{
 		white = true
 	}
@@ -734,9 +737,9 @@ IsWhitespace : string c -> boolean white = false [nogc]
 	}
 }
 
-Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
+Classify : integer c, integer currentclass -> integer class = CHARACTER_CLASS_IDENTIFIER [nogc]
 {
-	if(c == "a")
+	if(c == CharacterA)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -747,7 +750,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "b")
+	elseif(c == CharacterB)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -758,7 +761,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "c")
+	elseif(c == CharacterC)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -769,7 +772,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "d")
+	elseif(c == CharacterD)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -780,7 +783,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "e")
+	elseif(c == CharacterE)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -791,7 +794,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "f")
+	elseif(c == CharacterF)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -802,7 +805,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-	elseif(c == "0")
+	elseif(c == CharacterZero)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -813,7 +816,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "1")
+	elseif(c == CharacterOne)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -824,7 +827,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "2")
+	elseif(c == CharacterTwo)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -835,7 +838,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "3")
+	elseif(c == CharacterThree)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -846,7 +849,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "4")
+	elseif(c == CharacterFour)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -857,7 +860,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "5")
+	elseif(c == CharacterFive)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -868,7 +871,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "6")
+	elseif(c == CharacterSix)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -879,7 +882,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "7")
+	elseif(c == CharacterSeven)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -890,7 +893,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "8")
+	elseif(c == CharacterEight)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -901,7 +904,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "9")
+	elseif(c == CharacterNine)
 	{
 		if(currentclass == CHARACTER_CLASS_IDENTIFIER)
 		{
@@ -912,7 +915,7 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_LITERAL
 		}
 	}
-	elseif(c == "x")
+	elseif(c == CharacterX)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -924,35 +927,35 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 		}
 	}
 
-	elseif(c == "{")
+	elseif(c == CharacterOpenBrace)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "}")
+	elseif(c == CharacterCloseBrace)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == ":")
+	elseif(c == CharacterColon)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "(")
+	elseif(c == CharacterOpenParen)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == ")")
+	elseif(c == CharacterCloseParen)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "=")
+	elseif(c == CharacterEquals)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == "&")
+	elseif(c == CharacterAmpersand)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == ",")
+	elseif(c == CharacterComma)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
@@ -960,23 +963,23 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 	{
 		class = CHARACTER_CLASS_STRING_LITERAL
 	}
-	elseif(c == "+")
+	elseif(c == CharacterPlus)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == "-")
+	elseif(c == CharacterMinus)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == "<")
+	elseif(c == CharacterLessThan)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == ">")
+	elseif(c == CharacterGreaterThan)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == ".")
+	elseif(c == CharacterDot)
 	{
 		if(currentclass == CHARACTER_CLASS_LITERAL)
 		{
@@ -991,19 +994,19 @@ Classify : string c, integer currentclass -> integer class = CHARACTER_CLASS_IDE
 			class = CHARACTER_CLASS_PUNCTUATION
 		}
 	}
-	elseif(c == ";")
+	elseif(c == CharacterSemicolon)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "!")
+	elseif(c == CharacterExclamation)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION_COMPOUND
 	}
-	elseif(c == "[")
+	elseif(c == CharacterOpenBracket)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
-	elseif(c == "]")
+	elseif(c == CharacterCloseBracket)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
 	}
@@ -1675,7 +1678,7 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 			}
 			
 			string parameter = PeekToken(0)
-			if(substring(parameter, 0, 1) == CharacterQuote)
+			if(subchar(parameter, 0) == CharacterQuote)
 			{
 				parameter = substring(parameter, 1, length(parameter) - 2)
 			}
@@ -1960,7 +1963,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	}
 	else
 	{
-		if(substring(term, 0, 1) == CharacterQuote)
+		if(subchar(term, 0) == CharacterQuote)
 		{
 			string stringliteral = substring(term, 1, length(term) - 2)
 			IRAddLiteralString(stringliteral)			
@@ -7975,6 +7978,10 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1 [nog
 	{
 		count = 2
 	}
+	elseif(funcname == PooledStringHandleForSubchar)
+	{
+		count = 2
+	}
 	elseif(funcname == PooledStringHandleForUnescape)
 	{
 		count = 1
@@ -8146,6 +8153,12 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	elseif(funcname == PooledStringHandleForSubstringNoLength)
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x02000000)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(funcname == PooledStringHandleForSubchar)
 	{
 		simplelist<integer> ptypes = 0x01000001, nothing
 		simpleprepend<integer>(ptypes, 0x02000000)
@@ -10038,6 +10051,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(funcname == PooledStringHandleForSubchar)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
 	elseif(funcname == PooledStringHandleForCastBooleanToInteger)
 	{
 		if(paramcount == 2)
@@ -10584,6 +10611,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(builtinname == PooledStringHandleForSubstringNoLength)
 	{
 		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForSubchar)
+	{
+		returntype = 0x01000001		// integer type signature
 	}
 	elseif(builtinname == PooledStringHandleForCastRealToInteger)
 	{
@@ -11565,9 +11596,9 @@ EmitPatternMatchOverload : list<FunctionDefinition> ref functions, integer overl
 }
 
 
-FunctionSignatureHasLiterals : FunctionParams ref params -> boolean hasliterals = FunctionSignatureHasLiterals(params.Params)
+FunctionSignatureHasLiterals : FunctionParams ref params -> boolean hasliterals = FunctionSignatureHasLiterals(params.Params) [nogc]
 
-FunctionSignatureHasLiterals : list<UnresolvedParameter> ref params -> boolean hasliterals = false
+FunctionSignatureHasLiterals : list<UnresolvedParameter> ref params -> boolean hasliterals = false [nogc]
 {
 	integer exprtype = GetOptionalExpressionType(params.value.PatternMatchValue)
 	if((exprtype != 0) && (exprtype != 0x00000002))
@@ -11582,7 +11613,7 @@ FunctionSignatureHasLiterals : list<UnresolvedParameter> ref params -> boolean h
 	}
 }
 
-FunctionSignatureHasLiterals : nothing -> false
+FunctionSignatureHasLiterals : nothing -> false [nogc]
 
 
 
@@ -11699,16 +11730,16 @@ FigureOutCastOverload : nothing -> 0
 
 
 
-FigureOutCastOriginType : list<Expression> ref params -> integer origintype = params.value.Type
+FigureOutCastOriginType : list<Expression> ref params -> integer origintype = params.value.Type [nogc]
 
-FigureOutCastOriginType : nothing -> 0
-
-
-GetIdentifier : IdentifierAtom ref atom -> atom.Handle
+FigureOutCastOriginType : nothing -> 0 [nogc]
 
 
+GetIdentifier : IdentifierAtom ref atom -> atom.Handle [nogc]
 
-IRRegisterTemplateParameter : integer paramtype, integer paramname
+
+
+IRRegisterTemplateParameter : integer paramtype, integer paramname [nogc]
 {
 	TemplateParameter p = paramname, paramtype
 	prepend<TemplateParameter>(TemplateParameterQueue, p)
@@ -11765,30 +11796,30 @@ TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<Template
 
 
 
-PopTemplateArgStack : list<TemplateArgumentList> ref stack, list<TemplateArgumentList> ref next
+PopTemplateArgStack : list<TemplateArgumentList> ref stack, list<TemplateArgumentList> ref next [nogc]
 {
 	stack = next
 }
 
-PopTemplateArgList : list<TemplateArgument> ref thelist, list<TemplateArgument> ref tail
+PopTemplateArgList : list<TemplateArgument> ref thelist, list<TemplateArgument> ref tail [nogc]
 {
 	thelist = tail
 }
 
 
-AppendTemplateArgument : list<TemplateArgument> ref thelist, TemplateArgument ref arg
+AppendTemplateArgument : list<TemplateArgument> ref thelist, TemplateArgument ref arg [nogc]
 {
 	AppendTemplateArgumentRecurse(thelist, thelist.next, arg)
 }
 
 
-AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, nothing, TemplateArgument ref arg
+AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, nothing, TemplateArgument ref arg [nogc]
 {
 	list<TemplateArgument> newlist = arg, nothing
 	thelist.next = newlist
 }
 
-AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, list<TemplateArgument> ref tail, TemplateArgument ref arg
+AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, list<TemplateArgument> ref tail, TemplateArgument ref arg [nogc]
 {
 	AppendTemplateArgumentRecurse(tail, tail.next, arg)
 }
@@ -11972,7 +12003,7 @@ DoSumTypeInstantiation : list<SumType> ref sumtypes, integer defname, integer in
 	}
 }
 
-PopMember : list<StructureMember> ref members, list<StructureMember> ref tail
+PopMember : list<StructureMember> ref members, list<StructureMember> ref tail [nogc]
 {
 	members = tail
 }
@@ -12000,13 +12031,13 @@ DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember
 	}
 }
 
-CopyTemplateArgs : TemplateArgumentList ref in, TemplateArgumentList ref out
+CopyTemplateArgs : TemplateArgumentList ref in, TemplateArgumentList ref out [nogc]
 {
 	TemplateArgumentList copy = in
 	out = copy
 }
 
-CopyTemplateArgs : nothing, TemplateArgumentList ref out
+CopyTemplateArgs : nothing, TemplateArgumentList ref out [nogc]
 
 DoBaseTypeInstantiation : list<SumTypeBase> ref bases, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
@@ -13518,16 +13549,55 @@ global
 	integer PooledStringHandleForMinusInteger = 0
 	integer PooledStringHandleForPlusInteger = 0
 	integer PooledStringHandleForPlusReal = 0
+	integer PooledStringHandleForSubchar = 0
 	
 	integer FirstNonBuiltInStringHandle = 0
 	
 	ContextWrapper<Scope> GlobalScope = nothing
 	ContextWrapper<Scope> EmittingScope = nothing
 	
-	string CharacterCarriageReturn = unescape("\r")
-	string CharacterLineFeed = unescape("\n")
-	string CharacterTab = unescape("\t")
-	string CharacterQuote = unescape("\'")
+	integer CharacterCarriageReturn = subchar(unescape("\r"), 0)
+	integer CharacterLineFeed = subchar(unescape("\n"), 0)
+	integer CharacterTab = subchar(unescape("\t"), 0)
+	integer CharacterQuote = subchar(unescape("\'"), 0)
+	integer CharacterSlash = subchar("/", 0)
+	integer CharacterSpace = subchar(" ", 0)
+
+	integer CharacterA = subchar("a", 0)
+	integer CharacterB = subchar("b", 0)
+	integer CharacterC = subchar("c", 0)
+	integer CharacterD = subchar("d", 0)
+	integer CharacterE = subchar("e", 0)
+	integer CharacterF = subchar("f", 0)
+	integer CharacterX = subchar("x", 0)
+	integer CharacterZero = subchar("0", 0)
+	integer CharacterOne = subchar("1", 0)
+	integer CharacterTwo = subchar("2", 0)
+	integer CharacterThree = subchar("3", 0)
+	integer CharacterFour = subchar("4", 0)
+	integer CharacterFive = subchar("5", 0)
+	integer CharacterSix = subchar("6", 0)
+	integer CharacterSeven = subchar("7", 0)
+	integer CharacterEight = subchar("8", 0)
+	integer CharacterNine = subchar("9", 0)
+
+	integer CharacterOpenBrace = subchar("{", 0)
+	integer CharacterCloseBrace = subchar("}", 0)
+	integer CharacterColon = subchar(":", 0)
+	integer CharacterOpenParen = subchar("(", 0)
+	integer CharacterCloseParen = subchar(")", 0)
+	integer CharacterEquals = subchar("=", 0)
+	integer CharacterAmpersand = subchar("&", 0)
+	integer CharacterComma = subchar(",", 0)
+	integer CharacterPlus = subchar("+", 0)
+	integer CharacterMinus = subchar("-", 0)
+	integer CharacterLessThan = subchar("<", 0)
+	integer CharacterGreaterThan = subchar(">", 0)
+	integer CharacterDot = subchar(".", 0)
+	integer CharacterSemicolon = subchar(";", 0)
+	integer CharacterExclamation = subchar("!", 0)
+	integer CharacterOpenBracket = subchar("[", 0)
+	integer CharacterCloseBracket = subchar("]", 0)
 	
 	Trie GlobalStringTrie = "", nothing, 0
 }
