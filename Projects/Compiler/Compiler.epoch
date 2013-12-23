@@ -7585,22 +7585,6 @@ DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcnam
 DumpFunctionParameters : nothing, integer funcname
 
 
-FetchFunctionForContextSlow : list<FunctionDefinition> ref functions, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
-{
-	if(functions.value.Name == funcname)
-	{
-		wrap.Wrapped = functions.value
-		found = true
-	}
-	else
-	{
-		found = FetchFunctionForContextSlow(functions.next, wrap, funcname)
-	}
-}
-
-FetchFunctionForContextSlow : nothing, ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
-
-
 
 FetchFunctionForContext : ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
 {
@@ -7755,7 +7739,7 @@ GetFunctionWrapperParameterCount : FunctionDefinition ref func, integer mangledn
 
 GetFunctionWrapperParameterCount : nothing, integer mangledname -> integer count = 0
 {
-	count = GetFunctionParameterCount(nothing, mangledname)
+	count = GetFunctionParameterCount(mangledname)
 }
 
 
@@ -7852,19 +7836,7 @@ AnyPendingTypeMatcherPointsToFunction : nothing, integer mangledname -> false
 
 
 
-GetFunctionParameterCount : list<FunctionDefinition> ref functions, integer funcname -> integer count = 0 [nogc]
-{
-	if(functions.value.Name == funcname)
-	{
-		count = CountUnresolvedParameters(functions.value.Params)
-	}
-	else
-	{
-		count = GetFunctionParameterCount(functions.next, funcname)
-	}
-}
-
-GetFunctionParameterCount : nothing, integer funcname -> integer count = -1 [nogc]
+GetFunctionParameterCount : integer funcname -> integer count = -1 [nogc]
 {
 	if(funcname == PooledStringHandleForSubstringWithLength)
 	{
@@ -7899,22 +7871,6 @@ GetFunctionParameterCount : nothing, integer funcname -> integer count = -1 [nog
 		count = 3
 	}
 }
-
-
-IsFunctionTemplate : list<FunctionDefinition> ref functions, integer funcname -> boolean istemplate = false
-{
-	if(functions.value.Name == funcname)
-	{
-		istemplate = functions.value.IsTemplate
-	}
-	else
-	{
-		istemplate = IsFunctionTemplate(functions.next, funcname)
-	}
-}
-
-IsFunctionTemplate : nothing, integer funcname -> false
-
 
 CountUnresolvedParameters : FunctionParams ref params -> integer count = CountUnresolvedParametersUnwrapped(params.Params) [nogc]
 CountUnresolvedParameters : nothing -> 0 [nogc]
@@ -8350,7 +8306,7 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 		++i
 	}
 	
-	boolean hasallparams = GatherAllPossibleParamTypes(Functions, context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
+	boolean hasallparams = GatherAllPossibleParamTypes(context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
 
 	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0, hasallparams, paramtypeinfo))
 	{
@@ -8359,25 +8315,19 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 }
 
 
-GatherAllPossibleParamTypes : list<FunctionDefinition> ref functions, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
+GatherAllPossibleParamTypes : integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
 {
-	if(functions.value.Name == funcname)
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	found = SearchBinaryTreeForPayload(FunctionsWhichExist, funcname, wrap)
+	if(found)
 	{
-		InferAllFunctionParameterTypes(functions.value, numparams, toplevel, outinfo)
-		
-		EnumerateOverloadsAndAddAllParameterTypes(functions.value.Overloads, numparams, toplevel, outinfo)
-		
-		found = true
+		InferAllFunctionParameterTypes(wrap.Wrapped, numparams, toplevel, outinfo)
+		EnumerateOverloadsAndAddAllParameterTypes(wrap.Wrapped, numparams, toplevel, outinfo)
 	}
 	else
 	{
-		found = GatherAllPossibleParamTypes(functions.next, funcname, numparams, toplevel, outinfo)
+		found = GatherAllPossibleParamTypesForConstructor(Structures, funcname, numparams, toplevel, outinfo)
 	}
-}
-
-GatherAllPossibleParamTypes : nothing, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
-{
-	found = GatherAllPossibleParamTypesForConstructor(Structures, funcname, numparams, toplevel, outinfo)
 }
 
 GatherAllPossibleParamTypesForConstructor : list<StructureDefinition> ref structures, integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
@@ -8427,6 +8377,11 @@ ExtractAllMemberTypes : list<StructureMember> ref members, list<ParameterTypeLis
 
 ExtractAllMemberTypes : nothing, nothing
 
+
+EnumerateOverloadsAndAddAllParameterTypes : FunctionDefinition ref func, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
+{
+	EnumerateOverloadsAndAddAllParameterTypes(func.Overloads, numparams, toplevel, outinfo)
+}
 
 EnumerateOverloadsAndAddAllParameterTypes : list<Overload> ref overloads, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo
 {
@@ -9616,7 +9571,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 
 GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	FindFunctionAndAddParameterTypes(nothing, funcname, paramindex, paramcount, toplevel, types)
+	FindFunctionAndAddParameterTypes(funcname, paramindex, paramcount, toplevel, types)
 	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
 }
 
@@ -9645,7 +9600,7 @@ AddParameterTypesForOverloadImplementation : FunctionDefinition ref func, intege
 
 AddParameterTypesForOverloadImplementation : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
-	FindFunctionAndAddParameterTypes(nothing, funcname, paramindex, paramcount, toplevel, types)
+	FindFunctionAndAddParameterTypes(funcname, paramindex, paramcount, toplevel, types)
 }
 
 
@@ -9659,20 +9614,7 @@ InferFunctionParameterTypes : FunctionDefinition ref function, integer paraminde
 	UnwrapParamsForTypeRetrieval(function.Params, paramindex, paramcount, types)
 }
 
-
-FindFunctionAndAddParameterTypes : list<FunctionDefinition> ref functions, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
-{
-	if(functions.value.Name == funcname)
-	{
-		InferFunctionParameterTypes(functions.value, paramindex, paramcount, toplevel, types)
-	}
-	else
-	{
-		FindFunctionAndAddParameterTypes(functions.next, funcname, paramindex, paramcount, toplevel, types)
-	}
-}
-
-FindFunctionAndAddParameterTypes : nothing, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
+FindFunctionAndAddParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	if(!FindConstructorAndAddParameterTypes(Structures, funcname, paramindex, paramcount, toplevel, types))
 	{
@@ -10547,33 +10489,6 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 }
 
 
-InsertAnnotationsForTypeMatchedParams : list<FunctionDefinition> ref functions, integer overloadname, OptionalExpressionList ref paramexprs
-{
-	InsertAnnotationsForTypeMatchedParamsUnwrapper(functions, overloadname, paramexprs)
-}
-
-InsertAnnotationsForTypeMatchedParamsUnwrapper : list<FunctionDefinition> ref functions, integer overloadname, ExpressionList ref paramexprs
-{
-	InsertAnnotationsForTypeMatchedParamsUnwrap(functions, overloadname, paramexprs.Expressions)
-}
-
-InsertAnnotationsForTypeMatchedParamsUnwrap : list<FunctionDefinition> ref functions, integer overloadname, list<Expression> ref paramexprs
-{
-	if(functions.value.Name == overloadname)
-	{
-		AnnotateTypeMatchedParams(functions.value.Params, paramexprs)
-	}
-	else
-	{
-		InsertAnnotationsForTypeMatchedParamsUnwrap(functions.next, overloadname, paramexprs)
-	}
-}
-
-InsertAnnotationsForTypeMatchedParamsUnwrap : nothing, integer overloadname, list<Expression> ref paramexprs
-{
-	FindConstructorAndAnnotateTypeMatchedParams(Structures, overloadname, paramexprs)
-}
-
 FindConstructorAndAnnotateTypeMatchedParams : list<StructureDefinition> ref structures, integer funcname, nothing
 
 
@@ -10641,30 +10556,6 @@ AnnotateTypeMatchedParams : list<UnresolvedParameter> ref params, list<Expressio
 }
 
 AnnotateTypeMatchedParams : nothing, nothing
-
-MakeParametersReferences : list<FunctionDefinition> ref functions, integer overloadname, OptionalExpressionList ref exprs
-{
-	MakeParametersReferencesUnwrap(functions, overloadname, exprs)
-}
-
-MakeParametersReferencesUnwrap : list<FunctionDefinition> ref functions, integer overloadname, nothing
-
-MakeParametersReferencesUnwrap : list<FunctionDefinition> ref functions, integer overloadname, ExpressionList ref params
-{
-	if(functions.value.Name == overloadname)
-	{
-		WalkFunctionParamsAndSetReferences(functions.value.Params, params)
-	}
-	else
-	{
-		MakeParametersReferencesUnwrap(functions.next, overloadname, params)
-	}
-}
-
-MakeParametersReferencesUnwrap : nothing, integer overloadname, ExpressionList ref params
-{
-	MakeParametersReferencesForTypeMatcher(PendingTypeMatchers, overloadname, params)
-}
 
 
 MakeParametersReferencesUnwrapFast : FunctionDefinition ref function, integer overloadname, ExpressionList ref params
@@ -11750,7 +11641,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		prepend<Overload>(Overloads, overload)
 		FindFunctionAndAddOverload(overload)
 				
-		DoFunctionInstantiation(Functions, bnmh, defname, instancename, templates.value.Parameters, args)
+		DoFunctionInstantiation(bnmh, defname, instancename, templates.value.Parameters, args)
 	}
 	else
 	{
@@ -11953,16 +11844,13 @@ RemapAllTemplateArguments : list<TemplateArgument> ref toremap, list<TemplatePar
 RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 
 
-DoFunctionInstantiation : list<FunctionDefinition> ref functions, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	if(functions.value.Name == defname)
-	{
-		FunctionInstantiationInner(functions.value, basenamemangled, defname, instancename, params, args)
-	}
-	else
-	{
-		DoFunctionInstantiation(functions.next, basenamemangled, defname, instancename, params, args)
-	}
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, defname, wrap)
+	assert(found)
+	
+	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args)
 }
 
 FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
