@@ -1232,7 +1232,7 @@ ParseSumType : -> boolean matched = false
 	ParseSumTypeBases(typename, typeid)
 	
 	string finalbasename = PeekToken(0)	
-	OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
+	FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
 	PopToken()
 	
 	if(templated)
@@ -1257,11 +1257,11 @@ ParseSumTypeBases : integer typename, integer typeid
 			integer baselookahead = ParseTemplateArgs(2)
 			PopTokens(baselookahead + 2)
 
-			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename), true)
+			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), true)
 		}
 		else
 		{
-			OnCodeGenRegisterSumTypeBase(typename, typeid, PoolString(basename), false)
+			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), false)
 			PopTokens(2)
 		}
 
@@ -1715,7 +1715,7 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 	
 	if(tagname == "external")
 	{
-		OnCodeGenRegisterFunctionInvokeTag(functionname, PoolString("@@external"))
+		FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
 	}
 }
 
@@ -2128,7 +2128,7 @@ ParseAssignment : -> boolean matched = false
 		integer tokenindex = 2
 		while(tokenindex < lhslength)
 		{
-			OnCodeGenAssignmentCompoundMember(PoolString(PeekToken(tokenindex)))
+			FindCurrentFunctionAndAppendCompoundMember(PoolString(PeekToken(tokenindex)))
 			tokenindex += 2
 		}
 		OnCodeGenAssignmentCompoundEnd()
@@ -2163,10 +2163,9 @@ ParseAssignment : -> boolean matched = false
 				integer tokenindex = 2
 				while(tokenindex < lhslength)
 				{
-					OnCodeGenChainAssignmentCompoundMember(PoolString(PeekToken(tokenindex)))
+					FindCurrentFunctionAndChainCompoundMember(PoolString(PeekToken(tokenindex)))
 					tokenindex += 2
 				}
-				OnCodeGenChainAssignmentCompoundEnd()
 			}			
 			
 			PopTokens(lhslength + 1)
@@ -2921,7 +2920,7 @@ OnBytecodeEmitFunctionSigParam : integer paramtype [nogc]
 }
 
 
-GetTypeSize : integer typeid -> integer size = 0
+GetTypeSize : integer typeid -> integer size = 0 [nogc]
 {
 	if(typeid == 0x01000001)			// Integer
 	{
@@ -3435,13 +3434,6 @@ FindStructureAndSetConstructors : list<StructureDefinition> ref structures, inte
 FindStructureAndSetConstructors : nothing, integer structurename, integer constructorname, integer anonname, integer copyname
 
 
-
-OnCodeGenRegisterSumTypeBase : integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated
-{
-	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid, templated)
-}
-
-
 FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated
 {
 	if(sumtypes.value.Type == sumtypeid)
@@ -3514,11 +3506,6 @@ OnCodeGenRegisterScope : integer scopename, integer parentname
 	prepend<Scope>(Scopes, scope)
 }
 
-OnCodeGenRegisterVariable : Scope ref scope, integer varname, integer vartype, integer origin
-{
-	StoreVariableInSingleScope(scope, varname, vartype, false, origin)
-}
-
 StoreVariableInSingleScope : Scope ref scope, integer varname, integer vartype, boolean isref, integer origin
 {
 	integer size = 4		// TODO - actual variable sizes
@@ -3552,26 +3539,6 @@ StoreVariableInSingleScope : Scope ref scope, integer varname, integer vartype, 
 	Variable var = varname, vartype, origin, offset
 	append(scope.Variables, var)
 }
-
-
-StoreVariableInScope : list<Scope> ref scopes, integer scopename, integer varname, integer vartype, boolean isref, integer origin
-{
-	if(scopes.value.Name == scopename)
-	{
-		StoreVariableInSingleScope(scopes.value, varname, vartype, isref, origin)
-	}
-	else
-	{
-		StoreVariableInScope(scopes.next, scopename, varname, vartype, isref, origin)
-	}
-}
-
-StoreVariableInScope : nothing, integer scopename, integer varname, integer vartype, boolean isref, integer origin
-{
-	print("No scope available for identifier " ; GetPooledString(GlobalStrings, scopename))
-	assert(false)
-}
-
 
 OnCodeGenRegisterGlobalBlock : integer name
 {
@@ -3758,7 +3725,7 @@ OnCodeGenExitContext :
 	{
 		if(ContextStack.value.EntryType == STACK_TYPE_FUNCRET)
 		{
-			AppendExpressionToSubStatement(ScratchExpressions.value)
+			AppendExpressionToStatement(SubStatements.value, ScratchExpressions.value)
 		}
 		elseif(ContextStack.value.EntryType != STACK_TYPE_SUBSTATEMENT)
 		{
@@ -3771,7 +3738,7 @@ OnCodeGenExitContext :
 	}
 	elseif(entrytype == STACK_TYPE_SUBSTATEMENT)
 	{
-		AppendExpressionToSubStatement(ScratchExpressions.value)
+		AppendExpressionToStatement(SubStatements.value, ScratchExpressions.value)
 		PopCurrentStatementAndAppendToScratchExpression(ScratchExpressions, ScratchExpressions.next)
 	}
 	elseif(entrytype == STACK_TYPE_FUNCRET)
@@ -3894,14 +3861,6 @@ PopSubStatement : list<Statement> ref statements, list<Statement> ref tail
 	statements = tail
 }
 
-
-
-AppendExpressionToSubStatement : Expression ref expr
-{
-	AppendExpressionToStatement(SubStatements.value, expr)
-}
-
-
 OnCodeGenEnterTypeMatcher : integer matchername
 {
 	ContextStackEntry entry = STACK_TYPE_TYPEMATCH, matchername
@@ -4004,19 +3963,19 @@ OnCodeGenRegisterRefBinding : integer id, integer structureid, boolean isref, bo
 }
 
 
-ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> true
-ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> false
-ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> false
-ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> false
-ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> false
-ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> false
-ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> false
-ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false
-ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false
-ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false
-ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false
-ExpressionAtomIsSentinel : CompoundAtom            ref nonsentinel -> false
-ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false
+ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> true [nogc]
+ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : CompoundAtom            ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false [nogc]
 
 
 
@@ -4106,11 +4065,6 @@ OnCodeGenEnterAssignmentCompound : integer operator, integer lhsname, integer lh
 	AppendEntryToCurrentCodeBlock(cbe)
 }
 
-OnCodeGenAssignmentCompoundMember : integer membername
-{
-	FindCurrentFunctionAndAppendCompoundMember(membername)
-}
-
 OnCodeGenAssignmentCompoundEnd :
 {
 	ContextStackEntry entry = STACK_TYPE_ASSIGNMENT, 0
@@ -4130,16 +4084,6 @@ OnCodeGenChainAssignmentCompound : integer operator, integer lhsname, integer lh
 	AssignmentCompound assignment = operator, idlist, lhstype, annotation, rhs
 	AppendEntryToCurrentAssignmentChain(assignment)
 }
-
-OnCodeGenChainAssignmentCompoundMember : integer membername
-{
-	FindCurrentFunctionAndChainCompoundMember(membername)
-}
-
-OnCodeGenChainAssignmentCompoundEnd :
-{
-}
-
 
 OnCodeGenEnterSubStatement :
 {
@@ -4423,27 +4367,27 @@ ChainCompoundMember : AssignmentCompound ref tomodify, Expression ref rhs, integ
 }
 
 
-AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername
+AppendCompoundMemberHelper : AssignmentCompound ref a, integer membername [nogc]
 {
 	AppendCompoundMember(a.LHS, a.LHS.next, membername)
 }
 
-AppendCompoundMemberHelper : PreOpStatement ref s, integer membername
+AppendCompoundMemberHelper : PreOpStatement ref s, integer membername [nogc]
 {
 	AppendCompoundMember(s.Operand, s.Operand.next, membername)
 }
 
-AppendCompoundMemberHelper : PostOpStatement ref s, integer membername
+AppendCompoundMemberHelper : PostOpStatement ref s, integer membername [nogc]
 {
 	AppendCompoundMember(s.Operand, s.Operand.next, membername)
 }
 
-AppendCompoundMember : simplelist<integer> ref members, simplelist<integer> ref tail, integer membername
+AppendCompoundMember : simplelist<integer> ref members, simplelist<integer> ref tail, integer membername [nogc]
 {
 	AppendCompoundMember(tail, tail.next, membername)
 }
 
-AppendCompoundMember : simplelist<integer> ref members, nothing, integer membername
+AppendCompoundMember : simplelist<integer> ref members, nothing, integer membername [nogc]
 {
 	simplelist<integer> newtail = membername, nothing
 	members.next = newtail
@@ -4600,39 +4544,30 @@ SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, nothing
 
 CodeGenEmitStrings : list<StringTableEntry> ref table
 {
-	CodeGenEmitSingleString(table.value)
+	if(table.value.Handle != 0)
+	{
+		OnBytecodePoolString(table.value.Handle, table.value.Data)
+	}
+	
 	CodeGenEmitStrings(table.next)
 }
 
 CodeGenEmitStrings : nothing
 
-CodeGenEmitSingleString : StringTableEntry ref entry
-{
-	if(entry.Handle != 0)
-	{
-		OnBytecodePoolString(entry.Handle, entry.Data)
-	}
-}
-
 
 CodeGenEmitStructures : list<StructureDefinition> ref structures
 {
 	CodeGenEmitStructures(structures.next)
-	CodeGenEmitSingleStructure(structures.value)
+
+	if((structures.value.Name != 0) && (!structures.value.IsTemplate))
+	{
+		integer membercount = CountMembers(structures.value.Members)
+		OnBytecodeDefineStructure(structures.value.Type, membercount)
+		CodeGenEmitMembers(structures.value.Members)
+	}
 }
 
 CodeGenEmitStructures : nothing
-
-
-CodeGenEmitSingleStructure : StructureDefinition ref def
-{
-	if((def.Name != 0) && (!def.IsTemplate))
-	{
-		integer membercount = CountMembers(def.Members)
-		OnBytecodeDefineStructure(def.Type, membercount)
-		CodeGenEmitMembers(def.Members)
-	}
-}
 
 CodeGenEmitMembers : list<StructureMember> ref members
 {
@@ -4653,18 +4588,18 @@ CodeGenEmitMember : StructureMemberFunctionRef ref member
 }
 
 
-CountMembers : list<StructureMember> ref members -> integer count = 0
+CountMembers : list<StructureMember> ref members -> integer count = 0 [nogc]
 {
 	CountMembers(members, count)
 }
 
-CountMembers : list<StructureMember> ref members, integer ref count
+CountMembers : list<StructureMember> ref members, integer ref count [nogc]
 {
 	++count
 	CountMembers(members.next, count)
 }
 
-CountMembers : nothing, integer ref count
+CountMembers : nothing, integer ref count [nogc]
 
 
 
@@ -4673,27 +4608,22 @@ CountMembers : nothing, integer ref count
 CodeGenEmitScopes : list<Scope> ref scopes
 {
 	CodeGenEmitScopes(scopes.next)
-	CodeGenEmitSingleScope(scopes.value, scopes.value.Name)
-}
 
-CodeGenEmitScopes : nothing
-
-
-CodeGenEmitSingleScope : Scope ref scope, integer funcname
-{
-	if((scope.Name != 0) && (scope.Name != GlobalCodeBlockName))
+	if((scopes.value.Name != 0) && (scopes.value.Name != GlobalCodeBlockName))
 	{
-		integer parentname = scope.ParentName
-		if((parentname == 0) && (scope.Name != GlobalCodeBlockName))
+		integer parentname = scopes.value.ParentName
+		if((parentname == 0) && (scopes.value.Name != GlobalCodeBlockName))
 		{
 			parentname = GlobalCodeBlockName
 		}
 		
-		integer varcount = CountScopeVariables(scope)
-		OnBytecodeLexicalScope(scope.Name, parentname, varcount)
-		CodeGenEmitVariables(scope.Variables, funcname)
+		integer varcount = CountScopeVariables(scopes.value)
+		OnBytecodeLexicalScope(scopes.value.Name, parentname, varcount)
+		CodeGenEmitVariables(scopes.value.Variables, scopes.value.Name)
 	}
 }
+
+CodeGenEmitScopes : nothing
 
 
 CodeGenEmitSpecificScope : Scope ref scope
@@ -4704,12 +4634,12 @@ CodeGenEmitSpecificScope : Scope ref scope
 }
 
 
-CountScopeVariables : Scope ref scope -> integer count = 0
+CountScopeVariables : Scope ref scope -> integer count = 0 [nogc]
 {
 	CountScopeVariables(scope.Variables, count)
 }
 
-CountScopeVariables : list<Variable> ref variables, integer ref count
+CountScopeVariables : list<Variable> ref variables, integer ref count [nogc]
 {
 	if(variables.value.Name != 0)
 	{
@@ -4719,45 +4649,80 @@ CountScopeVariables : list<Variable> ref variables, integer ref count
 	CountScopeVariables(variables.next, count)
 }
 
-CountScopeVariables : nothing, integer ref count
+CountScopeVariables : nothing, integer ref count [nogc]
 
 
 CodeGenEmitVariables : list<Variable> ref vars, integer funcname
 {
-	CodeGenEmitSingleVariable(vars.value, funcname)
+	if(vars.value.Name != 0)
+	{
+		integer basetype = vars.value.VarType
+		while((basetype & 0x7f000000) == 0x05000000)
+		{
+			basetype = FindTypeAliasBase(TypeAliases, basetype)
+		}
+
+		if(vars.value.Origin == 2)
+		{
+			if(listcontains(CustomConstructors, funcname))
+			{
+				OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, 0)
+			}
+			else
+			{
+				OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, vars.value.Origin)
+			}
+		}
+		else
+		{
+			OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, vars.value.Origin)
+		}
+	}
+
 	CodeGenEmitVariables(vars.next, funcname)
 }
 
 CodeGenEmitVariables : nothing, integer funcname
 
 
-CodeGenEmitSingleVariable : Variable ref var, integer funcname
-{
-	if(var.Name != 0)
-	{
-		integer basetype = var.VarType
-		while((basetype & 0x7f000000) == 0x05000000)
-		{
-			basetype = FindTypeAliasBase(TypeAliases, basetype)
-		}
-
-		if((var.Origin == 2) && (listcontains(CustomConstructors, funcname)))
-		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, 0)
-		}
-		else
-		{
-			OnBytecodeLexicalScopeEntry(var.Name, basetype, var.Origin)
-		}
-	}
-}
-
 
 CodeGenEmitFunctions : list<FunctionDefinition> ref table
 {
 	if(!table.value.IsTemplate)
 	{
-		CodeGenEmitSingleFunction(table.value)
+		if(table.value.Name != 0)
+		{
+			FindScopeAndSetContext(table.value)
+			
+			EmittingFunctionName = table.value.Name
+			OnBytecodeEnterFunction(table.value.Name)
+			CodeGenEmitFunctionReturn(table.value.Return)
+
+			if(table.value.InvokeTag != 0)
+			{
+				OnBytecodeInvoke(table.value.InvokeTag)
+			}
+
+			CodeGenEmitCodeBlock(table.value.Code)
+			if(listcontains(CustomConstructors, table.value.Name))
+			{
+				OnBytecodePushVarNoCopy(FindReturnVariableName())
+				OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
+				OnBytecodeAssign()
+			}
+			else
+			{
+				if(table.value.AnonymousReturn)
+				{
+					CodeGenEmitReturnRegisterAnonymous(table.value.Return)
+				}
+				else
+				{
+					CodeGenEmitReturnRegister(table.value.Return)
+				}
+			}
+			OnBytecodeExitFunction()
+		}
 	}
 	
 	CodeGenEmitFunctions(table.next)
@@ -4766,45 +4731,7 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 CodeGenEmitFunctions : nothing
 
 
-CodeGenEmitSingleFunction : FunctionDefinition ref def
-{
-	if(def.Name != 0)
-	{
-		FindScopeAndSetContext(def)
-		
-		EmittingFunctionName = def.Name
-		OnBytecodeEnterFunction(def.Name)
-		CodeGenEmitFunctionReturn(def.Return)
-
-		if(def.InvokeTag != 0)
-		{
-			OnBytecodeInvoke(def.InvokeTag)
-		}
-
-		CodeGenEmitCodeBlock(def.Code)
-		if(listcontains(CustomConstructors, def.Name))
-		{
-			OnBytecodePushVarNoCopy(FindReturnVariableName())
-			OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
-			OnBytecodeAssign()
-		}
-		else
-		{
-			if(def.AnonymousReturn)
-			{
-				CodeGenEmitReturnRegisterAnonymous(def.Return)
-			}
-			else
-			{
-				CodeGenEmitReturnRegister(def.Return)
-			}
-		}
-		OnBytecodeExitFunction()
-	}
-}
-
-
-FindScopeAndSetContext : FunctionDefinition ref func
+FindScopeAndSetContext : FunctionDefinition ref func [nogc]
 {
 	EmittingScope.Wrapped = func.AttachedScope.Wrapped
 	if(!HasScope(EmittingScope.Wrapped))
@@ -4814,8 +4741,8 @@ FindScopeAndSetContext : FunctionDefinition ref func
 	}
 }
 
-HasScope : Scope ref scope -> true
-HasScope : nothing -> false
+HasScope : Scope ref scope -> true [nogc]
+HasScope : nothing -> false [nogc]
 
 
 CodeGenEmitFunctionReturn : Expression ref expr
@@ -5188,20 +5115,20 @@ CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean const
 CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean ref needsref, boolean constructorcall
 
 
-CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference
-CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> false
+CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference [nogc]
+CodeGenCheckAtomForReadRef : CompoundAtom ref atom -> false [nogc]
 
-CodeGenCheckAtomForReadRef : integer ref atom -> false
-CodeGenCheckAtomForReadRef : integer16 ref atom -> false
-CodeGenCheckAtomForReadRef : boolean ref atom -> false
-CodeGenCheckAtomForReadRef : real ref atom -> false
-CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false
-CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false
-CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false
-CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false
-CodeGenCheckAtomForReadRef : Statement ref atom -> false
-CodeGenCheckAtomForReadRef : ParentheticalExpression ref atom -> false
-CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false
+CodeGenCheckAtomForReadRef : integer ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : integer16 ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : boolean ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : real ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : IdentifierAtom ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : StringHandleAtom ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : OperatorInvokeAtom ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : TypeAnnotationAtom ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : Statement ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : ParentheticalExpression ref atom -> false [nogc]
+CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false [nogc]
 
 
 
@@ -5246,7 +5173,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 	}
 	else
 	{
-		if(idatom.IsFunction) //if(FunctionIsAutoGenOrHasIR(idatom.Handle))
+		if(FunctionIsAutoGenOrHasIR(idatom.Handle))
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
@@ -5534,24 +5461,24 @@ GetMemberTypeAndOffset : nothing, integer membername, integer ref memtype, integ
 }
 
 
-GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type
+GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type [nogc]
 
-GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = FindOrCreateFunctionSignatureType(member.Signature)
-
-
-GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
-
-GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name
+GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = FindOrCreateFunctionSignatureType(member.Signature) [nogc]
 
 
-GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0
+GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name [nogc]
+
+GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name [nogc]
+
+
+GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0 [nogc]
 {
 	integer counter = 0
 	GetMemberOffset(members, membername, counter)
 	offset = counter
 }
 
-GetMemberOffset : list<StructureMember> ref members, integer membername, integer ref counter
+GetMemberOffset : list<StructureMember> ref members, integer membername, integer ref counter [nogc]
 {
 	if(GetMemberName(members.value) != membername)
 	{
@@ -5563,15 +5490,15 @@ GetMemberOffset : list<StructureMember> ref members, integer membername, integer
 	}
 }
 
-GetMemberOffset : nothing, integer membername, integer ref counter
+GetMemberOffset : nothing, integer membername, integer ref counter [nogc]
 
-GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type)
+GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type) [nogc]
 
-GetMemberSize : StructureMemberFunctionRef ref member -> 4
+GetMemberSize : StructureMemberFunctionRef ref member -> 4 [nogc]
 
 
 
-GetStructureMemberOffset : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer offset = 0
+GetStructureMemberOffset : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer offset = 0 [nogc]
 {
 	if(structures.value.Name == structurename)
 	{
@@ -5583,31 +5510,26 @@ GetStructureMemberOffset : list<StructureDefinition> ref structures, integer str
 	}
 }
 
-GetStructureMemberOffset : nothing, integer structurename, integer membername -> 0
+GetStructureMemberOffset : nothing, integer structurename, integer membername -> 0 [nogc]
 
 
 
 CodeGenEmitSumTypes : list<SumType> ref sumtypes
 {
-	CodeGenEmitSingleSumType(sumtypes.value)
+	if((sumtypes.value.Type != 0) && (!sumtypes.value.IsTemplate))
+	{
+		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
+		OnBytecodeEmitInteger(sumtypes.value.Type)
+		OnBytecodeEmitInteger(CountSumTypeBases(sumtypes.value.Bases))
+		CodeGenEmitSumTypeBase(sumtypes.value.Bases)
+	}
+
 	CodeGenEmitSumTypes(sumtypes.next)
 }
 
 CodeGenEmitSumTypes : nothing
 
-
-CodeGenEmitSingleSumType : SumType ref sumtype
-{
-	if((sumtype.Type != 0) && (!sumtype.IsTemplate))
-	{
-		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
-		OnBytecodeEmitInteger(sumtype.Type)
-		OnBytecodeEmitInteger(CountSumTypeBases(sumtype.Bases))
-		CodeGenEmitSumTypeBase(sumtype.Bases)
-	}
-}
-
-CountSumTypeBases : list<SumTypeBase> ref bases -> integer count = 0
+CountSumTypeBases : list<SumTypeBase> ref bases -> integer count = 0 [nogc]
 {
 	count = CountSumTypeBases(bases.next)
 
@@ -5617,9 +5539,9 @@ CountSumTypeBases : list<SumTypeBase> ref bases -> integer count = 0
 	}
 }
 
-CountSumTypeBases : nothing -> integer count = 0
+CountSumTypeBases : nothing -> integer count = 0 [nogc]
 
-CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases
+CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases [nogc]
 {
 	CodeGenEmitSumTypeBase(bases.next)
 
@@ -5629,7 +5551,7 @@ CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases
 	}
 }
 
-CodeGenEmitSumTypeBase : nothing
+CodeGenEmitSumTypeBase : nothing [nogc]
 
 
 SumTypeExists : integer typename -> boolean exists = SumTypeExists(SumTypes, typename) [nogc]
@@ -5728,7 +5650,7 @@ FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 	}
 }
 
-FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean ret = false
+FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean ret = false [nogc]
 {
 	if(funcs.value.Name == funcname)
 	{
@@ -5740,10 +5662,10 @@ FunctionExists : list<FunctionDefinition> ref funcs, integer funcname -> boolean
 	}
 }
 
-FunctionExists : nothing, integer funcname -> boolean ret = false
+FunctionExists : nothing, integer funcname -> boolean ret = false [nogc]
 
 
-FunctionIsAutoGen : simplelist<integer> ref genlist, integer target -> boolean ret = false
+FunctionIsAutoGen : simplelist<integer> ref genlist, integer target -> boolean ret = false [nogc]
 {
 	if(genlist.value == target)
 	{
@@ -5755,11 +5677,11 @@ FunctionIsAutoGen : simplelist<integer> ref genlist, integer target -> boolean r
 	}
 }
 
-FunctionIsAutoGen : nothing, integer target -> boolean ret = false
+FunctionIsAutoGen : nothing, integer target -> boolean ret = false [nogc]
 
 
 
-TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boolean ret = false
+TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boolean ret = false [nogc]
 {
 	if(matchers.value.Name == matchername)
 	{
@@ -5771,7 +5693,7 @@ TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boole
 	}
 }
 
-TypeMatcherExists : nothing, integer matchername -> boolean ret = false
+TypeMatcherExists : nothing, integer matchername -> boolean ret = false [nogc]
 
 
 
@@ -5931,39 +5853,33 @@ FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variab
 FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar -> boolean found = false
 
 
-HasVariableNode : list<Variable> ref nodes -> true
-HasVariableNode : nothing -> false
+HasVariableNode : list<Variable> ref nodes -> true [nogc]
+HasVariableNode : nothing -> false [nogc]
 
-NodeHasName : list<Variable> ref nodes, integer varname -> boolean match = (nodes.value.Name == varname)
+NodeHasName : list<Variable> ref nodes, integer varname -> boolean match = (nodes.value.Name == varname) [nogc]
 
-StashVariableNode : list<Variable> ref nodes, Variable ref outvar
+StashVariableNode : list<Variable> ref nodes, Variable ref outvar [nogc]
 {
 	outvar = nodes.value
 }
 
-NextVariableNode : list<Variable> ref nodes -> listnode<Variable> ret = nodes.next
+NextVariableNode : list<Variable> ref nodes -> listnode<Variable> ret = nodes.next [nogc]
 
 
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 {
 	if(matchers.value.Name != 0)
 	{
-		CodeGenEmitSingleTypeMatcher(matchers.value)
+		OnBytecodeLexicalScope(matchers.value.Name, 0, 0)
+		OnBytecodeEnterTypeResolver(matchers.value.Name)
+		CodeGenEmitTypeMatcherOverloads(matchers.value.Overloads)
+		OnBytecodeExitTypeResolver()
 	}
 
 	CodeGenEmitTypeMatchers(matchers.next)
 }
 
 CodeGenEmitTypeMatchers : nothing
-
-
-CodeGenEmitSingleTypeMatcher : TypeMatcher ref matcher
-{
-	OnBytecodeLexicalScope(matcher.Name, 0, 0)
-	OnBytecodeEnterTypeResolver(matcher.Name)
-	CodeGenEmitTypeMatcherOverloads(matcher.Overloads)
-	OnBytecodeExitTypeResolver()
-}
 
 
 OnCodeGenRegisterTypeMatchParam : integer matchername, integer overloadname, integer varname, integer vartype
@@ -6044,7 +5960,7 @@ CodeGenEmitTypeMatcherOverloads : list<FunctionSignature> ref signatures
 CodeGenEmitTypeMatcherOverloads : nothing
 
 
-CountParameters : list<Parameter> ref params -> integer count = 0
+CountParameters : list<Parameter> ref params -> integer count = 0 [nogc]
 {
 	count = CountParameters(params.next)
 
@@ -6054,7 +5970,7 @@ CountParameters : list<Parameter> ref params -> integer count = 0
 	}
 }
 
-CountParameters : nothing -> integer count = 0
+CountParameters : nothing -> integer count = 0 [nogc]
 
 
 CodeGenEmitTypeMatcherParams : list<Parameter> ref params
@@ -6077,13 +5993,7 @@ CodeGenEmitTypeMatcherParams : list<Parameter> ref params
 CodeGenEmitTypeMatcherParams : nothing
 
 
-
-OnCodeGenRegisterFunctionInvokeTag : integer funcname, integer invoketarget
-{
-	FindFunctionAndSetInvokeTag(Functions, funcname, invoketarget)
-}
-
-FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer funcname, integer invoketarget
+FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer funcname, integer invoketarget [nogc]
 {
 	if(functions.value.Name == funcname)
 	{
@@ -6095,7 +6005,7 @@ FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer fu
 	}
 }
 
-FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget
+FindFunctionAndSetInvokeTag : nothing, integer funcname, integer invoketarget [nogc]
 {
 	print("Cannot tag non-existent function")
 	assert(false)
@@ -6142,31 +6052,26 @@ AppendFunctionTagParam : list<string> ref params, nothing, string param
 
 CodeGenEmitFunctionTags : list<FunctionTag> ref tags
 {
-	CodeGenEmitSingleFunctionTag(tags.value)
+	if(tags.value.FunctionName != 0)
+	{
+		if(tags.value.TagName != "")
+		{
+			OnBytecodeEmitByte(0x1a)
+			OnBytecodeEmitInteger(tags.value.FunctionName)
+			OnBytecodeEmitInteger(CountTagParams(tags.value.Parameters))
+			OnBytecodeEmitString(tags.value.TagName)
+
+			CodeGenEmitFunctionTagParams(tags.value.Parameters)
+		}
+	}
 	CodeGenEmitFunctionTags(tags.next)
 }
 
 CodeGenEmitFunctionTags : nothing
 
 
-CodeGenEmitSingleFunctionTag : FunctionTag ref tag
-{
-	if(tag.FunctionName != 0)
-	{
-		if(tag.TagName != "")
-		{
-			OnBytecodeEmitByte(0x1a)
-			OnBytecodeEmitInteger(tag.FunctionName)
-			OnBytecodeEmitInteger(CountTagParams(tag.Parameters))
-			OnBytecodeEmitString(tag.TagName)
 
-			CodeGenEmitFunctionTagParams(tag.Parameters)
-		}
-	}
-}
-
-
-CodeGenEmitFunctionTagParams : list<string> ref params
+CodeGenEmitFunctionTagParams : list<string> ref params [nogc]
 {
 	if(params.value != "")
 	{
@@ -6176,10 +6081,10 @@ CodeGenEmitFunctionTagParams : list<string> ref params
 	CodeGenEmitFunctionTagParams(params.next)
 }
 
-CodeGenEmitFunctionTagParams : nothing
+CodeGenEmitFunctionTagParams : nothing [nogc]
 
 
-CountTagParams : list<string> ref params -> integer count = 0
+CountTagParams : list<string> ref params -> integer count = 0 [nogc]
 {
 	count = CountTagParams(params.next)
 	if(params.value != "")
@@ -6188,7 +6093,7 @@ CountTagParams : list<string> ref params -> integer count = 0
 	}
 }
 
-CountTagParams : nothing -> integer count = 0
+CountTagParams : nothing -> integer count = 0 [nogc]
 
 
 CodeGenEmitConstructors : list<StructureDefinition> ref structures
@@ -6488,7 +6393,7 @@ UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle 
 
 
 
-GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0
+GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0 [nogc]
 {
 	if(structures.value.Name == name)
 	{
@@ -6500,7 +6405,7 @@ GetStructureTypeByName : list<StructureDefinition> ref structures, integer name 
 	}
 }
 
-GetStructureTypeByName : nothing, integer name -> 0
+GetStructureTypeByName : nothing, integer name -> 0 [nogc]
 
 
 
@@ -6734,34 +6639,24 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
 OnCodeGenRegisterFunctionSigParamList : nothing
 
 
-OnCodeGenRegisterFunctionSigEnd :
-{
-	// TODO - dead code?
-}
-
 CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
 {
-	CodeGenEmitSingleFunctionSignature(thelist.value)
-	CodeGenEmitFunctionSignatures(thelist.next)
-}
-
-CodeGenEmitFunctionSignatures : nothing
-
-
-CodeGenEmitSingleFunctionSignature : FunctionSignature ref signature
-{
-	if(signature.Name != 0)
+	if(thelist.value.Name != 0)
 	{
-		integer rettype = GetTypeByName(signature.ReturnTypeName)
+		integer rettype = GetTypeByName(thelist.value.ReturnTypeName)
 		if(rettype == 0)
 		{
 			rettype = 0x00000002		// void
 		}
 		
-		OnBytecodeEmitFunctionSignature(signature.Name, rettype, CountParameters(signature.Parameters))
-		CodeGenEmitFunctionSigParams(signature.Parameters)
+		OnBytecodeEmitFunctionSignature(thelist.value.Name, rettype, CountParameters(thelist.value.Parameters))
+		CodeGenEmitFunctionSigParams(thelist.value.Parameters)
 	}
+	CodeGenEmitFunctionSignatures(thelist.next)
 }
+
+CodeGenEmitFunctionSignatures : nothing
+
 
 CodeGenEmitFunctionSigParams : list<Parameter> ref params
 {
@@ -6843,9 +6738,9 @@ OnCodeGenRegisterPostOpStatement : integer operator, integer operand
 }
 
 
-GetLargestSumTypeBaseSize : integer typeid -> integer size = FindSumTypeAndGetBaseMaxSize(SumTypes, typeid)
+GetLargestSumTypeBaseSize : integer typeid -> integer size = FindSumTypeAndGetBaseMaxSize(SumTypes, typeid) [nogc]
 
-FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> integer size = 0
+FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> integer size = 0 [nogc]
 {
 	if(sumtypes.value.Type == typeid)
 	{
@@ -6857,10 +6752,10 @@ FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> int
 	}
 }
 
-FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0
+FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0 [nogc]
 
 
-GetBaseMaxSize : list<SumTypeBase> ref basetypes, integer ref outsize
+GetBaseMaxSize : list<SumTypeBase> ref basetypes, integer ref outsize [nogc]
 {
 	integer typename = basetypes.value.Name
 	if(typename != 0)
@@ -6875,20 +6770,14 @@ GetBaseMaxSize : list<SumTypeBase> ref basetypes, integer ref outsize
 	GetBaseMaxSize(basetypes.next, outsize)
 }
 
-GetBaseMaxSize : nothing, integer ref outsize
+GetBaseMaxSize : nothing, integer ref outsize [nogc]
 
-
-
-OnCodeGenSetExpressionType : integer typeid
-{
-	ScratchExpressions.value.Type = typeid
-}
 
 OnCodeGenShiftParameter :
 {
 	if(InFuncRetHack)
 	{
-		AppendExpressionToSubStatement(ScratchExpressions.value)
+		AppendExpressionToStatement(SubStatements.value, ScratchExpressions.value)
 	}
 	elseif(PeekContext(ContextStack, 1) != STACK_TYPE_SUBSTATEMENT)
 	{
@@ -6896,7 +6785,7 @@ OnCodeGenShiftParameter :
 	}
 	else
 	{
-		AppendExpressionToSubStatement(ScratchExpressions.value)
+		AppendExpressionToStatement(SubStatements.value, ScratchExpressions.value)
 	}
 
 	Expression d = dummyatomlist, 0
@@ -7042,7 +6931,7 @@ EnsureTypeMatcherIsConfigured : list<FunctionDefinition> ref functions, integer 
 {
 	if(functions.value.Name == overloadname)
 	{
-		CreateTypeMatcherEntryForFunction(functions.value, matchername)
+		WalkParametersForTypeMatcher(functions.value.Params, matchername, functions.value.Name)
 		return()
 	}
 
@@ -7054,13 +6943,6 @@ EnsureTypeMatcherIsConfigured : nothing, integer overloadname, integer matcherna
 	print("Failed to generate type matcher " ; GetPooledString(GlobalStrings, matchername))
 	print("Missing overload " ; GetPooledString(GlobalStrings, overloadname))
 	assert(false)
-}
-
-
-CreateTypeMatcherEntryForFunction : FunctionDefinition ref func, integer matchername
-{
-	integer name = func.Name		// TODO - more dumb compiler bug
-	WalkParametersForTypeMatcher(func.Params, matchername, name)
 }
 
 WalkParametersForTypeMatcher : FunctionParams ref params, integer matchername, integer overloadname
@@ -7359,7 +7241,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	{
 		if(func.AnonymousReturn)
 		{
-			OnCodeGenRegisterVariable(innercontext.ScopeRef.Wrapped, PooledStringHandleForAnonymousRet, rettype, 2)
+			StoreVariableInSingleScope(innercontext.ScopeRef.Wrapped, PooledStringHandleForAnonymousRet, rettype, false, 2)
 		}
 	}
 	
@@ -7389,7 +7271,7 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 {
 	if((param.ResolvedType & 0x7f000000) == 0x09000000)
 	{
-		OnCodeGenRegisterVariable(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, 1)
+		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
 		return()
 	}
 	
@@ -7414,8 +7296,8 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		{
 			param.ResolvedType = param.ResolvedType + 0x80000000
 		}
-		
-		OnCodeGenRegisterVariable(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, 1)
+
+		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
 	}
 }
 
@@ -12422,7 +12304,7 @@ InstantiateCodeBlockEntry : AssignmentCompound ref a, list<TemplateParameter> re
 
 InstantiateCompoundAssignmentLHS : simplelist<integer> ref lhs
 {
-	OnCodeGenAssignmentCompoundMember(lhs.value)
+	FindCurrentFunctionAndAppendCompoundMember(lhs.value)
 	InstantiateCompoundAssignmentLHS(lhs.next)
 }
 
