@@ -7769,12 +7769,12 @@ AnyTypeIsReferenceType : simplelist<integer> ref types -> boolean isref = false 
 AnyTypeIsReferenceType : nothing -> false [nogc]
 
 
-AnnotateNonReferenceParameters : ExpressionList ref exprs
+AnnotateNonReferenceParameters : ExpressionList ref exprs [nogc]
 {
 	AnnotateNonReferenceParameters(exprs.Expressions)
 }
 
-AnnotateNonReferenceParameters : list<Expression> ref params
+AnnotateNonReferenceParameters : list<Expression> ref params [nogc]
 {
 	if((params.value.Type & 0x7f000000) != 0x07000000)
 	{
@@ -7783,18 +7783,18 @@ AnnotateNonReferenceParameters : list<Expression> ref params
 	AnnotateNonReferenceParameters(params.next)
 }
 
-AnnotateNonReferenceParameters : nothing
+AnnotateNonReferenceParameters : nothing [nogc]
 
 
 
-AddTypeAnnotation : nothing
+AddTypeAnnotation : nothing [nogc]
 
-AddTypeAnnotation : list<Expression> ref params
+AddTypeAnnotation : list<Expression> ref params [nogc]
 {
 	AddTypeAnnotation(params.value)
 }
 
-AddTypeAnnotation : Expression ref expr
+AddTypeAnnotation : Expression ref expr [nogc]
 {
 	integer typeid = expr.Type
 	TypeAnnotationAtom atom = typeid
@@ -7818,25 +7818,25 @@ ExpressionIsAnnotated : list<ExpressionAtom> ref atoms -> boolean ret = false
 ExpressionIsAnnotated : nothing -> false
 
 
-AccumulateParameterTypes : simplelist<integer> ref types, OptionalExpressionList ref exprs
+AccumulateParameterTypes : simplelist<integer> ref types, OptionalExpressionList ref exprs [nogc]
 {
 	AccumulateParameterTypesUnwrap(types, exprs)
 }
 
-AccumulateParameterTypesUnwrap : simplelist<integer> ref types, ExpressionList ref exprs
+AccumulateParameterTypesUnwrap : simplelist<integer> ref types, ExpressionList ref exprs [nogc]
 {
 	AccumulateParameterTypesUnwrapped(exprs.Expressions, types)
 }
 
-AccumulateParameterTypesUnwrap : simplelist<integer> ref types, nothing
+AccumulateParameterTypesUnwrap : simplelist<integer> ref types, nothing [nogc]
 
-AccumulateParameterTypesUnwrapped : list<Expression> ref exprs, simplelist<integer> ref types
+AccumulateParameterTypesUnwrapped : list<Expression> ref exprs, simplelist<integer> ref types [nogc]
 {
 	AccumulateParameterTypesUnwrapped(exprs.next, types)
 	simpleprepend<integer>(types, exprs.value.Type)
 }
 
-AccumulateParameterTypesUnwrapped : nothing, simplelist<integer> ref types
+AccumulateParameterTypesUnwrapped : nothing, simplelist<integer> ref types [nogc]
 
 
 FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, simplelist<integer> ref types -> integer overloadname = rawname
