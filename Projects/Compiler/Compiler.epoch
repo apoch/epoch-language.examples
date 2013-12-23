@@ -13388,25 +13388,36 @@ PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 		return()
 	}
 	
-	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), substring(data, 1), handle)
+	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), data, 1, handle)
 }
 
-PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string remainder, integer handle [nogc]
+PlaceDataInTrieRecurse : Trie ref trie, string data, integer offset, integer handle [nogc]
+{
+	if(length(data) == offset)
+	{
+		trie.Handle = handle
+		return()
+	}
+	
+	PlaceDataInTrieChild(trie.Children, trie, subchar(data, offset), data, offset + 1, handle)
+}
+
+PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string alldata, integer offset, integer handle [nogc]
 {
 	if(children.value.Character == character)
 	{
-		PlaceDataInTrie(children.value, remainder, handle)
+		PlaceDataInTrieRecurse(children.value, alldata, offset, handle)
 	}
 	else
 	{
-		PlaceDataInTrieChild(children.next, originaltrie, character, remainder, handle)
+		PlaceDataInTrieChild(children.next, originaltrie, character, alldata, offset, handle)
 	}
 }
 
-PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string remainder, integer handle [nogc]
+PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string alldata, integer offset, integer handle [nogc]
 {
 	Trie newtrie = character, nothing, 0
-	PlaceDataInTrie(newtrie, remainder, handle)
+	PlaceDataInTrieRecurse(newtrie, alldata, offset, handle)
 	
 	list<Trie> newtrielist = newtrie, originaltrie.Children
 	originaltrie.Children = newtrielist
@@ -13421,21 +13432,32 @@ FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
 		return()
 	}
 	
-	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), substring(data, 1))
+	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), data, 1)
 }
 
-FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string remainder -> integer handle = 0 [nogc]
+FindHandleInTrieRecurse : Trie ref trie, string data, integer offset -> integer handle = 0 [nogc]
 {
-	if(triechildren.value.Character == character)
+	if(length(data) == offset)
 	{
-		handle = FindHandleInTrie(triechildren.value, remainder)
+		handle = trie.Handle
 		return()
 	}
 	
-	handle = FindHandleInTrieChildren(triechildren.next, character, remainder)
+	handle = FindHandleInTrieChildren(trie.Children, subchar(data, offset), data, offset + 1)
 }
 
-FindHandleInTrieChildren : nothing, integer character, string remainder -> integer handle = 0 [nogc]
+FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string alldata, integer offset -> integer handle = 0 [nogc]
+{
+	if(triechildren.value.Character == character)
+	{
+		handle = FindHandleInTrieRecurse(triechildren.value, alldata, offset)
+		return()
+	}
+	
+	handle = FindHandleInTrieChildren(triechildren.next, character, alldata, offset)
+}
+
+FindHandleInTrieChildren : nothing, integer character, string alldata, integer offset -> integer handle = 0 [nogc]
 
 
 assertmsg : boolean check, string message
