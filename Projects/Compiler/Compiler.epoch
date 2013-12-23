@@ -2469,7 +2469,7 @@ listcontains : nothing, integer value -> boolean contains = false [nogc]
 
 
 
-TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0
+TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0 [nogc]
 {
 	integer listval = thelist.value
 	if((listval & 0x7f000000) == 0x05000000)
@@ -5640,9 +5640,9 @@ CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases
 CodeGenEmitSumTypeBase : nothing
 
 
-SumTypeExists : integer typename -> boolean exists = SumTypeExists(SumTypes, typename)
+SumTypeExists : integer typename -> boolean exists = SumTypeExists(SumTypes, typename) [nogc]
 
-SumTypeExists : list<SumType> ref sumtypes, integer typename -> boolean exists = false
+SumTypeExists : list<SumType> ref sumtypes, integer typename -> boolean exists = false [nogc]
 {
 	if(sumtypes.value.Name == typename)
 	{
@@ -5654,12 +5654,12 @@ SumTypeExists : list<SumType> ref sumtypes, integer typename -> boolean exists =
 	}
 }
 
-SumTypeExists : nothing, integer typename -> boolean exists = false
+SumTypeExists : nothing, integer typename -> boolean exists = false [nogc]
 
 
-FindSumTypeName : integer typeid -> integer name = FindSumTypeName(SumTypes, typeid)
+FindSumTypeName : integer typeid -> integer name = FindSumTypeName(SumTypes, typeid) [nogc]
 
-FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0
+FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0 [nogc]
 {
 	if(sumtypes.value.Type == typeid)
 	{
@@ -5671,10 +5671,10 @@ FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0
 	}
 }
 
-FindSumTypeName : nothing, integer typeid -> 0
+FindSumTypeName : nothing, integer typeid -> 0 [nogc]
 
 
-SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetypeid -> boolean hasbase = false
+SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetypeid -> boolean hasbase = false [nogc]
 {
 	if(basetypeid == 0)
 	{
@@ -5696,10 +5696,10 @@ SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetype
 	}
 }
 
-SumTypeHasBase : nothing, integer sumtypeid, integer basetypeid -> false
+SumTypeHasBase : nothing, integer sumtypeid, integer basetypeid -> false [nogc]
 
 
-CheckBaseTypes : list<SumTypeBase> ref bases, integer basetypeid -> boolean hasbase = false
+CheckBaseTypes : list<SumTypeBase> ref bases, integer basetypeid -> boolean hasbase = false [nogc]
 {
 	if(bases.value.Name == basetypeid)
 	{
@@ -5711,7 +5711,7 @@ CheckBaseTypes : list<SumTypeBase> ref bases, integer basetypeid -> boolean hasb
 	}
 }
 
-CheckBaseTypes : nothing, integer basetypeid -> false
+CheckBaseTypes : nothing, integer basetypeid -> false [nogc]
 
 
 
@@ -6378,7 +6378,7 @@ GetNameOfType : integer typeid -> integer name = 0
 	}
 }
 
-GetTypeByName : integer name -> integer typeid = 0
+GetTypeByName : integer name -> integer typeid = 0 [nogc]
 {
 	if(name == 0)
 	{
@@ -6451,7 +6451,7 @@ GetTypeByName : integer name -> integer typeid = 0
 }
 
 
-FindSumTypeByName : list<SumType> ref sumtypes, integer name -> integer typeid = 0
+FindSumTypeByName : list<SumType> ref sumtypes, integer name -> integer typeid = 0 [nogc]
 {
 	if((sumtypes.value.Type != 0) && (sumtypes.value.Name == name))
 	{
@@ -6462,10 +6462,10 @@ FindSumTypeByName : list<SumType> ref sumtypes, integer name -> integer typeid =
 	typeid = FindSumTypeByName(sumtypes.next, name)
 }
 
-FindSumTypeByName : nothing, integer name -> 0
+FindSumTypeByName : nothing, integer name -> 0 [nogc]
 
 
-UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0
+UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0 [nogc]
 {
 	if(aliases.value.AliasNameHandle == namehandle)
 	{
@@ -6477,7 +6477,7 @@ UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unalias
 	}
 }
 
-UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle
+UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle [nogc]
 
 
 
@@ -6652,7 +6652,7 @@ AppendEntityToChainWorker : list<Entity> ref chain, nothing, Entity ref e
 }
 
 
-FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer basetype = 0
+FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer basetype = 0 [nogc]
 {
 	if(aliases.value.TypeID == aliastype)
 	{
@@ -6664,10 +6664,10 @@ FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer ba
 	}
 }
 
-FindTypeAliasBase : nothing, integer aliastype -> integer basetype = 0
+FindTypeAliasBase : nothing, integer aliastype -> integer basetype = 0 [nogc]
 
 
-FindTypeAliasByName : list<TypeAlias> ref aliases, integer aliasname -> integer aliastype = 0
+FindTypeAliasByName : list<TypeAlias> ref aliases, integer aliasname -> integer aliastype = 0 [nogc]
 {
 	if(aliases.value.AliasNameHandle == aliasname)
 	{
@@ -6679,7 +6679,7 @@ FindTypeAliasByName : list<TypeAlias> ref aliases, integer aliasname -> integer 
 	}
 }
 
-FindTypeAliasByName : nothing, integer aliasname -> 0
+FindTypeAliasByName : nothing, integer aliasname -> 0 [nogc]
 
 
 OnCodeGenRegisterAlias : integer aliastype, integer aliasname, integer base
@@ -9012,7 +9012,7 @@ ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
 
 
 
-EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out
+EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out [nogc]
 {
 	EliminateImpossibleType(possibles.next, filter, out)
 	
@@ -9026,7 +9026,7 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 	}
 }
 
-EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out
+EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out [nogc]
 
 
 GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
