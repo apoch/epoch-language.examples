@@ -44,7 +44,10 @@ prepend<type T> : list<T> ref thelist, T ref value [nogc]
 }
 
 
-
+structure Trie :
+	string Character,
+	listnode<Trie> Children,
+	integer Handle
 
 
 CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
@@ -3358,18 +3361,7 @@ FindStructureAndAddMember : nothing, integer structurename, integer structuretyp
 	list<StructureMember> members = member, nothing
 	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, GetPooledString(GlobalStrings, structurename), false
 
-	AppendStructure(Structures, Structures.next, def)
-}
-
-AppendStructure : list<StructureDefinition> ref structures, list<StructureDefinition> ref tail, StructureDefinition ref def
-{
-	AppendStructure(tail, tail.next, def)
-}
-
-AppendStructure : list<StructureDefinition> ref structures, nothing, StructureDefinition ref def
-{
-	list<StructureDefinition> newtail = def, nothing
-	structures.next = newtail
+	prepend<StructureDefinition>(Structures, def)
 }
 
 AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member
@@ -5922,19 +5914,34 @@ FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref o
 
 FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variable ref outvar -> boolean found = false
 {
-	if(vars.value.Name == varname)
+	listnode<Variable> node = vars
+	while(HasVariableNode(node))
 	{
-		outvar = vars.value
-		found = true
-	}
-	else
-	{
-		found = FindVariableDataInSingleScope(vars.next, varname, outvar)
+		if(NodeHasName(node, varname))
+		{
+			StashVariableNode(node, outvar)
+			found = true
+			return()
+		}
+		
+		node = NextVariableNode(node)
 	}
 }
 
 FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar -> boolean found = false
 
+
+HasVariableNode : list<Variable> ref nodes -> true
+HasVariableNode : nothing -> false
+
+NodeHasName : list<Variable> ref nodes, integer varname -> boolean match = (nodes.value.Name == varname)
+
+StashVariableNode : list<Variable> ref nodes, Variable ref outvar
+{
+	outvar = nodes.value
+}
+
+NextVariableNode : list<Variable> ref nodes -> listnode<Variable> ret = nodes.next
 
 
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
@@ -6990,6 +6997,8 @@ CodeBlockDepth : nothing -> 0 [nogc]
 
 IRProcess : -> boolean success = true
 {
+	prepend<StructureDefinition>(Structures, dummystruct)		// TODO - why does this need to be here?
+
 	if(!IRTypeInference())
 	{
 		success = false
@@ -7119,23 +7128,20 @@ structure ExpressionInferenceStackEntry :
 
 IRTypeInference : -> boolean success = true
 {
-	simplelist<integer> temp = 0, nothing
-	ContextWrapper<Scope> scopewrap = nothing
-	ContextWrapper<FunctionDefinition> funcwrap = nothing
-	InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-	
-	if(!TypeInference(SumTypes, context))
+	if(!TypeInference(SumTypes, DummyContextForFunctions))
 	{
 		success = false
 	}
 	
-	if(!TypeInference(Structures, context))
+	if(!TypeInference(Structures, DummyContextForFunctions))
 	{
 		success = false
 	}
 
 	if(GlobalCodeBlockName != 0)
 	{
+		simplelist<integer> temp = 0, nothing
+		ContextWrapper<FunctionDefinition> funcwrap = nothing
 		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0, false, false, GlobalScope, funcwrap
 		if(!TypeInference(GlobalCodeBlock, globalcontext))
 		{
@@ -7143,7 +7149,7 @@ IRTypeInference : -> boolean success = true
 		}
 	}
 
-	if(!TypeInference(Functions, context))
+	if(!TypeInference(Functions, DummyContextForFunctions))
 	{
 		success = false
 	}
@@ -8556,12 +8562,7 @@ InferAllFunctionParameterTypes : FunctionDefinition ref function, integer numpar
 {
 	if(!function.InferenceDone)
 	{
-		simplelist<integer> temp = 0, nothing
-		ContextWrapper<Scope> scopewrap = nothing
-		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-		
-		TypeInference(function, context)
+		TypeInference(function, DummyContextForFunctions)
 	}
 	
 	UnwrapAllParamsForTypeRetrieval(function.Params, numparams, outinfo)
@@ -8579,16 +8580,16 @@ UnwrapAllParamsForTypeRetrieval : FunctionParams ref params, integer paramcount,
 UnwrapAllParamsForTypeRetrieval : nothing, integer paramcount, list<ParameterTypeList> ref outinfo
 
 
-RetrieveAllParamTypes : list<UnresolvedParameter> ref params, list<ParameterTypeList> ref outinfo
+RetrieveAllParamTypes : list<UnresolvedParameter> ref params, list<ParameterTypeList> ref outinfo [nogc]
 {
 	simpleprepend<integer>(outinfo.value.Types, params.value.ResolvedType)
 	RetrieveAllParamTypes(params.next, outinfo.next)
 }
 
-RetrieveAllParamTypes : nothing, nothing
+RetrieveAllParamTypes : nothing, nothing [nogc]
 
 
-GrabTypeListAtIndex : list<ParameterTypeList> ref paraminfo, integer paramindex, simplelist<integer> ref out
+GrabTypeListAtIndex : list<ParameterTypeList> ref paraminfo, integer paramindex, simplelist<integer> ref out [nogc]
 {
 	if(paramindex == 0)
 	{
@@ -8753,7 +8754,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 }
 
 
-CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
+CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0 [nogc]
 {
 	count = CountPossibilities(thelist.next)
 
@@ -8763,10 +8764,10 @@ CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0
 	}
 }
 
-CountPossibilities : nothing -> 0
+CountPossibilities : nothing -> 0 [nogc]
 
 
-countnonzero : simplelist<integer> ref thelist -> integer count = 0
+countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
 {
 	count = countnonzero(thelist.next)
 
@@ -8776,20 +8777,20 @@ countnonzero : simplelist<integer> ref thelist -> integer count = 0
 	}
 }
 
-countnonzero : nothing -> 0
+countnonzero : nothing -> 0 [nogc]
 
 
-SetAtomType : IdentifierAtom ref atom, integer typeid
+SetAtomType : IdentifierAtom ref atom, integer typeid [nogc]
 {
 	atom.Type = typeid
 }
 
-SetAtomType : CompoundAtom ref atom, integer typeid
+SetAtomType : CompoundAtom ref atom, integer typeid [nogc]
 {
 	atom.Type = typeid
 }
 
-SetAtomType : Statement ref atom, integer typeid
+SetAtomType : Statement ref atom, integer typeid [nogc]
 
 
 WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> boolean demotedtoright = false
@@ -9749,12 +9750,7 @@ AddParameterTypesForOverloadImplementation : FunctionDefinition ref func, intege
 {
 	if(!func.InferenceDone)
 	{
-		simplelist<integer> temp = 0, nothing
-		ContextWrapper<Scope> scopewrap = nothing
-		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-		
-		TypeInference(func, context)
+		TypeInference(func, DummyContextForFunctions)
 	}
 
 	UnwrapParamsForTypeRetrieval(func.Params, paramindex, paramcount, types)
@@ -9770,12 +9766,7 @@ InferFunctionParameterTypes : FunctionDefinition ref function, integer paraminde
 {
 	if(!function.InferenceDone)
 	{
-		simplelist<integer> temp = 0, nothing
-		ContextWrapper<Scope> scopewrap = nothing
-		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-		
-		TypeInference(function, context)
+		TypeInference(function, DummyContextForFunctions)
 	}
 	
 	UnwrapParamsForTypeRetrieval(function.Params, paramindex, paramcount, types)
@@ -9835,12 +9826,7 @@ InferFunctionReturnType : FunctionDefinition ref func -> integer rettype = 0
 {
 	if(!func.InferenceDone)
 	{
-		simplelist<integer> temp = 0, nothing
-		ContextWrapper<Scope> scopewrap = nothing
-		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-
-		TypeInference(func, context)
+		TypeInference(func, DummyContextForFunctions)
 	}
 
 	rettype = GetOptionalExpressionType(func.Return)
@@ -11968,11 +11954,7 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		TemplateInstance instance = defname, instancename, args
 		prepend<TemplateInstance>(TemplateStructureInstances, instance)
 
-		simplelist<integer> temp = 0, nothing
-		ContextWrapper<Scope> scopewrap = nothing
-		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-		TypeInference(Structures.value, context)
+		TypeInference(Structures.value, DummyContextForFunctions)
 	}
 	else
 	{
@@ -12134,11 +12116,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	TemplateInstance instance = defname, instancename, args
 	prepend<TemplateInstance>(TemplateFunctionInstances, instance)
 
-
-	simplelist<integer> temp = 0, nothing
-	ContextWrapper<FunctionDefinition> funcwrap = nothing
-	InferenceContext context = 0, 0, temp, false, 0, false, false, scopewrap, funcwrap
-	TypeInference(func, context)
+	TypeInference(func, DummyContextForFunctions)
 }
 
 
@@ -13461,6 +13439,12 @@ global
 	simplelist<integer> dummycompound = 0, nothing
 	PreOpStatement PreOpOnDeck = 0, dummycompound, 0
 	PostOpStatement PostOpOnDeck = 0, dummycompound, 0
+	
+	
+	ContextWrapper<Scope> gcdscopewrap = nothing
+	ContextWrapper<FunctionDefinition> gcdfuncwrap = nothing
+	InferenceContext DummyContextForFunctions = 0, 0, dummycompound, false, 0, false, false, gcdscopewrap, gcdfuncwrap
+	
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
@@ -13615,11 +13599,6 @@ IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false [nogc]
 	}
 }
 
-
-structure Trie :
-	string Character,
-	listnode<Trie> Children,
-	integer Handle
 
 PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 {
