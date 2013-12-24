@@ -54,6 +54,13 @@ GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Ker
 
 timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")]
 
+structure largeint :
+	integer low,
+	integer high
+
+QueryPerformanceCounter : largeint ref out -> boolean ret = false [external("Kernel32.dll", "QueryPerformanceCounter", "stdcall")]
+QueryPerformanceFrequency : largeint ref out -> boolean ret = false [external("Kernel32.dll", "QueryPerformanceFrequency", "stdcall")]
+
 
 ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll", "ExecuteByteCodeDeferred", "stdcall")]
 
@@ -110,6 +117,9 @@ entrypoint :
 
 		PrepareStringTable()
 		InitBuiltInOverloads()
+		
+		largeint startqpc = 0, 0
+		QueryPerformanceCounter(startqpc)
 
 		integer startparsems = timeGetTime()
 		boolean parseok = Parse(contents, len)
@@ -141,6 +151,18 @@ entrypoint :
 		if(makeexe)
 		{
 			MakeExe("test.exe")
+			
+			largeint endqpc = 0, 0
+			QueryPerformanceCounter(endqpc)
+			
+			integer stupidguess = endqpc.low - startqpc.low
+			
+			largeint freq = 0, 0
+			QueryPerformanceFrequency(freq)
+			
+			integer duration = stupidguess * 1000 / freq.low
+			
+			print(cast(string, duration) ; " milliseconds elapsed")
 		}
 		else
 		{
@@ -2559,17 +2581,6 @@ OnBytecodeEmitByte : integer b [nogc]
 }
 
 
-//
-// Callback used to emit a series of bytes to a bytecode stream
-//
-
-OnBytecodeEmitBytes : integer bytes, integer size [nogc]
-{
-	writebuffer(Hack, HackSize, bytes, size)
-	HackSize += size
-}
-
-
 OnBytecodeEmitInteger : integer value [nogc]
 {
 	writebuffer(Hack, HackSize, value & 0xff)
@@ -4556,16 +4567,24 @@ SetFunctionCodeBlockWorker : FunctionDefinition ref funcdef, nothing
 
 CodeGenEmitStrings : list<StringTableEntry> ref table
 {
-	if(table.value.Handle != 0)
+	listnode<StringTableEntry> cur = table
+	while(HasSTEntry(cur))
 	{
-		OnBytecodePoolString(table.value.Handle, table.value.Data)
+		if(GetSTHandle(cur) != 0)
+		{
+			OnBytecodePoolString(GetSTHandle(cur), GetSTData(cur))
+		}
+		
+		cur = GetSTNext(cur)
 	}
-	
-	CodeGenEmitStrings(table.next)
 }
 
-CodeGenEmitStrings : nothing
+HasSTEntry : list<StringTableEntry> ref table -> true
+HasSTEntry : nothing -> false
 
+GetSTHandle : list<StringTableEntry> ref table -> integer handle = table.value.Handle
+GetSTData : list<StringTableEntry> ref table -> string data = table.value.Data
+GetSTNext : list<StringTableEntry> ref table -> listnode<StringTableEntry> ret = table.next
 
 CodeGenEmitStructures : list<StructureDefinition> ref structures
 {
@@ -4746,11 +4765,6 @@ CodeGenEmitFunctions : nothing
 FindScopeAndSetContext : FunctionDefinition ref func [nogc]
 {
 	EmittingScope.Wrapped = func.AttachedScope.Wrapped
-	if(!HasScope(EmittingScope.Wrapped))
-	{
-		print("Function " ; GetPooledString(GlobalStrings, func.Name) ; " has no scope!")
-		assert(false)
-	}
 }
 
 HasScope : Scope ref scope -> true [nogc]
