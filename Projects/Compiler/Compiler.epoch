@@ -4803,7 +4803,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
 
 	Variable var = 0, 0, 0, 0
-	FindVariableDataInScope(EmittingFunctionName, s.Name, var)
+	FindVariableDataInSingleScope(EmittingScope.Wrapped, s.Name, var)
 	if((var.Name != 0) && ((var.VarType & 0xff000000) == 0x09000000))
 	{
 		OnBytecodeInvokeIndirect(s.Name)
@@ -5169,7 +5169,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 	}
 	else
 	{
-		if(FunctionIsAutoGenOrHasIR(idatom.Handle))
+		if(idatom.IsFunction)
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
@@ -5220,7 +5220,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 					else
 					{
 						Variable var = 0, 0, 0, 0
-						FindVariableDataInScope(EmittingFunctionName, idatom.Handle, var)
+						FindVariableDataInSingleScope(EmittingScope.Wrapped, idatom.Handle, var)
 						
 						if(var.Name == 0)
 						{
@@ -5302,7 +5302,7 @@ CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
 EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 {
 	Variable var = 0, 0, 0, 0
-	FindVariableDataInScope(EmittingFunctionName, bindings.value.Identifier, var)
+	FindVariableDataInSingleScope(EmittingScope.Wrapped, bindings.value.Identifier, var)
 	
 	assertmsg(var.VarType != 0, "Compound bindings reference bogus variable")
 	integer lhstypename = GetNameOfType(var.VarType)
@@ -5628,6 +5628,11 @@ CheckBaseTypes : nothing, integer basetypeid -> false [nogc]
 
 FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 {
+	if(IsRecognizedBuiltIn(funcname))
+	{
+		return()
+	}
+
 	if(SearchBinaryTree(FunctionsWhichExist, funcname))
 	{
 		ret = true
@@ -5775,43 +5780,22 @@ FindReturnVariableNameInSingleScope : nothing, integer ref name
 FindVariableType : integer varname -> integer rettype = 0
 {
 	Variable var = 0, 0, 0, 0
-	if(!FindVariableDataInScope(EmittingFunctionName, varname, var))
+	if(!FindVariableDataInSingleScope(EmittingScope.Wrapped, varname, var))
 	{
-		FindVariableDataInScope(GlobalCodeBlockName, varname, var)
+		return()
 	}
 	rettype = var.VarType
-}
-
-
-FindVariableDataInScope : integer scopename, integer varname, Variable ref outvar 
-	->
-	boolean found = false
-{
-	if(scopename == EmittingFunctionName)
-	{
-		found = FindVariableDataInSingleScope(EmittingScope.Wrapped, varname, outvar)
-		if(!found)
-		{
-			found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
-		}
-		
-		return()
-	}
-	elseif(scopename == GlobalCodeBlockName)
-	{
-		found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
-		return()
-	}
-
-	assertmsg(false, "Cannot find data in unknown scope")
 }
 
 FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref outvar -> boolean found = false
 {
 	found = FindVariableDataInSingleScope(scope.Variables, varname, outvar)
-	if((!found) && (scope.Name != GlobalCodeBlockName))
-	{
-		found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
+	if(!found)
+	{		
+		if(scope.Name != GlobalCodeBlockName)
+		{
+			found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
+		}
 	}
 }
 
@@ -6790,6 +6774,8 @@ CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
 {
 	if(GlobalCodeBlockName != 0)
 	{
+		EmittingScope.Wrapped = GlobalScope.Wrapped
+	
 		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
 		CodeGenEmitCodeBlock(block)
 		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringTrie, "entrypoint"))
@@ -6999,9 +6985,8 @@ IRTypeInference : -> boolean success = true
 
 	if(GlobalCodeBlockName != 0)
 	{
-		simplelist<integer> temp = 0, nothing
 		ContextWrapper<FunctionDefinition> funcwrap = nothing
-		InferenceContext globalcontext = GlobalCodeBlockName, 0, temp, false, 0, false, false, GlobalScope, funcwrap
+		InferenceContext globalcontext = GlobalCodeBlockName, 0, globalemptyintlist, false, 0, false, false, GlobalScope, funcwrap
 		if(!TypeInference(GlobalCodeBlock, globalcontext))
 		{
 			success = false
@@ -7191,10 +7176,9 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	
 	func.InferenceDone = true
 
-	simplelist<integer> temp = 0, nothing
 	ContextWrapper<Scope> scopewrap = func.AttachedScope.Wrapped
 	ContextWrapper<FunctionDefinition> funcwrap = func
-	InferenceContext innercontext = func.Name, 0, temp, false, 0, false, false, scopewrap, funcwrap
+	InferenceContext innercontext = func.Name, 0, globalemptyintlist, false, 0, false, false, scopewrap, funcwrap
 	
 	
 	if(!TypeInference(func.Params, innercontext))
@@ -8494,8 +8478,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 
 	integer counter = 0
 		
-	boolean flag = context.FunctionReturn		// TODO - stupid workaround for a compiler bug
-	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, context.ScopeRef.Wrapped, context.FuncRef, flag, context.Parenthetical)
+	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, context)
 		
 	integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
 	if(possibilitycount == 1)
@@ -8503,9 +8486,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		if((!context.FunctionReturn) && (context.StatementName != 0))
 		{
 			simplelist<integer> types = 0, nothing
-			EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
+			integer typecount = EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
 
-			integer typecount = countnonzero(types)
 			if(typecount == 1)
 			{
 				assertmsg(types.value != 0, "Inferred a non-type!")
@@ -8629,9 +8611,9 @@ SetAtomType : CompoundAtom ref atom, integer typeid [nogc]
 SetAtomType : Statement ref atom, integer typeid [nogc]
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> boolean demotedtoright = false
+WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, InferenceContext ref context -> boolean demotedtoright = false
 {
-	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, scope, func, funcret, parenthetical)
+	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, context)
 	boolean unarycompensate = false
 	
 	if(IsOperatorInvoke(tail.value))
@@ -8660,8 +8642,8 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	else
 	{
 		list<InferencePossibility> out = scratchpossibility, nothing
-		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, scope, func, funcret, parenthetical)
-				
+		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, context.ScopeRef.Wrapped, context.FuncRef, context.FunctionReturn, context.Parenthetical)
+
 		if(counter == 1)
 		{
 			list<InferencePossibility> filtered = scratchpossibility, nothing
@@ -8732,11 +8714,18 @@ AddPossibleParamTypeForAllOverloads : list<InferencePossibility> ref possibiliti
 AddPossibleParamTypeForAllOverloads : nothing, TypePossibilityList ref paramtypes
 
 
-AllOptionsConsumed : list<TypePossibilityList> ref options -> boolean allconsumed = true
+AllOptionsConsumed : list<TypePossibilityList> ref options -> boolean allconsumed = true [nogc]
 {
-	if((!options.value.Consumed) && (countnonzero(options.value.Types) > 0))
+	if(!options.value.Consumed)
 	{
-		allconsumed = false
+		if(countnonzero(options.value.Types) > 0)
+		{
+			allconsumed = false
+		}
+		else
+		{
+			allconsumed = AllOptionsConsumed(options.next)
+		}
 	}
 	else
 	{
@@ -8744,18 +8733,18 @@ AllOptionsConsumed : list<TypePossibilityList> ref options -> boolean allconsume
 	}
 }
 
-AllOptionsConsumed : nothing -> true
+AllOptionsConsumed : nothing -> true [nogc]
 
 
-PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, list<ExpressionInferenceStackEntry> ref tail
+PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, list<ExpressionInferenceStackEntry> ref tail [nogc]
 {
 	stack = tail
 }
 
-PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, nothing
+PopExpressionInferenceStack : list<ExpressionInferenceStackEntry> ref stack, nothing [nogc]
 
 
-WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> false
+WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInferenceStackEntry> ref stack, integer ref counter, InferenceContext ref context -> boolean demotedtoright = false
 {
 	if(IsOperatorInvoke(atoms.value))
 	{
@@ -8765,7 +8754,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 	{
 		TypePossibilityList poss = scratchpossibletypes, false
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
-		GetAtomType(atoms.value, newpossibility.ReturnType, scope, func, funcret, parenthetical)
+		GetAtomType(atoms.value, newpossibility.ReturnType, context.ScopeRef.Wrapped, context.FuncRef, context.FunctionReturn, context.Parenthetical)
 		
 		prepend<InferencePossibility>(stack.value.PossibilityList, newpossibility)
 	}
@@ -8796,9 +8785,9 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 		GetAtomType(atom, poss, scope, func, funcret, parenthetical)
 		
 		simplelist<integer> types = 0, nothing
-		EliminateImpossibleType(params.value.Types, poss.Types, types)
+		integer typecount = EliminateImpossibleType(params.value.Types, poss.Types, types)
 				
-		if(countnonzero(types) == 0)
+		if(typecount == 0)
 		{
 			valid = false
 		}
@@ -8823,13 +8812,6 @@ SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname
 {
 	if(count == 0)
 	{
-		if(!IsOperatorInvoke(atoms.value))
-		{
-			print("Internal error: operator " ; GetPooledString(GlobalStrings, overloadname) ; " cannot be placed in expression")
-			DumpAtom(atoms.value)
-			assert(false)
-		}
-		
 		ChangeOperator(atoms.value, overloadname)
 	}
 	else
@@ -8845,21 +8827,22 @@ ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
 
 
 
-EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out [nogc]
+EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out -> integer count = 0 [nogc]
 {
-	EliminateImpossibleType(possibles.next, filter, out)
+	count = EliminateImpossibleType(possibles.next, filter, out)
 	
 	if(possibles.value != 0)
 	{
 		integer expectedtype = TypeListContains(filter, possibles.value)
 		if(expectedtype != 0)
 		{
+			count = count + 1
 			simpleprepend<integer>(out, expectedtype)
 		}
 	}
 }
 
-EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out [nogc]
+EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out -> 0 [nogc]
 
 
 GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
@@ -8879,9 +8862,8 @@ GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities
 
 GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 {	
-	simplelist<integer> temp = 0, nothing
 	ContextWrapper<Scope> scopewrap = scope
-	InferenceContext newcontext = scope.Name, statement.Name, temp, funcret, 0, false, false, scopewrap, func
+	InferenceContext newcontext = scope.Name, statement.Name, globalemptyintlist, funcret, 0, false, false, scopewrap, func
 	
 	if(TypeInference(statement, newcontext))
 	{
@@ -8893,9 +8875,8 @@ GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, Scope 
 
 GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean isinparenthetical
 {
-	simplelist<integer> temp = 0, nothing
 	ContextWrapper<Scope> scopewrap = scope
-	InferenceContext newcontext = scope.Name, 0, temp, funcret, 0, false, true, scopewrap, func
+	InferenceContext newcontext = scope.Name, 0, globalemptyintlist, funcret, 0, false, true, scopewrap, func
 		
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
@@ -8930,8 +8911,17 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 		AddPossibleParameter(possibilities.Types, 0x01000000)
 	}
 	
-	if(GetTypeByName(atom.Handle) != 0)
+	integer nametype = GetTypeByName(atom.Handle)
+	if(nametype != 0)
 	{
+		if(IsStructureType(nametype))
+		{
+			if(FunctionIsAutoGenOrHasIR(atom.Handle))
+			{
+				atom.IsFunction = true
+			}
+		}
+		
 		return()
 	}
 	
@@ -8942,6 +8932,10 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	if(var.Name != 0)
 	{
 		AddPossibleParameter(possibilities.Types, var.VarType)
+		if((var.VarType & 0x7f000000) == 0x09000000)
+		{
+			atom.IsFunction = true
+		}
 	}
 	else
 	{
@@ -13214,7 +13208,8 @@ global
 	ContextWrapper<Scope> gcdscopewrap = nothing
 	ContextWrapper<FunctionDefinition> gcdfuncwrap = nothing
 	InferenceContext DummyContextForFunctions = 0, 0, dummycompound, false, 0, false, false, gcdscopewrap, gcdfuncwrap
-	
+
+	simplelist<integer> globalemptyintlist = 0, nothing
 
 	integer CHARACTER_CLASS_WHITE = 0
 	integer CHARACTER_CLASS_IDENTIFIER = 1
