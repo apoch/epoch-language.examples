@@ -1023,12 +1023,6 @@ charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 PushToken : string token [nogc]
 {
-	if(length(token) == 0)
-	{
-		print("Lexer attempted to push a zero-length token!")
-		assert(false)
-	}
-
 	quick_append(TokenStreamTail.tail, token)
 }
 
@@ -1778,6 +1772,29 @@ ParseStatement : boolean substatement -> boolean matched = false
 	matched = true
 }
 
+ScanTemplateArgs : integer initialconsume -> integer consumed = initialconsume
+{
+	boolean hasargs = true
+	while(hasargs)
+	{
+		++consumed
+		
+		if(PeekToken(consumed) == ">")
+		{
+			hasargs = false
+		}
+		elseif(PeekToken(consumed) == ",")
+		{
+			++consumed
+		}
+		else
+		{
+			consumed = 0
+			return()
+		}
+	}
+}
+
 ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
 {
 	TemplateArgumentList newarglist = scratchtemplatearglist
@@ -1823,7 +1840,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	}
 	elseif(varname == "<")
 	{
-		skipahead = ParseTemplateArgs(2)
+		skipahead = ScanTemplateArgs(2)
 		varname = PeekToken(1 + skipahead)
 		
 		templated = true
@@ -1832,6 +1849,11 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	if(PeekToken(2 + skipahead) != "=")
 	{
 		return()
+	}
+	
+	if(templated)
+	{
+		ParseTemplateArgs(2)
 	}
 
 	PopTokens(3 + skipahead)
@@ -9331,8 +9353,7 @@ PlaceAtomInList : list<ExpressionAtom> ref atoms, ExpressionAtom ref atom
 {
 	if(ExpressionAtomIsSentinel(atoms.value))
 	{
-		list<ExpressionAtom> newatoms = atom, nothing
-		atoms = newatoms
+		atoms.value = atom
 	}
 	else
 	{
@@ -13660,7 +13681,7 @@ SearchBinaryTree : BinaryTree ref tree, integer target -> boolean found = false
 
 
 SearchBinaryTreeForPayload : BinaryTree ref tree, integer target, ContextWrapper<FunctionDefinition> ref out -> boolean found = false
-{	
+{
 	BinaryTreeNode cur = tree
 	while(HasNode(cur))
 	{
