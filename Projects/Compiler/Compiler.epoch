@@ -3320,8 +3320,7 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 	if(templated)
 	{
 		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
-		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
-		member.TemplateArgs = arglist
+		member.TemplateArgs = ScratchTemplateArgumentStack.value
 		
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
@@ -3681,8 +3680,7 @@ IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isre
 	if(templated)
 	{
 		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
-		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
-		p.TemplateArgs = arglist
+		p.TemplateArgs = ScratchTemplateArgumentStack.value
 		
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
@@ -3778,15 +3776,13 @@ OnCodeGenExitContext :
 	}
 	elseif(entrytype == STACK_TYPE_CHAIN)
 	{
-		EntityChain chain = ChainStack.value
-		CodeBlockEntry cbe = chain
+		CodeBlockEntry cbe = ChainStack.value
 		AppendEntryToCurrentCodeBlock(cbe)
 		PopChain(ChainStack, ChainStack.next)
 	}
 	elseif(entrytype == STACK_TYPE_PARENTHETICAL)
 	{
-		Expression expr = ScratchExpressions.value
-		ExpressionOrPrePostOp epp = expr
+		ExpressionOrPrePostOp epp = ScratchExpressions.value
 		ParentheticalExpression parenthetical = epp
 		ExpressionAtom atom = parenthetical
 		PopExpression(ScratchExpressions, ScratchExpressions.next)
@@ -3849,8 +3845,7 @@ PopChain : list<EntityChain> ref stack, nothing
 
 PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
 {
-	Statement stmt = SubStatements.value
-	ExpressionAtom atom = stmt
+	ExpressionAtom atom = SubStatements.value
 
 	expressions = tail
 
@@ -4015,9 +4010,8 @@ OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean 
 	
 	if(hastemplateargs)
 	{
-		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
-		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
-		statement.TemplateArgs = arglist
+		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next) 
+		statement.TemplateArgs = ScratchTemplateArgumentStack.value
 		
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
@@ -6512,8 +6506,7 @@ OnCodeGenEnterEntityCode :
 	ContextStackEntry entry = STACK_TYPE_ENTITY_CODE, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
 
-	Expression expr = ScratchExpressions.value
-	EntityStack.value.Param = expr
+	EntityStack.value.Param = ScratchExpressions.value
 
 	OptionalCodeBlock block = nothing
 	prepend<OptionalCodeBlock>(CurrentCodeBlockStack, block)
@@ -11794,8 +11787,7 @@ DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember
 	{	
 		integer newtype = MapTemplateType(memvar.TypeNameHandle, params, args)
 		
-		TemplateArgumentList newargs = scratchtemplatearglist
-		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, newargs
+		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, scratchtemplatearglist
 		CopyTemplateArgs(memvar.TemplateArgs, newmemvar.TemplateArgs)
 		RemapAllTemplateArguments(newmemvar.TemplateArgs, params, args)
 		StructureMember newmember = newmemvar
@@ -11826,8 +11818,7 @@ InstantiateBaseType : SumTypeBase ref in, list<SumTypeBase> ref out, list<Templa
 	{
 		integer newtype = MapTemplateType(in.Name, params, args)
 		
-		TemplateArgumentList newargs = scratchtemplatearglist
-		SumTypeBase newbase = newtype, newargs
+		SumTypeBase newbase = newtype, scratchtemplatearglist
 		CopyTemplateArgs(in.TemplateArgs, newbase.TemplateArgs)
 		RemapAllTemplateArguments(newbase.TemplateArgs, params, args)
 		prepend<SumTypeBase>(out, newbase)
