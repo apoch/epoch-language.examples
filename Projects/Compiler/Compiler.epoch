@@ -3022,6 +3022,7 @@ structure StructureDefinition :
 	integer AnonConstructorName,
 	integer CopyConstructorName,
 	list<StructureMember> ref Members,
+	integer MemberCount,
 	string ReadableName,
 	boolean IsTemplate
 
@@ -3374,6 +3375,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 	if(structures.value.Name == structurename)
 	{
 		AppendStructureMember(structures.value.Members, structures.value.Members.next, member)
+		structures.value.MemberCount = structures.value.MemberCount + 1
 	}
 	else
 	{
@@ -3384,7 +3386,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member
 {
 	list<StructureMember> members = member, nothing
-	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, GetPooledString(GlobalStrings, structurename), false
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(GlobalStrings, structurename), false
 
 	prepend<StructureDefinition>(Structures, def)
 }
@@ -3580,7 +3582,19 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
-	integer existingcount = CountOverloads(Overloads, rawname)
+	integer existingcount = 0
+	
+	ContextWrapper<FunctionDefinition> funcwrap = nothing
+	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, rawname, funcwrap)
+	if(found)
+	{
+		existingcount = CountOverloadsForContext(funcwrap.Wrapped, rawname)
+	}
+	else
+	{
+		existingcount = CountOverloads(Overloads, rawname)
+	}
+	
 	if(existingcount > 0)
 	{
 		mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
@@ -3589,7 +3603,10 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 	Overload overload = rawname, mangledname, nothing
 	prepend<Overload>(Overloads, overload)
 	
-	FindFunctionAndAddOverload(overload)
+	if(found)
+	{
+		AddOverloadToFunc(funcwrap.Wrapped, overload)
+	}
 }
 
 
@@ -3606,6 +3623,12 @@ FindFunctionAndAddOverload : Overload ref overload
 AddOverloadToFunc : FunctionDefinition ref func, Overload ref overload
 {
 	prepend<Overload>(func.Overloads, overload)
+}
+
+
+CountOverloadsForContext : FunctionDefinition ref func, integer rawname -> integer count = 0
+{
+	count = CountOverloads(func.Overloads, rawname)
 }
 
 
@@ -4592,8 +4615,7 @@ CodeGenEmitStructures : list<StructureDefinition> ref structures
 
 	if((structures.value.Name != 0) && (!structures.value.IsTemplate))
 	{
-		integer membercount = CountMembers(structures.value.Members)
-		OnBytecodeDefineStructure(structures.value.Type, membercount)
+		OnBytecodeDefineStructure(structures.value.Type, structures.value.MemberCount)
 		CodeGenEmitMembers(structures.value.Members)
 	}
 }
@@ -4617,22 +4639,6 @@ CodeGenEmitMember : StructureMemberFunctionRef ref member
 {
 	OnBytecodeStructureMember(member.Name, GetMemberTypeDecompose(member))
 }
-
-
-CountMembers : list<StructureMember> ref members -> integer count = 0 [nogc]
-{
-	CountMembers(members, count)
-}
-
-CountMembers : list<StructureMember> ref members, integer ref count [nogc]
-{
-	++count
-	CountMembers(members.next, count)
-}
-
-CountMembers : nothing, integer ref count [nogc]
-
-
 
 
 
@@ -6130,7 +6136,7 @@ EmitConstructor : StructureDefinition ref def
 {
 	integer idhandle = PooledStringHandleForIdentifier
 
-	OnBytecodeLexicalScope(def.ConstructorName, 0, CountMembers(def.Members) + 1)
+	OnBytecodeLexicalScope(def.ConstructorName, 0, def.MemberCount + 1)
 	OnBytecodeLexicalScopeEntry(idhandle, 0x81000000, 1)
 	EmitScopeEntriesForMembers(def.Members)
 
@@ -6146,7 +6152,7 @@ EmitConstructor : StructureDefinition ref def
 
 EmitAnonConstructor : StructureDefinition ref def
 {
-	integer membercount = CountMembers(def.Members)
+	integer membercount = def.MemberCount
 	OnBytecodeLexicalScope(def.AnonConstructorName, 0, membercount + 1)
 	EmitScopeEntriesForMembers(def.Members)
 	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, 2)
@@ -8341,7 +8347,7 @@ GatherAllPossibleParamTypesForConstructor : list<StructureDefinition> ref struct
 {
 	if(structures.value.ConstructorName == funcname)
 	{
-		integer membercount = CountMembers(structures.value.Members)
+		integer membercount = structures.value.MemberCount
 		if(numparams == (membercount + 1))
 		{
 			simpleprepend<integer>(outinfo.value.Types, 0x01000000)		// Identifier type signature
@@ -9704,12 +9710,12 @@ GetOptionalExpressionType : nothing -> 0 [nogc]
 FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
 {
 	integer ctype = GetTypeByName(funcname)
-	if((ctype & 0xff000000) == 0x05000000)
+	if((ctype & 0x7f000000) == 0x05000000)
 	{
 		funcname = GetNameOfType(FindTypeAliasBase(TypeAliases, ctype))
 	}
 
-	if((ctype & 0xff000000) == 0x07000000)
+	if((ctype & 0x7f000000) == 0x07000000)
 	{
 		if(paramcount == 2)
 		{
@@ -10160,7 +10166,7 @@ FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid
 
 FindConstructorAndAddParameterTypes : list<StructureDefinition> ref structures, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types -> boolean hit = false
 {
-	integer membercount = CountMembers(structures.value.Members)
+	integer membercount = structures.value.MemberCount
 
 	if((structures.value.ConstructorName == funcname) && (paramcount == membercount + 1))
 	{
@@ -10528,7 +10534,7 @@ FindConstructorAndAnnotateTypeMatchedParams : list<StructureDefinition> ref stru
 
 FindConstructorAndAnnotateTypeMatchedParams : nothing, integer funcname, list<Expression> ref paramexprs
 {
-	if((GetTypeByName(funcname) & 0x7f000000) == 0x07000000)
+	if(FindSumTypeByName(SumTypes, funcname) != 0)
 	{
 		AnnotateNonReferenceParameters(paramexprs.next)
 	}
@@ -11742,7 +11748,7 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		DoMemberListInstantiation(structures.value.Members, members, params, args)
 		PopMember(members, members.next)
 		
-		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, GetPooledString(GlobalStrings, instancename), false
+		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, structures.value.MemberCount, GetPooledString(GlobalStrings, instancename), false
 		prepend<StructureDefinition>(Structures, struct)
 
 		TemplateInstance instance = defname, instancename, args
@@ -13114,7 +13120,7 @@ global
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
 	list<StructureMember> dummymembers = dummymember, nothing
-	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers, "", false
+	StructureDefinition dummystruct = 0, 0, 0, 0, 0, dummymembers, 0, "", false
 	list<StructureDefinition> Structures = dummystruct, nothing
 
 
