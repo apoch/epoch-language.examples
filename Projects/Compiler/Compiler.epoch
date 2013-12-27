@@ -12086,6 +12086,8 @@ InstantiateExpression : Expression ref expr, boolean inret, list<TemplateParamet
 	InstantiateAtoms(expr.Atoms, inret, templateparams, templateargs)
 }
 
+InstantiateExpression : nothing, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+
 InstantiateAtoms : list<ExpressionAtom> ref atoms, boolean inret, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	InstantiateSingleAtom(atoms.value, inret, templateparams, templateargs)
