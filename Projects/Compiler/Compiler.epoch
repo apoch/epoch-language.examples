@@ -1426,7 +1426,7 @@ ParseStructure : -> boolean matched = false
 	
 	if(templated)
 	{
-		SetStructureToTemplate(Structures, structurenamehandle)
+		SetStructureToTemplate(structurenamehandle)
 	}
 	
 	matched = true
@@ -3394,6 +3394,7 @@ FindStructureAndAddMember : nothing, integer structurename, integer structuretyp
 	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(GlobalStrings, structurename), false
 
 	prepend<StructureDefinition>(Structures, def)
+	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, structurename, def)
 }
 
 AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member
@@ -3590,7 +3591,7 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 	integer existingcount = 0
 	
 	ContextWrapper<FunctionDefinition> funcwrap = nothing
-	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, rawname, funcwrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
 	if(found)
 	{
 		existingcount = CountOverloadsForContext(funcwrap.Wrapped, rawname)
@@ -3618,7 +3619,7 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 FindFunctionAndAddOverload : Overload ref overload
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, overload.NormalName, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overload.NormalName, wrap)
 	if(found)
 	{
 		AddOverloadToFunc(wrap.Wrapped, overload)
@@ -3668,7 +3669,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = rawfuncname, funcname, nothing, nothing, nothing, dummyoverloadlist, scopewrap, rawfuncnamestr, 0, false, istemplate, false
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree(FunctionsWhichExist, funcname, func)
+	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, funcname, func)
 	
 	// TODO - this is a weird bug. For some reason we don't init the field correctly in the above constructor
 	if(istemplate)
@@ -5674,7 +5675,7 @@ FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 		return()
 	}
 
-	if(SearchBinaryTree(FunctionsWhichExist, funcname))
+	if(SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, funcname))
 	{
 		ret = true
 	}
@@ -6345,7 +6346,7 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 	}
 	else
 	{
-		integer structuretype = GetStructureTypeByName(Structures, name)
+		integer structuretype = GetStructureTypeByName(name)
 		if(structuretype != 0)
 		{
 			typeid = structuretype
@@ -6399,19 +6400,18 @@ UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle 
 
 
 
-GetStructureTypeByName : list<StructureDefinition> ref structures, integer name -> integer typeid = 0 [nogc]
+GetStructureTypeByName : integer name -> integer typeid = 0 [nogc]
 {
-	if(structures.value.Name == name)
+	ContextWrapper<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
+
+	if(found)
 	{
-		typeid = structures.value.Type
-	}
-	else
-	{
-		typeid = GetStructureTypeByName(structures.next, name)
+		typeid = UnwrapStructureType(wrap.Wrapped)
 	}
 }
 
-GetStructureTypeByName : nothing, integer name -> 0 [nogc]
+UnwrapStructureType : StructureDefinition ref struct -> integer ty = struct.Type
 
 
 
@@ -6937,7 +6937,7 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success =
 EnsureTypeMatcherIsConfigured : integer overloadname, integer matchername
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	SearchBinaryTreeForPayload(FunctionsWhichExist, overloadname, wrap)
+	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overloadname, wrap)
 
 	WalkParametersForTypeMatcherContext(wrap.Wrapped, matchername)
 }
@@ -7606,7 +7606,7 @@ DumpFunctionParameters : nothing, integer funcname
 
 FetchFunctionForContext : ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
 {
-	found = SearchBinaryTreeForPayload(FunctionsWhichExist, funcname, wrap)
+	found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
 }
 
 
@@ -7793,7 +7793,7 @@ IsFunctionTemplate : nothing -> false
 IsFunctionTemplateFast : integer name -> boolean istemplate = false
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, name, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
 	if(!found)
 	{
 		assert(false)
@@ -7989,7 +7989,7 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 		{	// TODO - this is a sloppy hack to work around the fact that operators don't short circuit properly yet
 			if(!matchesctor)
 			{
-				if(!SearchBinaryTree(FunctionsWhichExist, rawname))
+				if(!SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, rawname))
 				{
 					overloadname = rawname
 				}
@@ -8345,7 +8345,7 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 GatherAllPossibleParamTypes : integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	found = SearchBinaryTreeForPayload(FunctionsWhichExist, funcname, wrap)
+	found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
 	if(found)
 	{
 		InferAllFunctionParameterTypes(wrap.Wrapped, numparams, toplevel, outinfo)
@@ -8988,7 +8988,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	}
 	else
 	{
-		if(SearchBinaryTree(FunctionsWhichExist, atom.Handle))
+		if(SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, atom.Handle))
 		{
 			atom.IsFunction = true
 		
@@ -11772,6 +11772,7 @@ DoStructureInstantiation : list<StructureDefinition> ref structures, integer def
 		
 		StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, structures.value.MemberCount, GetPooledString(GlobalStrings, instancename), false
 		prepend<StructureDefinition>(Structures, struct)
+		InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, instancename, struct)
 
 		TemplateInstance instance = defname, instancename, args
 		prepend<TemplateInstance>(TemplateStructureInstances, instance)
@@ -11889,7 +11890,7 @@ RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<Te
 DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload(FunctionsWhichExist, defname, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
 	assert(found)
 	
 	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args)
@@ -11915,7 +11916,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, basenamemangled), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree(FunctionsWhichExist, instancename, func)
+	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, instancename, func)
 	
 	Overload selfoverload = instancename, instancename, func
 	prepend<Overload>(func.Overloads, selfoverload)
@@ -12300,22 +12301,24 @@ InstantiateEntityChainEntries : nothing, list<TemplateParameter> ref templatepar
 
 
 
-SetStructureToTemplate : list<StructureDefinition> ref structures, integer name
+SetStructureToTemplate : integer name
 {
-	if(structures.value.Name == name)
-	{
-		structures.value.IsTemplate = true
+	ContextWrapper<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
+	assert(found)
 
-		CreateStructureTemplateAndAttachParams(name, TemplateParameterQueue)
-		
-		// Reset template parameter queue
-		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
-		TemplateParameterQueue = dummylist
-	}
-	else
-	{
-		SetStructureToTemplate(structures.next, name)
-	}
+	SetStructureToTemplate(wrap.Wrapped)
+}
+
+SetStructureToTemplate : StructureDefinition ref struct
+{
+	struct.IsTemplate = true
+
+	CreateStructureTemplateAndAttachParams(struct.Name, TemplateParameterQueue)
+	
+	// Reset template parameter queue
+	list<TemplateParameter> dummylist = scratchtemplateparam, nothing
+	TemplateParameterQueue = dummylist
 }
 
 
@@ -13491,6 +13494,9 @@ global
 	
 	BTPayloadWrap<FunctionDefinition> fwewrap = dummyfunc
 	BinaryTree<FunctionDefinition> FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
+	
+	BTPayloadWrap<StructureDefinition> swewrap = dummystruct
+	BinaryTree<StructureDefinition> StructuresWhichExist = 0, swewrap, nothing, nothing, -1
 }
 
 
@@ -13614,147 +13620,147 @@ structure BinaryTree<type T> :
 	integer Height
 
 
-InsertIntoBinaryTree : BinaryTree<FunctionDefinition> ref tree, integer value, FunctionDefinition ref payload -> true
+InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payload -> true
 {
 	if(tree.Value > value)
 	{
-		if(!InsertIntoBinaryTree(tree.Left, value, payload))
+		if(!InsertIntoBinaryTree<T>(tree.Left, value, payload))
 		{
-			BTPayloadWrap<FunctionDefinition> wrap = payload
-			BinaryTree<FunctionDefinition> newtree = value, wrap, nothing, nothing, 0
+			BTPayloadWrap<T> wrap = payload
+			BinaryTree<T> newtree = value, wrap, nothing, nothing, 0
 			tree.Left = newtree
 		}
 	}
 	else
 	{
-		if(!InsertIntoBinaryTree(tree.Right, value, payload))
+		if(!InsertIntoBinaryTree<T>(tree.Right, value, payload))
 		{
-			BTPayloadWrap<FunctionDefinition> wrap = payload
-			BinaryTree<FunctionDefinition> newtree = value, wrap, nothing, nothing, 0
+			BTPayloadWrap<T> wrap = payload
+			BinaryTree<T> newtree = value, wrap, nothing, nothing, 0
 			tree.Right = newtree
 		}
 	}
 	
-	integer balance = ComputeBalance(tree)
+	integer balance = ComputeBalance<T>(tree)
 	if(balance > 1)
 	{
-		tree.Height = RecomputeTreeDepth(tree)
-		if(ComputeBalance(tree.Left) > 0)
+		tree.Height = RecomputeTreeDepth<T>(tree)
+		if(ComputeBalance<T>(tree.Left) > 0)
 		{
-			RotateLL<FunctionDefinition>(tree)
+			RotateLL<T>(tree)
 		}
 		else
 		{
-			RotateLR(tree)
+			RotateLR<T>(tree)
 		}
 	}
 	elseif(balance < -1)
 	{
-		tree.Height = RecomputeTreeDepth(tree)
-		if(ComputeBalance(tree.Right) < 0)
+		tree.Height = RecomputeTreeDepth<T>(tree)
+		if(ComputeBalance<T>(tree.Right) < 0)
 		{
-			RotateRR(tree)
+			RotateRR<T>(tree)
 		}
 		else
 		{
-			RotateRL(tree)
+			RotateRL<T>(tree)
 		}
 	}
 }
 
-InsertIntoBinaryTree : nothing, integer value, FunctionDefinition ref payload -> false
+InsertIntoBinaryTree<type T> : nothing, integer value, T ref payload -> false
 
 RotateLL<type T> : BinaryTree<T> ref tree
 {
 	BinaryTreeNode<T> temp = tree.Right
 	tree.Right = tree.Left
-	tree.Left = GetLeft(tree.Right)
+	tree.Left = GetLeft<T>(tree.Right)
 	
-	BinaryTreeNode<T> newnode = GetRight(tree.Right)
-	SetNodeLeft(tree.Right, newnode)
-	SetNodeRight(tree.Right, temp)
+	BinaryTreeNode<T> newnode = GetRight<T>(tree.Right)
+	SetNodeLeft<T>(tree.Right, newnode)
+	SetNodeRight<T>(tree.Right, temp)
 	
 	integer tempvalue = tree.Value
-	tree.Value = GetNodeValue<FunctionDefinition>(tree.Right)
-	SetNodeValue<FunctionDefinition>(tree.Right, tempvalue)
+	tree.Value = GetNodeValue<T>(tree.Right)
+	SetNodeValue<T>(tree.Right, tempvalue)
 		
 	SwapNodePayload<T>(tree, tree.Right)
 	
-	SetHeight(tree.Right, RecomputeTreeDepth(tree.Right))
-	tree.Height = RecomputeTreeDepth(tree)
+	SetHeight<T>(tree.Right, RecomputeTreeDepth<T>(tree.Right))
+	tree.Height = RecomputeTreeDepth<T>(tree)
 }
 
-GetLeft : BinaryTree<FunctionDefinition> ref tree -> BinaryTreeNode<FunctionDefinition> ret = tree.Left
-GetLeft : nothing -> BinaryTreeNode<FunctionDefinition> ret = nothing
+GetLeft<type T> : BinaryTree<T> ref tree -> BinaryTreeNode<T> ret = tree.Left
+GetLeft<type T> : nothing -> BinaryTreeNode<T> ret = nothing
 
-GetRight : BinaryTree<FunctionDefinition> ref tree -> BinaryTreeNode<FunctionDefinition> ret = tree.Right
-GetRight : nothing -> BinaryTreeNode<FunctionDefinition> ret = nothing
+GetRight<type T> : BinaryTree<T> ref tree -> BinaryTreeNode<T> ret = tree.Right
+GetRight<type T> : nothing -> BinaryTreeNode<T> ret = nothing
 
-SetNodeLeft : BinaryTree<FunctionDefinition> ref tree, BinaryTreeNode<FunctionDefinition> newleft
+SetNodeLeft<type T> : BinaryTree<T> ref tree, BinaryTreeNode<T> newleft
 {
 	tree.Left = newleft
 }
 
-SetNodeRight : BinaryTree<FunctionDefinition> ref tree, BinaryTreeNode<FunctionDefinition> newright
+SetNodeRight<type T> : BinaryTree<T> ref tree, BinaryTreeNode<T> newright
 {
 	tree.Right = newright
 }
 
-RotateRR : BinaryTree<FunctionDefinition> ref tree
+RotateRR<type T> : BinaryTree<T> ref tree
 {
-	BinaryTreeNode<FunctionDefinition> temp = tree.Left
+	BinaryTreeNode<T> temp = tree.Left
 	tree.Left = tree.Right
-	tree.Right = GetRight(tree.Left)
+	tree.Right = GetRight<T>(tree.Left)
 	
-	BinaryTreeNode<FunctionDefinition> newnode = GetLeft(tree.Left)
-	SetNodeRight(tree.Left, newnode)
-	SetNodeLeft(tree.Left, temp)
+	BinaryTreeNode<T> newnode = GetLeft<T>(tree.Left)
+	SetNodeRight<T>(tree.Left, newnode)
+	SetNodeLeft<T>(tree.Left, temp)
 	
 	integer tempvalue = tree.Value
-	tree.Value = GetNodeValue<FunctionDefinition>(tree.Left)
-	SetNodeValue<FunctionDefinition>(tree.Left, tempvalue)
+	tree.Value = GetNodeValue<T>(tree.Left)
+	SetNodeValue<T>(tree.Left, tempvalue)
 		
-	SwapNodePayload<FunctionDefinition>(tree, tree.Left)
+	SwapNodePayload<T>(tree, tree.Left)
 	
-	SetHeight(tree.Left, RecomputeTreeDepth(tree.Left))
-	tree.Height = RecomputeTreeDepth(tree)
+	SetHeight<T>(tree.Left, RecomputeTreeDepth<T>(tree.Left))
+	tree.Height = RecomputeTreeDepth<T>(tree)
 }
 
-RotateLR : BinaryTree<FunctionDefinition> ref tree
+RotateLR<type T> : BinaryTree<T> ref tree
 {
-	RotateRR(tree.Left)
-	RotateLL<FunctionDefinition>(tree)
+	RotateRR<T>(tree.Left)
+	RotateLL<T>(tree)
 }
 
-RotateRL : BinaryTree<FunctionDefinition> ref tree
+RotateRL<type T> : BinaryTree<T> ref tree
 {
-	RotateLL<FunctionDefinition>(tree.Right)
-	RotateRR(tree)
+	RotateLL<T>(tree.Right)
+	RotateRR<T>(tree)
 }
 
 
-TreeDepth : BinaryTree<FunctionDefinition> ref tree -> integer depth = tree.Height
-TreeDepth : nothing -> 0
+TreeDepth<type T> : BinaryTree<T> ref tree -> integer depth = tree.Height
+TreeDepth<type T> : nothing -> 0
 
 
-HasNode : BinaryTree<FunctionDefinition> ref tree -> true
-HasNode : nothing -> false
+HasNode<type T> : BinaryTree<T> ref tree -> true
+HasNode<type T> : nothing -> false
 
-ComputeBalance : BinaryTree<FunctionDefinition> ref tree -> integer balance = 0
+ComputeBalance<type T> : BinaryTree<T> ref tree -> integer balance = 0
 {
-	integer leftdepth = TreeDepth(tree.Left)
-	integer rightdepth = TreeDepth(tree.Right)
+	integer leftdepth = TreeDepth<T>(tree.Left)
+	integer rightdepth = TreeDepth<T>(tree.Right)
 	
 	balance = leftdepth - rightdepth
 }
 
-ComputeBalance : nothing -> 0
+ComputeBalance<type T> : nothing -> 0
 
 
-RecomputeTreeDepth : BinaryTree<FunctionDefinition> ref tree -> integer depth = 1
+RecomputeTreeDepth<type T> : BinaryTree<T> ref tree -> integer depth = 1
 {
-	integer ldepth = TreeDepth(tree.Left)
-	integer rdepth = TreeDepth(tree.Right)
+	integer ldepth = TreeDepth<T>(tree.Left)
+	integer rdepth = TreeDepth<T>(tree.Right)
 	
 	if(ldepth > rdepth)
 	{
@@ -13766,18 +13772,18 @@ RecomputeTreeDepth : BinaryTree<FunctionDefinition> ref tree -> integer depth = 
 	}
 }
 
-SetHeight : BinaryTree<FunctionDefinition> ref tree, integer newheight
+SetHeight<type T> : BinaryTree<T> ref tree, integer newheight
 {
 	tree.Height = newheight
 }
 
 
-SearchBinaryTree : BinaryTree<FunctionDefinition> ref tree, integer target -> boolean found = false
+SearchBinaryTree<type T> : BinaryTree<T> ref tree, integer target -> boolean found = false
 {
-	BinaryTreeNode<FunctionDefinition> cur = tree
-	while(HasNode(cur))
+	BinaryTreeNode<T> cur = tree
+	while(HasNode<T>(cur))
 	{
-		integer curvalue = GetNodeValue<FunctionDefinition>(cur)
+		integer curvalue = GetNodeValue<T>(cur)
 		if(curvalue == target)
 		{
 			found = true
@@ -13785,45 +13791,45 @@ SearchBinaryTree : BinaryTree<FunctionDefinition> ref tree, integer target -> bo
 		}
 		elseif(target < curvalue)
 		{
-			cur = GetLeft(cur)
+			cur = GetLeft<T>(cur)
 		}
 		else
 		{
-			cur = GetRight(cur)
+			cur = GetRight<T>(cur)
 		}
 	}
 }
 
 
-SearchBinaryTreeForPayload : BinaryTree<FunctionDefinition> ref tree, integer target, ContextWrapper<FunctionDefinition> ref out -> boolean found = false
+SearchBinaryTreeForPayload<type T> : BinaryTree<T> ref tree, integer target, ContextWrapper<T> ref out -> boolean found = false
 {
-	BinaryTreeNode<FunctionDefinition> cur = tree
-	while(HasNode(cur))
+	BinaryTreeNode<T> cur = tree
+	while(HasNode<T>(cur))
 	{
-		integer curvalue = GetNodeValue<FunctionDefinition>(cur)
+		integer curvalue = GetNodeValue<T>(cur)
 		if(curvalue == target)
 		{
-			LameHack<FunctionDefinition>(out, cur)		// TODO - this is some kind of miscompile
+			LameHack<T>(out, cur)		// TODO - this is some kind of miscompile
 			found = true
 			return()
 		}
 		elseif(target < curvalue)
 		{
-			cur = GetLeft(cur)
+			cur = GetLeft<T>(cur)
 		}
 		else
 		{
-			cur = GetRight(cur)
+			cur = GetRight<T>(cur)
 		}
 	}
 }
 
 LameHack<type T> : ContextWrapper<T> ref out, BinaryTree<T> ref tree
 {
-	LameHackInner<T>(out, tree.Payload.Payload)
+	LameHack<T>(out, tree.Payload.Payload)
 }
 
-LameHackInner<type T> : ContextWrapper<T> ref out, T ref p
+LameHack<type T> : ContextWrapper<T> ref out, T ref p
 {
 	out.Wrapped = p
 }
