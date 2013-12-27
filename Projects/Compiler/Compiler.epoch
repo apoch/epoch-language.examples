@@ -12230,6 +12230,33 @@ InstantiateCompoundAssignmentLHS : simplelist<integer> ref lhs
 InstantiateCompoundAssignmentLHS : nothing
 
 
+InstantiateCodeBlockEntry : EntityChain ref chain, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	OnCodeGenEnterChain()
+	InstantiateEntityChainEntries(chain.Entries, templateparams, templateargs)		
+	OnCodeGenExitContext()
+}
+
+InstantiateEntityChainEntries : EntityList ref entities, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	InstantiateEntityChainEntries(entities.ActualList, templateparams, templateargs)
+}
+
+InstantiateEntityChainEntries : list<Entity> ref entities, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+{
+	OnCodeGenEnterEntity(entities.value.Tag, entities.value.PostfixTag)
+	InstantiateExpression(entities.value.Param, false, templateparams, templateargs)
+	OnCodeGenEnterEntityCode()
+	DoCodeBlockInstantiation(entities.value.Code, templateparams, templateargs)
+	OnCodeGenExitContext()
+	
+	InstantiateEntityChainEntries(entities.next, templateparams, templateargs)
+}
+
+InstantiateEntityChainEntries : nothing, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
+
+
+
 
 SetStructureToTemplate : list<StructureDefinition> ref structures, integer name
 {
