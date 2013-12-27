@@ -5875,7 +5875,7 @@ NextVariableNode : list<Variable> ref nodes -> listnode<Variable> ret = nodes.ne
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 {
 	if(matchers.value.Name != 0)
-	{
+	{	
 		OnBytecodeLexicalScope(matchers.value.Name, 0, 0)
 		OnBytecodeEnterTypeResolver(matchers.value.Name)
 		CodeGenEmitTypeMatcherOverloads(matchers.value.Overloads)
@@ -7768,11 +7768,14 @@ PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname,
 {
 	if(overloads.value.NormalName == rawname)
 	{
-		if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
-		{			
-			if(!IsFunctionTemplateFast(overloads.value.MangledName))
-			{				
-				FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName, overloads.value.Implementation)
+		if(!IsFunctionTemplateFast(rawname))
+		{
+			if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
+			{
+				if(!IsFunctionTemplateFast(overloads.value.MangledName))
+				{				
+					FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName, overloads.value.Implementation)
+				}
 			}
 		}
 	}
@@ -10371,10 +10374,13 @@ AppendBinding : list<RefBinding> ref bindings, nothing, RefBinding ref binding [
 
 FindOrCreateTypeMatcher : integer rawname, integer overloadnamehandle, FunctionDefinition ref func -> integer matcherhandle = 0
 {
-	string matchername = func.RawNameString ; "@@typematcher"
-	matcherhandle = PoolString(matchername)
-	
-	EnsureMatcherIsPending(PendingTypeMatchers, overloadnamehandle, matcherhandle, func)
+	if(!func.IsTemplate)
+	{
+		string matchername = func.RawNameString ; "@@typematcher"
+		matcherhandle = PoolString(matchername)
+
+		EnsureMatcherIsPending(PendingTypeMatchers, overloadnamehandle, matcherhandle, func)
+	}
 }
 
 EnsureMatcherIsPending : list<PendingTypeMatcher> ref pending, integer overloadname, integer matcher, FunctionDefinition ref func [nogc]
@@ -11907,7 +11913,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	prepend<TemplateInstance>(TemplateFunctionInstances, inst)
 	
 	ContextWrapper<Scope> scopewrap = nothing
-	FunctionDefinition func = defname, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, defname), 0, false, false, originalfunc.AnonymousReturn
+	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, basenamemangled), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
 	InsertIntoBinaryTree(FunctionsWhichExist, instancename, func)
 	
