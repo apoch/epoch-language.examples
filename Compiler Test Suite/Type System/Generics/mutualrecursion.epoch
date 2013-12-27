@@ -1,0 +1,1 @@
+//// MUTUALRECURSION.EPOCH//// Test of mutually recursive function templates//decide<type T> : T in -> T out = 0{	if(in < 42)	{		out = operate<T>(in + 1)	}	else	{		out = in	}}operate<type T> : T in -> T out = 0{	out = decide<T>(in + 1)}initiate<type T> : T begin{	assert(operate<T>(begin) == 43)}entrypoint :{	initiate<integer>(0)		passtest()}
