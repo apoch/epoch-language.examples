@@ -537,9 +537,9 @@ Parse : string code, integer len -> boolean success = false
 
 
 // Evil, evil, evil hack
-EpochLib_SubstrCharDirect : integer pointer, integer pos -> integer ch = 0 [external("EpochLibrary.dll", "EpochLib_SubstrCharDirect")]
-EpochLib_StrPointer : string s -> integer pointer = 0 [external("EpochLibrary.dll", "EpochLib_StrPointer")]
-EpochLib_SubstrDirect : integer pointer, integer pos, integer length -> string s = "" [external("EpochLibrary.dll", "EpochLib_SubstrDirect")]
+EpochLib_SubstrCharDirect : integer pointer, integer pos -> integer ch = 0 [external("EpochLibrary.dll", "EpochLib_SubstrCharDirect"), nogc]
+EpochLib_StrPointer : string s -> integer pointer = 0 [external("EpochLibrary.dll", "EpochLib_StrPointer"), nogc]
+EpochLib_SubstrDirect : integer pointer, integer pos, integer length -> string s = "" [external("EpochLibrary.dll", "EpochLib_SubstrDirect"), nogc]
 
 Lex : string code, integer len [nogc]
 {
@@ -708,15 +708,7 @@ Lex : string code, integer len [nogc]
 
 IsValidPunctuation : string token -> boolean valid = false [nogc]
 {
-	if(token == "+=")
-	{
-		valid = true
-	}
-	elseif(token == "-=")
-	{
-		valid = true
-	}
-	elseif(token == "==")
+	if(token == "==")
 	{
 		valid = true
 	}
@@ -740,6 +732,14 @@ IsValidPunctuation : string token -> boolean valid = false [nogc]
 	{
 		valid = true
 	}
+	elseif(token == "+=")
+	{
+		valid = true
+	}
+	elseif(token == "-=")
+	{
+		valid = true
+	}	
 }
 
 
@@ -1726,6 +1726,11 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 	if(tagname == "external")
 	{
 		FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
+	}
+
+	if(PeekToken(0) == ",")
+	{
+		PopToken()
 	}
 }
 
