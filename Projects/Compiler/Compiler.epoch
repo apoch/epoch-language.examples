@@ -12284,6 +12284,7 @@ InstantiateEntityChainEntries : list<Entity> ref entities, list<TemplateParamete
 	OnCodeGenEnterEntityCode()
 	DoCodeBlockInstantiation(entities.value.Code, templateparams, templateargs)
 	OnCodeGenExitContext()
+	OnCodeGenExitContext()
 	
 	InstantiateEntityChainEntries(entities.next, templateparams, templateargs)
 }
