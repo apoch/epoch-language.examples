@@ -2872,20 +2872,12 @@ OnBytecodeAssignSumType : [nogc]
 	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
 }
 
-OnBytecodePushLocal : boolean isparam, integer frameskip, integer offset, integer size [nogc]
+OnBytecodePushLocal : integer frameskip, integer offset [nogc]
 {
-	if(isparam)
-	{
-		OnBytecodeEmitByte(0x26)		// ReadParam instruction
-	}
-	else
-	{
-		OnBytecodeEmitByte(0x25)		// ReadStack instruction
-	}
-
+	OnBytecodeEmitByte(0x25)			// ReadStack instruction
 	OnBytecodeEmitInteger(frameskip)
 	OnBytecodeEmitInteger(offset)
-	OnBytecodeEmitInteger(size)
+	OnBytecodeEmitInteger(0)
 }
 
 OnBytecodePushBoolean : boolean literal [nogc]
@@ -5217,7 +5209,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 		elseif(GetTypeByName(idatom.Handle) != 0)
 		{
 			OnBytecodePushLiteralString(idatom.Handle)
-		}	
+		}
 		else
 		{
 			if(atomtype == 0x01000000)					// Identifier type signature
@@ -5261,14 +5253,14 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 					else
 					{
 						Variable var = 0, 0, 0, 0
-						FindVariableDataInSingleScope(EmittingScope.Wrapped, idatom.Handle, var)
+						FindVariableDataInSingleScope(GlobalScope.Wrapped, idatom.Handle, var)
 						
 						if(var.Name == 0)
 						{
 							print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
 							assert(false)
 						}
-						OnBytecodePushLocal(false, frames, var.Offset, 0)
+						OnBytecodePushLocal(frames, var.Offset)
 					}
 				}
 			}
@@ -5711,6 +5703,22 @@ TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boole
 TypeMatcherExists : nothing, integer matchername -> boolean ret = false [nogc]
 
 
+GetExistingTypeMatcher : list<TypeMatcher> ref matchers, integer matchername, ContextWrapper<TypeMatcher> ref out -> boolean ret = false [nogc]
+{
+	if(matchers.value.Name == matchername)
+	{
+		out.Wrapped = matchers.value
+		ret = true
+	}
+	else
+	{
+		ret = GetExistingTypeMatcher(matchers.next, matchername, out)
+	}
+}
+
+GetExistingTypeMatcher : nothing, integer matchername, ContextWrapper<TypeMatcher> ref out -> boolean ret = false [nogc]
+
+
 
 FindVariable : integer name, integer ref frames -> integer index = 0
 {
@@ -5859,12 +5867,6 @@ CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 CodeGenEmitTypeMatchers : nothing
 
 
-OnCodeGenRegisterTypeMatchParam : integer matchername, integer overloadname, integer varname, integer vartype
-{
-	Parameter p = varname, vartype
-	FindTypeMatcherAndAppendOverloadParameter(TypeMatchers, matchername, overloadname, p)
-}
-
 FindTypeMatcherAndAppendOverloadParameter : list<TypeMatcher> ref matchers, integer matchername, integer overloadname, Parameter ref p
 {
 	if(matchers.value.Name == matchername)
@@ -5950,7 +5952,7 @@ CountParameters : list<Parameter> ref params -> integer count = 0 [nogc]
 CountParameters : nothing -> integer count = 0 [nogc]
 
 
-CodeGenEmitTypeMatcherParams : list<Parameter> ref params
+CodeGenEmitTypeMatcherParams : list<Parameter> ref params [nogc]
 {
 	CodeGenEmitTypeMatcherParams(params.next)
 
@@ -5967,7 +5969,7 @@ CodeGenEmitTypeMatcherParams : list<Parameter> ref params
 	}
 }
 
-CodeGenEmitTypeMatcherParams : nothing
+CodeGenEmitTypeMatcherParams : nothing [nogc]
 
 
 FindFunctionAndSetInvokeTag : list<FunctionDefinition> ref functions, integer funcname, integer invoketarget [nogc]
@@ -6350,7 +6352,7 @@ FindSumTypeByName : integer name -> integer typeid = 0 [nogc]
 	}
 }
 
-GrabSumTypeID : SumType ref st -> integer typeid = st.Type
+GrabSumTypeID : SumType ref st -> integer typeid = st.Type [nogc]
 
 
 UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0 [nogc]
@@ -6380,7 +6382,7 @@ GetStructureTypeByName : integer name -> integer typeid = 0 [nogc]
 	}
 }
 
-UnwrapStructureType : StructureDefinition ref struct -> integer ty = struct.Type
+UnwrapStructureType : StructureDefinition ref struct -> integer ty = struct.Type [nogc]
 
 
 
@@ -6480,7 +6482,7 @@ MissingDependency : simplelist<integer> ref dependencies, simplelist<integer> re
 	}
 }
 
-MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = false			// TODO - is this really correct?!
+MissingDependency : nothing, simplelist<integer> ref processed -> boolean missing = false
 
 
 OnCodeGenEnterEntity : integer entityname, integer postfixtag
@@ -6894,46 +6896,44 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success =
 		return()
 	}
 
-	if(!TypeMatcherExists(TypeMatchers, matcher.MatcherName))
+	ContextWrapper<TypeMatcher> matchwrap = nothing
+	if(!GetExistingTypeMatcher(TypeMatchers, matcher.MatcherName, matchwrap))
 	{
 		OnCodeGenEnterTypeMatcher(matcher.MatcherName)
 		OnCodeGenExitContext()
+		matchwrap.Wrapped = TypeMatchers.value
 	}
-	
-	EnsureTypeMatcherIsConfigured(matcher.OverloadName, matcher.MatcherName)
-}
-
-EnsureTypeMatcherIsConfigured : integer overloadname, integer matchername
-{
+		
 	ContextWrapper<FunctionDefinition> wrap = nothing
-	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overloadname, wrap)
+	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, matcher.OverloadName, wrap)
 
-	WalkParametersForTypeMatcherContext(wrap.Wrapped, matchername)
+	WalkParametersForTypeMatcherContext(wrap.Wrapped, matchwrap.Wrapped)
 }
 
-WalkParametersForTypeMatcherContext : FunctionDefinition ref func, integer matchername
+WalkParametersForTypeMatcherContext : FunctionDefinition ref func, TypeMatcher ref matcher
 {
-	WalkParametersForTypeMatcher(func.Params, matchername, func.Name)
+	WalkParametersForTypeMatcher(func.Params, matcher, func.Name)
 }
 
 
-WalkParametersForTypeMatcher : FunctionParams ref params, integer matchername, integer overloadname
+WalkParametersForTypeMatcher : FunctionParams ref params, TypeMatcher ref matcher, integer overloadname
 {
-	WalkParametersForTypeMatcherUnwrapped(params.Params, matchername, overloadname)
+	WalkParametersForTypeMatcherUnwrapped(params.Params, matcher, overloadname)
 }
 
 
-WalkParametersForTypeMatcherUnwrapped : list<UnresolvedParameter> ref params, integer matchername, integer overloadname
+WalkParametersForTypeMatcherUnwrapped : list<UnresolvedParameter> ref params, TypeMatcher ref matcher, integer overloadname
 {
 	if(params.value.NameHandle != 0)
-	{
-		OnCodeGenRegisterTypeMatchParam(matchername, overloadname, params.value.NameHandle, params.value.ResolvedType)
+	{	
+		Parameter p = params.value.NameHandle, params.value.ResolvedType	
+		FindTMOverloadAndAppendParameter(matcher.Overloads, matcher.Overloads, overloadname, p)
 	}
 	
-	WalkParametersForTypeMatcherUnwrapped(params.next, matchername, overloadname)
+	WalkParametersForTypeMatcherUnwrapped(params.next, matcher, overloadname)
 }
 
-WalkParametersForTypeMatcherUnwrapped : nothing, integer matchername, integer overloadname
+WalkParametersForTypeMatcherUnwrapped : nothing, TypeMatcher ref matcher, integer overloadname
 
 
 
