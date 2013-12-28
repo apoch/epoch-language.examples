@@ -13635,7 +13635,7 @@ InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payl
 			tree.Left = newtree
 		}
 	}
-	else
+	elseif(tree.Value < value)
 	{
 		if(!InsertIntoBinaryTree<T>(tree.Right, value, payload))
 		{
@@ -13643,6 +13643,11 @@ InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payl
 			BinaryTree<T> newtree = value, wrap, nothing, nothing, 0
 			tree.Right = newtree
 		}
+	}
+	else
+	{
+		tree.Payload.Payload = payload
+		return()
 	}
 	
 	integer balance = ComputeBalance<T>(tree)
