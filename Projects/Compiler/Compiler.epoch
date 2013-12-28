@@ -12278,12 +12278,12 @@ structure tailhack :
 
 
 
-PopPendingFunctionForInference : ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false
+PopPendingFunctionForInference : ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	hasnode = PopPendingFunctionForInferenceWorker(PendingInferenceFunctions, PendingInferenceFunctions.next, out)
 }
 
-PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, list<FunctionDefinition> ref tail, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false
+PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, list<FunctionDefinition> ref tail, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	if(head.value.Name != 0)
 	{
@@ -12293,12 +12293,12 @@ PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, list<F
 	}
 }
 
-PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, nothing, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false
+PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, nothing, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	assert(head.value.Name == 0)
 }
 
-PushPendingFunctionForInference : FunctionDefinition ref func
+PushPendingFunctionForInference : FunctionDefinition ref func [nogc]
 {
 	prepend<FunctionDefinition>(PendingInferenceFunctions, func)
 }
