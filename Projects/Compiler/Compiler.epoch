@@ -94,7 +94,7 @@ entrypoint :
 	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
 	{
 		boolean makeexe = false
-		
+
 		string filename = cmdlineget(1)
 		if(filename == "make")
 		{
@@ -109,7 +109,7 @@ entrypoint :
 
 		integer len = 0
 		string contents = ReadFile(filename, len)
-		
+
 		if(len == 0)
 		{
 			return()
@@ -117,7 +117,7 @@ entrypoint :
 
 		PrepareStringTable()
 		InitBuiltInOverloads()
-		
+
 		largeint startqpc = 0, 0
 		QueryPerformanceCounter(startqpc)
 
@@ -151,17 +151,17 @@ entrypoint :
 		if(makeexe)
 		{
 			MakeExe("test.exe")
-			
+
 			largeint endqpc = 0, 0
 			QueryPerformanceCounter(endqpc)
-			
+
 			integer stupidguess = endqpc.low - startqpc.low
-			
+
 			largeint freq = 0, 0
 			QueryPerformanceFrequency(freq)
-			
+
 			integer duration = stupidguess * 1000 / freq.low
-			
+
 			print(cast(string, duration) ; " milliseconds elapsed")
 		}
 		else
@@ -181,102 +181,102 @@ PrepareStringTable :
 	integer counter = 0
 	OnCodeGenRegisterString((++counter), "+")
 	PooledStringHandleForPlus = counter
-	
+
 	OnCodeGenRegisterString((++counter), "-")
 	PooledStringHandleForMinus = counter
-	
+
 	OnCodeGenRegisterString((++counter), "*")
 	PooledStringHandleForMultiply = counter
-	
+
 	OnCodeGenRegisterString((++counter), "/")
 	PooledStringHandleForDivide = counter
-	
+
 	OnCodeGenRegisterString((++counter), "+=@@real")
-	
+
 	OnCodeGenRegisterString((++counter), "+@@real")
 	PooledStringHandleForPlusReal = counter
-	
+
 	OnCodeGenRegisterString((++counter), "-=@@real")
 	OnCodeGenRegisterString((++counter), "-@@real")
 	OnCodeGenRegisterString((++counter), "*@@real")
 	OnCodeGenRegisterString((++counter), "/@@real")
-	
+
 	OnCodeGenRegisterString((++counter), "+=@@integer")
 	PooledStringHandleForIncrementAssignInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "+@@integer")
 	PooledStringHandleForPlusInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "-=@@integer")
 	PooledStringHandleForDecrementAssignInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "-@@integer")
 	PooledStringHandleForMinusInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "*@@integer")
 	PooledStringHandleForMultiplyInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "/@@integer")
 	PooledStringHandleForDivideInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "++@@integer")
 	PooledStringHandleForPrePostIncrementInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "--@@integer")
 	PooledStringHandleForPrePostDecrementInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "!@@integer")
 	OnCodeGenRegisterString((++counter), "++@@real")
 	OnCodeGenRegisterString((++counter), "--@@real")
-	
+
 	OnCodeGenRegisterString((++counter), "+=")
 	PooledStringHandleForIncrementAssign = counter
-	
+
 	OnCodeGenRegisterString((++counter), "-=")
 	PooledStringHandleForDecrementAssign = counter
-	
+
 	OnCodeGenRegisterString((++counter), "!")
 	PooledStringHandleForUnaryNot = counter
-	
+
 	OnCodeGenRegisterString((++counter), "++")
 	PooledStringHandleForPrePostIncrement = counter
-	
+
 	OnCodeGenRegisterString((++counter), "--")
 	PooledStringHandleForPrePostDecrement = counter
-	
+
 	OnCodeGenRegisterString((++counter), "&")
 	PooledStringHandleForBitwiseAnd = counter
-	
+
 	OnCodeGenRegisterString((++counter), "&&")
 	PooledStringHandleForBooleanAnd = counter
-	
+
 	OnCodeGenRegisterString((++counter), "!@@boolean")
 	PooledStringHandleForUnaryNotBoolean = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cmdlineisvalid")
 	PooledStringHandleForCmdLineIsValid = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cmdlinegetcount")
 	PooledStringHandleForCmdLineGetCount = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cmdlineget")
 	PooledStringHandleForCmdLineGet = counter
-	
+
 	OnCodeGenRegisterString((++counter), "==")
 	PooledStringHandleForEquality = counter
-	
+
 	OnCodeGenRegisterString((++counter), "!=")
 	PooledStringHandleForInequality = counter
-	
+
 	OnCodeGenRegisterString((++counter), ">")
 	PooledStringHandleForGreaterThan = counter
-	
+
 	OnCodeGenRegisterString((++counter), "<")
 	PooledStringHandleForLessThan = counter
-	
+
 	OnCodeGenRegisterString((++counter), "==@@integer")
 	PooledStringHandleForEqualityInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "==@@integer16")
 	PooledStringHandleForEqualityInteger16 = counter
 
@@ -288,36 +288,36 @@ PrepareStringTable :
 
 	OnCodeGenRegisterString((++counter), "!=@@boolean")
 	PooledStringHandleForInequalityBoolean = counter
-	
+
 	OnCodeGenRegisterString((++counter), "==@@string")
 	PooledStringHandleForEqualityString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "!=@@string")
 	PooledStringHandleForInequalityString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "==@@real")
 	PooledStringHandleForEqualityReal = counter
-	
+
 	OnCodeGenRegisterString((++counter), ">@@integer")
 	PooledStringHandleForGreaterThanInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "<@@integer")
 	PooledStringHandleForLessThanInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), ">@@real")
 	OnCodeGenRegisterString((++counter), "<@@real")
-	
+
 	OnCodeGenRegisterString((++counter), "print")
 	PooledStringHandleForPrint = counter
-	
+
 	OnCodeGenRegisterString((++counter), "read")
-	
+
 	OnCodeGenRegisterString((++counter), "assert")
 	PooledStringHandleForAssert = counter
-	
+
 	OnCodeGenRegisterString((++counter), "passtest")
 	PooledStringHandleForPassTest = counter
-	
+
 	OnCodeGenRegisterString((++counter), "sqrt")
 	OnCodeGenRegisterString((++counter), "plotpixel")
 	OnCodeGenRegisterString((++counter), "breakpoint")
@@ -333,48 +333,48 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "nogc")
 	OnCodeGenRegisterString((++counter), "sizeof")
 	OnCodeGenRegisterString((++counter), "marshalstructure")
-	
+
 	OnCodeGenRegisterString((++counter), "writebuffer")
 	PooledStringHandleForWriteBuffer = counter
-	
+
 	OnCodeGenRegisterString((++counter), "writebuffer@@string")
 	PooledStringHandleForWriteBufferString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "writebuffer@@multiple")
 	PooledStringHandleForWriteBufferMultiple = counter
-	
+
 	OnCodeGenRegisterString((++counter), "writebuffer@@real")
 	PooledStringHandleForWriteBufferReal = counter
-	
+
 	OnCodeGenRegisterString((++counter), "unescape")
 	PooledStringHandleForUnescape = counter
-	
+
 	OnCodeGenRegisterString((++counter), "substring")
 	PooledStringHandleForSubstring = counter
-	
+
 	OnCodeGenRegisterString((++counter), "substring@@withlength")
 	PooledStringHandleForSubstringWithLength = counter
-	
+
 	OnCodeGenRegisterString((++counter), "substring@@nolength")
 	PooledStringHandleForSubstringNoLength = counter
-	
+
 	OnCodeGenRegisterString((++counter), "subchar")
 	PooledStringHandleForSubchar = counter
-	
+
 	OnCodeGenRegisterString((++counter), ";")
 	PooledStringHandleForStringConcat = counter
-	
+
 	OnCodeGenRegisterString((++counter), "length")
 	PooledStringHandleForLength = counter
-	
+
 	OnCodeGenRegisterString((++counter), "narrowstring")
 	PooledStringHandleForNarrowString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "widenfromptr")
 	PooledStringHandleForWidenFromPtr = counter
-	
+
 	OnCodeGenRegisterString((++counter), "widenfrombuffer")
-	
+
 	OnCodeGenRegisterString((++counter), "string")
 	PooledStringHandleForString = counter
 
@@ -383,67 +383,67 @@ PrepareStringTable :
 
 	OnCodeGenRegisterString((++counter), "integer16")
 	PooledStringHandleForInteger16 = counter
-	
+
 	OnCodeGenRegisterString((++counter), "real")
 	PooledStringHandleForReal = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_string")
 	PooledStringHandleForCastIntegerToString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@string_to_integer")
 	PooledStringHandleForCastStringToInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@real_to_integer")
 	PooledStringHandleForCastRealToInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_real")
 	OnCodeGenRegisterString((++counter), "cast@@boolean_to_string")
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@real_to_string")
 	PooledStringHandleForCastRealToString = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@buffer_to_string")
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@boolean_to_integer")
 	PooledStringHandleForCastBooleanToInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@integer_to_integer16")
 	PooledStringHandleForCastIntegerToInteger16 = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@integer16_to_integer")
 	PooledStringHandleForCastInteger16ToInteger = counter
-	
+
 	OnCodeGenRegisterString((++counter), "cast@@string_to_real")
 	PooledStringHandleForCastStringToReal = counter
-	
+
 	OnCodeGenRegisterString((++counter), "boolean")
 	PooledStringHandleForBoolean = counter
-	
+
 	OnCodeGenRegisterString((++counter), "buffer")
 	PooledStringHandleForBuffer = counter
-	
+
 	OnCodeGenRegisterString((++counter), "nothing")
 	PooledStringHandleForNothing = counter
-	
+
 	OnCodeGenRegisterString((++counter), "buffer@@copy")
-	
+
 	OnCodeGenRegisterString((++counter), "cast")
 	PooledStringHandleForCast = counter
-	
+
 	OnCodeGenRegisterString((++counter), ".")
 	PooledStringHandleForMemberAccess = counter
-	
+
 	OnCodeGenRegisterString((++counter), "identifier")
 	PooledStringHandleForIdentifier = counter
-	
+
 	OnCodeGenRegisterString((++counter), "function")
-	
+
 	OnCodeGenRegisterString((++counter), "@@anonymousret")
 	PooledStringHandleForAnonymousRet = counter
 
 	OnCodeGenRegisterString((++counter), "=")
 	PooledStringHandleForAssignment = counter
-	
+
 	CurrentStringHandle = counter + 1
 	FirstNonBuiltInStringHandle = CurrentStringHandle
 }
@@ -460,7 +460,7 @@ ReadFile : string filename, integer ref len -> string contents = ""
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		integer PAGE_READONLY = 0x02
-		
+
 		len = GetFileSize(filehandle, 0)
 
 		if(len > 0)
@@ -548,9 +548,9 @@ Lex : string code, integer len [nogc]
 
 	integer state = CHARACTER_CLASS_WHITE
 	integer prevstate = CHARACTER_CLASS_WHITE
-	
+
 	integer codeptr = EpochLib_StrPointer(code)
-	
+
 	while(index < len)
 	{
 		integer c = EpochLib_SubstrCharDirect(codeptr, index)
@@ -634,10 +634,10 @@ Lex : string code, integer len [nogc]
 					if(!IsValidPunctuation(potentialtoken))
 					{
 						PushToken(substring(potentialtoken, 0, length(potentialtoken) - 1))
-						lasttokenstart = index - 1						
+						lasttokenstart = index - 1
 					}
 				}
-				
+
 				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			}
 		}
@@ -679,7 +679,7 @@ Lex : string code, integer len [nogc]
 				PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, index - lasttokenstart))
 			}
 		}
-		
+
 		// Handle negated literals (slightly hacky)
 		if(state == CHARACTER_CLASS_PUNCTUATION_COMPOUND)
 		{
@@ -700,7 +700,7 @@ Lex : string code, integer len [nogc]
 	}
 
 	if((lasttokenstart < len) && (state != CHARACTER_CLASS_WHITE))
-	{		
+	{
 		PushToken(EpochLib_SubstrDirect(codeptr, lasttokenstart, len - lasttokenstart))
 	}
 }
@@ -739,7 +739,7 @@ IsValidPunctuation : string token -> boolean valid = false [nogc]
 	elseif(token == "-=")
 	{
 		valid = true
-	}	
+	}
 }
 
 
@@ -1126,19 +1126,19 @@ ParseGlobalBlock : -> boolean matched = false
 	{
 		return()
 	}
-	
+
 	if(PeekToken(1) != "{")
 	{
 		return()
 	}
-	
+
 	PopTokens(2)
-	
+
 	integer blockname = PoolString("@@globalblock")
 	OnCodeGenRegisterScope(blockname, 0)
 	OnCodeGenRegisterGlobalBlock(blockname)
 	CacheGlobalCodeBlock(Scopes)
-	
+
 	while(PeekToken(0) != "}")
 	{
 		if(!ParseInitialization(false))
@@ -1147,7 +1147,7 @@ ParseGlobalBlock : -> boolean matched = false
 			return()
 		}
 	}
-	
+
 	PopToken()
 	OnCodeGenExitContext()
 	matched = true
@@ -1165,14 +1165,14 @@ ParseWeakAlias : -> boolean matched = false
 	{
 		return()
 	}
-	
+
 	PopToken()
 	string aliasname = PeekToken(0)
 	string basename = PeekToken(2)
 	PopTokens(3)
-	
+
 	OnCodeGenRegisterWeakAlias((++GlobalWeakAliasCounter), PoolString(aliasname), PoolString(basename))
-	
+
 	matched = true
 }
 
@@ -1188,14 +1188,14 @@ ParseStrongAlias : -> boolean matched = false
 	{
 		return()
 	}
-	
+
 	PopToken()
 	string aliasname = PeekToken(0)
 	string basename = PeekToken(2)
 	PopTokens(3)
-	
+
 	OnCodeGenRegisterAlias((++GlobalAliasCounter), PoolString(aliasname), PoolString(basename))
-	
+
 	matched = true
 }
 
@@ -1208,7 +1208,7 @@ ParseSumType : -> boolean matched = false
 	{
 		return()
 	}
-	
+
 	string sumtypename = PeekToken(1)
 
 	if(PeekToken(2) == "<")
@@ -1220,7 +1220,7 @@ ParseSumType : -> boolean matched = false
 		}
 
 		templated = true
-		
+
 		if(!PeekWithExpectation(1, ":"))
 		{
 			return()
@@ -1234,22 +1234,22 @@ ParseSumType : -> boolean matched = false
 	{
 		PopToken()
 	}
-	
+
 	integer typename = PoolString(sumtypename)
 	integer typeid = (++GlobalSumTypeCounter)
 	PopTokens(2)
-	
+
 	ParseSumTypeBases(typename, typeid)
-	
-	string finalbasename = PeekToken(0)	
+
+	string finalbasename = PeekToken(0)
 	FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
 	PopToken()
-	
+
 	if(templated)
 	{
 		SetUpSumTypeTemplate(SumTypes, typeid)
 	}
-	
+
 	matched = true
 }
 
@@ -1288,7 +1288,7 @@ ParseStructure : -> boolean matched = false
 	{
 		return()
 	}
-		
+
 	string structurename = PeekToken(1)
 
 	if(PeekToken(2) == "<")
@@ -1298,9 +1298,9 @@ ParseStructure : -> boolean matched = false
 		{
 			return()
 		}
-		
+
 		templated = true
-				
+
 		if(!PeekWithExpectation(1, ":"))
 		{
 			return()
@@ -1316,7 +1316,7 @@ ParseStructure : -> boolean matched = false
 	{
 		PopToken()
 	}
-	
+
 	integer structuretype = (++GlobalStructureCounter)
 	integer structurenamehandle = PoolString(structurename)
 
@@ -1326,29 +1326,29 @@ ParseStructure : -> boolean matched = false
 		if(PeekToken(0) == "(")
 		{
 			PopToken()
-			
+
 			string memberfuncname = PeekToken(0)
 			PopToken()
-			
+
 			if(!PeekWithExpectation(0, ":"))
 			{
 				return()
 			}
-			
+
 			PopToken()
-			
+
 			integer memberfuncnamehandle = PoolString(memberfuncname)
-			
+
 			simplelist<integer> paramtypenames = 0, nothing
-						
+
 			boolean moreparams = true
 			while(moreparams)
 			{
 				string paramtypename = PeekToken(0)
 				PopToken()
-				
+
 				simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
-				
+
 				if(PeekToken(0) != ",")
 				{
 					moreparams = false
@@ -1358,24 +1358,24 @@ ParseStructure : -> boolean matched = false
 					PopToken()
 				}
 			}
-			
+
 			integer returntypehandle = 0
-			
+
 			if(PeekToken(0) == "->")
 			{
 				PopToken()
 				returntypehandle = PoolString(PeekToken(0))
 				PopToken()
 			}
-			
+
 			OnCodeGenRegisterStructureMemFuncSig(structurenamehandle, structuretype, memberfuncnamehandle, returntypehandle)
 			OnCodeGenRegisterStructureMemFuncSigParamList(structurenamehandle, structuretype, memberfuncnamehandle, paramtypenames)
-			
+
 			if(!PeekWithExpectation(0, ")"))
 			{
 				return()
 			}
-			
+
 			PopToken()
 		}
 		else
@@ -1386,7 +1386,7 @@ ParseStructure : -> boolean matched = false
 			PopToken()
 			string membername = PeekToken(0)
 			PopToken()
-			
+
 			if(membername == "<")
 			{
 				integer memberlookahead = ParseTemplateArgs(0)
@@ -1403,17 +1403,17 @@ ParseStructure : -> boolean matched = false
 					return()
 				}
 			}
-			
+
 			if(membername == "ref")
 			{
 				isref = true
 				membername = PeekToken(0)
 				PopToken()
 			}
-			
+
 			OnCodeGenRegisterStructureMemVar(structurenamehandle, structuretype, PoolString(membername), PoolString(membertypename), isref, membertemplated)
 		}
-		
+
 		if(PeekToken(0) != ",")
 		{
 			moremembers = false
@@ -1423,12 +1423,12 @@ ParseStructure : -> boolean matched = false
 			PopToken()
 		}
 	}
-	
+
 	if(templated)
 	{
 		SetStructureToTemplate(structurenamehandle)
 	}
-	
+
 	matched = true
 }
 
@@ -1437,7 +1437,7 @@ ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
 	boolean templated = false
-	
+
 	if(PeekToken(1) == "<")
 	{
 		PopTokens(2)
@@ -1445,7 +1445,7 @@ ParseFunction : -> boolean matched = false
 		{
 			return()
 		}
-		
+
 		templated = true
 	}
 
@@ -1455,10 +1455,10 @@ ParseFunction : -> boolean matched = false
 	}
 
 	PopTokens(2)
-	
+
 	integer rawnamehandle = PoolString(functionname)
 	integer namehandle = RegisterOverloadForFunction(functionname, rawnamehandle)
-	
+
 	OnCodeGenRegisterFunction(namehandle, rawnamehandle, functionname, templated)
 	if(PeekToken(0) != "[")
 	{
@@ -1483,7 +1483,7 @@ ParseFunction : -> boolean matched = false
 	OnCodeGenEnterFunctionBody(namehandle)
 
 	ParseCodeBlock()
-	
+
 	IRExitFunction()
 	matched = true
 }
@@ -1492,16 +1492,16 @@ ParseFunction : -> boolean matched = false
 ParseTemplateParameters : -> boolean matched = false
 {
 	boolean hasparams = true
-	
+
 	while(hasparams)
 	{
 		string paramtype = PeekToken(0)
 		string paramname = PeekToken(1)
-		
+
 		IRRegisterTemplateParameter(PoolString(paramtype), PoolString(paramname))
-		
+
 		PopTokens(2)
-		
+
 		if(PeekToken(0) == ">")
 		{
 			hasparams = false
@@ -1516,7 +1516,7 @@ ParseTemplateParameters : -> boolean matched = false
 			return()
 		}
 	}
-	
+
 	matched = true
 }
 
@@ -1528,7 +1528,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 	{
 		return()
 	}
-	
+
 	while((typetoken != "{") && (typetoken != "->"))
 	{
 		if(typetoken == "nothing")
@@ -1536,7 +1536,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 			integer pooledhandle = PooledStringHandleForNothing
 			integer nothinghandle = PoolString("nothing@@" ; cast(string, GlobalNothingCounter))
 			++GlobalNothingCounter
-			
+
 			PopToken()
 			IRRegisterFunctionParam(nothinghandle, pooledhandle, false, false)
 		}
@@ -1544,26 +1544,26 @@ ParseFunctionParams : integer rawname, integer mangledname
 		{
 			PopToken()
 			string higherordername = PeekToken(0)
-			
+
 			if(PeekWithExpectation(1, ":"))
 			{
 				PopTokens(2)
-				
+
 				simplelist<integer> paramtypenames = 0, nothing
-				
+
 				boolean moreparams = true
 				if(PeekToken(0) == ")")
 				{
 					moreparams = false
 				}
-				
+
 				while(moreparams)
 				{
 					string paramtypename = PeekToken(0)
 					PopToken()
-					
+
 					simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
-					
+
 					if(PeekToken(0) != ",")
 					{
 						moreparams = false
@@ -1573,24 +1573,24 @@ ParseFunctionParams : integer rawname, integer mangledname
 						PopToken()
 					}
 				}
-				
+
 				integer returntypename = 0
-				
+
 				if(PeekToken(0) == "->")
 				{
 					PopToken()
 					returntypename = PoolString(PeekToken(0))
 					PopToken()
 				}
-				
-				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, returntypename)				
-				
+
+				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, returntypename)
+
 				if(!PeekWithExpectation(0, ")"))
-				{	
+				{
 					print("Error in higher order function parameter syntax")
 					return()
 				}
-				
+
 				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing, nothing
 				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
@@ -1607,7 +1607,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 		{
 			integer lookahead = 0
 			boolean templated = false
-			
+
 			if(PeekToken(1) == "<")
 			{
 				lookahead = ParseTemplateArgs(2)
@@ -1616,10 +1616,10 @@ ParseFunctionParams : integer rawname, integer mangledname
 					templated = true
 				}
 			}
-			
+
 			string nametoken = PeekToken(1 + lookahead)
 			PopTokens(2 + lookahead)
-			
+
 			boolean isreference = false
 			if(nametoken == "ref")
 			{
@@ -1627,12 +1627,12 @@ ParseFunctionParams : integer rawname, integer mangledname
 				nametoken = PeekToken(0)
 				PopToken()
 			}
-			
+
 			// TODO - error checking
-			
+
 			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference, templated)
 		}
-		
+
 		typetoken = PeekToken(0)
 		if(typetoken != ",")
 		{
@@ -1650,9 +1650,9 @@ ParseFunctionReturn : integer namehandle
 	{
 		return()
 	}
-	
+
 	PopToken()
-		
+
 	OnCodeGenEnterFunctionReturn(namehandle, true)
 	if(!ParseInitialization(true))
 	{
@@ -1668,26 +1668,26 @@ ParseFunctionTags : integer functionname, integer rawfuncname
 	{
 		return()
 	}
-	
+
 	PopToken()
-	
+
 	while(PeekToken(0) != "]")
 	{
 		ParseSingleFunctionTag(functionname, rawfuncname)
 	}
-	
+
 	PopToken()
 }
 
 ParseSingleFunctionTag : integer functionname, integer rawfuncname
 {
 	string tagname = PeekToken(0)
-	
+
 	if(PeekToken(1) == "(")
 	{
 		PopTokens(2)
 		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
-		
+
 		string token = PeekToken(0)
 		while(token != ")")
 		{
@@ -1696,15 +1696,15 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 				print("Incomplete function tag")
 				return()
 			}
-			
+
 			string parameter = PeekToken(0)
 			if(subchar(parameter, 0) == CharacterQuote)
 			{
 				parameter = substring(parameter, 1, length(parameter) - 2)
 			}
-			
+
 			PopToken()
-			
+
 			OnCodeGenRegisterFunctionTagParam(functionname, tagname, parameter)
 
 			token = PeekToken(0)
@@ -1712,9 +1712,9 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 			{
 				PopToken()
 				token = PeekToken(0)
-			}			
+			}
 		}
-		
+
 		PopToken()
 	}
 	else
@@ -1722,7 +1722,7 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 		PopToken()
 		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
 	}
-	
+
 	if(tagname == "external")
 	{
 		FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
@@ -1740,7 +1740,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 	string statementname = PeekToken(0)
 	boolean templated = false
 	integer lookahead = 0
-	
+
 	if(PeekToken(1) == "<")
 	{
 		lookahead = ParseTemplateArgs(2)
@@ -1749,7 +1749,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 			templated = true
 		}
 	}
-	
+
 	if(!PeekWithExpectation(1 + lookahead, "("))
 	{
 		return()
@@ -1759,9 +1759,9 @@ ParseStatement : boolean substatement -> boolean matched = false
 	{
 		OnCodeGenEnterSubStatement()
 	}
-	
+
 	IREnterStatement(statementname, !substatement, templated)
-	
+
 	PopTokens(2 + lookahead)
 
 	string token = PeekToken(0)
@@ -1778,7 +1778,7 @@ ParseStatement : boolean substatement -> boolean matched = false
 			print("Error: mangled expression")
 			return()
 		}
-		
+
 		token = PeekToken(0)
 		if(token == ",")
 		{
@@ -1787,15 +1787,15 @@ ParseStatement : boolean substatement -> boolean matched = false
 			OnCodeGenShiftParameter()
 		}
 	}
-	
+
 	PopToken()
 	IRExitStatement()
-	
+
 	if(substatement)
 	{
 		IRExitStatement()
 	}
-	
+
 	matched = true
 }
 
@@ -1805,7 +1805,7 @@ ScanTemplateArgs : integer initialconsume -> integer consumed = initialconsume
 	while(hasargs)
 	{
 		++consumed
-		
+
 		if(PeekToken(consumed) == ">")
 		{
 			hasargs = false
@@ -1832,11 +1832,11 @@ ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
 	{
 		string argvalue = PeekToken(consumed)
 		++consumed
-		
+
 		integer replacehandle = PoolString(argvalue)
 		TemplateArgument newarg = replacehandle, argvalue
 		AppendTemplateArgument(ScratchTemplateArgumentStack.value.Args, newarg)
-		
+
 		if(PeekToken(consumed) == ">")
 		{
 			hasargs = false
@@ -1859,7 +1859,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	boolean templated = false
 	string typename = PeekToken(0)
 	string varname = PeekToken(1)
-	
+
 	integer skipahead = 0
 	if(varname == ".")
 	{
@@ -1869,7 +1869,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	{
 		skipahead = ScanTemplateArgs(2)
 		varname = PeekToken(1 + skipahead)
-		
+
 		templated = true
 	}
 
@@ -1877,14 +1877,14 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	{
 		return()
 	}
-	
+
 	if(templated)
 	{
 		ParseTemplateArgs(2)
 	}
 
 	PopTokens(3 + skipahead)
-	
+
 	if(inreturn)
 	{
 		OnCodeGenEnterSubStatement()
@@ -1892,9 +1892,9 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 
 	IREnterStatement(typename, true, templated)
 	IRAddLiteralIdentifier(varname)
-	
+
 	OnCodeGenShiftParameter()
-	
+
 	ParseExpression()
 	while(PeekToken(0) == ",")
 	{
@@ -1902,11 +1902,11 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 		OnCodeGenShiftParameter()
 		ParseExpression()
 	}
-	
+
 	IRExitStatement()
 
 	matched = true
-	
+
 	if(inreturn)
 	{
 		IRExitStatement()
@@ -1918,12 +1918,12 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 ParseExpression : -> boolean matched = false
 {
 	boolean matchedstatement = false
-	
+
 	if(!ParseExpressionTerm(true, matchedstatement))
 	{
 		return()
 	}
-	
+
 	if(matchedstatement && (PeekToken(0) == ")"))
 	{
 	}
@@ -1944,7 +1944,7 @@ ParseExpression : -> boolean matched = false
 ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolean matched = false
 {
 	string term = PeekToken(0)
-		
+
 	if(term == ")")
 	{
 		return()
@@ -1960,7 +1960,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 	elseif(term == "(")
 	{
 		OnCodeGenRegisterParenthetical()
-		
+
 		PopToken()
 		if(ParseExpression())
 		{
@@ -1971,10 +1971,10 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 		{
 			print("Error in parenthetical expression")
 		}
-		
+
 		OnCodeGenExitContext()
-		
-		
+
+
 		return()
 	}
 
@@ -2019,7 +2019,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 		if(subchar(term, 0) == CharacterQuote)
 		{
 			string stringliteral = substring(term, 1, length(term) - 2)
-			IRAddLiteralString(stringliteral)			
+			IRAddLiteralString(stringliteral)
 		}
 		else
 		{
@@ -2056,7 +2056,7 @@ ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolea
 
 ParseExpressionOperator : -> boolean matched = false
 {
-	string op = PeekToken(0)	
+	string op = PeekToken(0)
 	if(op == ")")
 	{
 		return()
@@ -2073,7 +2073,7 @@ ParseExpressionOperator : -> boolean matched = false
 	{
 		return()
 	}
-	
+
 
 	boolean knownoperator = false
 	if(op == ".")
@@ -2124,7 +2124,7 @@ ParseExpressionOperator : -> boolean matched = false
 	{
 		knownoperator = true
 	}
-	
+
 	if(knownoperator)
 	{
 		IRAddOperator(op)
@@ -2140,7 +2140,7 @@ ParseAssignment : -> boolean matched = false
 	{
 		lhslength += 2
 	}
-	
+
 	string assignmenttoken = PeekToken(lhslength)
 	boolean recognized = false
 	if(assignmenttoken == "=")
@@ -2155,12 +2155,12 @@ ParseAssignment : -> boolean matched = false
 	{
 		recognized = true
 	}
-	
+
 	if(!recognized)
 	{
 		return()
 	}
-	
+
 	if(lhslength == 1)
 	{
 		OnCodeGenEnterAssignment(PoolString(assignmenttoken), PoolString(PeekToken(0)), 0, 0)
@@ -2176,9 +2176,9 @@ ParseAssignment : -> boolean matched = false
 		}
 		OnCodeGenAssignmentCompoundEnd()
 	}
-	
+
 	PopTokens(lhslength + 1)
-	
+
 	boolean haschain = true
 	while(haschain)
 	{
@@ -2187,7 +2187,7 @@ ParseAssignment : -> boolean matched = false
 		{
 			lhslength += 2
 		}
-			
+
 		if(PeekToken(lhslength) == "=")
 		{
 			if(assignmenttoken != "=")
@@ -2195,7 +2195,7 @@ ParseAssignment : -> boolean matched = false
 				print("Cannot chain assignments with side effects")
 				return()
 			}
-			
+
 			if(lhslength == 1)
 			{
 				OnCodeGenChainAssignment(PoolString("="), PoolString(PeekToken(0)), 0, 0)
@@ -2209,8 +2209,8 @@ ParseAssignment : -> boolean matched = false
 					FindCurrentFunctionAndChainCompoundMember(PoolString(PeekToken(tokenindex)))
 					tokenindex += 2
 				}
-			}			
-			
+			}
+
 			PopTokens(lhslength + 1)
 		}
 		else
@@ -2218,7 +2218,7 @@ ParseAssignment : -> boolean matched = false
 			haschain = false
 		}
 	}
-	
+
 	if(ParseExpression())
 	{
 		matched = true
@@ -2234,21 +2234,21 @@ ParseAssignment : -> boolean matched = false
 ParseEntity : -> boolean matched = false
 {
 	string entityname = PeekToken(0)
-	
+
 	if(entityname == "if")
 	{
 		if(PeekToken(1) == "(")
 		{
 			PopTokens(2)
-			
+
 			OnCodeGenEnterChain()
 			OnCodeGenEnterEntity(0x11, 0)
-			
+
 			ParseExpression()
 			PopToken()
-			
+
 			matched = ParseEntityCode()
-			
+
 			while(PeekToken(0) == "elseif")
 			{
 				PopTokens(2)
@@ -2257,14 +2257,14 @@ ParseEntity : -> boolean matched = false
 				PopToken()
 				matched = ParseEntityCode()
 			}
-			
+
 			if(PeekToken(0) == "else")
 			{
 				PopToken()
 				OnCodeGenEnterEntity(0x13, 0)
 				matched = ParseEntityCode()
 			}
-			
+
 			OnCodeGenExitContext()
 		}
 	}
@@ -2273,15 +2273,15 @@ ParseEntity : -> boolean matched = false
 		if(PeekToken(1) == "(")
 		{
 			PopTokens(2)
-			
+
 			OnCodeGenEnterChain()
 			OnCodeGenEnterEntity(0x14, 0)
-			
+
 			ParseExpression()
 			PopToken()
 
 			matched = ParseEntityCode()
-			
+
 			OnCodeGenExitContext()
 		}
 	}
@@ -2321,7 +2321,7 @@ ParseCodeBlock :
 			print("Parse failure: " ; PeekToken(0) ; " " ; PeekToken(1) ; " " ; PeekToken(2))
 			return()
 		}
-		
+
 		token = PeekToken(0)
 	}
 
@@ -2351,7 +2351,7 @@ ParsePreopStatement : boolean substatement -> boolean matched = false
 {
 	boolean recognized = false
 	string potential = PeekToken(0)
-	
+
 	if(potential == "++")
 	{
 		recognized = true
@@ -2360,27 +2360,27 @@ ParsePreopStatement : boolean substatement -> boolean matched = false
 	{
 		recognized = true
 	}
-	
+
 	if(recognized)
 	{
 		PopToken()
-		
+
 		string operand = PeekToken(0)
 		PopToken()
-		
+
 		OnCodeGenPreparePreOpStatement(PoolString(potential), PoolString(operand))
-		
+
 		while(PeekToken(0) == ".")
 		{
 			PopToken()
 			operand = PeekToken(0)
 			PopToken()
-			
+
 			OnCodeGenPreparePreOpCompoundOperand(PoolString(operand))
 		}
-		
+
 		OnCodeGenCompletePreOpStatement(substatement)
-		
+
 		matched = true
 	}
 }
@@ -2388,14 +2388,14 @@ ParsePreopStatement : boolean substatement -> boolean matched = false
 ParsePostopStatement : -> boolean matched = false
 {
 	boolean recognized = false
-	
+
 	string operand = PeekToken(0)
 	integer operandlength = 1
 	while(PeekToken(operandlength) == ".")
 	{
 		operandlength += 2
 	}
-	
+
 	string potential = PeekToken(operandlength)
 	if(potential == "++")
 	{
@@ -2405,7 +2405,7 @@ ParsePostopStatement : -> boolean matched = false
 	{
 		recognized = true
 	}
-	
+
 	if(recognized)
 	{
 		OnCodeGenRegisterPostOpStatement(PoolString(potential), PoolString(operand))
@@ -2422,7 +2422,7 @@ ParsePostopStatement : -> boolean matched = false
 		}
 
 		PopTokens(operandlength + 1)
-				
+
 		matched = true
 	}
 }
@@ -2455,7 +2455,7 @@ HandleLiteralFunctionParam : string token -> boolean isliteral = false
 			isliteral = true
 			return()
 		}
-				
+
 		// TODO - support pattern match literals of other types
 	}
 }
@@ -2476,7 +2476,7 @@ RegisterLiteralFunctionParam : real literalvalue
 	ExpressionAtom atom = literalvalue
 	list<ExpressionAtom> atoms = atom, nothing
 	Expression expr = atoms, 0x01000004		// real type signature
-	
+
 	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
@@ -2521,7 +2521,7 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 	{
 		listval = FindTypeAliasBase(TypeAliases, listval)
 	}
-	
+
 	if(listval == value)
 	{
 		ret = listval
@@ -2537,7 +2537,7 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 		ret = listval
 		return()
 	}
-	
+
 	if((value & 0x7f000000) == 0x07000000)
 	{
 		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
@@ -2545,29 +2545,29 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 			ret = value
 			return()
 		}
-		
+
 		if(SumTypeHasBase(SumTypes, MakeNonReferenceType(value), MakeNonReferenceType(listval)))
 		{
 			ret = value
 			return()
 		}
 	}
-	
+
 	if((listval & 0x7f000000) == 0x07000000)
 	{
 		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
 		{
 			ret = value
 			return()
-		}		
-		
+		}
+
 		if(SumTypeHasBase(SumTypes, listval, MakeNonReferenceType(value)))
 		{
 			ret = value
 			return()
 		}
 	}
-	
+
 	ret = TypeListContains(thelist.next, value)
 }
 
@@ -2758,7 +2758,7 @@ OnBytecodePushVarValueNoCopy : integer name [nogc]
 OnBytecodePushVarValue : integer name, integer typeid [nogc]
 {
 	OnBytecodePushVarValueNoCopy(name)
-	
+
 	integer family = typeid & 0xff000000
 
 	if(typeid == 0x02000001)			// Buffer type signature
@@ -3044,7 +3044,7 @@ structure RefBinding :
 	integer StructureName,
 	boolean IsReference,
 	boolean InputIsReference
-	
+
 structure CompoundAtom :
 	list<RefBinding> ref Bindings,
 	integer Type
@@ -3140,7 +3140,7 @@ type OptionalEntityList : EntityList | nothing
 structure EntityChain :
 	OptionalEntityList Entries
 
-		
+
 structure UnresolvedParameter :
 	integer NameHandle,
 	integer TypeNameHandle,
@@ -3148,10 +3148,10 @@ structure UnresolvedParameter :
 	boolean HasRefTag,
 	OptionalExpression PatternMatchValue,
 	OptionalTemplateArgs TemplateArgs
-		
+
 structure FunctionParams :
 	list<UnresolvedParameter> ref Params
-	
+
 type OptionalParameters : FunctionParams | nothing
 
 structure Overload :
@@ -3172,8 +3172,8 @@ structure FunctionDefinition :
 	boolean InferenceDone,
 	boolean IsTemplate,
 	boolean AnonymousReturn
-	
-	
+
+
 
 structure Variable :
 	integer Name,
@@ -3192,7 +3192,7 @@ structure Scope :
 structure Parameter :
 	integer Name,
 	integer Type
-	
+
 
 structure ContextStackEntry :
 	integer EntryType,
@@ -3218,7 +3218,7 @@ structure PendingTypeMatcher :
 	integer OverloadName,
 	integer MatcherName,
 	ContextNode<FunctionDefinition> OverloadImplementation
-	
+
 structure PendingPatternMatcher :
 	integer RawName,
 	integer OverloadName,
@@ -3262,12 +3262,12 @@ structure TemplateInstance :
 	integer DefName,
 	integer InstanceName,
 	list<TemplateArgument> ref Arguments
-	
-	
+
+
 structure ParameterTypeList :
 	simplelist<integer> ref Types
-	
-	
+
+
 type ContextNode<type T> : T | nothing
 
 structure ContextWrapper<type T> :
@@ -3288,12 +3288,12 @@ OnCodeGenProcessProgram :
 	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
 	CodeGenEmitFunctionSignatures(FunctionSignatures)
-	
+
 	if(GlobalCodeBlockName != 0)
 	{
 		CodeGenEmitSpecificScope(GlobalScope.Wrapped)
 	}
-	
+
 	CodeGenEmitScopes(Scopes)
 	CodeGenEmitFunctionTags(FunctionTags)
 	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
@@ -3308,7 +3308,7 @@ OnCodeGenRegisterString : integer handle, string data [nogc]
 {
 	StringTableEntry entry = handle, data
 	prepend<StringTableEntry>(GlobalStrings, entry)
-	
+
 	PlaceDataInTrie(GlobalStringTrie, data, handle)
 
 	if(handle > CurrentStringHandle)
@@ -3330,10 +3330,10 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 	{
 		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
 		member.TemplateArgs = ScratchTemplateArgumentStack.value
-		
+
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
-	
+
 	StructureMember memwrap = member
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
 }
@@ -3356,7 +3356,7 @@ OnCodeGenRegisterStructureMemFuncSigParam : integer structurename, integer struc
 OnCodeGenRegisterStructureMemFuncSigParamList : integer structurename, integer structuretype, integer membername, simplelist<integer> ref typenames
 {
 	OnCodeGenRegisterStructureMemFuncSigParamList(structurename, structuretype, membername, typenames.next)
-	
+
 	if(typenames.value != 0)
 	{
 		OnCodeGenRegisterStructureMemFuncSigParam(structurename, structuretype, membername, typenames.value)
@@ -3465,16 +3465,16 @@ FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer
 	if(sumtypes.value.Type == sumtypeid)
 	{
 		SumTypeBase base = basetypeid, nothing
-		
+
 		if(templated)
 		{
 			PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
 			TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
 			base.TemplateArgs = arglist
-			
+
 			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 		}
-		
+
 		prepend<SumTypeBase>(sumtypes.value.Bases, base)
 	}
 	else
@@ -3491,10 +3491,10 @@ FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer
 		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
 		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
 		base.TemplateArgs = arglist
-		
+
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
-	}	
-	
+	}
+
 	list<SumTypeBase> bases = base, nothing
 	SumType st = sumtypename, sumtypeid, bases, false
 	prepend<SumType>(SumTypes, st)
@@ -3508,7 +3508,7 @@ SetUpSumTypeTemplate : list<SumType> ref sumtypes, integer sumtypeid
 	{
 		sumtypes.value.IsTemplate = true
 		CreateSumTypeTemplateAndAttachParams(sumtypes.value.Name, TemplateParameterQueue)
-		
+
 		// Reset template parameter queue
 		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
 		TemplateParameterQueue = dummylist
@@ -3582,7 +3582,7 @@ OnCodeGenRegisterGlobalBlock : integer name
 RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
 	integer existingcount = 0
-	
+
 	ContextWrapper<FunctionDefinition> funcwrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
 	if(found)
@@ -3593,15 +3593,15 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 	{
 		existingcount = CountOverloads(Overloads, rawname)
 	}
-	
+
 	if(existingcount > 0)
 	{
 		mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
 	}
-	
+
 	Overload overload = rawname, mangledname, nothing
 	prepend<Overload>(Overloads, overload)
-	
+
 	if(found)
 	{
 		AddOverloadToFunc(funcwrap.Wrapped, overload)
@@ -3637,7 +3637,7 @@ CountOverloads : list<Overload> ref overloads, integer rawname -> integer count 
 	{
 		++count
 	}
-	
+
 	count += CountOverloads(overloads.next, rawname)
 }
 
@@ -3663,34 +3663,34 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	FunctionDefinition func = rawfuncname, funcname, nothing, nothing, nothing, dummyoverloadlist, scopewrap, rawfuncnamestr, 0, false, istemplate, false
 	prepend<FunctionDefinition>(Functions, func)
 	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, funcname, func)
-	
+
 	// TODO - this is a weird bug. For some reason we don't init the field correctly in the above constructor
 	if(istemplate)
 	{
 		func.IsTemplate = true
 	}
-	
+
 	if(funcname != rawfuncname)
 	{
 		AttachContextToOverload(Overloads, funcname, func)
-		
+
 		ContextWrapper<FunctionDefinition> wrap = nothing
 		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
 		{
 			AttachContextToFunction(wrap.Wrapped, funcname, func)
 		}
 	}
-	
+
 	Overload selfoverload = rawfuncname, funcname, func
 	prepend<Overload>(func.Overloads, selfoverload)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
-	
+
 	if(istemplate)
 	{
 		CreateFunctionTemplateAndAttachParams(funcname, TemplateParameterQueue)
-		
+
 		// Reset template parameter queue
 		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
 		TemplateParameterQueue = dummylist
@@ -3707,15 +3707,15 @@ AttachContextToFunction : FunctionDefinition ref funcraw, integer mangledfuncnam
 IRRegisterFunctionParam : integer paramname, integer paramtypename, boolean isref, boolean templated
 {
 	UnresolvedParameter p = paramname, paramtypename, 0, isref, nothing, nothing
-	
+
 	if(templated)
 	{
 		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
 		p.TemplateArgs = ScratchTemplateArgumentStack.value
-		
+
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
-	
+
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
@@ -4038,15 +4038,15 @@ AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom
 OnCodeGenEnterStatement : integer statementname, integer statementtype, boolean toplevel, boolean hastemplateargs
 {
 	Statement statement = statementname, nothing, statementtype, nothing, toplevel, false
-	
+
 	if(hastemplateargs)
 	{
-		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next) 
+		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
 		statement.TemplateArgs = ScratchTemplateArgumentStack.value
-		
+
 		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 	}
-	
+
 	OnCodeGenEmplaceStatement(statement)
 }
 
@@ -4596,7 +4596,7 @@ CodeGenEmitStrings : list<StringTableEntry> ref table
 		{
 			OnBytecodePoolString(GetSTHandle(cur), GetSTData(cur))
 		}
-		
+
 		cur = GetSTNext(cur)
 	}
 }
@@ -4652,7 +4652,7 @@ CodeGenEmitScopes : list<Scope> ref scopes
 		{
 			parentname = GlobalCodeBlockName
 		}
-		
+
 		integer varcount = CountScopeVariables(scopes.value)
 		OnBytecodeLexicalScope(scopes.value.Name, parentname, varcount)
 		CodeGenEmitVariables(scopes.value.Variables, scopes.value.Name)
@@ -4729,7 +4729,7 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 		if(table.value.Name != 0)
 		{
 			FindScopeAndSetContext(table.value)
-			
+
 			EmittingFunctionName = table.value.Name
 			OnBytecodeEnterFunction(table.value.Name)
 			CodeGenEmitFunctionReturn(table.value.Return)
@@ -4760,7 +4760,7 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 			OnBytecodeExitFunction()
 		}
 	}
-	
+
 	CodeGenEmitFunctions(table.next)
 }
 
@@ -4865,7 +4865,7 @@ CodeGenEmitAssignmentRHS : Expression ref expr
 CodeGenEmitAssignmentRHS : Assignment ref a
 {
 	CodeGenEmitAssignmentRHS(a.RHS)
-		
+
 	integer frames = 0
 	integer index = FindVariable(a.LHSName, frames)
 	OnBytecodeBindReference(frames, index)
@@ -4878,7 +4878,7 @@ CodeGenEmitAssignmentRHS : Assignment ref a
 	{
 		OnBytecodeAssign()
 	}
-	
+
 	CodeGenEmitBindingsForVariable(a.LHSName)
 	OnBytecodeReadReference()
 }
@@ -4886,7 +4886,7 @@ CodeGenEmitAssignmentRHS : Assignment ref a
 CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 {
 	boolean sideeffects = false
-	
+
 	if(a.Operator != PooledStringHandleForAssignment)
 	{
 		sideeffects = true
@@ -4895,7 +4895,7 @@ CodeGenEmitSingleCodeBlockEntry : Assignment ref a
 	}
 
 	CodeGenEmitAssignmentRHS(a.RHS)
-	
+
 	if(sideeffects)
 	{
 		OnBytecodeInvoke(a.Operator)
@@ -4931,7 +4931,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 	}
 
 	CodeGenEmitAssignmentRHS(a.RHS)
-	
+
 	if(sideeffects)
 	{
 		OnBytecodeInvoke(a.Operator)
@@ -4953,7 +4953,7 @@ CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
 
 	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
-		OnBytecodeAssignSumType()	
+		OnBytecodeAssignSumType()
 	}
 	else
 	{
@@ -4976,7 +4976,7 @@ CodeGenEmitBindingsForVariable : integer operand
 {
 	integer frames = 0
 	integer index = FindVariable(operand, frames)
-	OnBytecodeBindReference(frames, index)	
+	OnBytecodeBindReference(frames, index)
 }
 
 
@@ -5048,18 +5048,18 @@ BindAssignmentMembers : nothing, integer structurename
 ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref scope -> integer typeid = 0
 {
 	integer rootname = assignment.LHS.value
-	
+
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(scope, rootname, var)
-	
+
 	if(var.Name == 0)
 	{
 		print("Assignment has bogus LHS")
 		assert(false)
 	}
-	
+
 	assertmsg(var.VarType != 0, "Variable has no type!")
-	
+
 	integer vartypename = GetNameOfType(var.VarType)
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(assignment.LHS.next, vartypename)
 }
@@ -5232,9 +5232,9 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 				OnBytecodePushLiteralFunction(idatom.Handle)
 			}
 			else
-			{		
+			{
 				if(idatom.IsReference)
-				{	
+				{
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
 					OnBytecodeBindReference(frames, index)
@@ -5256,7 +5256,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 					{
 						Variable var = 0, 0, 0, 0
 						FindVariableDataInSingleScope(GlobalScope.Wrapped, idatom.Handle, var)
-						
+
 						if(var.Name == 0)
 						{
 							print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
@@ -5285,7 +5285,7 @@ CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
 	integer memtype = 0
 	integer memoffset = 0
 	GetStructureMemberTypeAndOffset(atom.StructureName, atom.Identifier, memtype, memoffset)
-	
+
 	OnBytecodeBindStructReference(memtype, memoffset)
 }
 
@@ -5318,9 +5318,9 @@ CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
 	integer frames = 0
 	integer index = FindVariable(atom.Bindings.value.Identifier, frames)
 	OnBytecodeBindReference(frames, index)
-	
+
 	EmitCompoundBindings(atom.Bindings, atom.Bindings.next)
-	
+
 	if(!IsReferenceType(atom.Type))
 	{
 		if((atom.Type & 0x7f000000) == 0x07000000)
@@ -5338,14 +5338,14 @@ EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 {
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(EmittingScope.Wrapped, bindings.value.Identifier, var)
-	
+
 	assertmsg(var.VarType != 0, "Compound bindings reference bogus variable")
 	integer lhstypename = GetNameOfType(var.VarType)
-		
+
 	integer memtype = 0
 	integer memoffset = 0
 	GetStructureMemberTypeAndOffset(lhstypename, tail.value.Identifier, memtype, memoffset)
-	
+
 	OnBytecodeBindStructReference(memtype, memoffset)
 
 	EmitCompoundSubsequentBindings(tail.next)
@@ -5613,7 +5613,7 @@ SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetype
 	{
 		return()
 	}
-	
+
 	if(sumtypeid == 0)
 	{
 		return()
@@ -5830,7 +5830,7 @@ FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref o
 {
 	found = FindVariableDataInSingleScope(scope.Variables, varname, outvar)
 	if(!found)
-	{		
+	{
 		if(scope.Name != GlobalCodeBlockName)
 		{
 			found = FindVariableDataInSingleScope(GlobalScope.Wrapped, varname, outvar)
@@ -5846,7 +5846,7 @@ FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variab
 		found = true
 		return()
 	}
-	
+
 	found = FindVariableDataInSingleScope(vars.next, varname, outvar)
 }
 
@@ -5856,7 +5856,7 @@ FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar ->
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 {
 	if(matchers.value.Name != 0)
-	{	
+	{
 		OnBytecodeLexicalScope(matchers.value.Name, 0, 0)
 		OnBytecodeEnterTypeResolver(matchers.value.Name)
 		CodeGenEmitTypeMatcherOverloads(matchers.value.Overloads)
@@ -5933,7 +5933,7 @@ CodeGenEmitTypeMatcherOverloads : list<FunctionSignature> ref signatures
 		OnBytecodeEmitInteger(signatures.value.Name)
 		OnBytecodeEmitInteger(0)
 		OnBytecodeEmitInteger(CountParameters(signatures.value.Parameters))
-		
+
 		CodeGenEmitTypeMatcherParams(signatures.value.Parameters)
 	}
 }
@@ -6001,15 +6001,15 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 	if(tagname == "constructor")
 	{
 		simpleprepend<integer>(CustomConstructors, funcname)
-		
+
 		integer baseconstructorname = PoolString(GetPooledString(GlobalStrings, rawfuncname) ; "@@constructor")
-		
+
 		Overload overload = baseconstructorname, funcname, nothing
 		prepend<Overload>(Overloads, overload)
 		prepend<Overload>(AutoGenOverloads, overload)
-		
+
 		FindFunctionAndAddOverload(overload)
-		
+
 		PrependFunctionParameter(Functions, funcname, PoolString("@id"), 0x81000000)		// reference to identifier type signature
 	}
 }
@@ -6327,14 +6327,14 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 			typeid = structuretype
 			return()
 		}
-		
+
 		integer sumtype = FindSumTypeByName(name)
 		if(sumtype != 0)
-		{			
+		{
 			typeid = sumtype
 			return()
 		}
-		
+
 		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
 		if(strongaliastype != 0)
 		{
@@ -6601,7 +6601,7 @@ OnCodeGenRegisterFunctionSigParam : integer paramtype
 OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
 {
 	OnCodeGenRegisterFunctionSigParamList(paramtypenames.next)
-	
+
 	if(paramtypenames.value != 0)
 	{
 		integer paramtype = GetTypeByName(paramtypenames.value)
@@ -6609,7 +6609,7 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
 		{
 			paramtype = paramtypenames.value
 		}
-		
+
 		OnCodeGenRegisterFunctionSigParam(paramtype)		// TODO - defer higher order function parameter type resolution until type inference
 	}
 }
@@ -6626,7 +6626,7 @@ CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
 		{
 			rettype = 0x00000002		// void
 		}
-		
+
 		OnBytecodeEmitFunctionSignature(thelist.value.Name, rettype, CountParameters(thelist.value.Parameters))
 		CodeGenEmitFunctionSigParams(thelist.value.Parameters)
 	}
@@ -6648,7 +6648,7 @@ CodeGenEmitFunctionSigParams : list<Parameter> ref params
 CodeGenEmitFunctionSigParams : nothing
 
 
-OnCodeGenRegisterParenthetical : 
+OnCodeGenRegisterParenthetical :
 {
 	ContextStackEntry entry = STACK_TYPE_PARENTHETICAL, 0
 	prepend<ContextStackEntry>(ContextStack, entry)
@@ -6788,7 +6788,7 @@ CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
 	if(GlobalCodeBlockName != 0)
 	{
 		EmittingScope.Wrapped = GlobalScope.Wrapped
-	
+
 		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
 		CodeGenEmitCodeBlock(block)
 		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringTrie, "entrypoint"))
@@ -6867,7 +6867,7 @@ CodeBlockDepth : nothing -> 0 [nogc]
 IRProcess : -> boolean success = true
 {
 	prepend<StructureDefinition>(Structures, dummystruct)		// TODO - why does this need to be here?
-	
+
 	if(!IRTypeInference())
 	{
 		success = false
@@ -6882,7 +6882,7 @@ GeneratePendingTypeMatchers : list<PendingTypeMatcher> ref pendingmatchers -> bo
 	{
 		success = false
 	}
-	
+
 	if(!GeneratePendingTypeMatchers(pendingmatchers.next))
 	{
 		success = false
@@ -6905,7 +6905,7 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success =
 		OnCodeGenExitContext()
 		matchwrap.Wrapped = TypeMatchers.value
 	}
-		
+
 	ContextWrapper<FunctionDefinition> wrap = nothing
 	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, matcher.OverloadName, wrap)
 
@@ -6927,11 +6927,11 @@ WalkParametersForTypeMatcher : FunctionParams ref params, TypeMatcher ref matche
 WalkParametersForTypeMatcherUnwrapped : list<UnresolvedParameter> ref params, TypeMatcher ref matcher, integer overloadname
 {
 	if(params.value.NameHandle != 0)
-	{	
-		Parameter p = params.value.NameHandle, params.value.ResolvedType	
+	{
+		Parameter p = params.value.NameHandle, params.value.ResolvedType
 		FindTMOverloadAndAppendParameter(matcher.Overloads, matcher.Overloads, overloadname, p)
 	}
-	
+
 	WalkParametersForTypeMatcherUnwrapped(params.next, matcher, overloadname)
 }
 
@@ -6948,10 +6948,10 @@ DumpTypeList : simplelist<integer> ref types
 		{
 			refflag = " ref"
 		}
-		
+
 		print(" Potential type: " ; GetPooledString(GlobalStrings, GetNameOfType(types.value)) ; refflag)
 	}
-	
+
 	DumpTypeList(types.next)
 }
 
@@ -6988,7 +6988,7 @@ IRTypeInference : -> boolean success = true
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(Structures, DummyContextForFunctions))
 	{
 		success = false
@@ -7025,7 +7025,7 @@ TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> bool
 			}
 		}
 	}
-	
+
 	if(!TypeInference(sumtypes.next, context))
 	{
 		success = false
@@ -7037,16 +7037,16 @@ ResolveSumTypeBases : list<SumTypeBase> ref bases -> boolean success = true
 	if(bases.value.Name != 0)
 	{
 		integer resolvedtype = ResolveSingleBase(bases.value, bases.value.TemplateArgs)
-			
+
 		if(resolvedtype == 0)
 		{
 			print("Sum type has unknown base type")
 			success = false
 		}
-		
+
 		bases.value.Name = resolvedtype
 	}
-	
+
 	if(!ResolveSumTypeBases(bases.next))
 	{
 		success = false
@@ -7065,7 +7065,7 @@ TypeInference : list<StructureDefinition> ref structures, InferenceContext ref c
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(structures.next, context))
 	{
 		success = false
@@ -7078,7 +7078,7 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	{
 		return()
 	}
-	
+
 	if(structuredef.IsTemplate)
 	{
 		return()
@@ -7088,18 +7088,18 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	{
 		success = false
 	}
-	
+
 	integer ctorname = PoolStringFast(structuredef.ReadableName ; "@@constructor")
 	integer anonname = PoolStringFast(structuredef.ReadableName ; "@@anonconstructor")
 	integer copyname = PoolStringFast(structuredef.ReadableName ; "@@copyconstructor")
 	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
-	
+
 	Overload selfoverload = structuredef.Name, ctorname, nothing
 	prepend<Overload>(AutoGenOverloads, selfoverload)
-	
+
 	Overload anonoverload = ctorname, anonname, nothing
 	prepend<Overload>(AutoGenOverloads, anonoverload)
-	
+
 	Overload copyoverload = ctorname, copyname, nothing
 	prepend<Overload>(AutoGenOverloads, copyoverload)
 }
@@ -7111,7 +7111,7 @@ TypeInference : list<StructureMember> ref members, InferenceContext ref context 
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(members.next, context))
 	{
 		success = false
@@ -7131,7 +7131,7 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 	{
 		memvar.Type = GetTypeByName(memvar.TypeNameHandle)
 	}
-	
+
 	if(memvar.Type == 0)
 	{
 		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
@@ -7187,20 +7187,20 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 	{
 		return()
 	}
-	
+
 	func.InferenceDone = true
 
 	ContextWrapper<Scope> scopewrap = func.AttachedScope.Wrapped
 	ContextWrapper<FunctionDefinition> funcwrap = func
 	InferenceContext innercontext = func.Name, 0, globalemptyintlist, false, 0, false, false, scopewrap, funcwrap
-	
-	
+
+
 	if(!TypeInference(func.Params, innercontext))
 	{
 		print("Parameters to function failed type inference")
 		success = false
 	}
-	
+
 
 	simplelist<integer> tempret = 0, nothing
 	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false, false, innercontext.ScopeRef, funcwrap
@@ -7210,7 +7210,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 		print("Function return expression failed type inference")
 		success = false
 	}
-	
+
 	integer rettype = GetOptionalExpressionType(func.Return)
 	if((rettype != 0) && (rettype != 0x00000002))	// void magic
 	{
@@ -7219,7 +7219,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 			StoreVariableInSingleScope(innercontext.ScopeRef.Wrapped, PooledStringHandleForAnonymousRet, rettype, false, 2)
 		}
 	}
-	
+
 	if(!TypeInference(func.Code, innercontext))
 	{
 		print(GetPooledString(GlobalStrings, func.Name) ; "() - Function code body failed type inference")
@@ -7235,7 +7235,7 @@ TypeInference : list<UnresolvedParameter> ref params, InferenceContext ref conte
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(params.next, context))
 	{
 		success = false
@@ -7249,14 +7249,14 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
 		return()
 	}
-	
+
 	integer patternmatchtype = GetOptionalExpressionType(param.PatternMatchValue)
 	if(patternmatchtype != 0)
 	{
 		param.ResolvedType = patternmatchtype
 		return()
 	}
-	
+
 	param.TypeNameHandle = MangleTemplateNameByHandle(param.TypeNameHandle, param.TemplateArgs)
 
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
@@ -7299,16 +7299,16 @@ TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> b
 
 
 TypeInference : PreOpStatement ref statement, InferenceContext ref context -> boolean success = true
-{	
+{
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Operand.value, var)
-	
+
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
 		assert(false)
 	}
-	
+
 	integer operandtype = MakeNonReferenceType(var.VarType)
 
 	if(countnonzero(statement.Operand) > 1)
@@ -7316,31 +7316,31 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 		assertmsg(operandtype != 0, "Pre-operation statement has no type")
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
-	
+
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
 	statement.Type = operandtype		// TODO - maybe don't assume that the operator returns the same type as it takes?
 }
 
 
 TypeInference : PostOpStatement ref statement, InferenceContext ref context -> boolean success = true
-{	
+{
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Operand.value, var)
-	
+
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
 		assert(false)
 	}
-	
+
 	integer operandtype = MakeNonReferenceType(var.VarType)
-	
+
 	if(countnonzero(statement.Operand) > 1)
 	{
 		assertmsg(operandtype != 0, "Post-operation statement has no type")
 		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
 	}
-	
+
 	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
 	statement.Type = operandtype
 }
@@ -7352,7 +7352,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		return()
 	}
-	
+
 	statement.InferenceDone = true
 
 	integer originalname = statement.Name
@@ -7369,12 +7369,12 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			origin = 2
 			SetFunctionReturnType(context.FuncRef.Wrapped, context.ScopeName, vartype)
 		}
-		
+
 		while((vartype & 0x7f000000) == 0x05000000)
 		{
 			vartype = FindTypeAliasBase(TypeAliases, vartype)
 		}
-		
+
 		if(IsStructureType(vartype))
 		{
 			statement.Name = GetConstructorName(Structures, vartype)
@@ -7384,7 +7384,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			assertmsg(vartype != 0, "Assumption failure in statement type inference")
 			statement.Name = GetNameOfType(vartype)
 		}
-		
+
 		if(statement.TopLevel)
 		{
 			ConstructVariableFromStatement(statement, context.ScopeRef.Wrapped, vartype, origin)
@@ -7397,7 +7397,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
 	{
 		// TODO - type checking on higher order functions
-		
+
 		statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
 	}
 	else
@@ -7410,16 +7410,16 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
 		}
 
-		
+
 		ContextWrapper<FunctionDefinition> contextfunc = nothing
 		ContextWrapper<PendingTypeMatcher> contextmatch = nothing
 		boolean isuserfunc = false
 
-		
+
 		if(statement.Name == PooledStringHandleForCast)
 		{
 			statement.Name = GetCastOverload(statement.Parameters)
-			
+
 			if(statement.Name == 0)
 			{
 				success = false
@@ -7436,12 +7436,12 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
 			}
-		
+
 			simplelist<integer> paramtypes = 0, nothing
 			AccumulateParameterTypes(paramtypes, statement.Parameters)
 
 			integer overloadname = 0
-			
+
 			if(isuserfunc)
 			{
 				overloadname = FindOverloadWithParameterTypesFast(contextfunc.Wrapped, statement.Name, paramtypes)
@@ -7450,7 +7450,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
 			}
-			
+
 			if(overloadname != 0)
 			{
 				statement.Name = overloadname
@@ -7470,7 +7470,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 				print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
 			}
 		}
-				
+
 		if(context.FunctionReturn)
 		{
 			statement.Type = vartype
@@ -7486,7 +7486,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 				statement.Type = GetPendingTypeMatcherReturnType(statement.Name, contextmatch)
 			}
 		}
-		
+
 		if(isuserfunc)
 		{
 			WalkFunctionParamsAndSetReferencesShim(contextfunc.Wrapped, statement.Parameters)
@@ -7601,7 +7601,7 @@ AnnotateAllParameters : list<Expression> ref params, integer statementname, inte
 		ExpressionAtom wrap = atom
 		AppendAtomToExpression(params.value.Atoms, params.value.Atoms.next, wrap)
 	}
-	
+
 	AnnotateAllParameters(params.next, statementname, paramindex + 1, paramcount, toplevel)
 }
 
@@ -7696,7 +7696,7 @@ AccumulateParameterTypesUnwrapped : nothing, simplelist<integer> ref types [nogc
 FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, simplelist<integer> ref types -> integer overloadname = rawname
 {
 	if(overloads.value.NormalName == rawname)
-	{	
+	{
 		if(!IsFunctionTemplate(overloads.value.Implementation))
 		{
 			if(FunctionWrapperMatchesParameterTypes(overloads.value.Implementation, overloads.value.MangledName, types))
@@ -7709,7 +7709,7 @@ FindOverloadWithParameterTypes : list<Overload> ref overloads, integer rawname, 
 				else
 				{
 					overloadname = overloads.value.MangledName
-				}		
+				}
 				return()
 			}
 			elseif(countnonzero(types) == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
@@ -7740,17 +7740,11 @@ GetFunctionWrapperParameterCount : nothing, integer mangledname -> integer count
 
 PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname, integer paramcount
 {
-	if(overloads.value.NormalName == rawname)
+	if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
 	{
-		if(!IsFunctionTemplateFast(rawname))
+		if(!IsFunctionTemplateFast(overloads.value.MangledName))
 		{
-			if(paramcount == GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName))
-			{
-				if(!IsFunctionTemplateFast(overloads.value.MangledName))
-				{				
-					FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName, overloads.value.Implementation)
-				}
-			}
+			FindOrCreateTypeMatcher(overloads.value.NormalName, overloads.value.MangledName, overloads.value.Implementation)
 		}
 	}
 
@@ -7760,11 +7754,11 @@ PopulateAllOverloadTypeMatchers : list<Overload> ref overloads, integer rawname,
 PopulateAllOverloadTypeMatchers : nothing, integer rawname, integer paramcount
 
 
-IsFunctionTemplate : FunctionDefinition ref func -> boolean istemplate = func.IsTemplate
-IsFunctionTemplate : nothing -> false
+IsFunctionTemplate : FunctionDefinition ref func -> boolean istemplate = func.IsTemplate [nogc]
+IsFunctionTemplate : nothing -> false [nogc]
 
 
-IsFunctionTemplateFast : integer name -> boolean istemplate = false
+IsFunctionTemplateFast : integer name -> boolean istemplate = false [nogc]
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
@@ -7772,11 +7766,9 @@ IsFunctionTemplateFast : integer name -> boolean istemplate = false
 	{
 		assert(false)
 	}
-	
-	istemplate = CheckFuncTemplate(wrap.Wrapped)
-}
 
-CheckFuncTemplate : FunctionDefinition ref func -> boolean ret = func.IsTemplate
+	istemplate = IsFunctionTemplate(wrap.Wrapped)
+}
 
 
 GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
@@ -7787,7 +7779,7 @@ GenerateTypeMatcherMappings : list<FunctionDefinition> ref functions
 		{
 			integer rawname = functions.value.RawName
 			integer paramcount = CountUnresolvedParameters(functions.value.Params)
-		
+
 			if(AnyPendingTypeMatcherPointsToAnyOverload(functions.value.Overloads, rawname, paramcount))
 			{
 				PopulateAllOverloadTypeMatchers(functions.value.Overloads, rawname, paramcount)
@@ -7814,7 +7806,7 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 			}
 		}
 	}
-	
+
 	ret = AnyPendingTypeMatcherPointsToAnyOverload(overloads.next, rawname, paramcount)
 }
 
@@ -7878,7 +7870,7 @@ CountUnresolvedParametersUnwrapped : list<UnresolvedParameter> ref params -> int
 	{
 		++count
 	}
-	
+
 	count += CountUnresolvedParametersUnwrapped(params.next)
 }
 
@@ -7906,7 +7898,7 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 	{
 		integer withlen = PooledStringHandleForSubstringWithLength
 		integer nolen = PooledStringHandleForSubstringNoLength
-		
+
 		if(FunctionMatchesParameterTypes(nothing, withlen, types))
 		{
 			overloadname = withlen
@@ -7922,7 +7914,7 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 		integer withstr = PooledStringHandleForWriteBufferString
 		integer multiple = PooledStringHandleForWriteBufferMultiple
 		integer withreal = PooledStringHandleForWriteBufferReal
-		
+
 		if(FunctionMatchesParameterTypes(nothing, normal, types))
 		{
 			overloadname = normal
@@ -7930,15 +7922,15 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 		elseif(FunctionMatchesParameterTypes(nothing, withstr, types))
 		{
 			overloadname = withstr
-		}		
+		}
 		elseif(FunctionMatchesParameterTypes(nothing, multiple, types))
 		{
 			overloadname = multiple
-		}		
+		}
 		elseif(FunctionMatchesParameterTypes(nothing, withreal, types))
 		{
 			overloadname = withreal
-		}		
+		}
 	}
 	elseif(IsRecognizedBuiltIn(rawname))
 	{
@@ -8063,7 +8055,7 @@ ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, int
 		{
 			return()
 		}
-		
+
 		match = CheckMemberTypes(structures.value.Members, types.next)
 	}
 	elseif(structures.value.AnonConstructorName == ctorname)
@@ -8078,7 +8070,7 @@ ConstructorMatchesParameterTypes : list<StructureDefinition> ref structures, int
 		{
 			return()
 		}
-		
+
 		match = CheckCopyType(types.next, structures.value.Type)
 	}
 	else
@@ -8199,7 +8191,7 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 {
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, assignment.LHSName, var)
-	
+
 	if(var.Name == 0)
 	{
 		success = false
@@ -8215,23 +8207,23 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 		print("Failed to infer type of RHS of assignment")
 		success = false
 	}
-		
+
 	assignment.LHSType = var.VarType
-	
+
 	if(assignment.LHSType != GetAssignmentRHSType(assignment.RHS))
 	{
 		// TODO - check type of RHS vs. LHS?
-		
+
 		assignment.Annotation = GetAssignmentRHSType(assignment.RHS)
 	}
-	
+
 	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, GetAssignmentRHSType(assignment.RHS))
 }
 
 TypeInference : AssignmentCompound ref assignment, InferenceContext ref context -> boolean success = true
 {
 	integer lhstype = ComputeCompoundAssignmentLHSType(assignment, context.ScopeRef.Wrapped)
-	
+
 	simplelist<integer> temp = lhstype, nothing
 	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false, context.ScopeRef, context.FuncRef
 
@@ -8240,16 +8232,16 @@ TypeInference : AssignmentCompound ref assignment, InferenceContext ref context 
 		print("Failed to infer type of RHS of assignment")
 		success = false
 	}
-	
+
 	assignment.LHSType = lhstype
 
 	if(assignment.LHSType != GetAssignmentRHSType(assignment.RHS))
 	{
 		// TODO - check type of RHS vs. LHS?
-		
+
 		assignment.Annotation = GetAssignmentRHSType(assignment.RHS)
 	}
-	
+
 	assignment.Operator = FindAssignmentOperator(assignment.Operator, assignment.LHSType, GetAssignmentRHSType(assignment.RHS))
 }
 
@@ -8263,7 +8255,7 @@ TypeInference : list<Entity> ref entities, InferenceContext ref context -> boole
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(entities.next, context))
 	{
 		success = false
@@ -8274,12 +8266,12 @@ TypeInference : Entity ref entity, InferenceContext ref context -> boolean succe
 {
 	simplelist<integer> temp = 0x01000003, nothing			// TODO - don't assume all entities take a boolean!
 	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false, context.ScopeRef, context.FuncRef
-	
+
 	if(!TypeInference(entity.Param, newcontext))
 	{
 		success = false
 	}
-	
+
 	if(!TypeInference(entity.Code, context))
 	{
 		success = false
@@ -8292,17 +8284,17 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 	simplelist<integer> dummytypelist = 0, nothing
 	ParameterTypeList dummyparaminfo = dummytypelist
 	list<ParameterTypeList> paramtypeinfo = dummyparaminfo, nothing
-	
+
 	integer i = 1
 	while(i < context.NumParameters)
 	{
 		simplelist<integer> dummytypelist2 = 0, nothing
 		ParameterTypeList dummyparaminfo2 = dummytypelist2
 		prepend<ParameterTypeList>(paramtypeinfo, dummyparaminfo2)
-	
+
 		++i
 	}
-	
+
 	boolean hasallparams = GatherAllPossibleParamTypes(context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
 
 	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0, hasallparams, paramtypeinfo))
@@ -8338,13 +8330,13 @@ GatherAllPossibleParamTypesForConstructor : list<StructureDefinition> ref struct
 			ExtractAllMemberTypes(structures.value.Members, outinfo.next)
 			found = true
 		}
-		
+
 		if(numparams == membercount)
 		{
 			ExtractAllMemberTypes(structures.value.Members, outinfo)
 			found = true
 		}
-		
+
 		if(numparams == 2)
 		{
 			AddTypeToParamTypeList(outinfo, 0x01000000)			// Identifier type signature
@@ -8403,7 +8395,7 @@ InferAllFunctionParameterTypes : FunctionDefinition ref function, integer numpar
 	{
 		TypeInference(function, DummyContextForFunctions)
 	}
-	
+
 	UnwrapAllParamsForTypeRetrieval(function.Params, numparams, outinfo)
 }
 
@@ -8435,7 +8427,7 @@ GrabTypeListAtIndex : list<ParameterTypeList> ref paraminfo, integer paramindex,
 		out = paraminfo.value.Types
 		return()
 	}
-	
+
 	GrabTypeListAtIndex(paraminfo.next, paramindex - 1, out)
 }
 
@@ -8443,7 +8435,7 @@ GrabTypeListAtIndex : list<ParameterTypeList> ref paraminfo, integer paramindex,
 TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext ref context, integer paramindex, boolean hasallparams, list<ParameterTypeList> ref paraminfo -> boolean success = true
 {
 	simplelist<integer> temp = 0, nothing
-	
+
 	if(hasallparams)
 	{
 		GrabTypeListAtIndex(paraminfo, paramindex, temp)
@@ -8452,12 +8444,12 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 	{
 		GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
 	}
-	
+
 	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement, false, context.ScopeRef, context.FuncRef
 
 	if(!TypeInference(parameters.value, newcontext))
 	{
-		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")	
+		print("Parameter " ; cast(string, paramindex) ; " failed type inference!")
 		success = false
 	}
 	else
@@ -8486,7 +8478,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		expression.Type = 0x00000002
 		return()
 	}
-	
+
 	CoalesceMemberAccesses(expression.Atoms, context.ScopeRef.Wrapped)
 	ShuntingYard(expression.Atoms)
 
@@ -8496,9 +8488,9 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	list<ExpressionInferenceStackEntry> stack = stackentry, nothing
 
 	integer counter = 0
-		
+
 	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, context)
-		
+
 	integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
 	if(possibilitycount == 1)
 	{
@@ -8537,7 +8529,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		{
 			simplelist<integer> possibletypes = 0, nothing
 			FilterTypesForDemotion(stack.value.PossibilityList.value.ReturnType.Types, possibletypes)
-			
+
 			integer typecount = countnonzero(possibletypes)
 			if(typecount == 1)
 			{
@@ -8634,7 +8626,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 {
 	boolean didrightdemote = WalkAtomsForType(tail, tail.next, stack, counter, context)
 	boolean unarycompensate = false
-	
+
 	if(IsOperatorInvoke(tail.value))
 	{
 		if(IsUnaryOperator(tail.value))
@@ -8651,10 +8643,10 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 			SetOperatorAtomToOverload(atoms, stack.value.PossibilityList.value.FunctionName, counter + 1)
 			--counter
 		}
-		
+
 		list<InferencePossibility> possibleoperators = scratchpossibility, nothing
 		GetAtomTypeOperator(atoms.value, possibleoperators)
-		
+
 		ExpressionInferenceStackEntry entry = possibleoperators
 		prepend<ExpressionInferenceStackEntry>(stack, entry)
 	}
@@ -8673,14 +8665,14 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		{
 			stack.value.PossibilityList = out
 		}
-		
+
 		if(CountPossibilities(stack.value.PossibilityList) == 1)
 		{
 			if(listcontains(stack.value.PossibilityList.value.ParameterTypes.value.Types, 0x01000002))
 			{
 				DemoteAtomType(atoms)
 				demotedtoright = true
-				
+
 				if((!didrightdemote) && (!IsOperatorInvoke(tail.value)))
 				{
 					DemoteAtomType(tail)
@@ -8691,25 +8683,25 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 		{
 			DemoteAtomType(atoms)
 		}
-		
+
 		++counter
 		if(counter > 1)
 		{
 			SetOperatorAtomToOverload(atoms, stack.value.PossibilityList.value.FunctionName, counter)
 			++counter
 		}
-	
+
 		if(AllOptionsConsumed(stack.value.PossibilityList.value.ParameterTypes))
 		{
 			stack.value.PossibilityList.value.ReturnType.Consumed = true
 			CopyReturnTypeToParamTypes(stack, stack.next)
 		}
 	}
-	
+
 	if(unarycompensate)
 	{
 		++counter
-	}	
+	}
 }
 
 
@@ -8774,7 +8766,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 		TypePossibilityList poss = scratchpossibletypes, false
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
 		GetAtomType(atoms.value, newpossibility.ReturnType, context.ScopeRef.Wrapped, context.FuncRef, context.FunctionReturn, context.Parenthetical)
-		
+
 		prepend<InferencePossibility>(stack.value.PossibilityList, newpossibility)
 	}
 }
@@ -8789,7 +8781,7 @@ EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref po
 			prepend<InferencePossibility>(out, possibilities.value)
 		}
 	}
-	
+
 	EliminateImpossibleParametersForAllOverloads(possibilities.next, out, atom, scope, func, funcret, parenthetical)
 }
 
@@ -8802,15 +8794,15 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 	{
 		TypePossibilityList poss = scratchpossibletypes, false
 		GetAtomType(atom, poss, scope, func, funcret, parenthetical)
-		
+
 		simplelist<integer> types = 0, nothing
 		integer typecount = EliminateImpossibleType(params.value.Types, poss.Types, types)
-				
+
 		if(typecount == 0)
 		{
 			valid = false
 		}
-		
+
 		params.value.Types = types
 		params.value.Consumed = true
 	}
@@ -8849,7 +8841,7 @@ ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
 EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer> ref filter, simplelist<integer> ref out -> integer count = 0 [nogc]
 {
 	count = EliminateImpossibleType(possibles.next, filter, out)
-	
+
 	if(possibles.value != 0)
 	{
 		integer expectedtype = TypeListContains(filter, possibles.value)
@@ -8880,10 +8872,10 @@ GetAtomType : integer            ref atom, TypePossibilityList ref possibilities
 GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, atom.Type)  }
 
 GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
-{	
+{
 	ContextWrapper<Scope> scopewrap = scope
 	InferenceContext newcontext = scope.Name, statement.Name, globalemptyintlist, funcret, 0, false, false, scopewrap, func
-	
+
 	if(TypeInference(statement, newcontext))
 	{
 		AddPossibleParameter(possibilities.Types, statement.Type)
@@ -8896,7 +8888,7 @@ GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref
 {
 	ContextWrapper<Scope> scopewrap = scope
 	InferenceContext newcontext = scope.Name, 0, globalemptyintlist, funcret, 0, false, true, scopewrap, func
-		
+
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
 		AddPossibleParameter(possibilities.Types, GetParentheticalType(parenthetical.Inner))
@@ -8929,7 +8921,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	{
 		AddPossibleParameter(possibilities.Types, 0x01000000)
 	}
-	
+
 	integer nametype = GetTypeByName(atom.Handle)
 	if(nametype != 0)
 	{
@@ -8940,14 +8932,14 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 				atom.IsFunction = true
 			}
 		}
-		
+
 		return()
 	}
-	
+
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(scope, atom.Handle, var)
-	
+
 	if(var.Name != 0)
 	{
 		AddPossibleParameter(possibilities.Types, var.VarType)
@@ -8961,7 +8953,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 		if(SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, atom.Handle))
 		{
 			atom.IsFunction = true
-		
+
 			// TODO - overload resolution on higher order function name
 			integer sigtype = FindFunctionAndGetSignatureType(Functions, atom.Handle)
 			AddPossibleParameter(possibilities.Types, sigtype)
@@ -9087,7 +9079,7 @@ MarkAtomAsReference : CompoundAtom            ref atom -> true [nogc]
 AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype [nogc]
 {
 	simpleprepend<integer>(possibilities, paramtype)
-	
+
 	if((paramtype & 0x7f000000) == 0x05000000)
 	{
 		simpleprepend<integer>(possibilities, FindTypeAliasBase(TypeAliases, paramtype))
@@ -9306,9 +9298,9 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0 [n
 ConstructVariableFromStatement : Statement ref statement, Scope ref scope, integer vartype, integer origin
 {
 	integer varname = ExtractConstructorIdentifier(statement.Parameters)
-		
+
 	if(varname != 0)
-	{	
+	{
 		// TODO - do real shadowing checks here
 		Variable var = 0, 0, 0, 0
 		FindVariableDataInSingleScope(scope, varname, var)
@@ -9316,7 +9308,7 @@ ConstructVariableFromStatement : Statement ref statement, Scope ref scope, integ
 		{
 			return()
 		}
-		
+
 		StoreVariableInSingleScope(scope, varname, vartype, false, origin)
 	}
 }
@@ -9533,7 +9525,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 	elseif(basenamehandle == PooledStringHandleForLessThan)
 	{
 		AddBinaryPossibility(possibilities, PooledStringHandleForLessThanInteger, 0x01000001, 0x01000001, 0x01000003)
-	}	
+	}
 	elseif(basenamehandle == PooledStringHandleForPlus)
 	{
 		AddBinaryPossibility(possibilities, PooledStringHandleForPlusInteger, 0x01000001, 0x01000001, 0x01000001)
@@ -9587,7 +9579,7 @@ EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer f
 	{
 		AddParameterTypesForOverloadImplementation(overloads.value.Implementation, overloads.value.MangledName, paramindex, paramcount, toplevel, types)
 	}
-	
+
 	EnumerateOverloadsAndAddParameterTypes(overloads.next, funcname, paramindex, paramcount, toplevel, types)
 }
 
@@ -9616,7 +9608,7 @@ InferFunctionParameterTypes : FunctionDefinition ref function, integer paraminde
 	{
 		TypeInference(function, DummyContextForFunctions)
 	}
-	
+
 	UnwrapParamsForTypeRetrieval(function.Params, paramindex, paramcount, types)
 }
 
@@ -9642,11 +9634,11 @@ UnwrapParamsForTypeRetrieval : nothing, integer paramindex, integer paramcount, 
 RetrieveParamType : list<UnresolvedParameter> ref params, integer paramindex, simplelist<integer> ref types
 {
 	if(paramindex == 0)
-	{	
+	{
 		simpleprepend<integer>(types, params.value.ResolvedType)
 		return()
 	}
-	
+
 	RetrieveParamType(params.next, paramindex - 1, types)
 }
 
@@ -10002,7 +9994,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
 			}
 		}
-	}	
+	}
 	elseif(funcname == PooledStringHandleForWriteBuffer)
 	{
 		if(paramcount == 3)
@@ -10115,7 +10107,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			{
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
 			}
-		}		
+		}
 	}
 	elseif(funcname == PooledStringHandleForCmdLineGetCount)
 	{
@@ -10296,16 +10288,16 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 {
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(scope, lhs.Handle, var)
-	
+
 	if(var.Name == 0)
 	{
 		print("Member access is bogus!")
 		assert(false)
 	}
-	
+
 	assert(var.VarType != 0)
 	integer lhstypename = GetNameOfType(var.VarType)
-	
+
 	integer rhstype = GetStructureMemberType(lhstypename, rhs.Handle)
 	assert(rhstype != 0)
 	integer rhstypename = GetNameOfType(rhstype)
@@ -10315,7 +10307,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 
 	list<RefBinding> bindings = rhsbinding, nothing
 	prepend<RefBinding>(bindings, lhsbinding)
-	
+
 	CompoundAtom compound = bindings, rhstype
 	ExpressionAtom wrap = compound
 	lhslist.value = wrap
@@ -10325,7 +10317,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, CompoundA
 {
 	assert(lhs.Type != 0)
 	integer typename = GetNameOfType(lhs.Type)
-	
+
 	RefBinding temp = rhs.Handle, typename, false, false
 	AppendBinding(lhs.Bindings, lhs.Bindings.next, temp)
 
@@ -10378,7 +10370,7 @@ GetPendingTypeMatcherReturnType : integer matchername, ContextWrapper<PendingTyp
 		rettype = InferFunctionReturnType(outcontext.Wrapped)
 		return()
 	}
-	
+
 	rettype = GetPendingPatternMatcherReturnType(PendingPatternMatchers, matchername)
 }
 
@@ -10391,7 +10383,7 @@ GetPendingPatternMatcherReturnType : list<PendingPatternMatcher> ref pending, in
 		rettype = GetFunctionReturnType(Functions, pending.value.OverloadName)
 		return()
 	}
-	
+
 	rettype = GetPendingPatternMatcherReturnType(pending.next, matchername)
 }
 
@@ -10406,7 +10398,7 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 		returntype = GetStructureByAnonConstructorName(Structures, builtinname)
 		return()
 	}
-	
+
 	if(builtinname == PooledStringHandleForNarrowString)
 	{
 		returntype = 0x02000001		// buffer type signature
@@ -10414,7 +10406,7 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(builtinname == PooledStringHandleForUnescape)
 	{
 		returntype = 0x02000000		// string type signature
-	}	
+	}
 	elseif(builtinname == PooledStringHandleForSubstringWithLength)
 	{
 		returntype = 0x02000000		// string type signature
@@ -10434,7 +10426,7 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(builtinname == PooledStringHandleForCastBooleanToInteger)
 	{
 		returntype = 0x01000001		// integer type signature
-	}	
+	}
 	elseif(builtinname == PooledStringHandleForCastInteger16ToInteger)
 	{
 		returntype = 0x01000001		// integer type signature
@@ -10522,7 +10514,7 @@ AnnotateTypeMatchedParamsFromConstructor : list<StructureMember> ref members, li
 			AddTypeAnnotation(paramexprs.value)
 		}
 	}
-	
+
 	listnode<StructureMember> nm = members.next
 	listnode<Expression> ne = paramexprs.next
 	AnnotateTypeMatchedParamsFromConstructor(nm, ne)
@@ -10583,7 +10575,7 @@ MakeParametersReferencesForTypeMatcher : integer matchername, ExpressionList ref
 	}
 	else
 	{
-		MakeParametersReferencesForConstructor(Structures, matchername, params)	
+		MakeParametersReferencesForConstructor(Structures, matchername, params)
 	}
 }
 
@@ -10653,7 +10645,7 @@ MakeParametersReferencesForStructureMembers : list<StructureMember> ref members,
 			print("WARNING: failed to bind reference")
 		}
 	}
-	
+
 	ret = MakeParametersReferencesForStructureMembers(members.next, params.next)
 }
 
@@ -10703,7 +10695,7 @@ WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref para
 	{
 		needref = true
 	}
-	
+
 	if(needref)
 	{
 		if(!MarkAtomAsReference(paramexprs.value.Atoms.value))
@@ -10746,7 +10738,7 @@ DumpOverloadList : list<InferencePossibility> ref possibilities
 	{
 		print(GetPooledString(GlobalStrings, possibilities.value.FunctionName))
 	}
-	
+
 	DumpOverloadList(possibilities.next)
 }
 
@@ -10759,9 +10751,9 @@ FilterOverloadsForTypeDemotion : list<InferencePossibility> ref in, list<Inferen
 	boolean hasdemoted = false
 	boolean hassuperior = false
 	boolean hasother = false
-	
+
 	CheckIfContainsOnlyDemotedOverloads(in, hasdemoted, hassuperior, hasother)
-	
+
 	if(hasdemoted && hassuperior && (!hasother))
 	{
 		StripDemotedOverloads(in, out)
@@ -10778,9 +10770,9 @@ FilterTypesForDemotion : simplelist<integer> ref in, simplelist<integer> ref out
 	boolean hasdemoted = false
 	boolean hassuperior = false
 	boolean hasother = false
-	
+
 	CheckIfContainsOnlyDemotedTypes(in, hasdemoted, hassuperior, hasother)
-	
+
 	if(hasdemoted && hassuperior && (!hasother))
 	{
 		StripDemotedTypes(in, out)
@@ -10788,7 +10780,7 @@ FilterTypesForDemotion : simplelist<integer> ref in, simplelist<integer> ref out
 	else
 	{
 		out = in
-	}	
+	}
 }
 
 
@@ -10812,7 +10804,7 @@ CheckIfContainsOnlyDemotedOverloads : list<InferencePossibility> ref in, boolean
 			hasother = true
 		}
 	}
-	
+
 	CheckIfContainsOnlyDemotedOverloads(in.next, hasdemoted, hassuperior, hasother)
 }
 
@@ -10828,7 +10820,7 @@ StripDemotedOverloads : list<InferencePossibility> ref in, list<InferencePossibi
 			prepend<InferencePossibility>(out, in.value)
 		}
 	}
-	
+
 	StripDemotedOverloads(in.next, out)
 }
 
@@ -10853,7 +10845,7 @@ CheckIfContainsOnlyDemotedTypes : simplelist<integer> ref in, boolean ref hasdem
 	{
 		hasother = true
 	}
-	
+
 	CheckIfContainsOnlyDemotedTypes(in.next, hasdemoted, hassuperior, hasother)
 }
 
@@ -10869,7 +10861,7 @@ StripDemotedTypes : simplelist<integer> ref in, simplelist<integer> ref out [nog
 			simpleprepend<integer>(out, in.value)
 		}
 	}
-	
+
 	StripDemotedTypes(in.next, out)
 }
 
@@ -10883,30 +10875,30 @@ InitBuiltInOverloads : [nogc]
 
 	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength, nothing
 	prepend<Overload>(AutoGenOverloads, substrnolen)
-	
+
 	Overload castrealtoint = PooledStringHandleForCast, PooledStringHandleForCastRealToInteger, nothing
 	prepend<Overload>(AutoGenOverloads, castrealtoint)
-	
+
 	Overload castinttostr = PooledStringHandleForCast, PooledStringHandleForCastIntegerToString, nothing
 	prepend<Overload>(AutoGenOverloads, castinttostr)
-	
+
 	Overload caststrtoint = PooledStringHandleForCast, PoolString("cast@@string_to_integer"), nothing
 	prepend<Overload>(AutoGenOverloads, caststrtoint)
 
 	Overload castrealtostr = PooledStringHandleForCast, PooledStringHandleForCastRealToString, nothing
 	prepend<Overload>(AutoGenOverloads, castrealtostr)
-	
+
 	Overload castbooltoint = PooledStringHandleForCast, PooledStringHandleForCastBooleanToInteger, nothing
 	prepend<Overload>(AutoGenOverloads, castbooltoint)
 
 	Overload castint16toint = PooledStringHandleForCast, PoolString("cast@@integer16_to_integer"), nothing
 	prepend<Overload>(AutoGenOverloads, castint16toint)
-	
+
 	Overload castinttoint16 = PooledStringHandleForCast, PoolString("cast@@integer_to_integer16"), nothing
-	prepend<Overload>(AutoGenOverloads, castinttoint16)	
+	prepend<Overload>(AutoGenOverloads, castinttoint16)
 
 	Overload caststrtoreal = PooledStringHandleForCast, PooledStringHandleForCastStringToReal, nothing
-	prepend<Overload>(AutoGenOverloads, caststrtoreal)	
+	prepend<Overload>(AutoGenOverloads, caststrtoreal)
 
 	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBuffer, nothing
 	prepend<Overload>(AutoGenOverloads, writebuffernormal)
@@ -10974,7 +10966,7 @@ stringcontains : string haystack, string needle -> boolean contains = false [nog
 {
 	integer needlelen = length(needle)
 	integer haystacklen = length(haystack)
-	
+
 	integer index = 0
 	while(index < (haystacklen - needlelen))
 	{
@@ -10983,7 +10975,7 @@ stringcontains : string haystack, string needle -> boolean contains = false [nog
 			contains = true
 			return()
 		}
-		
+
 		++index
 	}
 }
@@ -11041,7 +11033,7 @@ FindOrCreateFunctionSignatureType : FunctionSignature ref signature -> integer t
 		FunctionSignature newsig = signature
 		newsig.Name = (++GlobalFunctionTypeCounter)
 		prepend<FunctionSignature>(FunctionSignatures, newsig)
-		
+
 		typeid = newsig.Name
 	}
 }
@@ -11053,7 +11045,7 @@ FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, inte
 	{
 		OnCodeGenRegisterFunctionSig((++GlobalFunctionTypeCounter), returntypename)
 		OnCodeGenRegisterFunctionSigParamList(paramtypenames)
-		
+
 		typeid = GlobalFunctionTypeCounter
 	}
 }
@@ -11068,7 +11060,7 @@ FindFunctionSignatureType : list<FunctionSignature> ref signatures, simplelist<i
 			return()
 		}
 	}
-	
+
 	typeid = FindFunctionSignatureType(signatures.next, paramtypes, returntypename)
 }
 
@@ -11107,7 +11099,7 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 	{
 		simplelist<integer> paramtypes = 0, nothing
 		GetFunctionParameterTypes(functions.value.Params, paramtypes)
-		
+
 		integer rettypename = 0
 		integer rettype = InferFunctionReturnType(functions.value)
 		if(rettype != 0)
@@ -11131,9 +11123,9 @@ GetFunctionParameterTypes : FunctionParams ref params, simplelist<integer> ref o
 GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<integer> ref outtypenames
 {
 	GetFunctionParameterTypes(params.next, outtypenames)
-	
+
 	assert(params.value.ResolvedType != 0)
-	
+
 	simpleprepend<integer>(outtypenames, GetNameOfType(params.value.ResolvedType))
 }
 
@@ -11150,7 +11142,7 @@ FindMatchingSignature : list<FunctionSignature> ref signatures, FunctionSignatur
 			return()
 		}
 	}
-	
+
 	typeid = FindMatchingSignature(signatures.next, targetsig)
 }
 
@@ -11298,7 +11290,7 @@ EnsurePatternMatcherExists : list<PendingPatternMatcher> ref patternmatchers, in
 	{
 		return()
 	}
-	
+
 	EnsurePatternMatcherExists(patternmatchers.next, rawname, mangledname)
 }
 
@@ -11323,10 +11315,10 @@ CodeGenEmitPatternMatchers : list<PendingPatternMatcher> ref matchers
 		EmitOverloadsForPatternMatcher(PendingPatternMatchers, matchers.value.MatcherName, true)
 		EmitOverloadsForPatternMatcher(PendingPatternMatchers, matchers.value.MatcherName, false)
 		OnBytecodeExitPatternResolver()
-		
+
 		simpleprepend<integer>(EmittedPatternMatchers, matchers.value.MatcherName)
 	}
-	
+
 	CodeGenEmitPatternMatchers(matchers.next)
 }
 
@@ -11338,8 +11330,8 @@ EmitOverloadsForPatternMatcher : list<PendingPatternMatcher> ref matchers, integ
 	if(matchername == matchers.value.MatcherName)
 	{
 		// TODO - filter down to matchers that fit the most general function pattern
-		
-		EmitPatternMatchOverload(Functions, matchers.value.OverloadName, preferliterals)		
+
+		EmitPatternMatchOverload(Functions, matchers.value.OverloadName, preferliterals)
 	}
 
 	EmitOverloadsForPatternMatcher(matchers.next, matchername, preferliterals)
@@ -11464,7 +11456,7 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 	if(idtype != 0)
 	{
 		integer origintype = FigureOutCastOriginType(params.next)
-		
+
 		if((idtype == 0x01000001) && (origintype == 0x01000004))
 		{
 			overloadname = PooledStringHandleForCastRealToInteger
@@ -11476,7 +11468,7 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		elseif((idtype == 0x02000000) && (origintype == 0x01000004))
 		{
 			overloadname = PooledStringHandleForCastRealToString
-		}		
+		}
 		elseif((idtype == 0x01000001) && (origintype == 0x01000002))
 		{
 			overloadname = PooledStringHandleForCastInteger16ToInteger
@@ -11484,7 +11476,7 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		elseif((idtype == 0x01000002) && (origintype == 0x01000001))
 		{
 			overloadname = PooledStringHandleForCastIntegerToInteger16
-		}		
+		}
 		elseif((idtype == 0x01000001) && (origintype == 0x01000003))
 		{
 			overloadname = PooledStringHandleForCastBooleanToInteger
@@ -11616,7 +11608,7 @@ InstantiateTemplateFast : integer templatename, TemplateArgumentList ref args ->
 		instancename = existing
 		return()
 	}
-		
+
 	instancename = InstantiateFunctionTemplate(templatename, args)
 }
 
@@ -11627,7 +11619,7 @@ InstantiateFunctionTemplate : integer templatename, nothing -> templatename
 InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
 {
 	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, templatename, args.Args)
-	
+
 	ContextWrapper<FunctionDefinition> wrap = nothing
 	while(PopPendingFunctionForInference(wrap))
 	{
@@ -11646,7 +11638,7 @@ EnumerateOverloadsAndInstantiate : list<Overload> ref overloads, integer templat
 			FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, overloads.value.MangledName, args)
 		}
 	}
-	
+
 	EnumerateOverloadsAndInstantiate(overloads.next, templatename, args)
 }
 
@@ -11659,15 +11651,15 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 	{
 		string mangledname = MangleTemplateName(defname, args)
 		instancename = RegisterOverloadForFunction(mangledname, PoolString(mangledname))
-		
+
 		// TODO - validate that args suit the formal template parameters!
-		
+
 		string basenamemangled = MangleTemplateName(basename, args)
 		integer bnmh = PoolString(basenamemangled)
 		Overload overload = bnmh, instancename, nothing
 		prepend<Overload>(Overloads, overload)
 		FindFunctionAndAddOverload(overload)
-		
+
 		DoFunctionInstantiation(bnmh, defname, instancename, templates.value.Parameters, args)
 	}
 	else
@@ -11685,9 +11677,9 @@ FindStructureTemplateAndInstantiate : list<TemplateStructure> ref templates, int
 	{
 		string mangledname = MangleTemplateName(defname, args)
 		instancename = PoolString(mangledname)
-		
+
 		// TODO - validate that args suit the formal template parameters!
-		
+
 		DoStructureInstantiation(defname, instancename, templates.value.Parameters, args)
 	}
 	else
@@ -11707,7 +11699,7 @@ InstantiateSumType : integer defname, list<TemplateArgument> ref args -> integer
 		instancename = existing
 		return()
 	}
-	
+
 	instancename = FindSumTypeTemplateAndInstantiate(TemplateSumTypes, defname, args)
 }
 
@@ -11717,10 +11709,10 @@ FindSumTypeTemplateAndInstantiate : list<TemplateSumType> ref templates, integer
 	{
 		string mangledname = MangleTemplateName(defname, args)
 		instancename = PoolString(mangledname)
-		
+
 		// TODO - validate that args suit the formal template parameters!
 
-		DoSumTypeInstantiation(defname, instancename, templates.value.Parameters, args)		
+		DoSumTypeInstantiation(defname, instancename, templates.value.Parameters, args)
 	}
 	else
 	{
@@ -11755,13 +11747,13 @@ DoStructureInstantiation : integer defname, integer instancename, list<TemplateP
 StructInstInner : StructureDefinition ref templstruct, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	assert(templstruct.IsTemplate)
-	
+
 	++GlobalTemplateInstanceCounter
-	
+
 	list<StructureMember> members = dummymember, nothing
 	DoMemberListInstantiation(templstruct.Members, members, params, args)
 	PopMember(members, members.next)
-	
+
 	StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, templstruct.MemberCount, GetPooledString(GlobalStrings, instancename), false
 	prepend<StructureDefinition>(Structures, struct)
 	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, instancename, struct)
@@ -11787,12 +11779,12 @@ DoSumTypeInstantiation : integer defname, integer instancename, list<TemplatePar
 STInst : SumType ref templst, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	assert(templst.IsTemplate)
-	
+
 	++GlobalSumTypeCounter
-	
+
 	list<SumTypeBase> bases = dummybasetype, nothing
 	DoBaseTypeInstantiation(templst.Bases, bases, params, args)
-	
+
 	SumType st = instancename, GlobalSumTypeCounter, bases, false
 	prepend<SumType>(SumTypes, st)
 	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, instancename, st)
@@ -11811,7 +11803,7 @@ PopMember : list<StructureMember> ref members, list<StructureMember> ref tail [n
 
 DoMemberListInstantiation : list<StructureMember> ref members, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	DoMemberInstantiation(members.value, out, params, args)	
+	DoMemberInstantiation(members.value, out, params, args)
 	DoMemberListInstantiation(members.next, out, params, args)
 }
 
@@ -11820,9 +11812,9 @@ DoMemberListInstantiation : nothing, list<StructureMember> ref out, list<Templat
 DoMemberInstantiation : StructureMemberVariable ref memvar, list<StructureMember> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	if(memvar.Name != 0)
-	{	
+	{
 		integer newtype = MapTemplateType(memvar.TypeNameHandle, params, args)
-		
+
 		StructureMemberVariable newmemvar = memvar.Name, 0, newtype, scratchtemplatearglist
 		CopyTemplateArgs(memvar.TemplateArgs, newmemvar.TemplateArgs)
 		RemapAllTemplateArguments(newmemvar.TemplateArgs, params, args)
@@ -11841,7 +11833,7 @@ CopyTemplateArgs : nothing, TemplateArgumentList ref out [nogc]
 
 DoBaseTypeInstantiation : list<SumTypeBase> ref bases, list<SumTypeBase> ref out, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	InstantiateBaseType(bases.value, out, params, args)	
+	InstantiateBaseType(bases.value, out, params, args)
 	DoBaseTypeInstantiation(bases.next, out, params, args)
 }
 
@@ -11853,7 +11845,7 @@ InstantiateBaseType : SumTypeBase ref in, list<SumTypeBase> ref out, list<Templa
 	if(in.Name != 0)
 	{
 		integer newtype = MapTemplateType(in.Name, params, args)
-		
+
 		SumTypeBase newbase = newtype, scratchtemplatearglist
 		CopyTemplateArgs(in.TemplateArgs, newbase.TemplateArgs)
 		RemapAllTemplateArguments(newbase.TemplateArgs, params, args)
@@ -11873,7 +11865,7 @@ RemapAllTemplateArguments : list<TemplateArgument> ref toremap, list<TemplatePar
 		toremap.value.ReplaceWith = MapTemplateType(toremap.value.ReplaceWith, params, args)
 		toremap.value.ReplaceWithString = GetPooledString(GlobalStrings, toremap.value.ReplaceWith)
 	}
-	
+
 	RemapAllTemplateArguments(toremap.next, params, args)
 }
 
@@ -11885,7 +11877,7 @@ DoFunctionInstantiation : integer basenamemangled, integer defname, integer inst
 	ContextWrapper<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
 	assert(found)
-	
+
 	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args)
 	EnumerateOverloadsAndInstantiate(wrap.Wrapped, defname, args)
 }
@@ -11902,24 +11894,24 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 		print("Function is not template: " ; GetPooledString(GlobalStrings, defname))
 		assert(false)
 	}
-	
+
 	TemplateInstance inst = defname, instancename, args
 	prepend<TemplateInstance>(TemplateFunctionInstances, inst)
-	
+
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, basenamemangled), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
 	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, instancename, func)
-	
+
 	Overload selfoverload = instancename, instancename, func
 	prepend<Overload>(func.Overloads, selfoverload)
-	
+
 	AttachContextToOverload(func.Overloads, instancename, func)
 	AttachContextToOverload(Overloads, instancename, func)
-		
+
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
-	
+
 	DoParameterInstantiation(originalfunc.Params, params, args)
 	DoReturnInstantiation(originalfunc.Return, instancename, originalfunc.AnonymousReturn, params, args)
 
@@ -11931,9 +11923,9 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	OnCodeGenEnterFunctionBody(instancename)
 
 	DoCodeBlockInstantiation(originalfunc.Code, params, args)
-	
+
 	IRExitFunction()
-	
+
 	PushPendingFunctionForInference(func)
 }
 
@@ -11949,16 +11941,16 @@ DoParameterInstantiation : list<UnresolvedParameter> ref params, list<TemplatePa
 {
 	integer newtype = MapTemplateType(params.value.TypeNameHandle, templateparams, templateargs)
 	integer resolvedtype = params.value.ResolvedType
-	
+
 	if((resolvedtype & 0x7f000000) == 0x09000000)
 	{
 		resolvedtype = InstantiateFunctionSignature(FunctionSignatures, resolvedtype, templateparams, templateargs)
 		newtype = GetNameOfType(resolvedtype)
 	}
-	
+
 	UnresolvedParameter p = params.value.NameHandle, newtype, resolvedtype, params.value.HasRefTag, params.value.PatternMatchValue, nothing
 	PropagateTemplateArgsForParameter(p, params.value.TemplateArgs, templateparams, templateargs)
-	
+
 	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 
 	DoParameterInstantiation(params.next, templateparams, templateargs)
@@ -11971,7 +11963,7 @@ InstantiateFunctionSignature : list<FunctionSignature> ref sigs, integer targett
 		FunctionSignature clone = sigs.value
 		clone.ReturnTypeName = MapTemplateType(clone.ReturnTypeName, templateparams, templateargs)
 		RemapSignatureParamTypes(clone.Parameters, templateparams, templateargs)
-		
+
 		ret = FindOrCreateFunctionSignatureType(clone)
 	}
 	else
@@ -11982,7 +11974,7 @@ InstantiateFunctionSignature : list<FunctionSignature> ref sigs, integer targett
 
 RemapSignatureParamTypes : list<Parameter> ref parameters, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
-	parameters.value.Type = GetTypeByName(MapTemplateType(parameters.value.Type, templateparams, templateargs))	
+	parameters.value.Type = GetTypeByName(MapTemplateType(parameters.value.Type, templateparams, templateargs))
 	RemapSignatureParamTypes(parameters.next, templateparams, templateargs)
 }
 
@@ -12054,7 +12046,7 @@ InstantiateStructureTemplate : integer defname, list<TemplateArgument> ref args 
 		instancename = existing
 		return()
 	}
-	
+
 	instancename = FindStructureTemplateAndInstantiate(TemplateStructures, defname, args)
 }
 
@@ -12079,7 +12071,7 @@ FindExistingTemplateInstance : list<TemplateInstance> ref instances, integer def
 			return()
 		}
 	}
-	
+
 	instancename = FindExistingTemplateInstance(instances.next, defname, args)
 }
 
@@ -12141,7 +12133,7 @@ InstantiateSingleAtom : Statement ref atom, boolean inret, list<TemplateParamete
 	InstantiateStatement(statementname, inret, atom.TemplateArgs, templateparams, templateargs)
 
 	InstantiateExpressionList(atom.Parameters, false, templateparams, templateargs, 0)
-	
+
 	IRExitStatement()
 	IRExitStatement()
 }
@@ -12238,14 +12230,14 @@ InstantiateCodeBlockEntry : Statement ref s, list<TemplateParameter> ref templat
 {
 	InstantiateStatement(s.Name, true, s.TemplateArgs, templateparams, templateargs)
 	InstantiateExpressionList(s.Parameters, false, templateparams, templateargs, 0)
-	
+
 	IRExitStatement()
 }
 
 InstantiateCodeBlockEntry : Assignment ref a, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	// TODO - chained assignment support
-	
+
 	OnCodeGenEnterAssignment(a.Operator, a.LHSName, 0, 0)
 	InstantiateExpression(a.RHS, false, templateparams, templateargs)
 	OnCodeGenExitContext()
@@ -12254,7 +12246,7 @@ InstantiateCodeBlockEntry : Assignment ref a, list<TemplateParameter> ref templa
 InstantiateCodeBlockEntry : AssignmentCompound ref a, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	// TODO - chained assignment support
-	
+
 	OnCodeGenEnterAssignmentCompound(a.Operator, a.LHS.value, 0, 0)
 	InstantiateCompoundAssignmentLHS(a.LHS.next)
 	OnCodeGenAssignmentCompoundEnd()
@@ -12275,7 +12267,7 @@ InstantiateCompoundAssignmentLHS : nothing
 InstantiateCodeBlockEntry : EntityChain ref chain, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
 	OnCodeGenEnterChain()
-	InstantiateEntityChainEntries(chain.Entries, templateparams, templateargs)		
+	InstantiateEntityChainEntries(chain.Entries, templateparams, templateargs)
 	OnCodeGenExitContext()
 }
 
@@ -12292,7 +12284,7 @@ InstantiateEntityChainEntries : list<Entity> ref entities, list<TemplateParamete
 	DoCodeBlockInstantiation(entities.value.Code, templateparams, templateargs)
 	OnCodeGenExitContext()
 	OnCodeGenExitContext()
-	
+
 	InstantiateEntityChainEntries(entities.next, templateparams, templateargs)
 }
 
@@ -12315,7 +12307,7 @@ SetStructureToTemplate : StructureDefinition ref struct
 	struct.IsTemplate = true
 
 	CreateStructureTemplateAndAttachParams(struct.Name, TemplateParameterQueue)
-	
+
 	// Reset template parameter queue
 	list<TemplateParameter> dummylist = scratchtemplateparam, nothing
 	TemplateParameterQueue = dummylist
@@ -12324,9 +12316,9 @@ SetStructureToTemplate : StructureDefinition ref struct
 
 structure tailhack :
 	simplelistnode<string> tail
-	
 
-	
+
+
 PopPendingFunctionForInference : ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false
 {
 	hasnode = PopPendingFunctionForInferenceWorker(PendingInferenceFunctions, PendingInferenceFunctions.next, out)
@@ -12346,14 +12338,14 @@ PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, nothin
 {
 	assert(head.value.Name == 0)
 }
-	
+
 PushPendingFunctionForInference : FunctionDefinition ref func
 {
 	prepend<FunctionDefinition>(PendingInferenceFunctions, func)
 }
-	
-	
-	
+
+
+
 //
 // EXE generation stuff
 //
@@ -12381,29 +12373,29 @@ MakeExe : string filename
 
 	integer position = 0
 	position += WritePEHeader(filehandle, imagesize, resourcesize)
-	
+
 	position += WriteSectionHeader(filehandle, ".idata", 0x400, 0x1000, 0x344, 0x400, 0xc0000040)
 	position += WriteSectionHeader(filehandle, ".text", 0x800, 0x2000, 0x150, 0x200, 0x60000020)
 	position += WriteSectionHeader(filehandle, ".data", 0xa00, 0x3000, 0x29e, 0x400, 0x40000040)
 	position += WriteSectionHeader(filehandle, ".rsrc", 0xe00, 0x4000, 0x10, 0x10, 0x40000040)
 	position += WriteSectionHeader(filehandle, ".epoch", 0x1000, 0x5000, HackSize, HackSize, 0x40000040)
-	
+
 	print("Writing thunk table...")
 	position += WritePadding(filehandle, position, 0x400)
 	position += WriteThunkTable(filehandle)
 	position += WritePadding(filehandle, position, 0x600)
 	position += WriteThunkAddresses(filehandle)
-	
+
 	print("Writing bootstrap code...")
 	position += WritePadding(filehandle, position, 0x800)
 	position += WriteBootstrapCode(filehandle)
 
 	position += WritePadding(filehandle, position, 0xa00)
 	position += WriteStringTable(filehandle)
-	
+
 	position += WritePadding(filehandle, position, 0xe00)
 	// TODO - emit resources
-		
+
 	// Output the Epoch bytecode section
 	position += WritePadding(filehandle, position, 0x1000)
 	print("Writing Epoch code block...")
@@ -12411,7 +12403,7 @@ MakeExe : string filename
 	WriteFile(filehandle, Hack, HackSize, written, 0)
 
 	CloseHandle(filehandle)
-	
+
 	print("Compilation complete.")
 }
 
@@ -12420,13 +12412,13 @@ WriteStringTable : integer filehandle -> integer writtenbytes = 0
 {
 	buffer tablebuffer = 1024
 	integer tablesize = 0
-	
-	
+
+
 	EmitInteger(tablebuffer, tablesize, 0x63657845)
 	EmitInteger(tablebuffer, tablesize, 0x42657475)
 	EmitInteger(tablebuffer, tablesize, 0x43657479)
 	EmitInteger(tablebuffer, tablesize, 0x0065646f)
-	
+
 	EmitInteger(tablebuffer, tablesize, 0x00700065)
 	EmitInteger(tablebuffer, tablesize, 0x0063006f)
 	EmitInteger(tablebuffer, tablesize, 0x00720068)
@@ -12436,14 +12428,14 @@ WriteStringTable : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(tablebuffer, tablesize, 0x0064002e)
 	EmitInteger(tablebuffer, tablesize, 0x006c006c)
 	EmitInteger16(tablebuffer, tablesize, 0x0000)
-	
+
 	// TODO - embed error strings
-	
-	
+
+
 	integer written = 0
 	WriteFile(filehandle, tablebuffer, tablesize, written, 0)
-	
-	writtenbytes = tablesize	
+
+	writtenbytes = tablesize
 }
 
 
@@ -12451,8 +12443,8 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 {
 	buffer thunkbuffer = 1024
 	integer thunksize = 0
-	
-	
+
+
 	EmitInteger(thunkbuffer, thunksize, 0x000010bc)
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
@@ -12463,11 +12455,11 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
 	EmitInteger(thunkbuffer, thunksize, 0x000010b1)
 	EmitInteger(thunkbuffer, thunksize, 0x00001114)
-	
-	
+
+
 	integer written = 0
 	WriteFile(filehandle, thunkbuffer, thunksize, written, 0)
-	
+
 	writtenbytes = thunksize
 }
 
@@ -12476,7 +12468,7 @@ WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
 {
 	buffer codebuffer = 1024
 	integer codesize = 0
-	
+
 	EmitInteger(codebuffer, codesize, 0x81ec8b55)
 	EmitInteger(codebuffer, codesize, 0x000404ec)
 	EmitInteger(codebuffer, codesize, 0x10685600)
@@ -12536,7 +12528,7 @@ WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(codebuffer, codesize, 0xff560040)
 	EmitInteger(codebuffer, codesize, 0x40111415)
 	EmitInteger(codebuffer, codesize, 0x5fc03300)
-	
+
 	EmitByte(codebuffer, codesize, 0xeb)
 	EmitByte(codebuffer, codesize, 0xd1)
 	EmitByte(codebuffer, codesize, 0x68)
@@ -12547,7 +12539,7 @@ WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
 	EmitByte(codebuffer, codesize, 0x50)
 	EmitByte(codebuffer, codesize, 0xff)
 	EmitByte(codebuffer, codesize, 0x55)
-	
+
 	EmitInteger(codebuffer, codesize, 0x15ff57fc)
 	EmitInteger(codebuffer, codesize, 0x0040110c)
 	EmitInteger(codebuffer, codesize, 0xec15ff53)
@@ -12555,10 +12547,10 @@ WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(codebuffer, codesize, 0x10f815ff)
 	EmitInteger(codebuffer, codesize, 0x00000040)
 	EmitInteger(codebuffer, codesize, 0x00000000)
-	
+
 	integer written = 0
 	WriteFile(filehandle, codebuffer, codesize, written, 0)
-	
+
 	writtenbytes = codesize
 }
 
@@ -12567,7 +12559,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 {
 	buffer thunkbuffer = 1024
 	integer thunksize = 0
-	
+
 	// CloseHandle
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x43)
@@ -12582,7 +12574,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x65)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// CreateFileMappingW
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x43)
@@ -12604,7 +12596,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x67)
 	EmitByte(thunkbuffer, thunksize, 0x57)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// CreateFileW
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x43)
@@ -12619,7 +12611,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x65)
 	EmitByte(thunkbuffer, thunksize, 0x57)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// ExitProcess
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x45)
@@ -12634,7 +12626,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x73)
 	EmitByte(thunkbuffer, thunksize, 0x73)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// GetModuleFileNameW
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x47)
@@ -12674,7 +12666,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x73)
 	EmitByte(thunkbuffer, thunksize, 0x73)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// LoadLibraryW
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x4c)
@@ -12690,7 +12682,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x79)
 	EmitByte(thunkbuffer, thunksize, 0x57)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// MapViewOfFile
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x4d)
@@ -12707,7 +12699,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x65)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// UnmapViewOfFile
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x55)
@@ -12726,7 +12718,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x65)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// kernel32.dll
 	EmitByte(thunkbuffer, thunksize, 0x6b)
 	EmitByte(thunkbuffer, thunksize, 0x65)
@@ -12741,7 +12733,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// MessageBoxW
 	EmitInteger16(thunkbuffer, thunksize, 0)
 	EmitByte(thunkbuffer, thunksize, 0x4d)
@@ -12756,7 +12748,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x78)
 	EmitByte(thunkbuffer, thunksize, 0x57)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	// user32.dll
 	EmitByte(thunkbuffer, thunksize, 0x75)
 	EmitByte(thunkbuffer, thunksize, 0x73)
@@ -12769,7 +12761,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x6c)
 	EmitByte(thunkbuffer, thunksize, 0x00)
-	
+
 	EmitInteger(thunkbuffer, thunksize, 0x00001000)
 	EmitInteger(thunkbuffer, thunksize, 0x0000100e)
 	EmitInteger(thunkbuffer, thunksize, 0x00001023)
@@ -12780,10 +12772,10 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(thunkbuffer, thunksize, 0x00001074)
 	EmitInteger(thunkbuffer, thunksize, 0x00001084)
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	
+
 	EmitInteger(thunkbuffer, thunksize, 0x000010a3)
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	
+
 	// Yes, this appears twice.
 	EmitInteger(thunkbuffer, thunksize, 0x00001000)
 	EmitInteger(thunkbuffer, thunksize, 0x0000100e)
@@ -12795,13 +12787,13 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(thunkbuffer, thunksize, 0x00001074)
 	EmitInteger(thunkbuffer, thunksize, 0x00001084)
 	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	
+
 	EmitInteger(thunkbuffer, thunksize, 0x000010a3)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)	
-	
+	EmitInteger(thunkbuffer, thunksize, 0x00000000)
+
 	integer written = 0
 	WriteFile(filehandle, thunkbuffer, thunksize, written, 0)
-	
+
 	writtenbytes = thunksize
 }
 
@@ -12818,31 +12810,31 @@ WritePadding : integer filehandle, integer startpos, integer desiredpos -> integ
 WriteSectionHeader : integer filehandle, string sectionname, integer location, integer virtuallocation, integer sectionsize, integer sectionvirtualsize, integer flags -> integer writtenbytes = 0
 {
 	print("Writing header for section '" ; sectionname ; "'...")
-	
+
 	buffer headerbuffer = 256
 	integer headersize = 0
-	
+
 	// This is a pitiful hack.
-	
+
 	integer count = 0
 	assert(length(sectionname) < 8)
-	
+
 	while(count < length(sectionname))
 	{
 		string char = charat(sectionname, count)
 		EmitSubstring(headerbuffer, headersize, char, 1)
-		
+
 		++count
 	}
-	
+
 	while(count < 8)
 	{
 		EmitByte(headerbuffer, headersize, 0)
 		++count
 	}
-	
+
 	// End hack.
-  
+
 	EmitInteger(headerbuffer, headersize, sectionsize)
 	EmitInteger(headerbuffer, headersize, virtuallocation)
 	EmitInteger(headerbuffer, headersize, sectionvirtualsize)
@@ -12852,10 +12844,10 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 	EmitInteger16(headerbuffer, headersize, 0)
 	EmitInteger16(headerbuffer, headersize, 0)
 	EmitInteger(headerbuffer, headersize, flags)
-	
+
 	integer written = 0
 	WriteFile(filehandle, headerbuffer, headersize, written, 0)
-	
+
 	writtenbytes = headersize
 }
 
@@ -12863,7 +12855,7 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> integer writtenbytes = 0
 {
 	print("Writing PE headers...")
-	
+
 	buffer headerbuffer = 1024
 	integer headersize = 0
 
@@ -12882,7 +12874,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger16(headerbuffer, headersize, 0)		// e_cs
 	EmitInteger16(headerbuffer, headersize, 0x40)		// e_lfarlc
 	EmitInteger16(headerbuffer, headersize, 0)		// e_ovno
-	
+
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res[0]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res[1]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res[2]
@@ -12890,7 +12882,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 
 	EmitInteger16(headerbuffer, headersize, 0)		// e_oemid
 	EmitInteger16(headerbuffer, headersize, 0)		// e_oeminfo
-	
+
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[0]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[1]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[2]
@@ -12901,10 +12893,10 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[7]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[8]
 	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[9]
-	
+
 	EmitInteger(headerbuffer, headersize, 0xb0)		// e_lfanew
-	
-	
+
+
 	// Begin DOS stub
 	EmitByte(headerbuffer, headersize, 0x0e)
 	EmitByte(headerbuffer, headersize, 0x1f)
@@ -13015,10 +13007,10 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitByte(headerbuffer, headersize, 0x0d)
 	EmitByte(headerbuffer, headersize, 0x0a)
 	EmitByte(headerbuffer, headersize, 0x24)
-	
+
 	EmitPadding(headerbuffer, headersize, 0xb0)
-	
-	
+
+
 	// Begin NT headers
 	EmitInteger(headerbuffer, headersize, 0x00004550)
 	EmitInteger16(headerbuffer, headersize, 0x014c)			// Machine
@@ -13032,18 +13024,18 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger16(headerbuffer, headersize, 0x010b)			// Magic
 	EmitByte(headerbuffer, headersize, 0x02)			// MajorLinkerVersion
 	EmitByte(headerbuffer, headersize, 0x00)			// MinorLinkerVersion
-	
+
 	EmitInteger(headerbuffer, headersize, RoundUp(HackSize))			// SizeOfCode
 	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfInitializedData
 	EmitInteger(headerbuffer, headersize, 0)			// SizeOfUninitializedData
 	EmitInteger(headerbuffer, headersize, 0x2000)			// AddressOfEntryPoint
 	EmitInteger(headerbuffer, headersize, 0x800)			// BaseOfCode
 	EmitInteger(headerbuffer, headersize, 0x1000)			// BaseOfData
-	
+
 	EmitInteger(headerbuffer, headersize, 0x400000)			// ImageBase
 	EmitInteger(headerbuffer, headersize, 0x1000)			// SectionAlignment
 	EmitInteger(headerbuffer, headersize, 0x200)			// FileAlignment
-	
+
 	EmitInteger16(headerbuffer, headersize, 0x04)			// MajorOperatingSystemVersion
 	EmitInteger16(headerbuffer, headersize, 0x00)			// MinorOperatingSystemVersion
 	EmitInteger16(headerbuffer, headersize, 0)			// MajorImageVersion
@@ -13055,7 +13047,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger(headerbuffer, headersize, imagesize)		// SizeOfImage
 	EmitInteger(headerbuffer, headersize, 0x400)			// SizeOfHeaders
 	EmitInteger(headerbuffer, headersize, 0xf00d)			// Checksum
-	
+
 	EmitInteger16(headerbuffer, headersize, 3)			// Subsystem
 	EmitInteger16(headerbuffer, headersize, 0)			// DllCharacteristics
 
@@ -13065,10 +13057,10 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger(headerbuffer, headersize, 0x50000)			// SizeOfHeapCommit
 	EmitInteger(headerbuffer, headersize, 0)			// LoaderFlags
 	EmitInteger(headerbuffer, headersize, 0x10)			// NumberOfRvaAndSizes
-	
+
 	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 1
 	EmitInteger(headerbuffer, headersize, 0)			// Size
-	
+
 	EmitInteger(headerbuffer, headersize, 0x1200)			// RVA virtual address 2
 	EmitInteger(headerbuffer, headersize, 0x28)			// Size
 
@@ -13117,7 +13109,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 
 	integer written = 0
 	WriteFile(filehandle, headerbuffer, headersize, written, 0)
-	
+
 	writtenbytes = headersize
 }
 
@@ -13201,13 +13193,13 @@ global
 	buffer Hack = 8192000
 	integer HackSize = 0
 
-	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing	
+	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
 
 	Variable dummyvar = 0, 0, 0, 0
 	list<Variable> dummyvarlist = dummyvar, nothing
 	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
 	list<Scope> Scopes = dummyscope, nothing
-	
+
 	Overload dummyoverload = 0, 0, nothing
 	list<Overload> dummyoverloadlist = dummyoverload, nothing
 	list<Overload> Overloads = dummyoverload, nothing
@@ -13224,7 +13216,7 @@ global
 
 	BTPayloadWrap<SumType> stwewrap = dummysumtype
 	BinaryTree<SumType> SumTypesWhichExist = 0, stwewrap, nothing, nothing, -1
-	
+
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
 	list<StructureMember> dummymembers = dummymember, nothing
@@ -13290,7 +13282,7 @@ global
 
 	TypeAlias dummyalias = 0, 0, 0
 	list<TypeAlias> TypeAliases = dummyalias, nothing
-	
+
 	TypeAlias dummyweak = 0, 0, 0
 	list<TypeAlias> TypeWeakAliases = dummyweak, nothing
 
@@ -13306,14 +13298,14 @@ global
 	TypePossibilityList scratchparams = scratchpossibletypes, false
 	list<TypePossibilityList> scratchparampossibles = scratchparams, nothing
 	InferencePossibility scratchpossibility = 0, scratchparampossibles, scratchreturns
-	
+
 	PendingTypeMatcher dummypending = 0, 0, nothing
 	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing
-	
+
 	BTPayloadWrap<PendingTypeMatcher> tmwewrap = dummypending
 	BinaryTree<PendingTypeMatcher> TypeMatchersWhichExist = 0, tmwewrap, nothing, nothing, -1
 	BinaryTree<PendingTypeMatcher> TypeMatchersWhichExistByMatcherName = 0, tmwewrap, nothing, nothing, -1
-	
+
 	PendingPatternMatcher dummypatternpending = 0, 0, 0
 	list<PendingPatternMatcher> PendingPatternMatchers = dummypatternpending, nothing
 
@@ -13341,15 +13333,15 @@ global
 
 	TemplateStructure dummystructuretemplate = 0, dummytemplateparams
 	list<TemplateStructure> TemplateStructures = dummystructuretemplate, nothing
-	
+
 	TemplateSumType dummysumtypetemplate = 0, dummytemplateparams
 	list<TemplateSumType> TemplateSumTypes = dummysumtypetemplate, nothing
-	
+
 	simplelist<integer> dummycompound = 0, nothing
 	PreOpStatement PreOpOnDeck = 0, dummycompound, 0
 	PostOpStatement PostOpOnDeck = 0, dummycompound, 0
-	
-	
+
+
 	ContextWrapper<Scope> gcdscopewrap = nothing
 	ContextWrapper<FunctionDefinition> gcdfuncwrap = nothing
 	InferenceContext DummyContextForFunctions = 0, 0, dummycompound, false, 0, false, false, gcdscopewrap, gcdfuncwrap
@@ -13370,9 +13362,9 @@ global
 	integer GlobalSumTypeCounter = 0x07000000
 	integer GlobalTemplateInstanceCounter = 0x08000000
 	integer GlobalFunctionTypeCounter = 0x09000000
-	
+
 	integer GlobalNothingCounter = 0
-	
+
 	integer PooledStringHandleForBoolean = 0
 	integer PooledStringHandleForInteger = 0
 	integer PooledStringHandleForInteger16 = 0
@@ -13447,12 +13439,12 @@ global
 	integer PooledStringHandleForPlusInteger = 0
 	integer PooledStringHandleForPlusReal = 0
 	integer PooledStringHandleForSubchar = 0
-	
+
 	integer FirstNonBuiltInStringHandle = 0
-	
+
 	ContextWrapper<Scope> GlobalScope = nothing
 	ContextWrapper<Scope> EmittingScope = nothing
-	
+
 	integer CharacterCarriageReturn = subchar(unescape("\r"), 0)
 	integer CharacterLineFeed = subchar(unescape("\n"), 0)
 	integer CharacterTab = subchar(unescape("\t"), 0)
@@ -13495,15 +13487,14 @@ global
 	integer CharacterExclamation = subchar("!", 0)
 	integer CharacterOpenBracket = subchar("[", 0)
 	integer CharacterCloseBracket = subchar("]", 0)
-	
-	
+
 	list<FunctionDefinition> PendingInferenceFunctions = dummyfunc, nothing
-	
+
 	Trie GlobalStringTrie = 0, nothing, 0
-	
+
 	BTPayloadWrap<FunctionDefinition> fwewrap = dummyfunc
 	BinaryTree<FunctionDefinition> FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
-	
+
 	BTPayloadWrap<StructureDefinition> swewrap = dummystruct
 	BinaryTree<StructureDefinition> StructuresWhichExist = 0, swewrap, nothing, nothing, -1
 }
@@ -13533,7 +13524,7 @@ PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 		trie.Handle = handle
 		return()
 	}
-	
+
 	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), data, 1, handle)
 }
 
@@ -13544,7 +13535,7 @@ PlaceDataInTrieRecurse : Trie ref trie, string data, integer offset, integer han
 		trie.Handle = handle
 		return()
 	}
-	
+
 	PlaceDataInTrieChild(trie.Children, trie, subchar(data, offset), data, offset + 1, handle)
 }
 
@@ -13564,7 +13555,7 @@ PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string
 {
 	Trie newtrie = character, nothing, 0
 	PlaceDataInTrieRecurse(newtrie, alldata, offset, handle)
-	
+
 	list<Trie> newtrielist = newtrie, originaltrie.Children
 	originaltrie.Children = newtrielist
 }
@@ -13577,7 +13568,7 @@ FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
 		handle = trie.Handle
 		return()
 	}
-	
+
 	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), data, 1, length(data))
 }
 
@@ -13590,11 +13581,11 @@ FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, strin
 			handle = triechildren.value.Handle
 			return()
 		}
-		
+
 		handle = FindHandleInTrieChildren(triechildren.value.Children, subchar(alldata, offset), alldata, offset + 1, datalength)
 		return()
 	}
-	
+
 	handle = FindHandleInTrieChildren(triechildren.next, character, alldata, offset, datalength)
 }
 
@@ -13618,7 +13609,7 @@ structure BTPayloadWrap<type T> :
 
 structure BinaryTree<type T> :
 	integer Value,
-	BTPayloadWrap<T> Payload,	
+	BTPayloadWrap<T> Payload,
 	BinaryTreeNode<T> Left,
 	BinaryTreeNode<T> Right,
 	integer Height
@@ -13648,7 +13639,7 @@ InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payl
 	{
 		return()
 	}
-	
+
 	integer balance = ComputeBalance<T>(tree)
 	if(balance > 1)
 	{
@@ -13683,17 +13674,17 @@ RotateLL<type T> : BinaryTree<T> ref tree
 	BinaryTreeNode<T> temp = tree.Right
 	tree.Right = tree.Left
 	tree.Left = GetLeft<T>(tree.Right)
-	
+
 	BinaryTreeNode<T> newnode = GetRight<T>(tree.Right)
 	SetNodeLeft<T>(tree.Right, newnode)
 	SetNodeRight<T>(tree.Right, temp)
-	
+
 	integer tempvalue = tree.Value
 	tree.Value = GetNodeValue<T>(tree.Right)
 	SetNodeValue<T>(tree.Right, tempvalue)
-		
+
 	SwapNodePayload<T>(tree, tree.Right)
-	
+
 	SetHeight<T>(tree.Right, RecomputeTreeDepth<T>(tree.Right))
 	tree.Height = RecomputeTreeDepth<T>(tree)
 }
@@ -13719,17 +13710,17 @@ RotateRR<type T> : BinaryTree<T> ref tree
 	BinaryTreeNode<T> temp = tree.Left
 	tree.Left = tree.Right
 	tree.Right = GetRight<T>(tree.Left)
-	
+
 	BinaryTreeNode<T> newnode = GetLeft<T>(tree.Left)
 	SetNodeRight<T>(tree.Left, newnode)
 	SetNodeLeft<T>(tree.Left, temp)
-	
+
 	integer tempvalue = tree.Value
 	tree.Value = GetNodeValue<T>(tree.Left)
 	SetNodeValue<T>(tree.Left, tempvalue)
-		
+
 	SwapNodePayload<T>(tree, tree.Left)
-	
+
 	SetHeight<T>(tree.Left, RecomputeTreeDepth<T>(tree.Left))
 	tree.Height = RecomputeTreeDepth<T>(tree)
 }
@@ -13758,7 +13749,7 @@ ComputeBalance<type T> : BinaryTree<T> ref tree -> integer balance = 0
 {
 	integer leftdepth = TreeDepth<T>(tree.Left)
 	integer rightdepth = TreeDepth<T>(tree.Right)
-	
+
 	balance = leftdepth - rightdepth
 }
 
@@ -13769,7 +13760,7 @@ RecomputeTreeDepth<type T> : BinaryTree<T> ref tree -> integer depth = 1
 {
 	integer ldepth = TreeDepth<T>(tree.Left)
 	integer rdepth = TreeDepth<T>(tree.Right)
-	
+
 	if(ldepth > rdepth)
 	{
 		depth += ldepth
