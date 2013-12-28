@@ -13578,32 +13578,27 @@ FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
 		return()
 	}
 	
-	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), data, 1)
+	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), data, 1, length(data))
 }
 
-FindHandleInTrieRecurse : Trie ref trie, string data, integer offset -> integer handle = 0 [nogc]
-{
-	if(length(data) == offset)
-	{
-		handle = trie.Handle
-		return()
-	}
-	
-	handle = FindHandleInTrieChildren(trie.Children, subchar(data, offset), data, offset + 1)
-}
-
-FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string alldata, integer offset -> integer handle = 0 [nogc]
+FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string alldata, integer offset, integer datalength -> integer handle = 0 [nogc]
 {
 	if(triechildren.value.Character == character)
 	{
-		handle = FindHandleInTrieRecurse(triechildren.value, alldata, offset)
+		if(datalength == offset)
+		{
+			handle = triechildren.value.Handle
+			return()
+		}
+		
+		handle = FindHandleInTrieChildren(triechildren.value.Children, subchar(alldata, offset), alldata, offset + 1, datalength)
 		return()
 	}
 	
-	handle = FindHandleInTrieChildren(triechildren.next, character, alldata, offset)
+	handle = FindHandleInTrieChildren(triechildren.next, character, alldata, offset, datalength)
 }
 
-FindHandleInTrieChildren : nothing, integer character, string alldata, integer offset -> integer handle = 0 [nogc]
+FindHandleInTrieChildren : nothing, integer character, string alldata, integer offset, integer datalength -> integer handle = 0 [nogc]
 
 
 assertmsg : boolean check, string message
@@ -13789,59 +13784,43 @@ SetHeight<type T> : BinaryTree<T> ref tree, integer newheight
 
 SearchBinaryTree<type T> : BinaryTree<T> ref tree, integer target -> boolean found = false
 {
-	BinaryTreeNode<T> cur = tree
-	while(HasNode<T>(cur))
+	if(tree.Value == target)
 	{
-		integer curvalue = GetNodeValue<T>(cur)
-		if(curvalue == target)
-		{
-			found = true
-			return()
-		}
-		elseif(target < curvalue)
-		{
-			cur = GetLeft<T>(cur)
-		}
-		else
-		{
-			cur = GetRight<T>(cur)
-		}
+		found = true
+		return()
+	}
+	elseif(target < tree.Value)
+	{
+		found = SearchBinaryTree<T>(tree.Left, target)
+	}
+	else
+	{
+		found = SearchBinaryTree<T>(tree.Right, target)
 	}
 }
+
+SearchBinaryTree<type T> : nothing, integer target -> boolean found = false
 
 
 SearchBinaryTreeForPayload<type T> : BinaryTree<T> ref tree, integer target, ContextWrapper<T> ref out -> boolean found = false
 {
-	BinaryTreeNode<T> cur = tree
-	while(HasNode<T>(cur))
+	if(tree.Value == target)
 	{
-		integer curvalue = GetNodeValue<T>(cur)
-		if(curvalue == target)
-		{
-			LameHack<T>(out, cur)		// TODO - this is some kind of miscompile
-			found = true
-			return()
-		}
-		elseif(target < curvalue)
-		{
-			cur = GetLeft<T>(cur)
-		}
-		else
-		{
-			cur = GetRight<T>(cur)
-		}
+		found = true
+		out.Wrapped = tree.Payload.Payload
+		return()
+	}
+	elseif(target < tree.Value)
+	{
+		found = SearchBinaryTreeForPayload<T>(tree.Left, target, out)
+	}
+	else
+	{
+		found = SearchBinaryTreeForPayload<T>(tree.Right, target, out)
 	}
 }
 
-LameHack<type T> : ContextWrapper<T> ref out, BinaryTree<T> ref tree
-{
-	LameHack<T>(out, tree.Payload.Payload)
-}
-
-LameHack<type T> : ContextWrapper<T> ref out, T ref p
-{
-	out.Wrapped = p
-}
+SearchBinaryTreeForPayload<type T> : nothing, integer target, ContextWrapper<T> ref out -> boolean found = false
 
 GetNodeValue<type T> : BinaryTree<T> ref node -> integer ret = node.Value
 
