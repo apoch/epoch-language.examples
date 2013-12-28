@@ -7795,15 +7795,12 @@ GenerateTypeMatcherMappings : nothing
 
 AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer rawname, integer paramcount -> boolean ret = false
 {
-	if(overloads.value.NormalName == rawname)
+	if(GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName) == paramcount)
 	{
-		if(GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName) == paramcount)
+		if(SearchBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExist, overloads.value.MangledName))
 		{
-			if(AnyPendingTypeMatcherPointsToFunction(overloads.value.MangledName))
-			{
-				ret = true
-				return()
-			}
+			ret = true
+			return()
 		}
 	}
 
@@ -7811,13 +7808,6 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 }
 
 AnyPendingTypeMatcherPointsToAnyOverload : nothing, integer rawname, integer paramcount -> boolean ret = false
-
-
-AnyPendingTypeMatcherPointsToFunction : integer mangledname -> boolean ret = false
-{
-	ContextWrapper<PendingTypeMatcher> wrap = nothing
-	ret = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExist, mangledname, wrap)
-}
 
 
 
