@@ -3680,7 +3680,12 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	if(funcname != rawfuncname)
 	{
 		AttachContextToOverload(Overloads, funcname, func)
-		AttachContextToFunction(Functions, rawfuncname, funcname, func)
+		
+		ContextWrapper<FunctionDefinition> wrap = nothing
+		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
+		{
+			AttachContextToFunction(wrap.Wrapped, funcname, func)
+		}
 	}
 	
 	Overload selfoverload = rawfuncname, funcname, func
@@ -3700,16 +3705,9 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 }
 
 
-AttachContextToFunction : list<FunctionDefinition> ref functions, integer rawfuncname, integer mangledfuncname, FunctionDefinition ref func
+AttachContextToFunction : FunctionDefinition ref funcraw, integer mangledfuncname, FunctionDefinition ref func
 {
-	if(functions.value.Name == rawfuncname)
-	{
-		AttachContextToOverload(functions.value.Overloads, mangledfuncname, func)
-	}
-	else
-	{
-		AttachContextToFunction(functions.next, rawfuncname, mangledfuncname, func)
-	}
+	AttachContextToOverload(funcraw.Overloads, mangledfuncname, func)
 }
 
 
@@ -7515,7 +7513,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 			else
 			{
-				statement.Type = GetPendingTypeMatcherReturnType(PendingTypeMatchers, statement.Name, contextmatch)
+				statement.Type = GetPendingTypeMatcherReturnType(statement.Name, contextmatch)
 			}
 		}
 		
@@ -9689,6 +9687,8 @@ RetrieveParamType : nothing, integer paramindex, simplelist<integer> ref types
 }
 
 
+InferFunctionReturnType : PendingTypeMatcher ref pending -> integer rettype = InferFunctionReturnType(pending.OverloadImplementation)
+
 InferFunctionReturnType : FunctionDefinition ref func -> integer rettype = 0
 {
 	if(!func.InferenceDone)
@@ -9715,7 +9715,7 @@ GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname
 GetFunctionReturnType : nothing, integer funcname -> integer rettype = 0
 {
 	ContextWrapper<PendingTypeMatcher> ignored = nothing
-	rettype = GetPendingTypeMatcherReturnType(PendingTypeMatchers, funcname, ignored)
+	rettype = GetPendingTypeMatcherReturnType(funcname, ignored)
 }
 
 
@@ -10381,23 +10381,22 @@ FindOrCreateTypeMatcher : integer rawname, integer overloadnamehandle, FunctionD
 		string matchername = func.RawNameString ; "@@typematcher"
 		matcherhandle = PoolString(matchername)
 
-		EnsureMatcherIsPending(PendingTypeMatchers, overloadnamehandle, matcherhandle, func)
+		EnsureMatcherIsPending(overloadnamehandle, matcherhandle, func)
 	}
 }
 
-EnsureMatcherIsPending : list<PendingTypeMatcher> ref pending, integer overloadname, integer matcher, FunctionDefinition ref func [nogc]
+EnsureMatcherIsPending : integer overloadname, integer matcher, FunctionDefinition ref func [nogc]
 {
-	if(pending.value.OverloadName != overloadname)
+	boolean found = SearchBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExist, overloadname)
+	if(found)
 	{
-		EnsureMatcherIsPending(pending.next, overloadname, matcher, func)
+		return()
 	}
-}
 
-EnsureMatcherIsPending : nothing, integer overloadname, integer matcher, FunctionDefinition ref func [nogc]
-{
 	PendingTypeMatcher m = overloadname, matcher, func
 	prepend<PendingTypeMatcher>(PendingTypeMatchers, m)
 	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExist, overloadname, m)
+	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matcher, m)
 }
 
 IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername -> boolean exists = false [nogc]
@@ -10414,22 +10413,18 @@ IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername
 
 IsPendingTypeMatcher : nothing, integer matchername -> false [nogc]
 
-
-GetPendingTypeMatcherReturnType : list<PendingTypeMatcher> ref pending, integer matchername, ContextWrapper<PendingTypeMatcher> ref outcontext -> integer rettype = 0
+GetPendingTypeMatcherReturnType : integer matchername, ContextWrapper<PendingTypeMatcher> ref outcontext -> integer rettype = 0
 {
-	if(pending.value.MatcherName == matchername)
+	boolean found = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matchername, outcontext)
+	if(found)
 	{
 		// TODO - ensure all overloads return the same type or this might get ugly!
-		rettype = InferFunctionReturnType(pending.value.OverloadImplementation)
-		outcontext.Wrapped = pending.value
+		rettype = InferFunctionReturnType(outcontext.Wrapped)
 		return()
 	}
 	
-	rettype = GetPendingTypeMatcherReturnType(pending.next, matchername, outcontext)
+	rettype = GetPendingPatternMatcherReturnType(PendingPatternMatchers, matchername)
 }
-
-GetPendingTypeMatcherReturnType : nothing, integer matchername, ContextWrapper<PendingTypeMatcher> ref outcontext -> integer typeid = GetPendingPatternMatcherReturnType(PendingPatternMatchers, matchername)
-
 
 
 GetPendingPatternMatcherReturnType : list<PendingPatternMatcher> ref pending, integer matchername -> integer rettype = 0
@@ -13313,6 +13308,7 @@ global
 	
 	BTPayloadWrap<PendingTypeMatcher> tmwewrap = dummypending
 	BinaryTree<PendingTypeMatcher> TypeMatchersWhichExist = 0, tmwewrap, nothing, nothing, -1
+	BinaryTree<PendingTypeMatcher> TypeMatchersWhichExistByMatcherName = 0, tmwewrap, nothing, nothing, -1
 	
 	PendingPatternMatcher dummypatternpending = 0, 0, 0
 	list<PendingPatternMatcher> PendingPatternMatchers = dummypatternpending, nothing
