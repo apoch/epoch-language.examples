@@ -3506,6 +3506,7 @@ FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer
 	list<SumTypeBase> bases = base, nothing
 	SumType st = sumtypename, sumtypeid, bases, false
 	prepend<SumType>(SumTypes, st)
+	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, sumtypename, st)
 }
 
 
@@ -5592,21 +5593,7 @@ CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases [nogc]
 CodeGenEmitSumTypeBase : nothing [nogc]
 
 
-SumTypeExists : integer typename -> boolean exists = SumTypeExists(SumTypes, typename) [nogc]
-
-SumTypeExists : list<SumType> ref sumtypes, integer typename -> boolean exists = false [nogc]
-{
-	if(sumtypes.value.Name == typename)
-	{
-		exists = true
-	}
-	else
-	{
-		exists = SumTypeExists(sumtypes.next, typename)
-	}
-}
-
-SumTypeExists : nothing, integer typename -> boolean exists = false [nogc]
+SumTypeExists : integer typename -> boolean exists = SearchBinaryTree<SumType>(SumTypesWhichExist, typename) [nogc]
 
 
 FindSumTypeName : integer typeid -> integer name = FindSumTypeName(SumTypes, typeid) [nogc]
@@ -6337,7 +6324,7 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 			return()
 		}
 		
-		integer sumtype = FindSumTypeByName(SumTypes, name)
+		integer sumtype = FindSumTypeByName(name)
 		if(sumtype != 0)
 		{			
 			typeid = sumtype
@@ -6354,18 +6341,16 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 }
 
 
-FindSumTypeByName : list<SumType> ref sumtypes, integer name -> integer typeid = 0 [nogc]
+FindSumTypeByName : integer name -> integer typeid = 0 [nogc]
 {
-	if((sumtypes.value.Type != 0) && (sumtypes.value.Name == name))
+	ContextWrapper<SumType> wrap = nothing
+	if(SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, name, wrap))
 	{
-		typeid = sumtypes.value.Type
-		return()
+		typeid = GrabSumTypeID(wrap.Wrapped)
 	}
-	
-	typeid = FindSumTypeByName(sumtypes.next, name)
 }
 
-FindSumTypeByName : nothing, integer name -> 0 [nogc]
+GrabSumTypeID : SumType ref st -> integer typeid = st.Type
 
 
 UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0 [nogc]
@@ -7369,7 +7354,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	statement.InferenceDone = true
 
 	integer originalname = statement.Name
-	statement.Name = InstantiateFunctionTemplate(statement.Name, statement.TemplateArgs)
+	statement.Name = InstantiateTemplateFast(statement.Name, statement.TemplateArgs)
 
 	integer paramcount = CountExpressions(statement.Parameters)
 
@@ -10518,7 +10503,7 @@ FindConstructorAndAnnotateTypeMatchedParams : list<StructureDefinition> ref stru
 
 FindConstructorAndAnnotateTypeMatchedParams : nothing, integer funcname, list<Expression> ref paramexprs
 {
-	if(FindSumTypeByName(SumTypes, funcname) != 0)
+	if(SumTypeExists(funcname))
 	{
 		AnnotateNonReferenceParameters(paramexprs.next)
 	}
@@ -11612,10 +11597,9 @@ AppendTemplateArgumentRecurse : list<TemplateArgument> ref thelist, list<Templat
 }
 
 
+InstantiateTemplateFast : integer templatename, nothing -> templatename
 
-InstantiateFunctionTemplate : integer templatename, nothing -> templatename
-
-InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
+InstantiateTemplateFast : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
 {
 	integer existing = FindExistingTemplateInstance(TemplateFunctionInstances, templatename, args.Args)
 	if(existing != 0)
@@ -11623,7 +11607,23 @@ InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref arg
 		instancename = existing
 		return()
 	}
-	
+
+	existing = FindExistingTemplateInstance(TemplateStructureInstances, templatename, args.Args)
+	if(existing != 0)
+	{
+		instancename = existing
+		return()
+	}
+		
+	instancename = InstantiateFunctionTemplate(templatename, args)
+}
+
+
+
+InstantiateFunctionTemplate : integer templatename, nothing -> templatename
+
+InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref args -> integer instancename = templatename
+{
 	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, templatename, args.Args)
 	
 	ContextWrapper<FunctionDefinition> wrap = nothing
@@ -11674,6 +11674,8 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 	}
 }
 
+FindFunctionTemplateAndInstantiate : nothing, integer basename, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplateFast(defname, args)
+
 
 FindStructureTemplateAndInstantiate : list<TemplateStructure> ref templates, integer defname, list<TemplateArgument> ref args -> integer instancename = 0
 {
@@ -11716,7 +11718,7 @@ FindSumTypeTemplateAndInstantiate : list<TemplateSumType> ref templates, integer
 		
 		// TODO - validate that args suit the formal template parameters!
 
-		DoSumTypeInstantiation(SumTypes, defname, instancename, templates.value.Parameters, args)		
+		DoSumTypeInstantiation(defname, instancename, templates.value.Parameters, args)		
 	}
 	else
 	{
@@ -11769,30 +11771,36 @@ StructInstInner : StructureDefinition ref templstruct, integer defname, integer 
 }
 
 
-DoSumTypeInstantiation : list<SumType> ref sumtypes, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+DoSumTypeInstantiation : integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	if(sumtypes.value.Name == defname)
-	{
-		assert(sumtypes.value.IsTemplate)
-		
-		++GlobalSumTypeCounter
-		
-		list<SumTypeBase> bases = dummybasetype, nothing
-		DoBaseTypeInstantiation(sumtypes.value.Bases, bases, params, args)
-		
-		SumType st = instancename, GlobalSumTypeCounter, bases, false
-		prepend<SumType>(SumTypes, st)
+	ContextWrapper<SumType> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, defname, wrap)
 
-		TemplateInstance instance = defname, instancename, args
-		prepend<TemplateInstance>(TemplateSumTypeInstances, instance)
-
-		ResolveSumTypeBases(SumTypes.value.Bases)
-	}
-	else
+	if(found)
 	{
-		DoSumTypeInstantiation(sumtypes.next, defname, instancename, params, args)
+		STInst(wrap.Wrapped, instancename, params, args)
 	}
 }
+
+STInst : SumType ref templst, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+{
+	assert(templst.IsTemplate)
+	
+	++GlobalSumTypeCounter
+	
+	list<SumTypeBase> bases = dummybasetype, nothing
+	DoBaseTypeInstantiation(templst.Bases, bases, params, args)
+	
+	SumType st = instancename, GlobalSumTypeCounter, bases, false
+	prepend<SumType>(SumTypes, st)
+	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, instancename, st)
+
+	TemplateInstance instance = templst.Name, instancename, args
+	prepend<TemplateInstance>(TemplateSumTypeInstances, instance)
+
+	ResolveSumTypeBases(SumTypes.value.Bases)
+}
+
 
 PopMember : list<StructureMember> ref members, list<StructureMember> ref tail [nogc]
 {
@@ -12032,9 +12040,6 @@ MangleTemplateArguments : list<TemplateArgument> ref args -> string mangled = ar
 MangleTemplateArguments : nothing -> "" [nogc]
 
 
-FindFunctionTemplateAndInstantiate : nothing, integer basename, integer defname, list<TemplateArgument> ref args -> integer instancename = InstantiateStructureTemplate(defname, args)
-
-
 InstantiateStructureTemplate : integer defname, TemplateArgumentList ref args -> integer instancename = InstantiateStructureTemplate(defname, args.Args)
 
 InstantiateStructureTemplate : integer defname, nothing -> integer instancename = 0
@@ -12048,6 +12053,16 @@ InstantiateStructureTemplate : integer defname, list<TemplateArgument> ref args 
 		return()
 	}
 	
+	instancename = FindStructureTemplateAndInstantiate(TemplateStructures, defname, args)
+}
+
+
+InstantiateStructureTemplateFast : integer defname, TemplateArgumentList ref args -> integer instancename = InstantiateStructureTemplateFast(defname, args.Args)
+
+InstantiateStructureTemplateFast : integer defname, nothing -> integer instancename = 0
+
+InstantiateStructureTemplateFast : integer defname, list<TemplateArgument> ref args -> integer instancename = 0
+{
 	instancename = FindStructureTemplateAndInstantiate(TemplateStructures, defname, args)
 }
 
@@ -13205,7 +13220,8 @@ global
 	SumType dummysumtype = 0, 0, dummybases, false
 	list<SumType> SumTypes = dummysumtype, nothing
 
-	
+	BTPayloadWrap<SumType> stwewrap = dummysumtype
+	BinaryTree<SumType> SumTypesWhichExist = 0, stwewrap, nothing, nothing, -1
 	
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
