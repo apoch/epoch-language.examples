@@ -5843,34 +5843,17 @@ FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref o
 
 FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variable ref outvar -> boolean found = false [nogc]
 {
-	listnode<Variable> node = vars
-	while(HasVariableNode(node))
+	if(vars.value.Name == varname)
 	{
-		if(NodeHasName(node, varname))
-		{
-			StashVariableNode(node, outvar)
-			found = true
-			return()
-		}
-		
-		node = NextVariableNode(node)
+		outvar = vars.value
+		found = true
+		return()
 	}
+	
+	found = FindVariableDataInSingleScope(vars.next, varname, outvar)
 }
 
 FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar -> boolean found = false [nogc]
-
-
-HasVariableNode : list<Variable> ref nodes -> true [nogc]
-HasVariableNode : nothing -> false [nogc]
-
-NodeHasName : list<Variable> ref nodes, integer varname -> boolean match = (nodes.value.Name == varname) [nogc]
-
-StashVariableNode : list<Variable> ref nodes, Variable ref outvar [nogc]
-{
-	outvar = nodes.value
-}
-
-NextVariableNode : list<Variable> ref nodes -> listnode<Variable> ret = nodes.next [nogc]
 
 
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
@@ -13201,7 +13184,7 @@ global
 	buffer Hack = 8192000
 	integer HackSize = 0
 
-	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
+	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing	
 
 	Variable dummyvar = 0, 0, 0, 0
 	list<Variable> dummyvarlist = dummyvar, nothing
@@ -13222,6 +13205,8 @@ global
 	SumType dummysumtype = 0, 0, dummybases, false
 	list<SumType> SumTypes = dummysumtype, nothing
 
+	
+	
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
 	list<StructureMember> dummymembers = dummymember, nothing
