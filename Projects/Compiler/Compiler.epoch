@@ -952,7 +952,6 @@ Classify : integer c, integer currentclass -> integer class = CHARACTER_CLASS_ID
 			class = CHARACTER_CLASS_IDENTIFIER
 		}
 	}
-
 	elseif(c == CharacterOpenBrace)
 	{
 		class = CHARACTER_CLASS_PUNCTUATION
@@ -4811,7 +4810,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(EmittingScope.Wrapped, s.Name, var)
-	if((var.Name != 0) && ((var.VarType & 0xff000000) == 0x09000000))
+	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
 	{
 		OnBytecodeInvokeIndirect(s.Name)
 	}
@@ -7361,43 +7360,59 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 	}
 
-	Variable var = 0, 0, 0, 0
-	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Name, var)
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel, false, context.ScopeRef, context.FuncRef
 
-	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
+	if(!TypeInference(statement.Parameters, newcontext))
 	{
-		// TODO - type checking on higher order functions
+		success = false
+		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+	}
 
-		statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
+
+	ContextWrapper<FunctionDefinition> contextfunc = nothing
+	ContextWrapper<PendingTypeMatcher> contextmatch = nothing
+	boolean isuserfunc = false
+
+
+	if(statement.Name == PooledStringHandleForCast)
+	{
+		statement.Name = GetCastOverload(statement.Parameters)
+
+		if(statement.Name == 0)
+		{
+			success = false
+			print("Invalid cast()")
+		}
 	}
 	else
 	{
-		InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel, false, context.ScopeRef, context.FuncRef
-
-		if(!TypeInference(statement.Parameters, newcontext))
+		if(IsRecognizedBuiltIn(statement.Name))
 		{
-			success = false
-			print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-		}
-
-
-		ContextWrapper<FunctionDefinition> contextfunc = nothing
-		ContextWrapper<PendingTypeMatcher> contextmatch = nothing
-		boolean isuserfunc = false
-
-
-		if(statement.Name == PooledStringHandleForCast)
-		{
-			statement.Name = GetCastOverload(statement.Parameters)
-
-			if(statement.Name == 0)
-			{
-				success = false
-				print("Invalid cast()")
-			}
+			isuserfunc = false
 		}
 		else
 		{
+			isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
+		}
+
+		simplelist<integer> paramtypes = 0, nothing
+		AccumulateParameterTypes(paramtypes, statement.Parameters)
+
+		integer overloadname = 0
+
+		if(isuserfunc)
+		{
+			overloadname = FindOverloadWithParameterTypesFast(contextfunc.Wrapped, statement.Name, paramtypes)
+		}
+		else
+		{
+			overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
+		}
+
+		if(overloadname != 0)
+		{
+			statement.Name = overloadname
+
 			if(IsRecognizedBuiltIn(statement.Name))
 			{
 				isuserfunc = false
@@ -7406,81 +7421,64 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
 			}
-
-			simplelist<integer> paramtypes = 0, nothing
-			AccumulateParameterTypes(paramtypes, statement.Parameters)
-
-			integer overloadname = 0
-
-			if(isuserfunc)
-			{
-				overloadname = FindOverloadWithParameterTypesFast(contextfunc.Wrapped, statement.Name, paramtypes)
-			}
-			else
-			{
-				overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
-			}
-
-			if(overloadname != 0)
-			{
-				statement.Name = overloadname
-
-				if(IsRecognizedBuiltIn(statement.Name))
-				{
-					isuserfunc = false
-				}
-				else
-				{
-					isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
-				}
-			}
-			else
-			{
-				success = false
-				print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
-			}
-		}
-
-		if(context.FunctionReturn)
-		{
-			statement.Type = vartype
 		}
 		else
 		{
-			if(isuserfunc)
-			{
-				statement.Type = InferFunctionReturnType(contextfunc.Wrapped)
-			}
-			else
-			{
-				statement.Type = GetPendingTypeMatcherReturnType(statement.Name, contextmatch)
-			}
-		}
+			Variable var = 0, 0, 0, 0
+			FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Name, var)
 
+			if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
+			{
+				// TODO - type checking on higher order functions
+
+				statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
+				return()
+			}		
+		
+			success = false
+			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+		}
+	}
+
+	if(context.FunctionReturn)
+	{
+		statement.Type = vartype
+	}
+	else
+	{
 		if(isuserfunc)
 		{
-			WalkFunctionParamsAndSetReferencesShim(contextfunc.Wrapped, statement.Parameters)
+			statement.Type = InferFunctionReturnType(contextfunc.Wrapped)
 		}
 		else
 		{
-			MakeParametersReferencesForTypeMatcher(statement.Name, statement.Parameters)
+			statement.Type = GetPendingTypeMatcherReturnType(statement.Name, contextmatch)
 		}
+	}
 
-		if(vartype != 0)
+	if(isuserfunc)
+	{
+		WalkFunctionParamsAndSetReferencesShim(contextfunc.Wrapped, statement.Parameters)
+	}
+	else
+	{
+		MakeParametersReferencesForTypeMatcher(statement.Name, statement.Parameters)
+	}
+
+	if(vartype != 0)
+	{
+		if(isuserfunc)
 		{
-			if(isuserfunc)
-			{
-				AnnotateTypeMatchedParamsForWrapper(contextfunc.Wrapped, statement.Parameters)
-			}
-			else
-			{
-				FindConstructorAndAnnotateTypeMatchedParams(Structures, statement.Name, statement.Parameters)
-			}
+			AnnotateTypeMatchedParamsForWrapper(contextfunc.Wrapped, statement.Parameters)
 		}
-		elseif(ContextHasTypeMatcher(contextmatch.Wrapped))
+		else
 		{
-			AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
+			FindConstructorAndAnnotateTypeMatchedParams(Structures, statement.Name, statement.Parameters)
 		}
+	}
+	elseif(ContextHasTypeMatcher(contextmatch.Wrapped))
+	{
+		AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
 	}
 }
 
