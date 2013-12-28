@@ -5071,7 +5071,7 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref 
 
 ComputeCompoundAssignmentLHSTypeMembers : simplelist<integer> ref lhsmembers, integer structurename -> integer typeid = 0
 {
-	integer membertype = GetStructureMemberType(Structures, structurename, lhsmembers.value)
+	integer membertype = GetStructureMemberType(structurename, lhsmembers.value)
 	assertmsg(membertype != 0, "Member in compound assignment has no type!")
 	typeid = ComputeCompoundAssignmentLHSTypeMembers(lhsmembers.next, GetNameOfType(membertype))
 }
@@ -5430,23 +5430,23 @@ GetStructureMemberTypeAndOffset : integer structurename, integer membername, int
 	GetMemberTypeAndOffset(wrap.Wrapped, membername, memtype, memoffset)
 }
 
-GetStructureMemberType : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer rtype = 0
+GetStructureMemberType : integer structurename, integer membername -> integer rtype = 0
 {
-	if(structures.value.Name == structurename)
+	ContextWrapper<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	if(found)
 	{
-		rtype = GetMemberType(structures.value.Members, membername)
+		rtype = GetMemberType(wrap.Wrapped, membername)
 	}
 	else
 	{
-		rtype = GetStructureMemberType(structures.next, structurename, membername)
+		print("Bogus structure")
+		assert(false)
 	}
 }
 
-GetStructureMemberType : nothing, integer structurename, integer membername -> integer rtype = 0
-{
-	print("Bogus structure!")
-	assert(false)
-}
+
+GetMemberType : StructureDefinition ref struct, integer membername -> integer ty = GetMemberType(struct.Members, membername)
 
 
 GetMemberType : list<StructureMember> ref members, integer membername -> integer rtype = 0
@@ -7523,7 +7523,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
-			MakeParametersReferencesForTypeMatcher(PendingTypeMatchers, statement.Name, statement.Parameters)
+			MakeParametersReferencesForTypeMatcher(statement.Name, statement.Parameters)
 		}
 
 		if(vartype != 0)
@@ -10336,7 +10336,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	assert(var.VarType != 0)
 	integer lhstypename = GetNameOfType(var.VarType)
 	
-	integer rhstype = GetStructureMemberType(Structures, lhstypename, rhs.Handle)
+	integer rhstype = GetStructureMemberType(lhstypename, rhs.Handle)
 	assert(rhstype != 0)
 	integer rhstypename = GetNameOfType(rhstype)
 
@@ -10359,7 +10359,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, CompoundA
 	RefBinding temp = rhs.Handle, typename, false, false
 	AppendBinding(lhs.Bindings, lhs.Bindings.next, temp)
 
-	lhs.Type = GetStructureMemberType(Structures, typename, rhs.Handle)
+	lhs.Type = GetStructureMemberType(typename, rhs.Handle)
 }
 
 AppendBinding : list<RefBinding> ref bindings, list<RefBinding> ref tail, RefBinding ref binding [nogc]
@@ -10398,20 +10398,6 @@ EnsureMatcherIsPending : integer overloadname, integer matcher, FunctionDefiniti
 	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExist, overloadname, m)
 	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matcher, m)
 }
-
-IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername -> boolean exists = false [nogc]
-{
-	if(pending.value.MatcherName == matchername)
-	{
-		exists = true
-	}
-	else
-	{
-		exists = IsPendingTypeMatcher(pending.next, matchername)
-	}
-}
-
-IsPendingTypeMatcher : nothing, integer matchername -> false [nogc]
 
 GetPendingTypeMatcherReturnType : integer matchername, ContextWrapper<PendingTypeMatcher> ref outcontext -> integer rettype = 0
 {
@@ -10612,19 +10598,23 @@ MakeParametersReferencesForTypeMatcherFast : PendingTypeMatcher ref pending, int
 	}
 }
 
-MakeParametersReferencesForTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername, ExpressionList ref params
+MakeParametersReferencesUnwrap : PendingTypeMatcher ref pending, ExpressionList ref params
 {
-	if(pending.value.MatcherName == matchername)
-	{
-		MakeParametersReferencesUnwrapFast(pending.value.OverloadImplementation, pending.value.OverloadName, params)
-	}
-	
-	MakeParametersReferencesForTypeMatcher(pending.next, matchername, params)
+	MakeParametersReferencesUnwrapFast(pending.OverloadImplementation, pending.OverloadName, params)
 }
 
-MakeParametersReferencesForTypeMatcher : nothing, integer matchername, ExpressionList ref params
+MakeParametersReferencesForTypeMatcher : integer matchername, ExpressionList ref params
 {
-	MakeParametersReferencesForConstructor(Structures, matchername, params)
+	ContextWrapper<PendingTypeMatcher> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matchername, wrap)
+	if(found)
+	{
+		MakeParametersReferencesUnwrap(wrap.Wrapped, params)
+	}
+	else
+	{
+		MakeParametersReferencesForConstructor(Structures, matchername, params)	
+	}
 }
 
 
@@ -10734,7 +10724,17 @@ WalkFunctionParamsAndSetReferences : FunctionParams ref params, ExpressionList r
 
 WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref params, list<Expression> ref paramexprs
 {
+	boolean needref = false
 	if(IsReferenceType(params.value.ResolvedType))
+	{
+		needref = true
+	}
+	if(params.value.ResolvedType == 0x00000004)			// TODO - don't assume "nothing" is always passed by ref
+	{
+		needref = true
+	}
+	
+	if(needref)
 	{
 		if(!MarkAtomAsReference(paramexprs.value.Atoms.value))
 		{
@@ -13642,7 +13642,6 @@ InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payl
 	}
 	else
 	{
-		tree.Payload.Payload = payload
 		return()
 	}
 	
