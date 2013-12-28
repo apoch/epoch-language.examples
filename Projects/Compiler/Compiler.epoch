@@ -1062,15 +1062,6 @@ quick_append : nothing, string token [nogc]
 }
 
 
-DumpStream : simplelist<string> ref tokens
-{
-	print(tokens.value)
-	DumpStream(tokens.next)
-}
-
-DumpStream : nothing
-
-
 PopToken : [nogc]
 {
 	PopTokenFromStream(TokenStream, TokenStream.next)
@@ -2798,12 +2789,6 @@ OnBytecodeSetReturnRegister : integer varindex [nogc]
 	OnBytecodeEmitInteger(varindex)
 }
 
-OnBytecodePushVarNoCopy : integer varname [nogc]
-{
-	OnBytecodeEmitByte(0x05)			// Read instruction
-	OnBytecodeEmitInteger(varname)
-}
-
 OnBytecodeInvokeIndirect : integer varname [nogc]
 {
 	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
@@ -3581,29 +3566,18 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
-	integer existingcount = 0
-
 	ContextWrapper<FunctionDefinition> funcwrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
 	if(found)
 	{
-		existingcount = CountOverloadsForContext(funcwrap.Wrapped, rawname)
-	}
-	else
-	{
-		existingcount = CountOverloads(Overloads, rawname)
-	}
+		integer existingcount = CountOverloadsForContext(funcwrap.Wrapped, rawname)
 
-	if(existingcount > 0)
-	{
-		mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
-	}
+		if(existingcount > 0)
+		{
+			mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
+		}
 
-	Overload overload = rawname, mangledname, nothing
-	prepend<Overload>(Overloads, overload)
-
-	if(found)
-	{
+		Overload overload = rawname, mangledname, nothing
 		AddOverloadToFunc(funcwrap.Wrapped, overload)
 	}
 }
@@ -3672,15 +3646,13 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 
 	if(funcname != rawfuncname)
 	{
-		AttachContextToOverload(Overloads, funcname, func)
-
 		ContextWrapper<FunctionDefinition> wrap = nothing
 		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
 		{
 			AttachContextToFunction(wrap.Wrapped, funcname, func)
 		}
 	}
-
+	
 	Overload selfoverload = rawfuncname, funcname, func
 	prepend<Overload>(func.Overloads, selfoverload)
 
@@ -4742,7 +4714,7 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 			CodeGenEmitCodeBlock(table.value.Code)
 			if(listcontains(CustomConstructors, table.value.Name))
 			{
-				OnBytecodePushVarNoCopy(FindReturnVariableName())
+				OnBytecodePushVarValueNoCopy(FindReturnVariableName())
 				OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
 				OnBytecodeAssign()
 			}
@@ -6005,9 +5977,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 		integer baseconstructorname = PoolString(GetPooledString(GlobalStrings, rawfuncname) ; "@@constructor")
 
 		Overload overload = baseconstructorname, funcname, nothing
-		prepend<Overload>(Overloads, overload)
 		prepend<Overload>(AutoGenOverloads, overload)
-
 		FindFunctionAndAddOverload(overload)
 
 		PrependFunctionParameter(Functions, funcname, PoolString("@id"), 0x81000000)		// reference to identifier type signature
@@ -6156,7 +6126,7 @@ EmitCopyConstructor : StructureDefinition ref def
 	OnBytecodeLexicalScopeEntry(def.Name, def.Type, 1)
 
 	OnBytecodeEnterFunction(def.CopyConstructorName)
-	OnBytecodePushVarNoCopy(def.Name)
+	OnBytecodePushVarValueNoCopy(def.Name)
 	OnBytecodeCopyStructure()
 	OnBytecodeBindReference(0, 0)
 	OnBytecodeAssign()
@@ -11647,7 +11617,6 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		string basenamemangled = MangleTemplateName(basename, args)
 		integer bnmh = PoolString(basenamemangled)
 		Overload overload = bnmh, instancename, nothing
-		prepend<Overload>(Overloads, overload)
 		FindFunctionAndAddOverload(overload)
 
 		DoFunctionInstantiation(bnmh, defname, instancename, templates.value.Parameters, args)
@@ -11897,7 +11866,6 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	prepend<Overload>(func.Overloads, selfoverload)
 
 	AttachContextToOverload(func.Overloads, instancename, func)
-	AttachContextToOverload(Overloads, instancename, func)
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
@@ -13192,7 +13160,6 @@ global
 
 	Overload dummyoverload = 0, 0, nothing
 	list<Overload> dummyoverloadlist = dummyoverload, nothing
-	list<Overload> Overloads = dummyoverload, nothing
 	list<Overload> AutoGenOverloads = dummyoverload, nothing
 
 	ContextWrapper<Scope> dummyscopewrap = nothing
@@ -13509,42 +13476,43 @@ structure Trie :
 
 PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
 {
-	if(length(data) == 0)
+	integer datalen = length(data)
+	if(datalen == 0)
 	{
 		trie.Handle = handle
 		return()
 	}
 
-	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), data, 1, handle)
+	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), data, 1, datalen, handle)
 }
 
-PlaceDataInTrieRecurse : Trie ref trie, string data, integer offset, integer handle [nogc]
+PlaceDataInTrieRecurse : Trie ref trie, string data, integer offset, integer datalen, integer handle [nogc]
 {
-	if(length(data) == offset)
+	if(datalen == offset)
 	{
 		trie.Handle = handle
 		return()
 	}
 
-	PlaceDataInTrieChild(trie.Children, trie, subchar(data, offset), data, offset + 1, handle)
+	PlaceDataInTrieChild(trie.Children, trie, subchar(data, offset), data, offset + 1, datalen, handle)
 }
 
-PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string alldata, integer offset, integer handle [nogc]
+PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string alldata, integer offset, integer datalen, integer handle [nogc]
 {
 	if(children.value.Character == character)
 	{
-		PlaceDataInTrieRecurse(children.value, alldata, offset, handle)
+		PlaceDataInTrieRecurse(children.value, alldata, offset, datalen, handle)
 	}
 	else
 	{
-		PlaceDataInTrieChild(children.next, originaltrie, character, alldata, offset, handle)
+		PlaceDataInTrieChild(children.next, originaltrie, character, alldata, offset, datalen, handle)
 	}
 }
 
-PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string alldata, integer offset, integer handle [nogc]
+PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string alldata, integer offset, integer datalen, integer handle [nogc]
 {
 	Trie newtrie = character, nothing, 0
-	PlaceDataInTrieRecurse(newtrie, alldata, offset, handle)
+	PlaceDataInTrieRecurse(newtrie, alldata, offset, datalen, handle)
 
 	list<Trie> newtrielist = newtrie, originaltrie.Children
 	originaltrie.Children = newtrielist
