@@ -3645,7 +3645,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	}
 
 	if(funcname != rawfuncname)
-	{
+	{	
 		ContextWrapper<FunctionDefinition> wrap = nothing
 		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
 		{
@@ -11619,7 +11619,7 @@ FindFunctionTemplateAndInstantiate : list<TemplateFunction> ref templates, integ
 		Overload overload = bnmh, instancename, nothing
 		FindFunctionAndAddOverload(overload)
 
-		DoFunctionInstantiation(bnmh, defname, instancename, templates.value.Parameters, args)
+		DoFunctionInstantiation(bnmh, defname, instancename, templates.value.Parameters, args, overload)
 	}
 	else
 	{
@@ -11831,13 +11831,13 @@ RemapAllTemplateArguments : list<TemplateArgument> ref toremap, list<TemplatePar
 RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 
 
-DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args, Overload ref overload
 {
 	ContextWrapper<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
 	assert(found)
 
-	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args)
+	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args, overload)
 	EnumerateOverloadsAndInstantiate(wrap.Wrapped, defname, args)
 }
 
@@ -11846,7 +11846,7 @@ EnumerateOverloadsAndInstantiate : FunctionDefinition ref func, integer template
 	EnumerateOverloadsAndInstantiate(func.Overloads, templatename, args)
 }
 
-FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
+FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args, Overload ref outoverload
 {
 	if(!originalfunc.IsTemplate)
 	{
@@ -11866,6 +11866,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	prepend<Overload>(func.Overloads, selfoverload)
 
 	AttachContextToOverload(func.Overloads, instancename, func)
+	outoverload.Implementation = func
 
 	list<OptionalCodeBlock> newstack = nothing, nothing
 	CurrentCodeBlockStack = newstack
