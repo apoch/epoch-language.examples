@@ -6034,6 +6034,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 		
 		Overload overload = baseconstructorname, funcname, nothing
 		prepend<Overload>(Overloads, overload)
+		prepend<Overload>(AutoGenOverloads, overload)
 		
 		FindFunctionAndAddOverload(overload)
 		
@@ -7125,11 +7126,14 @@ TypeInference : StructureDefinition ref structuredef, InferenceContext ref conte
 	integer copyname = PoolStringFast(structuredef.ReadableName ; "@@copyconstructor")
 	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
 	
+	Overload selfoverload = structuredef.Name, ctorname, nothing
+	prepend<Overload>(AutoGenOverloads, selfoverload)
+	
 	Overload anonoverload = ctorname, anonname, nothing
-	prepend<Overload>(Overloads, anonoverload)
+	prepend<Overload>(AutoGenOverloads, anonoverload)
 	
 	Overload copyoverload = ctorname, copyname, nothing
-	prepend<Overload>(Overloads, copyoverload)
+	prepend<Overload>(AutoGenOverloads, copyoverload)
 }
 
 
@@ -7476,7 +7480,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 			else
 			{
-				overloadname = FindOverloadWithParameterTypes(Overloads, statement.Name, paramtypes)
+				overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
 			}
 			
 			if(overloadname != 0)
@@ -7835,7 +7839,7 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 	{
 		if(GetFunctionWrapperParameterCount(overloads.value.Implementation, overloads.value.MangledName) == paramcount)
 		{
-			if(AnyPendingTypeMatcherPointsToFunction(PendingTypeMatchers, overloads.value.MangledName))
+			if(AnyPendingTypeMatcherPointsToFunction(overloads.value.MangledName))
 			{
 				ret = true
 				return()
@@ -7849,19 +7853,11 @@ AnyPendingTypeMatcherPointsToAnyOverload : list<Overload> ref overloads, integer
 AnyPendingTypeMatcherPointsToAnyOverload : nothing, integer rawname, integer paramcount -> boolean ret = false
 
 
-AnyPendingTypeMatcherPointsToFunction : list<PendingTypeMatcher> ref pending, integer mangledname -> boolean ret = false
+AnyPendingTypeMatcherPointsToFunction : integer mangledname -> boolean ret = false
 {
-	if(pending.value.OverloadName == mangledname)
-	{
-		ret = true
-	}
-	else
-	{
-		ret = AnyPendingTypeMatcherPointsToFunction(pending.next, mangledname)
-	}
+	ContextWrapper<PendingTypeMatcher> wrap = nothing
+	ret = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExist, mangledname, wrap)
 }
-
-AnyPendingTypeMatcherPointsToFunction : nothing, integer mangledname -> false
 
 
 
@@ -8014,13 +8010,15 @@ FunctionWrapperMatchesParameterTypes : nothing, integer funcname, simplelist<int
 
 FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer funcname, simplelist<integer> ref types -> boolean match = false
 {
-	if(functions.value.Name == funcname)
+	ContextWrapper<FunctionDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
+	if(found)
 	{
-		match = CheckParameterTypesForMatch(functions.value.Params, types)
+		match = CheckParameterTypesForMatch(wrap.Wrapped, types)
 	}
 	else
 	{
-		match = FunctionMatchesParameterTypes(functions.next, funcname, types)
+		match = FunctionMatchesParameterTypes(nothing, funcname, types)
 	}
 }
 
@@ -8143,7 +8141,9 @@ CheckParameterTypesForMatch : nothing, simplelist<integer> ref types -> boolean 
 	}
 }
 
+CheckParameterTypesForMatch : FunctionDefinition ref func, simplelist<integer> ref types -> boolean match = CheckParameterTypesForMatch(func.Params, types)
 CheckParameterTypesForMatch : FunctionParams ref params, simplelist<integer> ref types -> boolean match = CheckParameterTypesForMatch(params.Params, types)
+
 
 CheckParameterTypesForMatch : list<UnresolvedParameter> ref params, simplelist<integer> ref types -> boolean match = true
 {
@@ -9610,7 +9610,7 @@ AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossib
 GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
 {
 	FindFunctionAndAddParameterTypes(funcname, paramindex, paramcount, toplevel, types)
-	EnumerateOverloadsAndAddParameterTypes(Overloads, funcname, paramindex, paramcount, toplevel, types)
+	EnumerateOverloadsAndAddParameterTypes(AutoGenOverloads, funcname, paramindex, paramcount, toplevel, types)
 }
 
 EnumerateOverloadsAndAddParameterTypes : list<Overload> ref overloads, integer funcname, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
@@ -10397,6 +10397,7 @@ EnsureMatcherIsPending : nothing, integer overloadname, integer matcher, Functio
 {
 	PendingTypeMatcher m = overloadname, matcher, func
 	prepend<PendingTypeMatcher>(PendingTypeMatchers, m)
+	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExist, overloadname, m)
 }
 
 IsPendingTypeMatcher : list<PendingTypeMatcher> ref pending, integer matchername -> boolean exists = false [nogc]
@@ -10913,46 +10914,46 @@ StripDemotedTypes : nothing, simplelist<integer> ref out [nogc]
 InitBuiltInOverloads : [nogc]
 {
 	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength, nothing
-	prepend<Overload>(Overloads, substrlength)
+	prepend<Overload>(AutoGenOverloads, substrlength)
 
 	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength, nothing
-	prepend<Overload>(Overloads, substrnolen)
+	prepend<Overload>(AutoGenOverloads, substrnolen)
 	
 	Overload castrealtoint = PooledStringHandleForCast, PooledStringHandleForCastRealToInteger, nothing
-	prepend<Overload>(Overloads, castrealtoint)
+	prepend<Overload>(AutoGenOverloads, castrealtoint)
 	
 	Overload castinttostr = PooledStringHandleForCast, PooledStringHandleForCastIntegerToString, nothing
-	prepend<Overload>(Overloads, castinttostr)
+	prepend<Overload>(AutoGenOverloads, castinttostr)
 	
 	Overload caststrtoint = PooledStringHandleForCast, PoolString("cast@@string_to_integer"), nothing
-	prepend<Overload>(Overloads, caststrtoint)
+	prepend<Overload>(AutoGenOverloads, caststrtoint)
 
 	Overload castrealtostr = PooledStringHandleForCast, PooledStringHandleForCastRealToString, nothing
-	prepend<Overload>(Overloads, castrealtostr)
+	prepend<Overload>(AutoGenOverloads, castrealtostr)
 	
 	Overload castbooltoint = PooledStringHandleForCast, PooledStringHandleForCastBooleanToInteger, nothing
-	prepend<Overload>(Overloads, castbooltoint)
+	prepend<Overload>(AutoGenOverloads, castbooltoint)
 
 	Overload castint16toint = PooledStringHandleForCast, PoolString("cast@@integer16_to_integer"), nothing
-	prepend<Overload>(Overloads, castint16toint)
+	prepend<Overload>(AutoGenOverloads, castint16toint)
 	
 	Overload castinttoint16 = PooledStringHandleForCast, PoolString("cast@@integer_to_integer16"), nothing
-	prepend<Overload>(Overloads, castinttoint16)	
+	prepend<Overload>(AutoGenOverloads, castinttoint16)	
 
 	Overload caststrtoreal = PooledStringHandleForCast, PooledStringHandleForCastStringToReal, nothing
-	prepend<Overload>(Overloads, caststrtoreal)	
+	prepend<Overload>(AutoGenOverloads, caststrtoreal)	
 
 	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBuffer, nothing
-	prepend<Overload>(Overloads, writebuffernormal)
+	prepend<Overload>(AutoGenOverloads, writebuffernormal)
 
 	Overload writebuffermultiple = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferMultiple, nothing
-	prepend<Overload>(Overloads, writebuffermultiple)
+	prepend<Overload>(AutoGenOverloads, writebuffermultiple)
 
 	Overload writebufferstring = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferString, nothing
-	prepend<Overload>(Overloads, writebufferstring)
+	prepend<Overload>(AutoGenOverloads, writebufferstring)
 
 	Overload writebufferreal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferReal, nothing
-	prepend<Overload>(Overloads, writebufferreal)
+	prepend<Overload>(AutoGenOverloads, writebufferreal)
 }
 
 
@@ -13215,6 +13216,7 @@ global
 	Overload dummyoverload = 0, 0, nothing
 	list<Overload> dummyoverloadlist = dummyoverload, nothing
 	list<Overload> Overloads = dummyoverload, nothing
+	list<Overload> AutoGenOverloads = dummyoverload, nothing
 
 	ContextWrapper<Scope> dummyscopewrap = nothing
 	FunctionDefinition dummyfunc = 0, 0, nothing, nothing, nothing, dummyoverloadlist, dummyscopewrap, "", 0, false, false, false
@@ -13308,6 +13310,9 @@ global
 	
 	PendingTypeMatcher dummypending = 0, 0, nothing
 	list<PendingTypeMatcher> PendingTypeMatchers = dummypending, nothing
+	
+	BTPayloadWrap<PendingTypeMatcher> tmwewrap = dummypending
+	BinaryTree<PendingTypeMatcher> TypeMatchersWhichExist = 0, tmwewrap, nothing, nothing, -1
 	
 	PendingPatternMatcher dummypatternpending = 0, 0, 0
 	list<PendingPatternMatcher> PendingPatternMatchers = dummypatternpending, nothing
