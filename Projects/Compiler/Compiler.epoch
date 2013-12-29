@@ -3521,7 +3521,7 @@ StoreVariableInSingleScope : Scope ref scope, integer varname, integer vartype, 
 {
 	integer size = 4		// TODO - actual variable sizes
 
-	if((vartype & 0xff000000) == 0x07000000)		// Sum type family signature
+	if((vartype & 0x7f000000) == 0x07000000)		// Sum type family signature
 	{
 		size = 8
 	}
@@ -4428,24 +4428,12 @@ FindCurrentAssignmentAndSetExpression : Expression ref expression
 FindLastStatementInBlockAndAppendExpression : CodeBlock ref codeblock, Expression ref expression
 {
 	AppendExpressionToStatement(LastTopLevelStatementHack.Wrapped, expression)
-	//FindLastStatementAndAppendExpression(codeblock.Entries, codeblock.Entries.next, expression)
 }
 
 FindLastStatementInBlockAndAppendExpression : nothing, Expression ref expression
 {
 	print("Not processing an active code block!")
 	assert(false)
-}
-
-
-FindLastStatementAndAppendExpression : list<CodeBlockEntry> ref codeblockentries, list<CodeBlockEntry> ref tail, Expression ref expression
-{
-	FindLastStatementAndAppendExpression(tail, tail.next, expression)
-}
-
-FindLastStatementAndAppendExpression : list<CodeBlockEntry> ref codeblockentries, nothing, Expression ref expression
-{
-	AppendExpressionToStatement(codeblockentries.value, expression)
 }
 
 
@@ -4743,9 +4731,6 @@ FindScopeAndSetContext : FunctionDefinition ref func [nogc]
 	EmittingScope.Wrapped = func.AttachedScope.Wrapped
 }
 
-HasScope : Scope ref scope -> true [nogc]
-HasScope : nothing -> false [nogc]
-
 
 CodeGenEmitFunctionReturn : Expression ref expr
 {
@@ -4797,7 +4782,6 @@ CodeGenEmitCodeBlockEntries : nothing
 
 CodeGenEmitSingleCodeBlockEntry : Statement ref s
 {
-	boolean sumtype = SumTypeExists(s.Name)
 	boolean constructssumtype = false
 	if((s.Type & 0x7f000000) == 0x07000000)
 	{
@@ -4808,23 +4792,26 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
 
-	Variable var = 0, 0, 0, 0
-	FindVariableDataInSingleScope(EmittingScope.Wrapped, s.Name, var)
-	if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
-	{
-		OnBytecodeInvokeIndirect(s.Name)
-	}
-	elseif(sumtype)
-	{
-		OnBytecodeConstructSumType()
-	}
-	elseif(FunctionIsAutoGenOrHasIR(s.Name))
+	if(FunctionIsAutoGenOrHasIR(s.Name))
 	{
 		OnBytecodeInvokeOffset(s.Name)
 	}
+	elseif(SumTypeExists(s.Name))
+	{
+		OnBytecodeConstructSumType()
+	}
 	else
 	{
-		OnBytecodeInvoke(s.Name)
+		Variable var = 0, 0, 0, 0
+		FindVariableDataInSingleScope(EmittingScope.Wrapped, s.Name, var)
+		if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
+		{
+			OnBytecodeInvokeIndirect(s.Name)
+		}
+		else
+		{
+			OnBytecodeInvoke(s.Name)
+		}
 	}
 }
 
@@ -7392,7 +7379,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
-			isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
+			isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
 		}
 
 		simplelist<integer> paramtypes = 0, nothing
@@ -7419,7 +7406,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 			else
 			{
-				isuserfunc = FetchFunctionForContext(contextfunc, statement.Name)
+				isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
 			}
 		}
 		else
@@ -7545,13 +7532,6 @@ DumpFunctionParameters : list<FunctionDefinition> ref functions, integer funcnam
 DumpFunctionParameters : nothing, integer funcname
 
 
-
-FetchFunctionForContext : ContextWrapper<FunctionDefinition> ref wrap, integer funcname -> boolean found = false
-{
-	found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
-}
-
-
 AnnotateAllParameters : ExpressionList ref exprs, integer statementname, integer paramindex, integer paramcount, boolean toplevel
 {
 	AnnotateAllParameters(exprs.Expressions, statementname, paramindex, paramcount, toplevel)
@@ -7623,21 +7603,6 @@ AddTypeAnnotation : Expression ref expr [nogc]
 	ExpressionAtom wrap = atom
 	AppendAtomToExpression(expr.Atoms, expr.Atoms.next, wrap)
 }
-
-
-ExpressionIsAnnotated : list<ExpressionAtom> ref atoms -> boolean ret = false
-{
-	if(IsTypeAnnotationAtom(atoms.value))
-	{
-		ret = true
-	}
-	else
-	{
-		ret = ExpressionIsAnnotated(atoms.next)
-	}
-}
-
-ExpressionIsAnnotated : nothing -> false
 
 
 AccumulateParameterTypes : simplelist<integer> ref types, OptionalExpressionList ref exprs [nogc]
