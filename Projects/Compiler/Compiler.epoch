@@ -502,8 +502,6 @@ Parse : string code, integer len -> boolean success = false
 	// Discard the dummy token
 	PopToken()
 
-	IREnterProgram()
-
 	string token = PeekToken(0)
 	while(token != "")
 	{
@@ -531,7 +529,6 @@ Parse : string code, integer len -> boolean success = false
 		token = PeekToken(0)
 	}
 
-	IRExitProgram()
 	success = true
 }
 
@@ -5811,6 +5808,33 @@ FindVariableDataInSingleScope : list<Variable> ref vars, integer varname, Variab
 FindVariableDataInSingleScope : nothing, integer varname, Variable ref outvar -> boolean found = false [nogc]
 
 
+GetVariableTypeFromScope : Scope ref scope, integer varname -> integer vartype = 0 [nogc]
+{
+	vartype = GetVariableTypeFromScope(scope.Variables, varname)
+	if(vartype == 0)
+	{
+		if(scope.Name != GlobalCodeBlockName)
+		{
+			vartype = GetVariableTypeFromScope(GlobalScope.Wrapped, varname)
+		}
+	}
+}
+
+GetVariableTypeFromScope : list<Variable> ref vars, integer varname -> integer vartype = 0 [nogc]
+{
+	if(vars.value.Name == varname)
+	{
+		vartype = vars.value.VarType
+	}
+	else
+	{
+		vartype = GetVariableTypeFromScope(vars.next, varname)
+	}
+}
+
+GetVariableTypeFromScope : nothing, integer varname -> 0 [nogc]
+
+
 CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 {
 	if(matchers.value.Name != 0)
@@ -8513,12 +8537,12 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 
 CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0 [nogc]
 {
-	count = CountPossibilities(thelist.next)
-
 	if(thelist.value.FunctionName != 0)
 	{
 		++count
 	}
+
+	count += CountPossibilities(thelist.next)
 }
 
 CountPossibilities : nothing -> 0 [nogc]
@@ -8526,12 +8550,12 @@ CountPossibilities : nothing -> 0 [nogc]
 
 countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
 {
-	count = countnonzero(thelist.next)
-
 	if(thelist.value != 0)
 	{
 		++count
 	}
+
+	count += countnonzero(thelist.next)
 }
 
 countnonzero : nothing -> 0 [nogc]
@@ -8865,13 +8889,11 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	}
 
 
-	Variable var = 0, 0, 0, 0
-	FindVariableDataInSingleScope(scope, atom.Handle, var)
-
-	if(var.Name != 0)
+	integer vartype = GetVariableTypeFromScope(scope, atom.Handle)
+	if(vartype != 0)
 	{
-		AddPossibleParameter(possibilities.Types, var.VarType)
-		if((var.VarType & 0x7f000000) == 0x09000000)
+		AddPossibleParameter(possibilities.Types, vartype)
+		if((vartype & 0x7f000000) == 0x09000000)
 		{
 			atom.IsFunction = true
 		}
@@ -9024,8 +9046,7 @@ AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer fun
 	TypePossibilityList param1options = p1t, false
 	TypePossibilityList param2options = p2t, false
 
-	list<TypePossibilityList> paramtypes = scratchparams, nothing
-	prepend<TypePossibilityList>(paramtypes, param2options)
+	list<TypePossibilityList> paramtypes = param2options, nothing
 	prepend<TypePossibilityList>(paramtypes, param1options)
 
 	simplelist<integer> rt = rettype, nothing
@@ -9043,8 +9064,7 @@ AddUnaryPossibility : list<InferencePossibility> ref possibilities, integer func
 
 	TypePossibilityList param1options = p1t, false
 
-	list<TypePossibilityList> paramtypes = scratchparams, nothing
-	prepend<TypePossibilityList>(paramtypes, param1options)
+	list<TypePossibilityList> paramtypes = param1options, nothing
 
 	simplelist<integer> rt = rettype, nothing
 	TypePossibilityList rettypelist = rt, false
@@ -9293,15 +9313,6 @@ PoolStringFast : string s -> integer handle = 0 [nogc]
 	++CurrentStringHandle
 	OnCodeGenRegisterString(CurrentStringHandle, s)
 	handle = CurrentStringHandle
-}
-
-
-IREnterProgram :
-{
-}
-
-IRExitProgram :
-{
 }
 
 
