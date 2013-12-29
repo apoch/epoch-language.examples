@@ -8204,21 +8204,26 @@ TypeInference : Entity ref entity, InferenceContext ref context -> boolean succe
 
 TypeInference : ExpressionList ref parameters, InferenceContext ref context -> boolean success = true
 {
-	simplelist<integer> dummytypelist = 0, nothing
-	ParameterTypeList dummyparaminfo = dummytypelist
-	list<ParameterTypeList> paramtypeinfo = dummyparaminfo, nothing
+	boolean hasallparams = false
 
-	integer i = 1
-	while(i < context.NumParameters)
+	if((context.NumParameters > 0) && (!IsRecognizedBuiltIn(context.StatementName)))
 	{
-		simplelist<integer> dummytypelist2 = 0, nothing
-		ParameterTypeList dummyparaminfo2 = dummytypelist2
-		prepend<ParameterTypeList>(paramtypeinfo, dummyparaminfo2)
+		simplelist<integer> dummytypelist = 0, nothing
+		ParameterTypeList dummyparaminfo = dummytypelist
+		list<ParameterTypeList> paramtypeinfo = dummyparaminfo, nothing
 
-		++i
+		integer i = 1
+		while(i < context.NumParameters)
+		{
+			simplelist<integer> dummytypelist2 = 0, nothing
+			ParameterTypeList dummyparaminfo2 = dummytypelist2
+			prepend<ParameterTypeList>(paramtypeinfo, dummyparaminfo2)
+
+			++i
+		}
+
+		hasallparams = GatherAllPossibleParamTypes(context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
 	}
-
-	boolean hasallparams = GatherAllPossibleParamTypes(context.StatementName, context.NumParameters, context.TopLevelStatement, paramtypeinfo)
 
 	if(!TypeInferenceExpressionList(parameters.Expressions, context, 0, hasallparams, paramtypeinfo))
 	{
