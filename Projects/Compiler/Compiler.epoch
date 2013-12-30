@@ -4799,9 +4799,8 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 	}
 	else
 	{
-		Variable var = 0, 0, 0, 0
-		FindVariableDataInSingleScope(EmittingScope.Wrapped, s.Name, var)
-		if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
+		integer vartype = GetVariableTypeFromScope(EmittingScope.Wrapped, s.Name)
+		if((vartype != 0) && ((vartype & 0x7f000000) == 0x09000000))
 		{
 			OnBytecodeInvokeIndirect(s.Name)
 		}
