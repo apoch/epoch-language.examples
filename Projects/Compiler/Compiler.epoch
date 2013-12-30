@@ -8237,15 +8237,13 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 
 	if((context.NumParameters > 0) && (!IsRecognizedBuiltIn(context.StatementName)))
 	{
-		simplelist<integer> dummytypelist = 0, nothing
-		ParameterTypeList dummyparaminfo = dummytypelist
+		ParameterTypeList dummyparaminfo = globalemptyintlist
 		list<ParameterTypeList> paramtypeinfo = dummyparaminfo, nothing
 
 		integer i = 1
 		while(i < context.NumParameters)
 		{
-			simplelist<integer> dummytypelist2 = 0, nothing
-			ParameterTypeList dummyparaminfo2 = dummytypelist2
+			ParameterTypeList dummyparaminfo2 = globalemptyintlist
 			prepend<ParameterTypeList>(paramtypeinfo, dummyparaminfo2)
 
 			++i
