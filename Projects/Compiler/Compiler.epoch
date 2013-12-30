@@ -10243,6 +10243,11 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	integer lhstypename = GetNameOfType(var.VarType)
 
 	integer rhstype = GetStructureMemberType(lhstypename, rhs.Handle)
+	if(rhstype == 0)
+	{
+		print(GetPooledString(GlobalStrings, rhs.Handle))
+	}
+	
 	assert(rhstype != 0)
 	integer rhstypename = GetNameOfType(rhstype)
 
