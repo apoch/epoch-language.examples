@@ -3426,11 +3426,11 @@ OnCodeGenRegisterConstructors : integer structurename, integer constructorname, 
 
 FindStructureAndSetConstructors : integer structurename, integer constructorname, integer anonname, integer copyname [nogc]
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
 	assert(found)
 
-	SetConstructors(wrap.Wrapped, constructorname, anonname, copyname)
+	SetConstructors(wrap, constructorname, anonname, copyname)
 }
 
 SetConstructors : StructureDefinition ref struct, integer constructorname, integer anonname, integer copyname [nogc]
@@ -3562,11 +3562,11 @@ OnCodeGenRegisterGlobalBlock : integer name
 
 RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
-	ContextWrapper<FunctionDefinition> funcwrap = nothing
+	ContextNode<FunctionDefinition> funcwrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
 	if(found)
 	{
-		integer existingcount = CountOverloadsForContext(funcwrap.Wrapped, rawname)
+		integer existingcount = CountOverloadsForContext(funcwrap, rawname)
 
 		if(existingcount > 0)
 		{
@@ -3574,18 +3574,18 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 		}
 
 		Overload overload = rawname, mangledname, nothing
-		AddOverloadToFunc(funcwrap.Wrapped, overload)
+		AddOverloadToFunc(funcwrap, overload)
 	}
 }
 
 
 FindFunctionAndAddOverload : Overload ref overload
 {
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overload.NormalName, wrap)
 	if(found)
 	{
-		AddOverloadToFunc(wrap.Wrapped, overload)
+		AddOverloadToFunc(wrap, overload)
 	}
 }
 
@@ -3642,10 +3642,10 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 
 	if(funcname != rawfuncname)
 	{	
-		ContextWrapper<FunctionDefinition> wrap = nothing
+		ContextNode<FunctionDefinition> wrap = nothing
 		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
 		{
-			AttachContextToFunction(wrap.Wrapped, funcname, func)
+			AttachContextToFunction(wrap, funcname, func)
 		}
 	}
 	
@@ -5370,22 +5370,22 @@ GetTotalMemberSize : nothing -> integer size = 0
 
 GetStructureMemberTypeAndOffset : integer structurename, integer membername, integer ref memtype, integer ref memoffset
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
 	assert(found)
 
 	memtype = 0
 	memoffset = 0
-	GetMemberTypeAndOffset(wrap.Wrapped, membername, memtype, memoffset)
+	GetMemberTypeAndOffset(wrap, membername, memtype, memoffset)
 }
 
 GetStructureMemberType : integer structurename, integer membername -> integer rtype = 0
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
 	if(found)
 	{
-		rtype = GetMemberType(wrap.Wrapped, membername)
+		rtype = GetMemberType(wrap, membername)
 		
 		if(rtype == 0)
 		{
@@ -5664,11 +5664,12 @@ TypeMatcherExists : list<TypeMatcher> ref matchers, integer matchername -> boole
 TypeMatcherExists : nothing, integer matchername -> boolean ret = false [nogc]
 
 
-GetExistingTypeMatcher : list<TypeMatcher> ref matchers, integer matchername, ContextWrapper<TypeMatcher> ref out -> boolean ret = false [nogc]
+GetExistingTypeMatcher : list<TypeMatcher> ref matchers, integer matchername, ContextNode<TypeMatcher> ref out -> boolean ret = false [nogc]
 {
 	if(matchers.value.Name == matchername)
 	{
-		out.Wrapped = matchers.value
+		ContextNode<TypeMatcher> outwrap = matchers.value
+		out = outwrap
 		ret = true
 	}
 	else
@@ -5677,7 +5678,7 @@ GetExistingTypeMatcher : list<TypeMatcher> ref matchers, integer matchername, Co
 	}
 }
 
-GetExistingTypeMatcher : nothing, integer matchername, ContextWrapper<TypeMatcher> ref out -> boolean ret = false [nogc]
+GetExistingTypeMatcher : nothing, integer matchername, ContextNode<TypeMatcher> ref out -> boolean ret = false [nogc]
 
 
 
@@ -6331,10 +6332,10 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 
 FindSumTypeByName : integer name -> integer typeid = 0 [nogc]
 {
-	ContextWrapper<SumType> wrap = nothing
+	ContextNode<SumType> wrap = nothing
 	if(SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, name, wrap))
 	{
-		typeid = GrabSumTypeID(wrap.Wrapped)
+		typeid = GrabSumTypeID(wrap)
 	}
 }
 
@@ -6359,12 +6360,12 @@ UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle 
 
 GetStructureTypeByName : integer name -> integer typeid = 0 [nogc]
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
 
 	if(found)
 	{
-		typeid = UnwrapStructureType(wrap.Wrapped)
+		typeid = UnwrapStructureType(wrap)
 	}
 }
 
@@ -6882,18 +6883,18 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success =
 		return()
 	}
 
-	ContextWrapper<TypeMatcher> matchwrap = nothing
+	ContextNode<TypeMatcher> matchwrap = nothing
 	if(!GetExistingTypeMatcher(TypeMatchers, matcher.MatcherName, matchwrap))
 	{
 		OnCodeGenEnterTypeMatcher(matcher.MatcherName)
 		OnCodeGenExitContext()
-		matchwrap.Wrapped = TypeMatchers.value
+		matchwrap = TypeMatchers.value
 	}
 
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, matcher.OverloadName, wrap)
 
-	WalkParametersForTypeMatcherContext(wrap.Wrapped, matchwrap.Wrapped)
+	WalkParametersForTypeMatcherContext(wrap, matchwrap)
 }
 
 WalkParametersForTypeMatcherContext : FunctionDefinition ref func, TypeMatcher ref matcher
@@ -7384,8 +7385,8 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	}
 
 
-	ContextWrapper<FunctionDefinition> contextfunc = nothing
-	ContextWrapper<PendingTypeMatcher> contextmatch = nothing
+	ContextNode<FunctionDefinition> contextfunc = nothing
+	ContextNode<PendingTypeMatcher> contextmatch = nothing
 	boolean isuserfunc = false
 
 
@@ -7417,7 +7418,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 		if(isuserfunc)
 		{
-			overloadname = FindOverloadWithParameterTypesFast(contextfunc.Wrapped, statement.Name, paramtypes)
+			overloadname = FindOverloadWithParameterTypesFast(contextfunc, statement.Name, paramtypes)
 		}
 		else
 		{
@@ -7463,7 +7464,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		if(isuserfunc)
 		{
-			statement.Type = InferFunctionReturnType(contextfunc.Wrapped)
+			statement.Type = InferFunctionReturnType(contextfunc)
 		}
 		else
 		{
@@ -7473,7 +7474,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 	if(isuserfunc)
 	{
-		WalkFunctionParamsAndSetReferencesShim(contextfunc.Wrapped, statement.Parameters)
+		WalkFunctionParamsAndSetReferencesShim(contextfunc, statement.Parameters)
 	}
 	else
 	{
@@ -7484,14 +7485,14 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	{
 		if(isuserfunc)
 		{
-			AnnotateTypeMatchedParamsForWrapper(contextfunc.Wrapped, statement.Parameters)
+			AnnotateTypeMatchedParamsForWrapper(contextfunc, statement.Parameters)
 		}
 		else
 		{
 			FindConstructorAndAnnotateTypeMatchedParams(Structures, statement.Name, statement.Parameters)
 		}
 	}
-	elseif(ContextHasTypeMatcher(contextmatch.Wrapped))
+	elseif(ContextHasTypeMatcher(contextmatch))
 	{
 		AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
 	}
@@ -7721,14 +7722,14 @@ IsFunctionTemplate : nothing -> false [nogc]
 
 IsFunctionTemplateFast : integer name -> boolean istemplate = false [nogc]
 {
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
 	if(!found)
 	{
 		assert(false)
 	}
 
-	istemplate = IsFunctionTemplate(wrap.Wrapped)
+	istemplate = IsFunctionTemplate(wrap)
 }
 
 
@@ -7921,11 +7922,11 @@ FunctionWrapperMatchesParameterTypes : nothing, integer funcname, simplelist<int
 
 FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer funcname, simplelist<integer> ref types -> boolean match = false
 {
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
 	if(found)
 	{
-		match = CheckParameterTypesForMatch(wrap.Wrapped, types)
+		match = CheckParameterTypesForMatch(wrap, types)
 	}
 	else
 	{
@@ -8258,12 +8259,12 @@ TypeInference : ExpressionList ref parameters, InferenceContext ref context -> b
 
 GatherAllPossibleParamTypes : integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
 {
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
 	if(found)
 	{
-		InferAllFunctionParameterTypes(wrap.Wrapped, numparams, toplevel, outinfo)
-		EnumerateOverloadsAndAddAllParameterTypes(wrap.Wrapped, numparams, toplevel, outinfo)
+		InferAllFunctionParameterTypes(wrap, numparams, toplevel, outinfo)
+		EnumerateOverloadsAndAddAllParameterTypes(wrap, numparams, toplevel, outinfo)
 	}
 	else
 	{
@@ -8605,7 +8606,7 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail
 	else
 	{
 		list<InferencePossibility> out = scratchpossibility, nothing
-		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, context.ScopeRef.Wrapped, context.FuncRef, context.FunctionReturn, context.Parenthetical)
+		EliminateImpossibleParametersForAllOverloads(stack.value.PossibilityList, out, atoms.value, context.ScopeRef.Wrapped, context.FuncRef.Wrapped, context.FunctionReturn, context.Parenthetical)
 
 		if(counter == 1)
 		{
@@ -8717,14 +8718,14 @@ WalkAtomsForType : list<ExpressionAtom> ref atoms, nothing, list<ExpressionInfer
 	{
 		TypePossibilityList poss = scratchpossibletypes, false
 		InferencePossibility newpossibility = -1, scratchparampossibles, poss
-		GetAtomType(atoms.value, newpossibility.ReturnType, context.ScopeRef.Wrapped, context.FuncRef, context.FunctionReturn, context.Parenthetical)
+		GetAtomType(atoms.value, newpossibility.ReturnType, context.ScopeRef.Wrapped, context.FuncRef.Wrapped, context.FunctionReturn, context.Parenthetical)
 
 		prepend<InferencePossibility>(stack.value.PossibilityList, newpossibility)
 	}
 }
 
 
-EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref possibilities, list<InferencePossibility> ref out, ExpressionAtom ref atom, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref possibilities, list<InferencePossibility> ref out, ExpressionAtom ref atom, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 {
 	if(possibilities.value.FunctionName != 0)
 	{
@@ -8737,10 +8738,10 @@ EliminateImpossibleParametersForAllOverloads : list<InferencePossibility> ref po
 	EliminateImpossibleParametersForAllOverloads(possibilities.next, out, atom, scope, func, funcret, parenthetical)
 }
 
-EliminateImpossibleParametersForAllOverloads : nothing, list<InferencePossibility> ref out, ExpressionAtom ref atom, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+EliminateImpossibleParametersForAllOverloads : nothing, list<InferencePossibility> ref out, ExpressionAtom ref atom, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 
 
-EliminateImpossibleParameters : list<TypePossibilityList> ref params, ExpressionAtom ref atom, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> boolean valid = true
+EliminateImpossibleParameters : list<TypePossibilityList> ref params, ExpressionAtom ref atom, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> boolean valid = true
 {
 	if(!params.value.Consumed)
 	{
@@ -8768,7 +8769,7 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 }
 
 
-EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> true
+EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> true
 
 
 SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
@@ -8808,25 +8809,26 @@ EliminateImpossibleType : simplelist<integer> ref possibles, simplelist<integer>
 EliminateImpossibleType : nothing, simplelist<integer> ref filter, simplelist<integer> ref out -> 0 [nogc]
 
 
-GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
-GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x02000000) }
-GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000001) }
-GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000002) }
-GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000003) }
-GetAtomType : real               ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000004) }
+GetAtomType : AtomSentinel       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x00000002) }	// void magic
+GetAtomType : StringHandleAtom   ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x02000000) }
+GetAtomType : TypeAnnotationAtom ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000001) }
+GetAtomType : integer16          ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000002) }
+GetAtomType : boolean            ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000003) }
+GetAtomType : real               ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, 0x01000004) }
 
-GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+GetAtomType : integer            ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 {
 	AddPossibleParameter(possibilities.Types, 0x01000001)
 	AddPossibleParameter(possibilities.Types, 0x01000002)			// Allow demotion later
 }
 
-GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, atom.Type)  }
+GetAtomType : CompoundAtom       ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical { AddPossibleParameter(possibilities.Types, atom.Type)  }
 
-GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 {
 	ContextWrapper<Scope> scopewrap = scope
-	InferenceContext newcontext = scope.Name, statement.Name, globalemptyintlist, funcret, 0, false, false, scopewrap, func
+	ContextWrapper<FunctionDefinition> funcwrap = func
+	InferenceContext newcontext = scope.Name, statement.Name, globalemptyintlist, funcret, 0, false, false, scopewrap, funcwrap
 
 	if(TypeInference(statement, newcontext))
 	{
@@ -8834,12 +8836,13 @@ GetAtomType : Statement ref statement, TypePossibilityList ref possibilities, Sc
 	}
 }
 
-GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+GetAtomType : RefBinding ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 
-GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean isinparenthetical
+GetAtomType : ParentheticalExpression ref parenthetical, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean isinparenthetical
 {
 	ContextWrapper<Scope> scopewrap = scope
-	InferenceContext newcontext = scope.Name, 0, globalemptyintlist, funcret, 0, false, true, scopewrap, func
+	ContextWrapper<FunctionDefinition> funcwrap = func
+	InferenceContext newcontext = scope.Name, 0, globalemptyintlist, funcret, 0, false, true, scopewrap, funcwrap
 
 	if(TypeInference(parenthetical.Inner, newcontext))
 	{
@@ -8860,7 +8863,7 @@ GetAtomTypeOperator : OperatorInvokeAtom ref atom, list<InferencePossibility> re
 	AddPossibilityPerOperatorOverload(atom.OperatorName, possibilities)
 }
 
-GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextWrapper<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
+GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical
 {
 	if(atom.Handle == PooledStringHandleForNothing)
 	{
@@ -9615,7 +9618,7 @@ GetFunctionReturnType : list<FunctionDefinition> ref functions, integer funcname
 
 GetFunctionReturnType : nothing, integer funcname -> integer rettype = 0
 {
-	ContextWrapper<PendingTypeMatcher> ignored = nothing
+	ContextNode<PendingTypeMatcher> ignored = nothing
 	rettype = GetPendingTypeMatcherReturnType(funcname, ignored)
 }
 
@@ -10305,13 +10308,13 @@ EnsureMatcherIsPending : integer overloadname, integer matcher, FunctionDefiniti
 	InsertIntoBinaryTree<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matcher, m)
 }
 
-GetPendingTypeMatcherReturnType : integer matchername, ContextWrapper<PendingTypeMatcher> ref outcontext -> integer rettype = 0
+GetPendingTypeMatcherReturnType : integer matchername, ContextNode<PendingTypeMatcher> ref outcontext -> integer rettype = 0
 {
 	boolean found = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matchername, outcontext)
 	if(found)
 	{
 		// TODO - ensure all overloads return the same type or this might get ugly!
-		rettype = InferFunctionReturnType(outcontext.Wrapped)
+		rettype = InferFunctionReturnType(outcontext)
 		return()
 	}
 
@@ -10511,11 +10514,11 @@ MakeParametersReferencesUnwrap : PendingTypeMatcher ref pending, ExpressionList 
 
 MakeParametersReferencesForTypeMatcher : integer matchername, ExpressionList ref params
 {
-	ContextWrapper<PendingTypeMatcher> wrap = nothing
+	ContextNode<PendingTypeMatcher> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<PendingTypeMatcher>(TypeMatchersWhichExistByMatcherName, matchername, wrap)
 	if(found)
 	{
-		MakeParametersReferencesUnwrap(wrap.Wrapped, params)
+		MakeParametersReferencesUnwrap(wrap, params)
 	}
 	else
 	{
@@ -11564,10 +11567,10 @@ InstantiateFunctionTemplate : integer templatename, TemplateArgumentList ref arg
 {
 	instancename = FindFunctionTemplateAndInstantiate(TemplateFunctions, templatename, templatename, args.Args)
 
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	while(PopPendingFunctionForInference(wrap))
 	{
-		TypeInference(wrap.Wrapped, DummyContextForFunctions)
+		TypeInference(wrap, DummyContextForFunctions)
 	}
 }
 
@@ -11680,11 +11683,11 @@ FindSumTypeTemplateAndInstantiate : nothing, integer defname, list<TemplateArgum
 
 DoStructureInstantiation : integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, defname, wrap)
 	assert(found)
 
-	StructInstInner(wrap.Wrapped, defname, instancename, params, args)
+	StructInstInner(wrap, defname, instancename, params, args)
 }
 
 StructInstInner : StructureDefinition ref templstruct, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
@@ -11710,12 +11713,12 @@ StructInstInner : StructureDefinition ref templstruct, integer defname, integer 
 
 DoSumTypeInstantiation : integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
-	ContextWrapper<SumType> wrap = nothing
+	ContextNode<SumType> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, defname, wrap)
 
 	if(found)
 	{
-		STInst(wrap.Wrapped, instancename, params, args)
+		STInst(wrap, instancename, params, args)
 	}
 }
 
@@ -11817,12 +11820,12 @@ RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<Te
 
 DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args, Overload ref overload
 {
-	ContextWrapper<FunctionDefinition> wrap = nothing
+	ContextNode<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
 	assert(found)
 
-	FunctionInstantiationInner(wrap.Wrapped, basenamemangled, defname, instancename, params, args, overload)
-	EnumerateOverloadsAndInstantiate(wrap.Wrapped, defname, args)
+	FunctionInstantiationInner(wrap, basenamemangled, defname, instancename, params, args, overload)
+	EnumerateOverloadsAndInstantiate(wrap, defname, args)
 }
 
 EnumerateOverloadsAndInstantiate : FunctionDefinition ref func, integer templatename, list<TemplateArgument> ref args
@@ -12238,11 +12241,11 @@ InstantiateEntityChainEntries : nothing, list<TemplateParameter> ref templatepar
 
 SetStructureToTemplate : integer name
 {
-	ContextWrapper<StructureDefinition> wrap = nothing
+	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
 	assert(found)
 
-	SetStructureToTemplate(wrap.Wrapped)
+	SetStructureToTemplate(wrap)
 }
 
 SetStructureToTemplate : StructureDefinition ref struct
@@ -12262,22 +12265,23 @@ structure tailhack :
 
 
 
-PopPendingFunctionForInference : ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
+PopPendingFunctionForInference : ContextNode<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	hasnode = PopPendingFunctionForInferenceWorker(PendingInferenceFunctions, PendingInferenceFunctions.next, out)
 }
 
-PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, list<FunctionDefinition> ref tail, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
+PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, list<FunctionDefinition> ref tail, ContextNode<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	if(head.value.Name != 0)
 	{
-		out.Wrapped = head.value
+		ContextNode<FunctionDefinition> outwrap = head.value
+		out = outwrap
 		head = tail
 		hasnode = true
 	}
 }
 
-PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, nothing, ContextWrapper<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
+PopPendingFunctionForInferenceWorker : list<FunctionDefinition> ref head, nothing, ContextNode<FunctionDefinition> ref out -> boolean hasnode = false [nogc]
 {
 	assert(head.value.Name == 0)
 }
@@ -13740,12 +13744,13 @@ SearchBinaryTree<type T> : BinaryTree<T> ref tree, integer target -> boolean fou
 SearchBinaryTree<type T> : nothing, integer target -> boolean found = false
 
 
-SearchBinaryTreeForPayload<type T> : BinaryTree<T> ref tree, integer target, ContextWrapper<T> ref out -> boolean found = false
+SearchBinaryTreeForPayload<type T> : BinaryTree<T> ref tree, integer target, ContextNode<T> ref out -> boolean found = false
 {
 	if(tree.Value == target)
 	{
 		found = true
-		out.Wrapped = tree.Payload.Payload
+		ContextNode<T> outwrap = tree.Payload.Payload
+		out = outwrap
 		return()
 	}
 	elseif(target < tree.Value)
@@ -13758,7 +13763,7 @@ SearchBinaryTreeForPayload<type T> : BinaryTree<T> ref tree, integer target, Con
 	}
 }
 
-SearchBinaryTreeForPayload<type T> : nothing, integer target, ContextWrapper<T> ref out -> boolean found = false
+SearchBinaryTreeForPayload<type T> : nothing, integer target, ContextNode<T> ref out -> boolean found = false
 
 GetNodeValue<type T> : BinaryTree<T> ref node -> integer ret = node.Value
 
