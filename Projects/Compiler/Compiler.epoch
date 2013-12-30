@@ -8825,7 +8825,7 @@ EliminateImpossibleParameters : list<TypePossibilityList> ref params, Expression
 EliminateImpossibleParameters : nothing, ExpressionAtom ref atom, Scope ref scope, ContextNode<FunctionDefinition> ref func, boolean funcret, boolean parenthetical -> true
 
 
-SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count
+SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname, integer count [nogc]
 {
 	if(count == 0)
 	{
@@ -8837,7 +8837,7 @@ SetOperatorAtomToOverload : list<ExpressionAtom> ref atoms, integer overloadname
 	}
 }
 
-ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname
+ChangeOperator : OperatorInvokeAtom ref atom, integer overloadname [nogc]
 {
 	atom.OperatorName = overloadname
 }
