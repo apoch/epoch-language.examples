@@ -8141,17 +8141,15 @@ GetAssignmentRHSType : AssignmentCompound ref assignment -> integer rettype = Ge
 
 TypeInference : Assignment ref assignment, InferenceContext ref context -> boolean success = true
 {
-	Variable var = 0, 0, 0, 0
-	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, assignment.LHSName, var)
-
-	if(var.Name == 0)
+	integer vartype = GetVariableTypeFromScope(context.ScopeRef.Wrapped, assignment.LHSName)
+	if(vartype == 0)
 	{
 		success = false
 		print("Assignment to non-existent variable " ; GetPooledString(GlobalStrings, assignment.LHSName))
 		return()
 	}
 
-	simplelist<integer> temp = var.VarType, nothing
+	simplelist<integer> temp = vartype, nothing
 	InferenceContext newcontext = context.ScopeName, -1, temp, false, 0, false, false, context.ScopeRef, context.FuncRef
 
 	if(!TypeInference(assignment.RHS, newcontext))
@@ -8160,7 +8158,7 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 		success = false
 	}
 
-	assignment.LHSType = var.VarType
+	assignment.LHSType = vartype
 
 	if(assignment.LHSType != GetAssignmentRHSType(assignment.RHS))
 	{
