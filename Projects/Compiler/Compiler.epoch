@@ -7185,10 +7185,8 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 		success = false
 	}
 
-
-	simplelist<integer> tempret = 0, nothing
-	InferenceContext retcontext = func.Name, 0, tempret, true, 0, false, false, innercontext.ScopeRef, funcwrap
-
+	
+	InferenceContext retcontext = func.Name, 0, globalemptyintlist, true, 0, false, false, innercontext.ScopeRef, funcwrap
 	if(!TypeInference(func.Return, retcontext))
 	{
 		print("Function return expression failed type inference")
@@ -8418,6 +8416,10 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 TypeInferenceExpressionList : nothing, InferenceContext ref context, integer paramindex, boolean hasallparams, list<ParameterTypeList> ref paraminfo -> boolean success = true
 
 
+countatoms : list<ExpressionAtom> ref atoms -> integer count = 1 + countatoms(atoms.next)
+countatoms : nothing -> 0
+
+
 TypeInference : Expression ref expression, InferenceContext ref context -> boolean success = true
 {
 	if(expression.Type != 0)
@@ -8431,29 +8433,106 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		return()
 	}
 
-	CoalesceMemberAccesses(expression.Atoms, context.ScopeRef.Wrapped)
-	ShuntingYard(expression.Atoms)
-
-	InferencePossibility temp = 0, scratchparampossibles, scratchreturns
-	list<InferencePossibility> possibilities = temp, nothing
-	ExpressionInferenceStackEntry stackentry = possibilities
-	list<ExpressionInferenceStackEntry> stack = stackentry, nothing
-
-	integer counter = 0
-
-	WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, context)
-
-	integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
-	if(possibilitycount == 1)
+	if(countatoms(expression.Atoms) > 1)
 	{
+		CoalesceMemberAccesses(expression.Atoms, context.ScopeRef.Wrapped)
+		ShuntingYard(expression.Atoms)
+		
+		InferencePossibility temp = 0, scratchparampossibles, scratchreturns
+		list<InferencePossibility> possibilities = temp, nothing
+		ExpressionInferenceStackEntry stackentry = possibilities
+		list<ExpressionInferenceStackEntry> stack = stackentry, nothing
+
+		integer counter = 0
+
+		WalkAtomsForType(expression.Atoms, expression.Atoms.next, stack, counter, context)
+
+		integer possibilitycount = CountPossibilities(stack.value.PossibilityList)
+		if(possibilitycount == 1)
+		{
+			if((!context.FunctionReturn) && (context.StatementName != 0))
+			{
+				simplelist<integer> types = 0, nothing
+				integer typecount = EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
+
+				if(typecount == 1)
+				{
+					assertmsg(types.value != 0, "Inferred a non-type!")
+					expression.Type = types.value
+				}
+				elseif(typecount > 1)
+				{
+					print("Multiple types possible:")
+					DumpTypeList(types)
+				}
+				else
+				{
+					// TODO - demotion logic here is MESSY
+					if((countnonzero(stack.value.PossibilityList.value.ReturnType.Types) == 1) && (countnonzero(context.ExpectedTypes) == 1) && (stack.value.PossibilityList.value.ReturnType.Types.value == 0x01000001) && (context.ExpectedTypes.value == 0x01000002))
+					{
+						expression.Type = 0x01000002
+					}
+					else
+					{
+						print("All types ruled out")
+						DumpTypeList(stack.value.PossibilityList.value.ReturnType.Types)
+						print("Expected types are")
+						DumpTypeList(context.ExpectedTypes)
+					}
+				}
+			}
+			else
+			{
+				simplelist<integer> possibletypes = 0, nothing
+				FilterTypesForDemotion(stack.value.PossibilityList.value.ReturnType.Types, possibletypes)
+
+				integer typecount = countnonzero(possibletypes)
+				if(typecount == 1)
+				{
+					expression.Type = possibletypes.value
+					assertmsg(expression.Type != 0, "Ruled out all types but a non-type!")
+				}
+				elseif(context.FunctionReturn)
+				{
+					print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
+					DumpTypeList(possibletypes)
+				}
+				else
+				{
+					print("Expression has " ; cast(string, typecount) ; " types possible")
+					DumpTypeList(possibletypes)
+				}
+			}
+		}
+		else
+		{
+			// TODO - error context!
+			if(possibilitycount > 0)
+			{
+				print("Multiple overloads possible:")
+				DumpOverloadList(stack.value.PossibilityList)
+			}
+			else
+			{
+				print("No types possible in this expression:")
+				DumpExpressionAtoms(expression.Atoms)
+				print("End expression")
+			}
+		}
+	}
+	else
+	{
+		simplelist<integer> possibletypes = 0, nothing
+		TypePossibilityList poss = possibletypes, false
+		GetAtomType(expression.Atoms.value, poss, context.ScopeRef.Wrapped, context.FuncRef.Wrapped, context.FunctionReturn, context.Parenthetical)
+
 		if((!context.FunctionReturn) && (context.StatementName != 0))
 		{
 			simplelist<integer> types = 0, nothing
-			integer typecount = EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
+			integer typecount = EliminateImpossibleType(poss.Types, context.ExpectedTypes, types)
 
 			if(typecount == 1)
 			{
-				assertmsg(types.value != 0, "Inferred a non-type!")
 				expression.Type = types.value
 			}
 			elseif(typecount > 1)
@@ -8463,56 +8542,31 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			}
 			else
 			{
-				// TODO - demotion logic here is MESSY
-				if((countnonzero(stack.value.PossibilityList.value.ReturnType.Types) == 1) && (countnonzero(context.ExpectedTypes) == 1) && (stack.value.PossibilityList.value.ReturnType.Types.value == 0x01000001) && (context.ExpectedTypes.value == 0x01000002))
-				{
-					expression.Type = 0x01000002
-				}
-				else
-				{
-					print("All types ruled out")
-					DumpTypeList(stack.value.PossibilityList.value.ReturnType.Types)
-					print("Expected types are")
-					DumpTypeList(context.ExpectedTypes)
-				}
+				print("Can't figure out type of expression atom!")
+				success = false
 			}
 		}
 		else
 		{
-			simplelist<integer> possibletypes = 0, nothing
-			FilterTypesForDemotion(stack.value.PossibilityList.value.ReturnType.Types, possibletypes)
+			simplelist<integer> filtered = 0, nothing
+			FilterTypesForDemotion(poss.Types, filtered)
 
-			integer typecount = countnonzero(possibletypes)
+			integer typecount = countnonzero(filtered)
 			if(typecount == 1)
 			{
-				expression.Type = possibletypes.value
+				expression.Type = filtered.value
 				assertmsg(expression.Type != 0, "Ruled out all types but a non-type!")
 			}
 			elseif(context.FunctionReturn)
 			{
 				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
-				DumpTypeList(possibletypes)
+				DumpTypeList(filtered)
 			}
 			else
 			{
 				print("Expression has " ; cast(string, typecount) ; " types possible")
-				DumpTypeList(possibletypes)
+				DumpTypeList(filtered)
 			}
-		}
-	}
-	else
-	{
-		// TODO - error context!
-		if(possibilitycount > 0)
-		{
-			print("Multiple overloads possible:")
-			DumpOverloadList(stack.value.PossibilityList)
-		}
-		else
-		{
-			print("No types possible in this expression:")
-			DumpExpressionAtoms(expression.Atoms)
-			print("End expression")
 		}
 	}
 
