@@ -5387,6 +5387,11 @@ GetStructureMemberType : integer structurename, integer membername -> integer rt
 	if(found)
 	{
 		rtype = GetMemberType(wrap.Wrapped, membername)
+		
+		if(rtype == 0)
+		{
+			print(GetPooledString(GlobalStrings, structurename))
+		}
 	}
 	else
 	{
@@ -5415,7 +5420,7 @@ GetMemberType : list<StructureMember> ref members, integer membername -> integer
 GetMemberType : nothing, integer membername -> integer rtype = 0
 {
 	print("Bogus structure member!")
-	assert(false)
+	print(GetPooledString(GlobalStrings, membername))
 }
 
 
