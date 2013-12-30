@@ -5778,12 +5778,11 @@ FindReturnVariableNameInSingleScope : nothing, integer ref name
 
 FindVariableType : integer varname -> integer rettype = 0
 {
-	Variable var = 0, 0, 0, 0
-	if(!FindVariableDataInSingleScope(EmittingScope.Wrapped, varname, var))
+	rettype = GetVariableTypeFromScope(EmittingScope.Wrapped, varname)
+	if(rettype == 0)
 	{
-		return()
+		rettype = GetVariableTypeFromScope(GlobalScope.Wrapped, varname)
 	}
-	rettype = var.VarType
 }
 
 FindVariableDataInSingleScope : Scope ref scope, integer varname, Variable ref outvar -> boolean found = false [nogc]
