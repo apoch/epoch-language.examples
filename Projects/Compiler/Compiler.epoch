@@ -5162,10 +5162,6 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
-		elseif(GetTypeByName(idatom.Handle) != 0)
-		{
-			OnBytecodePushLiteralString(idatom.Handle)
-		}
 		else
 		{
 			if(atomtype == 0x01000000)					// Identifier type signature
@@ -5213,8 +5209,15 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 						if(var.Name == 0)
 						{
-							print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
-							assert(false)
+							if(GetTypeByName(idatom.Handle) != 0)
+							{
+								OnBytecodePushLiteralString(idatom.Handle)
+							}
+							else
+							{
+								print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
+								assert(false)
+							}
 						}
 						OnBytecodePushLocal(frames, var.Offset)
 					}
@@ -5337,37 +5340,6 @@ GetNameOfStructureByType : list<StructureDefinition> ref structures, integer typ
 GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
 
 
-
-GetSizeOfStructureByType : integer typeid -> integer size = 0
-{
-	size = GetSizeOfStructureByType(Structures, typeid)
-}
-
-GetSizeOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer size = 0
-{
-	if(structures.value.Type == typeid)
-	{
-		size = GetTotalMemberSize(structures.value.Members)
-	}
-	else
-	{
-		size = GetSizeOfStructureByType(structures.next, typeid)
-	}
-}
-
-GetSizeOfStructureByType : nothing, integer typeid -> integer name = 0
-
-
-GetTotalMemberSize : list<StructureMember> ref members -> integer size = 0
-{
-	integer recursedsize = GetTotalMemberSize(members.next)
-	size = GetMemberSize(members.value) + recursedsize
-}
-
-GetTotalMemberSize : nothing -> integer size = 0
-
-
-
 GetStructureMemberTypeAndOffset : integer structurename, integer membername, integer ref memtype, integer ref memoffset
 {
 	ContextNode<StructureDefinition> wrap = nothing
@@ -5463,46 +5435,9 @@ GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name
 GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name [nogc]
 
 
-GetMemberOffset : list<StructureMember> ref members, integer membername -> integer offset = 0 [nogc]
-{
-	integer counter = 0
-	GetMemberOffset(members, membername, counter)
-	offset = counter
-}
-
-GetMemberOffset : list<StructureMember> ref members, integer membername, integer ref counter [nogc]
-{
-	if(GetMemberName(members.value) != membername)
-	{
-		if(GetMemberName(members.value) != 0)
-		{
-			counter += GetMemberSize(members.value)
-		}
-		GetMemberOffset(members.next, membername, counter)
-	}
-}
-
-GetMemberOffset : nothing, integer membername, integer ref counter [nogc]
-
 GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type) [nogc]
 
 GetMemberSize : StructureMemberFunctionRef ref member -> 4 [nogc]
-
-
-
-GetStructureMemberOffset : list<StructureDefinition> ref structures, integer structurename, integer membername -> integer offset = 0 [nogc]
-{
-	if(structures.value.Name == structurename)
-	{
-		offset = GetMemberOffset(structures.value.Members, membername)
-	}
-	else
-	{
-		offset = GetStructureMemberOffset(structures.next, structurename, membername)
-	}
-}
-
-GetStructureMemberOffset : nothing, integer structurename, integer membername -> 0 [nogc]
 
 
 
@@ -5854,24 +5789,6 @@ CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
 
 CodeGenEmitTypeMatchers : nothing
 
-
-FindTypeMatcherAndAppendOverloadParameter : list<TypeMatcher> ref matchers, integer matchername, integer overloadname, Parameter ref p
-{
-	if(matchers.value.Name == matchername)
-	{
-		FindTMOverloadAndAppendParameter(matchers.value.Overloads, matchers.value.Overloads, overloadname, p)
-	}
-	else
-	{
-		FindTypeMatcherAndAppendOverloadParameter(matchers.next, matchername, overloadname, p)
-	}
-}
-
-FindTypeMatcherAndAppendOverloadParameter : nothing, integer matchername, integer overloadname, Parameter ref p
-{
-	print("No type matcher available")
-	assert(false)
-}
 
 FindTMOverloadAndAppendParameter : list<FunctionSignature> ref originallist, list<FunctionSignature> ref signatures, integer overloadname, Parameter ref p
 {
@@ -6860,22 +6777,15 @@ IRProcess : -> boolean success = true
 }
 
 
-GeneratePendingTypeMatchers : list<PendingTypeMatcher> ref pendingmatchers -> boolean success = true
+GeneratePendingTypeMatchers : list<PendingTypeMatcher> ref pendingmatchers
 {
-	if(!GeneratePendingTypeMatcher(pendingmatchers.value))
-	{
-		success = false
-	}
-
-	if(!GeneratePendingTypeMatchers(pendingmatchers.next))
-	{
-		success = false
-	}
+	GeneratePendingTypeMatcher(pendingmatchers.value)
+	GeneratePendingTypeMatchers(pendingmatchers.next)
 }
 
-GeneratePendingTypeMatchers : nothing -> true
+GeneratePendingTypeMatchers : nothing
 
-GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher -> boolean success = true
+GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher
 {
 	if(matcher.OverloadName == 0)
 	{
@@ -7143,19 +7053,6 @@ TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref con
 	if(!TypeInference(functions.next, context))
 	{
 		success = false
-	}
-}
-
-
-SetScopeForContext : list<Scope> ref scopes, InferenceContext ref context
-{
-	if(scopes.value.Name == context.ScopeName)
-	{
-		context.ScopeRef.Wrapped = scopes.value
-	}
-	else
-	{
-		SetScopeForContext(scopes.next, context)
 	}
 }
 
@@ -10691,7 +10588,7 @@ WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref para
 	{
 		needref = true
 	}
-	if(params.value.ResolvedType == 0x00000004)			// TODO - don't assume "nothing" is always passed by ref
+	elseif(params.value.ResolvedType == 0x00000004)			// TODO - don't assume "nothing" is always passed by ref
 	{
 		needref = true
 	}
