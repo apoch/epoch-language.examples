@@ -50,7 +50,7 @@ CreateFileMapping : integer filehandle, integer attributes, integer protection, 
 MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
 UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
 GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
-
+SetCurrentDirectory : string path -> boolean success = false [external("Kernel32.dll", "SetCurrentDirectoryW", "stdcall")]
 
 timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")]
 
@@ -93,13 +93,12 @@ entrypoint :
 
 	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
 	{
-		boolean makeexe = false
+		boolean makeproject = false
 
 		string filename = cmdlineget(1)
-		if(filename == "make")
+		if((length(filename) > 5) && (substring(filename, length(filename) - 5) == ".eprj"))
 		{
-			filename = cmdlineget(2)
-			makeexe = true
+			makeproject = true
 		}
 		else
 		{
@@ -107,72 +106,173 @@ entrypoint :
 			print("")
 		}
 
-		integer len = 0
-		string contents = ReadFile(filename, len)
-
-		if(len == 0)
-		{
-			return()
-		}
-
 		PrepareStringTable()
 		InitBuiltInOverloads()
 
-		largeint startqpc = 0, 0
-		QueryPerformanceCounter(startqpc)
-
-		integer startparsems = timeGetTime()
-		boolean parseok = Parse(contents, len)
-		integer durationparsems = timeGetTime() - startparsems
-
-		print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
-		if(!parseok)
+		if(makeproject)
 		{
-			return()
-		}
-
-		integer startprocessms = timeGetTime()
-		boolean irok = IRProcess()
-		integer durationprocessms = timeGetTime() - startprocessms
-
-		print("Semantic analysis completed in " ; cast(string, durationprocessms) ; " milliseconds")
-		if(!irok)
-		{
-			return()
-		}
-
-		integer startcodegenms = timeGetTime()
-		OnCodeGenProcessProgram()
-		integer durationcodegenms = timeGetTime() - startcodegenms
-
-		print("Code generation completed in " ; cast(string, durationcodegenms) ; " milliseconds")
-		print("")
-
-		if(makeexe)
-		{
-			MakeExe("test.exe")
-
-			largeint endqpc = 0, 0
-			QueryPerformanceCounter(endqpc)
-
-			integer stupidguess = endqpc.low - startqpc.low
-
-			largeint freq = 0, 0
-			QueryPerformanceFrequency(freq)
-
-			integer duration = stupidguess * 1000 / freq.low
-
-			print(cast(string, duration) ; " milliseconds elapsed")
+			ChangeToPath(filename)
+			CompileProject(filename)
 		}
 		else
 		{
-			ExecuteByteCodeBuffer(Hack, HackSize)
+			if(CompileFile(filename))
+			{
+				ExecuteByteCodeBuffer(Hack, HackSize)		
+			}
 		}
 	}
 	else
 	{
 		print("Please specify a program to execute!")
 	}
+}
+
+
+ChangeToPath : string filename
+{
+	if(!stringcontains(filename, "\"))
+	{
+		return()
+	}
+	
+	integer pos = length(filename) - 1
+	while(charat(filename, pos) != "\")
+	{
+		--pos
+	}
+	
+	string path = substring(filename, 0, pos)
+	SetCurrentDirectory(path)
+}
+
+
+CompileProject : string filename
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+
+	string line = ExtractLine(contents)
+	if(line != "[source]")
+	{
+		print("Malformed project file!")
+		return()
+	}
+
+	boolean parseok = true
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		else
+		{
+			print(line)
+			if(!ParseFile(line))
+			{
+				parseok = false
+			}
+		}
+	}
+
+	// TODO - read the project file for output filename and settings
+	
+	if(!parseok)
+	{
+		return()
+	}
+
+	boolean irok = IRProcess()
+	if(!irok)
+	{
+		return()
+	}
+
+	OnCodeGenProcessProgram()
+	MakeExe("project.exe")
+}
+
+
+ParseFile : string filename -> boolean success = false
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+	
+	success = Parse(contents, len)
+}
+
+
+CompileFile : string filename -> boolean success = false
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+
+	integer startparsems = timeGetTime()
+	boolean parseok = Parse(contents, len)
+	integer durationparsems = timeGetTime() - startparsems
+
+	print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
+	if(!parseok)
+	{
+		return()
+	}
+
+	integer startprocessms = timeGetTime()
+	boolean irok = IRProcess()
+	integer durationprocessms = timeGetTime() - startprocessms
+
+	print("Semantic analysis completed in " ; cast(string, durationprocessms) ; " milliseconds")
+	if(!irok)
+	{
+		return()
+	}
+
+	integer startcodegenms = timeGetTime()
+	OnCodeGenProcessProgram()
+	integer durationcodegenms = timeGetTime() - startcodegenms
+
+	print("Code generation completed in " ; cast(string, durationcodegenms) ; " milliseconds")
+	print("")
+
+	success = true
+}
+
+
+ExtractLine : string ref contents -> string line = ""
+{
+	if(length(contents) == 0)
+	{
+		return()
+	}
+
+	integer pos = 0
+	while(charat(contents, pos) != unescape("\r"))
+	{
+		++pos
+	}
+		
+	line = substring(contents, 0, pos)
+	
+	pos += 2
+	contents = substring(contents, pos)
 }
 
 
