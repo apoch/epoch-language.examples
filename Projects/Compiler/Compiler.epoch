@@ -5262,6 +5262,10 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 		{
 			OnBytecodePushLiteralFunction(idatom.Handle)
 		}
+		elseif(GetTypeByName(idatom.Handle) != 0)
+		{
+			OnBytecodePushLiteralString(idatom.Handle)
+		}
 		else
 		{
 			if(atomtype == 0x01000000)					// Identifier type signature
@@ -5309,15 +5313,8 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 						if(var.Name == 0)
 						{
-							if(GetTypeByName(idatom.Handle) != 0)
-							{
-								OnBytecodePushLiteralString(idatom.Handle)
-							}
-							else
-							{
-								print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
-								assert(false)
-							}
+							print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
+							assert(false)
 						}
 						OnBytecodePushLocal(frames, var.Offset)
 					}
