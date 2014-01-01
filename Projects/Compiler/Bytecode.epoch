@@ -1,0 +1,362 @@
+
+//
+// Callback used to emit a byte to a bytecode stream
+//
+
+OnBytecodeEmitByte : integer b [nogc]
+{
+	writebuffer(Hack, HackSize, b)
+	++HackSize
+}
+
+
+OnBytecodeEmitInteger : integer value [nogc]
+{
+	writebuffer(Hack, HackSize, value & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x100) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x10000) & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (value / 0x1000000) & 0xff)
+	++HackSize
+}
+
+OnBytecodeEmitInteger16 : integer16 value [nogc]
+{
+	integer v = cast(integer, value)
+	writebuffer(Hack, HackSize, v & 0xff)
+	++HackSize
+	writebuffer(Hack, HackSize, (v / 0x100) & 0xff)
+	++HackSize
+}
+
+OnBytecodeEmitReal : real value [nogc]
+{
+	writebuffer(Hack, HackSize, value)
+	HackSize = HackSize + 4
+}
+
+OnBytecodeEmitString : string value [nogc]
+{
+	integer len = (length(value) + 1) * 2
+	writebuffer(Hack, HackSize, value, len)
+	HackSize += len
+}
+
+OnBytecodeEmitBoolean : boolean value [nogc]
+{
+	OnBytecodeEmitByte(cast(integer, value))
+}
+
+
+OnBytecodePoolString : integer handle, string data [nogc]
+{
+	OnBytecodeEmitByte(0x10)			// PoolString instruction
+	OnBytecodeEmitInteger(handle)
+	OnBytecodeEmitString(data)
+}
+
+OnBytecodeLexicalScope : integer name, integer parent, integer count [nogc]
+{
+	OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(parent)
+	OnBytecodeEmitInteger(count)
+}
+
+OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin [nogc]
+{
+	OnBytecodeEmitInteger(varname)
+	OnBytecodeEmitInteger(vartype)
+	OnBytecodeEmitInteger(origin)
+	OnBytecodeEmitBoolean(false)
+}
+
+OnBytecodeInvokeOffset : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(0)
+}
+
+OnBytecodeHalt : [nogc]
+{
+	OnBytecodeEmitByte(0x00)			// Halt instruction
+}
+
+OnBytecodeEnterFunction : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitFunction : [nogc]
+{
+	OnBytecodeEmitByte(0x09)			// Return instruction
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeInvoke : integer target [nogc]
+{
+	OnBytecodeEmitByte(0x07)			// Invoke instruction
+	OnBytecodeEmitInteger(target)
+}
+
+OnBytecodeEnterEntity : integer tag, integer name [nogc]
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(tag)
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitEntity : [nogc]
+{
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeBeginChain : [nogc]
+{
+	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
+}
+
+OnBytecodeEndChain : [nogc]
+{
+	OnBytecodeEmitByte(0x0e)			// EndChain instruction
+}
+
+OnBytecodeDefineStructure : integer typeid, integer nummembers [nogc]
+{
+	OnBytecodeEmitByte(0x14)			// DefineStructure instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(nummembers)
+}
+
+OnBytecodeStructureMember : integer name, integer typeid [nogc]
+{
+	OnBytecodeEmitInteger(name)
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeReadReference : [nogc]
+{
+	OnBytecodeEmitByte(0x17)			// ReadRef instruction
+}
+
+OnBytecodeReadReferenceAnnotated : [nogc]
+{
+	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
+}
+
+OnBytecodeAllocStructure : integer typeid [nogc]
+{
+	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeBindReference : integer frameskip, integer index [nogc]
+{
+	if(index < 0)
+	{
+		print("Binding reference to a missing variable!")
+		assert(false)
+	}
+
+	OnBytecodeEmitByte(0x03)			// BindRef instruction
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(index)
+}
+
+OnBytecodeAssign : [nogc]
+{
+	OnBytecodeEmitByte(0x06)			// Assign instruction
+}
+
+OnBytecodePushVarValueNoCopy : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x05)			// Read instruction
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodePushVarValue : integer name, integer typeid [nogc]
+{
+	OnBytecodePushVarValueNoCopy(name)
+
+	integer family = typeid & 0xff000000
+
+	if(typeid == 0x02000001)			// Buffer type signature
+	{
+		OnBytecodeCopyBuffer()
+	}
+	elseif(family == 0x03000000)			// Structure family signature
+	{
+		//OnBytecodeCopyStructure()		// TODO - un-break value semantics!
+	}
+	elseif(family == 0x08000000)			// Template instance family signature
+	{
+		//OnBytecodeCopyStructure()
+	}
+}
+
+OnBytecodeCopyBuffer : [nogc]
+{
+	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
+}
+
+OnBytecodeCopyStructure : [nogc]
+{
+	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
+}
+
+OnBytecodeCopyToStructure : integer structurename, integer membername [nogc]
+{
+	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
+	OnBytecodeEmitInteger(structurename)
+	OnBytecodeEmitInteger(membername)
+}
+
+OnBytecodeSetReturnRegister : integer varindex [nogc]
+{
+	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
+	OnBytecodeEmitInteger(varindex)
+}
+
+OnBytecodeInvokeIndirect : integer varname [nogc]
+{
+	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
+	OnBytecodeEmitInteger(varname)
+}
+
+OnBytecodeEnterPatternResolver : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x02)			// EntityTags::PatternMatchingResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitPatternResolver : [nogc]
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodeConstructSumType : [nogc]
+{
+	OnBytecodeEmitByte(0x21)			// ConstructSumType instruction
+}
+
+OnBytecodeEnterTypeResolver : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
+	OnBytecodeEmitInteger(0x05)			// EntityTags::TypeResolver
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodeExitTypeResolver : [nogc]
+{
+	OnBytecodeHalt()
+	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+}
+
+OnBytecodePopStack : integer bytes [nogc]
+{
+	OnBytecodeEmitByte(0x04)			// Pop instruction
+	OnBytecodeEmitInteger(bytes)
+}
+
+OnBytecodeBindRefByHandle : integer id [nogc]
+{
+	OnBytecodeEmitByte(0x1d)
+	OnBytecodeEmitInteger(id)
+}
+
+OnBytecodeBindStructReference : integer membertype, integer memberoffset [nogc]
+{
+	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
+	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
+	OnBytecodeEmitInteger(memberoffset)
+}
+
+OnBytecodePushType : integer typeid [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(typeid)
+}
+
+OnBytecodeAssignSumType : [nogc]
+{
+	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
+}
+
+OnBytecodePushLocal : integer frameskip, integer offset [nogc]
+{
+	OnBytecodeEmitByte(0x25)			// ReadStack instruction
+	OnBytecodeEmitInteger(frameskip)
+	OnBytecodeEmitInteger(offset)
+	OnBytecodeEmitInteger(0)
+}
+
+OnBytecodePushBoolean : boolean literal [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
+	OnBytecodeEmitBoolean(literal)
+}
+
+OnBytecodePushLiteralString : integer literalhandle [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x02000000)		// String type signature
+	OnBytecodeEmitInteger(literalhandle)
+}
+
+OnBytecodePushLiteralInteger : integer literal [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(literal)
+}
+
+OnBytecodePushLiteralInteger16 : integer16 literal [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000002)		// Integer16 type signature
+	OnBytecodeEmitInteger16(literal)
+}
+
+OnBytecodePushTypeAnnotation : integer annotation [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
+	OnBytecodeEmitInteger(annotation)
+}
+
+OnBytecodePushLiteralFunction : integer name [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x09000000)		// Function family signature (N.B. not the actual function type!)
+	OnBytecodeEmitInteger(name)
+}
+
+OnBytecodePushLiteralReal : real value [nogc]
+{
+	OnBytecodeEmitByte(0x02)			// Push instruction
+	OnBytecodeEmitInteger(0x01000004)		// Real type signature
+	OnBytecodeEmitReal(value)
+}
+
+OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount [nogc]
+{
+	OnBytecodeEmitByte(0x28)			// FuncSig instruction
+	OnBytecodeEmitInteger(typeid)
+	OnBytecodeEmitInteger(rettype)
+	OnBytecodeEmitInteger(paramcount)
+}
+
+OnBytecodeEmitFunctionSigParam : integer paramtype [nogc]
+{
+	OnBytecodeEmitInteger(paramtype)
+	OnBytecodeEmitBoolean(false)
+}

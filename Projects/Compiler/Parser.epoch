@@ -1,289 +1,58 @@
 //
-// ninja!
+// Testing of separate compilation - hosting parser in its own file (partially...)
 //
 
 
-CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
-CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
-CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
-MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
-UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
-GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
-
-
-type simplelistnode<type T> : simplelist<T> | nothing
-
-structure simplelist<type T> :
-	T value,
-	simplelistnode<T> next
-
-
-simpleprepend<type T> : simplelist<T> ref thelist, T value
-{
-	simplelist<T> newlist = value, thelist
-	thelist = newlist
-}
-
-
-simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value
-{
-	simplelist<T> newlist = value, nothing
-	thelist.next = newlist
-}
-
-simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tail, T value
-{
-	simple_append_recurse<T>(tail, tail.next, value)
-}
-
-
-simple_append<type T> : simplelist<T> ref thelist, T value
-{
-	simple_append_recurse<T>(thelist, thelist.next, value)
-}
-
-
-global
-{
-	simplelist<string> TokenStream = "", nothing
-
-	integer CHARACTER_CLASS_WHITE = 0
-	integer CHARACTER_CLASS_IDENTIFIER = 1
-	integer CHARACTER_CLASS_PUNCTUATION = 2
-}
-
-
-entrypoint :
-{
-	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
-	{
-		integer len = 0
-		string contents = ReadFile(cmdlineget(1), len)
-		Parse(contents, len)
-	}
-	else
-	{
-		print("Please specify a program to execute!")
-	}
-}
-
-
-ReadFile : string filename, integer ref len -> string contents = ""
-{
-	integer INVALID_HANDLE_VALUE = 0xffffffff
-	integer FILE_SHARE_READ = 0x01
-	integer OPEN_EXISTING = 3
-	integer GENERIC_READ = 0x80000000
-
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
-	if(filehandle != INVALID_HANDLE_VALUE)
-	{
-		integer PAGE_READONLY = 0x02
-		
-		len = GetFileSize(filehandle, 0)
-
-		if(len > 0)
-		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
-			if(mappinghandle != 0)
-			{
-				integer FILE_MAP_READ = 0x04
-				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
-
-				if(ptr != 0)
-				{
-					contents = widenfromptr(ptr, len)
-				}
-				CloseHandle(mappinghandle)
-			}
-			else
-			{
-				print("Failed to map file!")
-			}
-		}
-		else
-		{
-			contents = ""
-		}
-		CloseHandle(filehandle)
-	}
-	else
-	{
-		print("Couldn't open that file!")
-	}
-}
-
-
-Parse : string code, integer len
+Parse : string code, integer len -> boolean success = false
 {
 	Lex(code, len)
 
 	// Discard the dummy token
 	PopToken()
 
-	print("IREnterProgram")
-
 	string token = PeekToken(0)
 	while(token != "")
 	{
-		ParseFunction()
+		if(ParseSumType())
+		{
+		}
+		elseif(ParseWeakAlias())
+		{
+		}
+		elseif(ParseStrongAlias())
+		{
+		}
+		elseif(ParseStructure())
+		{
+		}
+		elseif(ParseGlobalBlock())
+		{
+		}
+		elseif(!ParseFunction())
+		{
+			print("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			return()
+		}
 
 		token = PeekToken(0)
 	}
 
-	print("IRExitProgram")
+	success = true
 }
 
 
-Lex : string code, integer len
+PushToken : string token [nogc]
 {
-	integer index = 0
-	integer lasttokenstart = 0
-
-	integer state = CHARACTER_CLASS_WHITE
-	integer prevstate = CHARACTER_CLASS_WHITE
-
-	while(index < len)
-	{
-		string c = charat(code, index)
-
-		if(state == CHARACTER_CLASS_WHITE)
-		{
-			if(!IsWhitespace(c))
-			{
-				state = Classify(c)
-				lasttokenstart = index
-			}
-		}
-		elseif(state == CHARACTER_CLASS_IDENTIFIER)
-		{
-			boolean notidentifier = false
-			if(IsWhitespace(c))
-			{
-				notidentifier = true
-				state = CHARACTER_CLASS_WHITE
-			}
-			elseif(Classify(c) != CHARACTER_CLASS_IDENTIFIER)
-			{
-				notidentifier = true
-				state = Classify(c)
-			}
-
-			if(notidentifier)
-			{
-				PushToken(substring(code, lasttokenstart, index - lasttokenstart))
-			}
-		}
-		elseif(state == CHARACTER_CLASS_PUNCTUATION)
-		{
-			if(IsWhitespace(c))
-			{
-				state = CHARACTER_CLASS_WHITE
-			}
-			elseif(Classify(c) != CHARACTER_CLASS_PUNCTUATION)
-			{
-				state = Classify(c)
-			}
-
-			PushToken(substring(code, lasttokenstart, index - lasttokenstart))
-			lasttokenstart = index
-		}
-
-
-		if(state != prevstate)
-		{
-			lasttokenstart = index
-		}
-
-		prevstate = state
-		++index
-	}
-
-	if((lasttokenstart < len) && (state != CHARACTER_CLASS_WHITE))
-	{
-		PushToken(substring(code, lasttokenstart, len - lasttokenstart))
-	}
+	quick_append(TokenStreamTail.tail, token)
 }
 
 
-IsWhitespace : string c -> boolean white = false
-{
-	if(c == " ")
-	{
-		white = true
-	}
-	elseif(c == unescape("\r"))
-	{
-		white = true
-	}
-	elseif(c == unescape("\n"))
-	{
-		white = true
-	}
-	elseif(c == unescape("\t"))
-	{
-		white = true
-	}
-}
-
-Classify : string c -> integer class = CHARACTER_CLASS_IDENTIFIER
-{
-	if(c == "{")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "}")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == ":")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "(")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == ")")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == "=")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-	elseif(c == ",")
-	{
-		class = CHARACTER_CLASS_PUNCTUATION
-	}
-}
-
-
-// TODO - replace with better option
-charat : string in, integer index -> string c = substring(in, index, 1)
-
-
-PushToken : string token
-{
-	simple_append<string>(TokenStream, token)
-}
-
-
-DumpStream : simplelist<string> ref tokens
-{
-	print(tokens.value)
-	DumpStream(tokens.next)
-}
-
-DumpStream : nothing
-
-
-PopToken :
+PopToken : [nogc]
 {
 	PopTokenFromStream(TokenStream, TokenStream.next)
 }
 
-PopTokens : integer count
+PopTokens : integer count [nogc]
 {
 	while(count > 0)
 	{
@@ -292,20 +61,20 @@ PopTokens : integer count
 	}
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail
+PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail [nogc]
 {
 	tokens = tail
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, nothing
+PopTokenFromStream : simplelist<string> ref tokens, nothing [nogc]
 {
 	tokens.value = ""
 }
 
 
-PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement)
+PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement) [nogc]
 
-PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value
+PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value [nogc]
 {
 	if(displacement > 0)
 	{
@@ -313,11 +82,11 @@ PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> strin
 	}
 }
 
-PeekTokenInStream : nothing, integer displacement -> ""
+PeekTokenInStream : nothing, integer displacement -> "" [nogc]
 
 
 
-PeekWithExpectation : integer displacement, string expected -> boolean found = false
+PeekWithExpectation : integer displacement, string expected -> boolean found = false [nogc]
 {
 	string token = PeekToken(displacement)
 	if(token == expected)
@@ -327,59 +96,649 @@ PeekWithExpectation : integer displacement, string expected -> boolean found = f
 }
 
 
-ParseFunction :
+ParseGlobalBlock : -> boolean matched = false
+{
+	if(PeekToken(0) != "global")
+	{
+		return()
+	}
+
+	if(PeekToken(1) != "{")
+	{
+		return()
+	}
+
+	PopTokens(2)
+
+	integer blockname = PoolString("@@globalblock")
+	OnCodeGenRegisterScope(blockname, 0)
+	OnCodeGenRegisterGlobalBlock(blockname)
+	CacheGlobalCodeBlock(Scopes)
+
+	while(PeekToken(0) != "}")
+	{
+		if(!ParseInitialization(false))
+		{
+			print("Failure to parse global entry")
+			return()
+		}
+	}
+
+	PopToken()
+	OnCodeGenExitContext()
+	matched = true
+}
+
+
+ParseWeakAlias : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "alias"))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, "="))
+	{
+		return()
+	}
+
+	PopToken()
+	string aliasname = PeekToken(0)
+	string basename = PeekToken(2)
+	PopTokens(3)
+
+	OnCodeGenRegisterWeakAlias((++GlobalWeakAliasCounter), PoolString(aliasname), PoolString(basename))
+
+	matched = true
+}
+
+
+ParseStrongAlias : -> boolean matched = false
+{
+	if(!PeekWithExpectation(0, "type"))
+	{
+		return()
+	}
+
+	if(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+
+	PopToken()
+	string aliasname = PeekToken(0)
+	string basename = PeekToken(2)
+	PopTokens(3)
+
+	OnCodeGenRegisterAlias((++GlobalAliasCounter), PoolString(aliasname), PoolString(basename))
+
+	matched = true
+}
+
+
+ParseSumType : -> boolean matched = false
+{
+	boolean templated = false
+
+	if(!PeekWithExpectation(0, "type"))
+	{
+		return()
+	}
+
+	string sumtypename = PeekToken(1)
+
+	if(PeekToken(2) == "<")
+	{
+		PopTokens(3)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+
+		templated = true
+
+		if(!PeekWithExpectation(1, ":"))
+		{
+			return()
+		}
+	}
+	elseif(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+	else
+	{
+		PopToken()
+	}
+
+	integer typename = PoolString(sumtypename)
+	integer typeid = (++GlobalSumTypeCounter)
+	PopTokens(2)
+
+	ParseSumTypeBases(typename, typeid)
+
+	string finalbasename = PeekToken(0)
+	FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
+	PopToken()
+
+	if(templated)
+	{
+		SetUpSumTypeTemplate(SumTypes, typeid)
+	}
+
+	matched = true
+}
+
+
+ParseSumTypeBases : integer typename, integer typeid
+{
+	boolean hasmorebases = true
+
+	while(hasmorebases)
+	{
+		string basename = PeekToken(0)
+
+		if(PeekToken(1) == "<")
+		{
+			integer baselookahead = ParseTemplateArgs(2)
+			PopTokens(baselookahead + 2)
+
+			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), true)
+		}
+		else
+		{
+			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), false)
+			PopTokens(2)
+		}
+
+		hasmorebases = (PeekToken(1) == "|")
+	}
+}
+
+
+ParseStructure : -> boolean matched = false
+{
+	boolean templated = false
+
+	if(!PeekWithExpectation(0, "structure"))
+	{
+		return()
+	}
+
+	string structurename = PeekToken(1)
+
+	if(PeekToken(2) == "<")
+	{
+		PopTokens(3)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+
+		templated = true
+
+		if(!PeekWithExpectation(1, ":"))
+		{
+			return()
+		}
+	}
+	elseif(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+
+	PopTokens(2)
+	if(!templated)
+	{
+		PopToken()
+	}
+
+	integer structuretype = (++GlobalStructureCounter)
+	integer structurenamehandle = PoolString(structurename)
+
+	boolean moremembers = true
+	while(moremembers)
+	{
+		if(PeekToken(0) == "(")
+		{
+			PopToken()
+
+			string memberfuncname = PeekToken(0)
+			PopToken()
+
+			if(!PeekWithExpectation(0, ":"))
+			{
+				return()
+			}
+
+			PopToken()
+
+			integer memberfuncnamehandle = PoolString(memberfuncname)
+
+			simplelist<integer> paramtypenames = 0, nothing
+
+			boolean moreparams = true
+			while(moreparams)
+			{
+				string paramtypename = PeekToken(0)
+				PopToken()
+
+				simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
+
+				if(PeekToken(0) != ",")
+				{
+					moreparams = false
+				}
+				else
+				{
+					PopToken()
+				}
+			}
+
+			integer returntypehandle = 0
+
+			if(PeekToken(0) == "->")
+			{
+				PopToken()
+				returntypehandle = PoolString(PeekToken(0))
+				PopToken()
+			}
+
+			OnCodeGenRegisterStructureMemFuncSig(structurenamehandle, structuretype, memberfuncnamehandle, returntypehandle)
+			OnCodeGenRegisterStructureMemFuncSigParamList(structurenamehandle, structuretype, memberfuncnamehandle, paramtypenames)
+
+			if(!PeekWithExpectation(0, ")"))
+			{
+				return()
+			}
+
+			PopToken()
+		}
+		else
+		{
+			boolean membertemplated = false
+			boolean isref = false
+			string membertypename = PeekToken(0)
+			PopToken()
+			string membername = PeekToken(0)
+			PopToken()
+
+			if(membername == "<")
+			{
+				integer memberlookahead = ParseTemplateArgs(0)
+				if(memberlookahead > 0)
+				{
+					membertemplated = true
+					PopTokens(memberlookahead + 1)
+					membername = PeekToken(0)
+					PopToken()
+				}
+				else
+				{
+					print("Error in template arguments for structure member")
+					return()
+				}
+			}
+
+			if(membername == "ref")
+			{
+				isref = true
+				membername = PeekToken(0)
+				PopToken()
+			}
+
+			OnCodeGenRegisterStructureMemVar(structurenamehandle, structuretype, PoolString(membername), PoolString(membertypename), isref, membertemplated)
+		}
+
+		if(PeekToken(0) != ",")
+		{
+			moremembers = false
+		}
+		else
+		{
+			PopToken()
+		}
+	}
+
+	if(templated)
+	{
+		SetStructureToTemplate(structurenamehandle)
+	}
+
+	matched = true
+}
+
+
+ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
+	boolean templated = false
 
-	print("IREnterFunction " ; functionname)
+	if(PeekToken(1) == "<")
+	{
+		PopTokens(2)
+		if(!ParseTemplateParameters())
+		{
+			return()
+		}
+
+		templated = true
+	}
 
 	if(!PeekWithExpectation(1, ":"))
 	{
 		return()
 	}
 
-	if(!PeekWithExpectation(2, "{"))
+	PopTokens(2)
+
+	integer rawnamehandle = PoolString(functionname)
+	integer namehandle = RegisterOverloadForFunction(functionname, rawnamehandle)
+
+	OnCodeGenRegisterFunction(namehandle, rawnamehandle, functionname, templated)
+	if(PeekToken(0) != "[")
 	{
+		ParseFunctionParams(rawnamehandle, namehandle)
+		ParseFunctionReturn(namehandle)
+	}
+	ParseFunctionTags(namehandle, rawnamehandle)
+
+	if(!PeekWithExpectation(0, "{"))
+	{
+		matched = true
+		IREnterFunction(namehandle)
+		Functions.value.AttachedScope.Wrapped = Scopes.value
+		OnCodeGenEnterFunctionBody(namehandle)
+		IRExitFunction()
 		return()
 	}
 
-	PopTokens(3)
-	
-	string token = PeekToken(0)
-	while(token != "}")
-	{
-		if(token == "")
-		{
-			print("Error: missing a }")
-			return()
-		}
+	PopTokens(1)
+	IREnterFunction(namehandle)
+	Functions.value.AttachedScope.Wrapped = Scopes.value
+	OnCodeGenEnterFunctionBody(namehandle)
 
-		if(ParseStatement())
-		{
-		}
-		elseif(ParseAssignment())
-		{
-		}
+	ParseCodeBlock()
 
-		token = PeekToken(0)
-	}
-
-	PopToken()
-	print("IRExitFunction")
+	IRExitFunction()
+	matched = true
 }
 
 
-ParseStatement : -> boolean matched = false
+ParseTemplateParameters : -> boolean matched = false
 {
-	string statementname = PeekToken(0)
+	boolean hasparams = true
 
-	if(!PeekWithExpectation(1, "("))
+	while(hasparams)
+	{
+		string paramtype = PeekToken(0)
+		string paramname = PeekToken(1)
+
+		IRRegisterTemplateParameter(PoolString(paramtype), PoolString(paramname))
+
+		PopTokens(2)
+
+		if(PeekToken(0) == ">")
+		{
+			hasparams = false
+		}
+		elseif(PeekToken(0) == ",")
+		{
+			PopToken()
+		}
+		else
+		{
+			print("Syntax error in template parameters")
+			return()
+		}
+	}
+
+	matched = true
+}
+
+
+ParseFunctionParams : integer rawname, integer mangledname
+{
+	string typetoken = PeekToken(0)
+	if(typetoken == "")
 	{
 		return()
 	}
 
-	print("IREnterStatement " ; statementname)
-	PopTokens(2)
+	while((typetoken != "{") && (typetoken != "->"))
+	{
+		if(typetoken == "nothing")
+		{
+			integer pooledhandle = PooledStringHandleForNothing
+			integer nothinghandle = PoolString("nothing@@" ; cast(string, GlobalNothingCounter))
+			++GlobalNothingCounter
+
+			PopToken()
+			IRRegisterFunctionParam(nothinghandle, pooledhandle, false, false)
+		}
+		elseif(typetoken == "(")
+		{
+			PopToken()
+			string higherordername = PeekToken(0)
+
+			if(PeekWithExpectation(1, ":"))
+			{
+				PopTokens(2)
+
+				simplelist<integer> paramtypenames = 0, nothing
+
+				boolean moreparams = true
+				if(PeekToken(0) == ")")
+				{
+					moreparams = false
+				}
+
+				while(moreparams)
+				{
+					string paramtypename = PeekToken(0)
+					PopToken()
+
+					simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
+
+					if(PeekToken(0) != ",")
+					{
+						moreparams = false
+					}
+					else
+					{
+						PopToken()
+					}
+				}
+
+				integer returntypename = 0
+
+				if(PeekToken(0) == "->")
+				{
+					PopToken()
+					returntypename = PoolString(PeekToken(0))
+					PopToken()
+				}
+
+				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, returntypename)
+
+				if(!PeekWithExpectation(0, ")"))
+				{
+					print("Error in higher order function parameter syntax")
+					return()
+				}
+
+				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing, nothing
+				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+
+				PopToken()
+			}
+		}
+		elseif(HandleLiteralFunctionParam(typetoken))
+		{
+			PopToken()
+			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, mangledname)
+			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, rawname)			// kind of a dumb hack
+		}
+		else
+		{
+			integer lookahead = 0
+			boolean templated = false
+
+			if(PeekToken(1) == "<")
+			{
+				lookahead = ParseTemplateArgs(2)
+				if(lookahead > 0)
+				{
+					templated = true
+				}
+			}
+
+			string nametoken = PeekToken(1 + lookahead)
+			PopTokens(2 + lookahead)
+
+			boolean isreference = false
+			if(nametoken == "ref")
+			{
+				isreference = true
+				nametoken = PeekToken(0)
+				PopToken()
+			}
+
+			// TODO - error checking
+
+			IRRegisterFunctionParam(PoolString(nametoken), PoolString(typetoken), isreference, templated)
+		}
+
+		typetoken = PeekToken(0)
+		if(typetoken != ",")
+		{
+			return()
+		}
+		PopToken()
+		typetoken = PeekToken(0)
+	}
+}
+
+
+ParseFunctionReturn : integer namehandle
+{
+	if(!PeekWithExpectation(0, "->"))
+	{
+		return()
+	}
+
+	PopToken()
+
+	OnCodeGenEnterFunctionReturn(namehandle, true)
+	if(!ParseInitialization(true))
+	{
+		ParseExpression()
+	}
+	OnCodeGenExitContext()
+}
+
+
+ParseFunctionTags : integer functionname, integer rawfuncname
+{
+	if(!PeekWithExpectation(0, "["))
+	{
+		return()
+	}
+
+	PopToken()
+
+	while(PeekToken(0) != "]")
+	{
+		ParseSingleFunctionTag(functionname, rawfuncname)
+	}
+
+	PopToken()
+}
+
+ParseSingleFunctionTag : integer functionname, integer rawfuncname
+{
+	string tagname = PeekToken(0)
+
+	if(PeekToken(1) == "(")
+	{
+		PopTokens(2)
+		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
+
+		string token = PeekToken(0)
+		while(token != ")")
+		{
+			if(token == "")
+			{
+				print("Incomplete function tag")
+				return()
+			}
+
+			string parameter = PeekToken(0)
+			if(subchar(parameter, 0) == CharacterQuote)
+			{
+				parameter = substring(parameter, 1, length(parameter) - 2)
+			}
+
+			PopToken()
+
+			OnCodeGenRegisterFunctionTagParam(functionname, tagname, parameter)
+
+			token = PeekToken(0)
+			if(token == ",")
+			{
+				PopToken()
+				token = PeekToken(0)
+			}
+		}
+
+		PopToken()
+	}
+	else
+	{
+		PopToken()
+		OnCodeGenRegisterFunctionTag(functionname, tagname, rawfuncname)
+	}
+
+	if(tagname == "external")
+	{
+		FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
+	}
+
+	if(PeekToken(0) == ",")
+	{
+		PopToken()
+	}
+}
+
+
+ParseStatement : boolean substatement -> boolean matched = false
+{
+	string statementname = PeekToken(0)
+	boolean templated = false
+	integer lookahead = 0
+
+	if(PeekToken(1) == "<")
+	{
+		lookahead = ParseTemplateArgs(2)
+		if(lookahead > 0)
+		{
+			templated = true
+		}
+	}
+
+	if(!PeekWithExpectation(1 + lookahead, "("))
+	{
+		return()
+	}
+
+	if(substatement)
+	{
+		OnCodeGenEnterSubStatement()
+	}
+
+	IREnterStatement(statementname, !substatement, templated)
+
+	PopTokens(2 + lookahead)
 
 	string token = PeekToken(0)
 	while(token != ")")
@@ -390,56 +749,711 @@ ParseStatement : -> boolean matched = false
 			return()
 		}
 
+		if(!ParseExpression())
+		{
+			print("Error: mangled expression")
+			return()
+		}
+
+		token = PeekToken(0)
+		if(token == ",")
+		{
+			PopToken()
+			token = PeekToken(0)
+			OnCodeGenShiftParameter()
+		}
+	}
+
+	PopToken()
+	IRExitStatement()
+
+	if(substatement)
+	{
+		IRExitStatement()
+	}
+
+	matched = true
+}
+
+ScanTemplateArgs : integer initialconsume -> integer consumed = initialconsume
+{
+	boolean hasargs = true
+	while(hasargs)
+	{
+		++consumed
+
+		if(PeekToken(consumed) == ">")
+		{
+			hasargs = false
+		}
+		elseif(PeekToken(consumed) == ",")
+		{
+			++consumed
+		}
+		else
+		{
+			consumed = 0
+			return()
+		}
+	}
+}
+
+ParseTemplateArgs : integer intialconsume -> integer consumed = intialconsume
+{
+	TemplateArgumentList newarglist = scratchtemplatearglist
+	prepend<TemplateArgumentList>(ScratchTemplateArgumentStack, newarglist)
+
+	boolean hasargs = true
+	while(hasargs)
+	{
+		string argvalue = PeekToken(consumed)
+		++consumed
+
+		integer replacehandle = PoolString(argvalue)
+		TemplateArgument newarg = replacehandle, argvalue
+		AppendTemplateArgument(ScratchTemplateArgumentStack.value.Args, newarg)
+
+		if(PeekToken(consumed) == ">")
+		{
+			hasargs = false
+		}
+		elseif(PeekToken(consumed) == ",")
+		{
+			++consumed
+		}
+		else
+		{
+			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+			consumed = 0
+			return()
+		}
+	}
+}
+
+ParseInitialization : boolean inreturn -> boolean matched = false
+{
+	boolean templated = false
+	string typename = PeekToken(0)
+	string varname = PeekToken(1)
+
+	integer skipahead = 0
+	if(varname == ".")
+	{
+		return()
+	}
+	elseif(varname == "<")
+	{
+		skipahead = ScanTemplateArgs(2)
+		varname = PeekToken(1 + skipahead)
+
+		templated = true
+	}
+
+	if(PeekToken(2 + skipahead) != "=")
+	{
+		return()
+	}
+
+	if(templated)
+	{
+		ParseTemplateArgs(2)
+	}
+
+	PopTokens(3 + skipahead)
+
+	if(inreturn)
+	{
+		OnCodeGenEnterSubStatement()
+	}
+
+	IREnterStatement(typename, true, templated)
+	IRAddLiteralIdentifier(varname)
+
+	OnCodeGenShiftParameter()
+
+	ParseExpression()
+	while(PeekToken(0) == ",")
+	{
+		PopToken()
+		OnCodeGenShiftParameter()
 		ParseExpression()
+	}
+
+	IRExitStatement()
+
+	matched = true
+
+	if(inreturn)
+	{
+		IRExitStatement()
+		Functions.value.AnonymousReturn = false
+	}
+}
+
+
+ParseExpression : -> boolean matched = false
+{
+	boolean matchedstatement = false
+
+	if(!ParseExpressionTerm(true, matchedstatement))
+	{
+		return()
+	}
+
+	if(matchedstatement && (PeekToken(0) == ")"))
+	{
+	}
+	else
+	{
+		while(ParseExpressionOperator())
+		{
+			if(!ParseExpressionTerm(false, matchedstatement))
+			{
+				return()
+			}
+		}
+	}
+
+	matched = true
+}
+
+ParseExpressionTerm : boolean startsexpr, boolean ref matchedstatement -> boolean matched = false
+{
+	string term = PeekToken(0)
+
+	if(term == ")")
+	{
+		return()
+	}
+	elseif(term == ",")
+	{
+		return()
+	}
+	elseif(term == "")
+	{
+		return()
+	}
+	elseif(term == "(")
+	{
+		OnCodeGenRegisterParenthetical()
+
+		PopToken()
+		if(ParseExpression())
+		{
+			PopToken()
+			matched = true
+		}
+		else
+		{
+			print("Error in parenthetical expression")
+		}
+
+		OnCodeGenExitContext()
+
+
+		return()
+	}
+
+	// Unary operator detection
+	if(term == "!")
+	{
+		PopToken()
+		IRAddOperator(term)
+		matched = ParseExpressionTerm(startsexpr, matchedstatement)
+		return()
+	}
+
+	if(term == "false")
+	{
+		IRAddLiteralBoolean(false)
+	}
+	elseif(term == "true")
+	{
+		IRAddLiteralBoolean(true)
+	}
+	elseif(term == "0")
+	{
+		IRAddLiteralInteger(0)
+	}
+	elseif(term == "0.0")
+	{
+		IRAddLiteralReal(0.0)
+	}
+	elseif(ParsePreopStatement(true))
+	{
+		matched = true
+		return()
+	}
+	elseif(ParseStatement(true))
+	{
+		matched = true
+		matchedstatement = true
+		return()
+	}
+	else
+	{
+		if(subchar(term, 0) == CharacterQuote)
+		{
+			string stringliteral = substring(term, 1, length(term) - 2)
+			IRAddLiteralString(stringliteral)
+		}
+		else
+		{
+			if(stringcontains(term, "."))
+			{
+				real realvalue = cast(real, term)
+				IRAddLiteralReal(realvalue)
+			}
+			else
+			{
+				integer literalvalue = cast(integer, term)
+				if(substring(term, 0, 2) == "0x")
+				{
+					IRAddLiteralInteger(literalvalue)
+				}
+				else
+				{
+					if(literalvalue != 0)
+					{
+						IRAddLiteralInteger(literalvalue)
+					}
+					else
+					{
+						IRAddLiteralIdentifier(term)
+					}
+				}
+			}
+		}
+	}
+
+	PopToken()
+	matched = true
+}
+
+ParseExpressionOperator : -> boolean matched = false
+{
+	string op = PeekToken(0)
+	if(op == ")")
+	{
+		return()
+	}
+	elseif(op == ",")
+	{
+		return()
+	}
+	elseif(op == "")
+	{
+		return()
+	}
+	elseif(length(op) > 2)
+	{
+		return()
+	}
+
+
+	boolean knownoperator = false
+	if(op == ".")
+	{
+		knownoperator = true
+	}
+	elseif(op == "+")
+	{
+		knownoperator = true
+	}
+	elseif(op == "-")
+	{
+		knownoperator = true
+	}
+	elseif(op == "*")
+	{
+		knownoperator = true
+	}
+	elseif(op == "/")
+	{
+		knownoperator = true
+	}
+	elseif(op == "==")
+	{
+		knownoperator = true
+	}
+	elseif(op == "!=")
+	{
+		knownoperator = true
+	}
+	elseif(op == ";")
+	{
+		knownoperator = true
+	}
+	elseif(op == ">")
+	{
+		knownoperator = true
+	}
+	elseif(op == "<")
+	{
+		knownoperator = true
+	}
+	elseif(op == "&")
+	{
+		knownoperator = true
+	}
+	elseif(op == "&&")
+	{
+		knownoperator = true
+	}
+
+	if(knownoperator)
+	{
+		IRAddOperator(op)
+		PopToken()
+		matched = true
+	}
+}
+
+ParseAssignment : -> boolean matched = false
+{
+	integer lhslength = 1
+	while(PeekToken(lhslength) == ".")
+	{
+		lhslength += 2
+	}
+
+	string assignmenttoken = PeekToken(lhslength)
+	boolean recognized = false
+	if(assignmenttoken == "=")
+	{
+		recognized = true
+	}
+	elseif(assignmenttoken == "+=")
+	{
+		recognized = true
+	}
+	elseif(assignmenttoken == "-=")
+	{
+		recognized = true
+	}
+
+	if(!recognized)
+	{
+		return()
+	}
+
+	if(lhslength == 1)
+	{
+		OnCodeGenEnterAssignment(PoolString(assignmenttoken), PoolString(PeekToken(0)), 0, 0)
+	}
+	else
+	{
+		OnCodeGenEnterAssignmentCompound(PoolString(assignmenttoken), PoolString(PeekToken(0)), 0, 0)
+		integer tokenindex = 2
+		while(tokenindex < lhslength)
+		{
+			FindCurrentFunctionAndAppendCompoundMember(PoolString(PeekToken(tokenindex)))
+			tokenindex += 2
+		}
+		OnCodeGenAssignmentCompoundEnd()
+	}
+
+	PopTokens(lhslength + 1)
+
+	boolean haschain = true
+	while(haschain)
+	{
+		lhslength = 1
+		while(PeekToken(lhslength) == ".")
+		{
+			lhslength += 2
+		}
+
+		if(PeekToken(lhslength) == "=")
+		{
+			if(assignmenttoken != "=")
+			{
+				print("Cannot chain assignments with side effects")
+				return()
+			}
+
+			if(lhslength == 1)
+			{
+				OnCodeGenChainAssignment(PoolString("="), PoolString(PeekToken(0)), 0, 0)
+			}
+			else
+			{
+				OnCodeGenChainAssignmentCompound(PoolString("="), PoolString(PeekToken(0)), 0, 0)
+				integer tokenindex = 2
+				while(tokenindex < lhslength)
+				{
+					FindCurrentFunctionAndChainCompoundMember(PoolString(PeekToken(tokenindex)))
+					tokenindex += 2
+				}
+			}
+
+			PopTokens(lhslength + 1)
+		}
+		else
+		{
+			haschain = false
+		}
+	}
+
+	if(ParseExpression())
+	{
+		matched = true
+		OnCodeGenExitContext()
+	}
+	else
+	{
+		print("Right hand side of assignment is not a valid expression")
+	}
+}
+
+
+ParseEntity : -> boolean matched = false
+{
+	string entityname = PeekToken(0)
+
+	if(entityname == "if")
+	{
+		if(PeekToken(1) == "(")
+		{
+			PopTokens(2)
+
+			OnCodeGenEnterChain()
+			OnCodeGenEnterEntity(0x11, 0)
+
+			ParseExpression()
+			PopToken()
+
+			matched = ParseEntityCode()
+
+			while(PeekToken(0) == "elseif")
+			{
+				PopTokens(2)
+				OnCodeGenEnterEntity(0x12, 0)
+				ParseExpression()
+				PopToken()
+				matched = ParseEntityCode()
+			}
+
+			if(PeekToken(0) == "else")
+			{
+				PopToken()
+				OnCodeGenEnterEntity(0x13, 0)
+				matched = ParseEntityCode()
+			}
+
+			OnCodeGenExitContext()
+		}
+	}
+	elseif(entityname == "while")
+	{
+		if(PeekToken(1) == "(")
+		{
+			PopTokens(2)
+
+			OnCodeGenEnterChain()
+			OnCodeGenEnterEntity(0x14, 0)
+
+			ParseExpression()
+			PopToken()
+
+			matched = ParseEntityCode()
+
+			OnCodeGenExitContext()
+		}
+	}
+}
+
+ParseCodeBlock :
+{
+	string token = PeekToken(0)
+	while(token != "}")
+	{
+		if(token == "")
+		{
+			print("Error: missing a }")
+			return()
+		}
+
+		if(ParseEntity())
+		{
+		}
+		elseif(ParsePreopStatement(false))
+		{
+		}
+		elseif(ParsePostopStatement())
+		{
+		}
+		elseif(ParseStatement(false))
+		{
+		}
+		elseif(ParseInitialization(false))
+		{
+		}
+		elseif(ParseAssignment())
+		{
+		}
+		else
+		{
+			print("Parse failure: " ; PeekToken(0) ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			return()
+		}
 
 		token = PeekToken(0)
 	}
 
 	PopToken()
-	print("IRExitStatement")
-	matched = true
-}
-
-ParseAssignment : -> boolean matched = false
-{
-	string typename = PeekToken(0)
-	string varname = PeekToken(1)
-
-	if(PeekToken(2) != "=")
-	{
-		return()
-	}
-
-	PopTokens(3)
-
-	print("IREnterAssignment " ; typename ; " variable " ; varname)
-
-	string value = PeekToken(0)
-	print("  With intitializing value " ; value)
-	PopToken()
-	
-	while(PeekToken(0) == ",")
-	{
-		value = PeekToken(1)
-		PopTokens(2)
-
-		print("  With intitializing value " ; value)
-	}
-
-	print("IRExitAssignment")
-	matched = true
 }
 
 
-ParseExpression :
+ParseEntityCode : -> boolean matched = false
 {
-	string id = PeekToken(0)
-	if(id != ")")
+	if(PeekToken(0) == "{")
+	{
+		OnCodeGenEnterEntityCode()
+		PopToken()
+		ParseCodeBlock()
+		OnCodeGenExitContext()
+		OnCodeGenExitContext()
+		matched = true
+	}
+	else
+	{
+		print("Expected code block")
+	}
+}
+
+
+ParsePreopStatement : boolean substatement -> boolean matched = false
+{
+	boolean recognized = false
+	string potential = PeekToken(0)
+
+	if(potential == "++")
+	{
+		recognized = true
+	}
+	elseif(potential == "--")
+	{
+		recognized = true
+	}
+
+	if(recognized)
 	{
 		PopToken()
-		print("   Expr " ; id)
+
+		string operand = PeekToken(0)
+		PopToken()
+
+		OnCodeGenPreparePreOpStatement(PoolString(potential), PoolString(operand))
+
+		while(PeekToken(0) == ".")
+		{
+			PopToken()
+			operand = PeekToken(0)
+			PopToken()
+
+			OnCodeGenPreparePreOpCompoundOperand(PoolString(operand))
+		}
+
+		OnCodeGenCompletePreOpStatement(substatement)
+
+		matched = true
+	}
+}
+
+ParsePostopStatement : -> boolean matched = false
+{
+	boolean recognized = false
+
+	string operand = PeekToken(0)
+	integer operandlength = 1
+	while(PeekToken(operandlength) == ".")
+	{
+		operandlength += 2
+	}
+
+	string potential = PeekToken(operandlength)
+	if(potential == "++")
+	{
+		recognized = true
+	}
+	elseif(potential == "--")
+	{
+		recognized = true
+	}
+
+	if(recognized)
+	{
+		OnCodeGenRegisterPostOpStatement(PoolString(potential), PoolString(operand))
+
+		if(operandlength > 1)
+		{
+			integer tokenindex = 2
+			while(tokenindex < operandlength)
+			{
+				operand = PeekToken(tokenindex)
+				OnCodeGenAddPreOpCompoundOperand(PoolString(operand))
+				tokenindex += 2
+			}
+		}
+
+		PopTokens(operandlength + 1)
+
+		matched = true
 	}
 }
 
 
+HandleLiteralFunctionParam : string token -> boolean isliteral = false
+{
+	if(token == "0")
+	{
+		RegisterLiteralFunctionParam(0)
+		isliteral = true
+	}
+	elseif(token == "0.0")
+	{
+		RegisterLiteralFunctionParam(0.0)
+		isliteral = true
+	}
+	elseif(stringcontains(token, "."))
+	{
+		real realval = cast(real, token)
+		RegisterLiteralFunctionParam(realval)
+		isliteral = true
+	}
+	else
+	{
+		integer intval = cast(integer, token)
+		if(intval != 0)
+		{
+			RegisterLiteralFunctionParam(intval)
+			isliteral = true
+			return()
+		}
+
+		// TODO - support pattern match literals of other types
+	}
+}
+
+
+RegisterLiteralFunctionParam : integer literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000001		// integer type signature
+
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
+
+RegisterLiteralFunctionParam : real literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000004		// real type signature
+
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
 

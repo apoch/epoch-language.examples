@@ -1,0 +1,17 @@
+[source]
+Builtin.epoch
+Bytecode.epoch
+Compiler.epoch
+DataStructures.epoch
+Exe.epoch
+Globals.epoch
+IR.epoch
+Lexer.epoch
+Parser.epoch
+TypeInfo.epoch
+
+[output]
+output-file compiled\Separate.exe
+
+[options]
+use-console
