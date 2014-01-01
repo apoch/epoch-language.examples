@@ -149,6 +149,8 @@ ChangeToPath : string filename
 
 CompileProject : string filename
 {
+	string outputfilename = "project.exe"
+
 	integer len = 0
 	string contents = ReadFile(filename, len)
 
@@ -157,8 +159,8 @@ CompileProject : string filename
 		return()
 	}
 
-	string line = ExtractLine(contents)
-	if(line != "[source]")
+	string sectionline = ExtractLine(contents)
+	if(sectionline != "[source]")
 	{
 		print("Malformed project file!")
 		return()
@@ -182,12 +184,43 @@ CompileProject : string filename
 			}
 		}
 	}
-
-	// TODO - read the project file for output filename and settings
 	
 	if(!parseok)
 	{
 		return()
+	}
+
+	sectionline = ExtractLine(contents)
+	if(sectionline != "[output]")
+	{
+		print("Malformed project file!")
+		return()
+	}
+
+	haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		else
+		{
+			string directive = ""
+			string parameter = ""
+			SplitProjectDirective(line, directive, parameter)
+			
+			if(directive == "output-file")
+			{
+				outputfilename = parameter
+			}
+			else
+			{
+				print("Unrecognized [output] directive!")
+				return()
+			}
+		}
 	}
 
 	boolean irok = IRProcess()
@@ -197,7 +230,20 @@ CompileProject : string filename
 	}
 
 	OnCodeGenProcessProgram()
-	MakeExe("project.exe")
+	MakeExe(outputfilename)
+}
+
+
+SplitProjectDirective : string line, string ref directive, string ref parameter
+{
+	integer pos = 0
+	while(charat(line, pos) != " ")
+	{
+		++pos
+	}
+	
+	directive = substring(line, 0, pos)
+	parameter = substring(line, pos + 1)
 }
 
 
@@ -12358,7 +12404,7 @@ MakeExe : string filename
 	integer CREATE_ALWAYS = 2
 
 	integer filehandle = CreateFile(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
-	if(filehandle == 0)
+	if(filehandle == -1)
 	{
 		print("Cannot open " ; filename ; " to emit .EXE!")
 		return()

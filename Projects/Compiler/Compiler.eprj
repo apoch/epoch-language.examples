@@ -2,7 +2,7 @@
 Compiler.epoch
 
 [output]
-output-file EpochCompiler.exe
+output-file compiled\EpochCompiler.exe
 
 [options]
 use-console
