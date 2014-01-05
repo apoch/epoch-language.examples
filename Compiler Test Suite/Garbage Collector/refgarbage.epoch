@@ -1,0 +1,75 @@
+//
+// REFGARBAGE.EPOCH
+//
+// Garbage collector regression test
+//
+
+
+structure Foo :
+	integer Field,
+	string Tag
+	
+structure Bar :
+	string Field,
+	string Tag
+
+structure Baz :
+	Foo ref F,
+	boolean padding,
+	integer padtwo,
+	Bar ref B
+	
+type FooBar : Foo | Bar | nothing
+
+
+process : Foo ref f
+{
+	assert(f.Field == 42)
+}
+
+process : Bar ref b
+{
+	assert(b.Field == "Test")
+}
+
+process : nothing
+{
+	Foo f = 42, "foo"
+	Bar b = "Test", "bar"
+	
+	FooBar wf = f
+	boolean empty = true
+	FooBar wb = b
+
+	wrapper(wb)
+	wrapper(wf)
+	
+	Baz z = f, true, 666, b
+	process(z.F)
+	z.padding = false
+	z.padtwo = 42
+	process(z.B)
+}
+
+wrapper : FooBar ref fb
+{
+	process(fb)
+}
+
+
+entrypoint :
+{
+	Foo f = 42, "foo"
+	Bar b = "Test", "bar"
+	
+	FooBar wf = f
+	FooBar wb = b
+	FooBar wn = nothing
+	
+	wrapper(wf)
+	wrapper(wb)
+	wrapper(wn)
+
+	passtest()
+}
+
