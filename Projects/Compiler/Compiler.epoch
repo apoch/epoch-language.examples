@@ -158,13 +158,17 @@ CompileProject : string filename
 		}
 	}
 
+	print("Performing semantic analysis...")
 	boolean irok = IRProcess()
 	if(!irok)
 	{
 		return()
 	}
 
+	print("Generating code...")
 	OnCodeGenProcessProgram()
+	
+	print("Writing executable file...")
 	MakeExe(outputfilename)
 }
 
