@@ -252,6 +252,7 @@ global
 	integer PooledStringHandleForPlusInteger = 0
 	integer PooledStringHandleForPlusReal = 0
 	integer PooledStringHandleForSubchar = 0
+	integer PooledStringHandleForMarshalStructure = 0
 
 	integer FirstNonBuiltInStringHandle = 0
 

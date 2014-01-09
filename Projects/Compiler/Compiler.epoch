@@ -5599,6 +5599,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	{
 		SetAtomType(expression.Atoms.value, expression.Type)
 	}
+	elseif(expression.Type == 0x01000000)
+	{
+		SetAtomType(expression.Atoms.value, expression.Type)
+	}
 }
 
 
@@ -7125,6 +7129,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 	{
 		// no params
 	}
+	elseif(funcname == PooledStringHandleForMarshalStructure)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
 }
 
 
@@ -7743,6 +7761,8 @@ PerformDemotion : list<ExpressionAtom> ref atoms, Statement ref atom [nogc]
 {
 	assertmsg(atom.Type == 0x01000002, "Failed to demote statement type")
 }
+
+PerformDemotion : list<ExpressionAtom> ref atoms, CompoundAtom ref atom [nogc]
 
 
 DumpOverloadList : list<InferencePossibility> ref possibilities

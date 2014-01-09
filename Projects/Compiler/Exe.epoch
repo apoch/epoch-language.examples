@@ -6,11 +6,508 @@ RoundUp : integer in -> integer out = ((in / 0x1000) + 1) * 0x1000			// TODO - t
 
 WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
 
+
+
+structure ResourceDirectoryHeader :
+	integer Characteristics,
+	integer TimeDateStamp,
+	integer MajorVersion,				// TODO - compiler bug? JIT bug? If these are integer16 the Children node is misinterpreted during type matching
+	integer MinorVersion,
+	listnode<ResourceDirectoryEntry> Children
+	
+structure ResourceDirectoryEntry :
+	integer Name,
+	integer OffsetToData,
+	listnode<ResourceDirectoryHeader> HeaderChildren,
+	listnode<ResourceDirectoryLeaf> LeafChildren
+	
+structure ResourceDirectoryLeaf :
+	integer OffsetToData,
+	integer Size,
+	integer CodePage,
+	integer Reserved
+
+	
+structure ResourceHandler :
+	ResourceDirectoryHeader ref DirectoryRoot,
+	integer DirectorySize,
+	integer DataSize,
+	list<IconReference> ref Icons,
+	integer IconCounter,
+	integer IconGroupCounter
+	
+	
+structure IconReference :
+	string FileName,
+	integer GroupID,
+	integer ID,
+	integer BeginOffset,
+	integer Size,
+	IconDirectoryEntry ref Details
+	
+
+structure IconDirectoryEntry :
+	integer PackedWHCR,
+	integer16 Planes,
+	integer16 BitCount,
+	integer BytesInResource,
+	integer ImageOffset
+	
+structure IconDirectoryHeader :
+	integer16 Reserved,
+	integer16 Type,
+	integer16 Count
+	
+	
+ResourceAdd : ResourceHandler ref res, integer typeid, integer resid, integer langid, integer size
+{
+	ResourceAddResID(res, typeid, resid)
+	
+	if(ResourceLangExists(res.DirectoryRoot.Children, typeid, resid, langid))
+	{
+		return()
+	}
+	
+	ResourceWalkToAddResLang(res.DirectoryRoot.Children, typeid, resid, langid, size)
+}
+
+
+ResourceLangExists : list<ResourceDirectoryEntry> ref typeentries, integer typeid, integer resid, integer langid -> boolean found = false
+{
+	if(typeentries.value.Name == typeid)
+	{
+		found = ResourceLangExistsUnderTypeHeader(typeentries.value.HeaderChildren, resid, langid)
+	}
+	else
+	{
+		found = ResourceLangExists(typeentries.next, typeid, resid, langid)
+	}
+}
+
+
+ResourceLangExistsUnderTypeHeader : list<ResourceDirectoryHeader> ref residheaders, integer resid, integer langid -> boolean found = false
+{
+	if(ResourceLangExistsUnderType(residheaders.value.Children, resid, langid))
+	{
+		found = true
+	}
+	else
+	{
+		found = ResourceLangExistsUnderTypeHeader(residheaders.next, resid, langid)
+	}
+}
+
+ResourceLangExistsUnderTypeHeader : nothing, integer resid, integer langid -> false
+
+
+ResourceLangExistsUnderType : list<ResourceDirectoryEntry> ref residentries, integer resid, integer langid -> boolean found = false
+{
+	if(residentries.value.Name == resid)
+	{
+		found = ResourceLangExistsUnderLangHeader(residentries.value.HeaderChildren, langid)
+	}
+	else
+	{
+		found = ResourceLangExistsUnderType(residentries.next, resid, langid)
+	}
+}
+
+ResourceLangExistsUnderType : nothing, integer resid, integer langid -> false
+
+
+ResourceLangExistsUnderLangHeader : list<ResourceDirectoryHeader> ref langheaders, integer langid -> boolean found = false
+{
+	if(ResourceLangExistsUnderLang(langheaders.value.Children, langid))
+	{
+		found = true
+	}
+	else
+	{
+		found = ResourceLangExistsUnderLangHeader(langheaders.next, langid)
+	}
+}
+
+ResourceLangExistsUnderLangHeader : nothing, integer langid -> false
+
+
+ResourceLangExistsUnderLang : list<ResourceDirectoryEntry> ref langs, integer langid -> boolean found = false
+{
+	if(langs.value.Name == langid)
+	{
+		found = true
+	}
+	else
+	{
+		found = ResourceLangExistsUnderLang(langs.next, langid)
+	}
+}
+
+ResourceLangExistsUnderLang : nothing, integer langid -> false
+
+
+ResourceLangExists : nothing, integer typeid, integer resid, integer langid -> false
+
+
+ResourceWalkToAddResLang : list<ResourceDirectoryEntry> ref entries, integer typeid, integer resid, integer langid, integer size
+{
+	if(entries.value.Name == typeid)
+	{
+		ResourceAddLangToType(entries.value.HeaderChildren, resid, langid, size)
+	}
+	else
+	{
+		ResourceWalkToAddResLang(entries.next, typeid, resid, langid, size)
+	}
+}
+
+ResourceAddLangToType : list<ResourceDirectoryHeader> ref headers, integer resid, integer langid, integer size
+{
+	if(ResourceWalkHeadersToAddLang(headers.value.Children, resid, langid, size))
+	{
+		return()
+	}
+	
+	ResourceAddLangToType(headers.next, resid, langid, size)
+}
+
+ResourceWalkHeadersToAddLang : list<ResourceDirectoryEntry> ref entries, integer resid, integer langid, integer size -> boolean added = false
+{
+	if(entries.value.Name == resid)
+	{
+		ResourceDirectoryLeaf newleaf = 0, size, 0, 0
+		list<ResourceDirectoryLeaf> leaflist = newleaf, nothing
+		listnode<ResourceDirectoryLeaf> leafnode = leaflist
+	
+		ResourceDirectoryEntry newentry = langid, 0, nothing, leafnode
+		list<ResourceDirectoryEntry> newentries = newentry, nothing
+		listnode<ResourceDirectoryEntry> newentrynode = newentries
+	
+		ResourceDirectoryHeader newchild = 0, 0, 0, 0, newentrynode
+		list<ResourceDirectoryHeader> newchildren = newchild, entries.value.HeaderChildren
+		listnode<ResourceDirectoryHeader> newchildrennode = newchildren
+		entries.value.HeaderChildren = newchildrennode
+		
+		added = true
+	}
+	else
+	{
+		added = ResourceWalkHeadersToAddLang(entries.next, resid, langid, size)
+	}
+}
+
+ResourceWalkHeadersToAddLang : nothing, integer resid, integer langid, integer size -> false
+
+	
+	
+ResourceAddResID : ResourceHandler ref res, integer typeid, integer resid
+{
+	ResourceAddTypeGroup(res, typeid)
+	
+	if(ResourceIDExists(res.DirectoryRoot.Children, typeid, resid))
+	{
+		return()
+	}
+	
+	ResourceWalkToAddResID(res.DirectoryRoot.Children, typeid, resid)
+}
+
+ResourceWalkToAddResID : list<ResourceDirectoryEntry> ref entries, integer typeid, integer resid
+{
+	if(entries.value.Name == typeid)
+	{
+		ResourceAddIDToType(entries.value.HeaderChildren, resid)
+	}
+	else
+	{
+		ResourceWalkToAddResID(entries.next, typeid, resid)
+	}
+}
+
+
+ResourceAddIDToType : list<ResourceDirectoryHeader> ref headers, integer resid
+{
+	ResourceDirectoryEntry newchild = resid, 0, nothing, nothing
+	list<ResourceDirectoryEntry> newchildren = newchild, headers.value.Children
+	listnode<ResourceDirectoryEntry> newchildrennode = newchildren
+	
+	headers.value.Children = newchildrennode
+}
+
+
+ResourceIDExists : list<ResourceDirectoryEntry> ref entries, integer typeid, integer resid -> boolean found = false
+{
+	if(entries.value.Name == typeid)
+	{
+		found = ResourceHasChildOfName(entries.value.HeaderChildren, resid)
+	}
+	else
+	{
+		found = ResourceIDExists(entries.next, typeid, resid)
+	}
+}
+
+ResourceIDExists : nothing, integer typeid, integer resid -> false
+
+
+ResourceHasChildOfName : list<ResourceDirectoryHeader> ref headers, integer resid -> boolean found = false
+{
+	if(ResourceHasChildOfType(headers.value.Children, resid))
+	{
+		found = true
+	}
+	else
+	{
+		found = ResourceHasChildOfName(headers.next, resid)
+	}
+}
+
+ResourceHasChildOfName : nothing, integer resid -> false
+
+	
+ResourceAddTypeGroup : ResourceHandler ref res, integer typeid
+{
+	if(ResourceHasChildOfType(res.DirectoryRoot.Children, typeid))
+	{
+		return()
+	}
+	
+	ResourceDirectoryHeader newheader = 0, 0, 0, 0, nothing
+	list<ResourceDirectoryHeader> newheaderlist = newheader, nothing
+	listnode<ResourceDirectoryHeader> newheaderlistnode = newheaderlist
+	ResourceDirectoryEntry newentry = typeid, 0, newheaderlistnode, nothing
+	
+	list<ResourceDirectoryEntry> newlist = newentry, res.DirectoryRoot.Children
+	res.DirectoryRoot.Children = newlist
+}
+
+ResourceHasChildOfType : list<ResourceDirectoryEntry> ref entries, integer typeid -> boolean found = false
+{
+	if(entries.value.Name == typeid)
+	{
+		found = true
+	}
+	else
+	{
+		found = ResourceHasChildOfType(entries.next, typeid)
+	}
+}
+
+ResourceHasChildOfType : nothing, integer typeid -> false
+
+
+ComputeResourceOffsets : ResourceHandler ref res
+{
+	res.DirectorySize = 0
+	res.DataSize = 0
+	
+	integer temp = 0
+	SetResourceDirectoryOffsets(temp, res.DirectoryRoot)
+	AccumulateResourceOffsets(res, res.DirectoryRoot)
+	SetResourceDataOffsets(res, res.DirectoryRoot)
+}
+
+
+GetResourceDirectorySizes : list<ResourceDirectoryEntry> ref entries -> integer size = 8 + GetResourceDirectorySizes(entries.next)
+GetResourceDirectorySizes : nothing -> 0
+
+
+SetResourceDirectoryOffsets : integer ref offset, ResourceDirectoryHeader ref header
+{
+	SetResourceOffsetSelf(offset, header)
+	offset += GetResourceDirectorySizes(header.Children)
+	
+	WalkResourceDirectoryEntriesToSetOffsets(offset, header.Children)
+}
+
+SetResourceOffsetSelf : integer ref offset, ResourceDirectoryHeader ref header
+{
+	offset += 16
+}
+
+SetResourceOffsetSelf : integer ref offset, ResourceDirectoryEntry ref entry
+{
+	entry.OffsetToData = offset
+}
+
+WalkResourceDirectoryEntriesToSetOffsets : integer ref offset, list<ResourceDirectoryEntry> ref entries
+{
+	SetResourceOffsetSelf(offset, entries.value)
+	WalkResourceDirectoryHeadersToSetOffsets(offset, entries.value.HeaderChildren)
+	WalkResourceDirectoryLeavesToSetOffsets(offset, entries.value.LeafChildren)
+	WalkResourceDirectoryEntriesToSetOffsets(offset, entries.next)
+}
+
+WalkResourceDirectoryEntriesToSetOffsets : integer ref offset, nothing
+
+WalkResourceDirectoryHeadersToSetOffsets : integer ref offset, list<ResourceDirectoryHeader> ref headers
+{
+	SetResourceOffsetSelf(offset, headers.value)
+	offset += GetResourceDirectorySizes(headers.value.Children)
+	
+	WalkResourceDirectoryEntriesToSetOffsets(offset, headers.value.Children)
+
+	WalkResourceDirectoryHeadersToSetOffsets(offset, headers.next)
+}
+
+WalkResourceDirectoryHeadersToSetOffsets : integer ref offset, nothing
+
+WalkResourceDirectoryLeavesToSetOffsets : integer ref offset, list<ResourceDirectoryLeaf> ref leaves
+{
+	offset += 16
+	WalkResourceDirectoryLeavesToSetOffsets(offset, leaves.next)
+}
+
+WalkResourceDirectoryLeavesToSetOffsets : integer ref offset, nothing
+
+
+AccumulateResourceOffsets : ResourceHandler ref res, ResourceDirectoryHeader ref header
+{
+	res.DirectorySize = res.DirectorySize + 16			// TODO - += here trips a compiler bug
+	AccumulateResourceOffsets(res, header.Children)
+}
+
+AccumulateResourceOffsets : ResourceHandler ref res, list<ResourceDirectoryHeader> ref headers
+{
+	res.DirectorySize = res.DirectorySize + 16
+	AccumulateResourceOffsets(res, headers.value.Children)
+	AccumulateResourceOffsets(res, headers.next)
+}
+
+AccumulateResourceOffsets : ResourceHandler ref res, list<ResourceDirectoryEntry> ref entries
+{
+	res.DirectorySize = res.DirectorySize + 8
+	AccumulateResourceOffsets(res, entries.value.HeaderChildren)
+	AccumulateResourceOffsets(res, entries.value.LeafChildren)
+	AccumulateResourceOffsets(res, entries.next)
+}
+
+AccumulateResourceOffsets : ResourceHandler ref res, list<ResourceDirectoryLeaf> ref leaves
+{
+	res.DirectorySize = res.DirectorySize + 16
+	AccumulateResourceOffsets(res, leaves.next)
+}
+
+AccumulateResourceOffsets : ResourceHandler ref res, nothing
+
+
+
+SetResourceDataOffsets : ResourceHandler ref res, ResourceDirectoryHeader ref header
+{
+	SetResourceDataOffsets(res, header.Children)
+}
+
+SetResourceDataOffsets : ResourceHandler ref res, list<ResourceDirectoryHeader> ref headers
+{
+	SetResourceDataOffsets(res, headers.value.Children)
+	SetResourceDataOffsets(res, headers.next)
+}
+
+SetResourceDataOffsets : ResourceHandler ref res, list<ResourceDirectoryEntry> ref entries
+{
+	SetResourceDataOffsets(res, entries.value.HeaderChildren)
+	SetResourceDataOffsets(res, entries.value.LeafChildren)
+	SetResourceDataOffsets(res, entries.next)
+}
+
+SetResourceDataOffsets : ResourceHandler ref res, list<ResourceDirectoryLeaf> ref leaves
+{
+	leaves.value.OffsetToData = res.DirectorySize + res.DataSize
+	res.DataSize = res.DataSize + leaves.value.Size
+
+	SetResourceDataOffsets(res, leaves.next)
+}
+
+SetResourceDataOffsets : ResourceHandler ref res, nothing
+
+
+	
+AddResourceIcon : string filename, ResourceHandler ref res
+{
+	integer INVALID_HANDLE_VALUE = 0xffffffff
+	integer FILE_SHARE_READ = 0x01
+	integer OPEN_EXISTING = 3
+	integer GENERIC_READ = 0x80000000
+
+	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	if(filehandle != INVALID_HANDLE_VALUE)
+	{
+		integer PAGE_READONLY = 0x02
+		integer len = GetFileSize(filehandle, 0)
+
+		if(len > 0)
+		{
+			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			if(mappinghandle != 0)
+			{
+				integer FILE_MAP_READ = 0x04
+				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
+
+				if(ptr != 0)
+				{
+					IconDirectoryHeader hdr = 0, 0, 0
+					marshalstructure(hdr, ptr)
+					
+					// TODO - validate .ico
+					
+					res.IconGroupCounter = res.IconGroupCounter + 1
+
+					ptr += 6
+					integer hdrcount = cast(integer, hdr.Count)
+					ResourceAdd(res, 0x0e, res.IconGroupCounter * 100 + 1, 1033, 6 + (hdrcount * 14))
+
+					integer imagecount = hdrcount
+					while(imagecount > 0)
+					{
+						IconDirectoryEntry entry = 0, 0, 0, 0, 0
+						marshalstructure(entry, ptr)
+						
+						ResourceAdd(res, 0x03, imagecount + res.IconCounter, 1033, entry.BytesInResource)
+						
+						IconReference iconref = filename, res.IconGroupCounter * 100 + 1, imagecount + res.IconCounter, entry.ImageOffset, entry.BytesInResource, entry
+						prepend<IconReference>(res.Icons, iconref)
+					
+						ptr += 16
+						--imagecount
+					}
+										
+					res.IconCounter = res.IconCounter + hdrcount
+				}
+				CloseHandle(mappinghandle)
+			}
+			else
+			{
+				print("Failed to map file!")
+			}
+		}
+		else
+		{
+			print("File is empty!")
+		}
+		CloseHandle(filehandle)
+	}
+	else
+	{
+		print("Couldn't open that icon file!")
+	}
+}
+	
+
 MakeExe : string filename
 {
-	integer imagesize = 0x5000 + RoundUp(HackSize)
-	integer resourcesize = 0
+	IconDirectoryEntry dummydetails = 0, 0, 0, 0, 0
+	IconReference dummyicon = "", 0, 0, 0, 0, dummydetails
+	list<IconReference> dummyiconlist = dummyicon, nothing
 
+	ResourceDirectoryHeader resroot = 0, 0, 0, 0, nothing
+	ResourceHandler res = resroot, 0, 0, dummyiconlist, 0, 0
+	
+	
+	AddResourceIcon("epoch.ico", res)
+	ComputeResourceOffsets(res)
+	
+
+	integer resourcesize = res.DirectorySize + res.DataSize + 1
+	integer imagesize = 0x4000 + RoundUp(resourcesize) + RoundUp(HackSize)
 
 	integer GENERIC_WRITE = 0x40000000
 	integer CREATE_ALWAYS = 2
@@ -29,8 +526,8 @@ MakeExe : string filename
 	position += WriteSectionHeader(filehandle, ".idata", 0x400, 0x1000, 0x344, 0x400, 0xc0000040)
 	position += WriteSectionHeader(filehandle, ".text", 0x800, 0x2000, 0x150, 0x200, 0x60000020)
 	position += WriteSectionHeader(filehandle, ".data", 0xa00, 0x3000, 0x29e, 0x400, 0x40000040)
-	position += WriteSectionHeader(filehandle, ".rsrc", 0xe00, 0x4000, 0x10, 0x10, 0x40000040)
-	position += WriteSectionHeader(filehandle, ".epoch", 0x1000, 0x5000, HackSize, HackSize, 0x40000040)
+	position += WriteSectionHeader(filehandle, ".rsrc", 0xe00, 0x4000, resourcesize, resourcesize, 0x40000040)
+	position += WriteSectionHeader(filehandle, ".epoch", RoundUp(resourcesize + 0xe00), RoundUp(0x4000 + resourcesize), HackSize, HackSize, 0x40000040)
 
 	print("Writing thunk table...")
 	position += WritePadding(filehandle, position, 0x400)
@@ -40,16 +537,17 @@ MakeExe : string filename
 
 	print("Writing bootstrap code...")
 	position += WritePadding(filehandle, position, 0x800)
-	position += WriteBootstrapCode(filehandle)
+	position += WriteBootstrapCode(filehandle, RoundUp(resourcesize + 0xe00))
 
 	position += WritePadding(filehandle, position, 0xa00)
 	position += WriteStringTable(filehandle)
 
+	print("Writing resources...")
 	position += WritePadding(filehandle, position, 0xe00)
-	// TODO - emit resources
+	position += WriteResources(filehandle, res)
 
 	// Output the Epoch bytecode section
-	position += WritePadding(filehandle, position, 0x1000)
+	position += WritePadding(filehandle, position, RoundUp(resourcesize + 0xe00))
 	print("Writing Epoch code block...")
 	integer written = 0
 	WriteFile(filehandle, Hack, HackSize, written, 0)
@@ -57,6 +555,262 @@ MakeExe : string filename
 	CloseHandle(filehandle)
 
 	print("Compilation complete.")
+}
+
+
+
+WriteResourceDirectory : buffer ref rb, integer ref rs, ResourceDirectoryHeader ref header
+{
+	EmitInteger(rb, rs, 0)
+	EmitInteger(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(header.Children)))
+	
+	WriteResourceDirectorySelf(rb, rs, header.Children)
+	WriteResourceDirectoryChildren(rb, rs, header.Children)
+}
+
+WriteResourceDirectorySelf : buffer ref rb, integer ref rs, list<ResourceDirectoryEntry> ref entries
+{
+	integer offset = entries.value.OffsetToData
+	if(ResourceCountLeaves(entries.value.LeafChildren) != 1)
+	{
+		offset += 0x80000000
+	}
+
+	EmitInteger(rb, rs, entries.value.Name)
+	EmitInteger(rb, rs, offset)
+	
+	WriteResourceDirectorySelf(rb, rs, entries.next)
+}
+
+WriteResourceDirectorySelf : buffer ref rb, integer ref rs, nothing
+
+WriteResourceDirectoryChildren : buffer ref rb, integer ref rs, list<ResourceDirectoryEntry> ref entries
+{
+	WriteResourceDirectory(rb, rs, entries.value.HeaderChildren)
+	WriteResourceDirectoryChildren(rb, rs, entries.value.LeafChildren)
+	
+	WriteResourceDirectoryChildren(rb, rs, entries.next)
+}
+
+WriteResourceDirectory : buffer ref rb, integer ref rs, list<ResourceDirectoryHeader> ref headers
+{
+	EmitInteger(rb, rs, 0)
+	EmitInteger(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, 0)
+	EmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(headers.value.Children)))
+	
+	WriteResourceDirectory(rb, rs, headers.next)
+	
+	WriteResourceDirectorySelf(rb, rs, headers.value.Children)
+	WriteResourceDirectoryChildren(rb, rs, headers.value.Children)	
+}
+
+WriteResourceDirectory : buffer ref rb, integer ref rs, nothing
+
+
+WriteResourceDirectoryChildren : buffer ref rb, integer ref rs, list<ResourceDirectoryLeaf> ref leaves
+{
+	EmitInteger(rb, rs, leaves.value.OffsetToData + 0x4000)
+	EmitInteger(rb, rs, leaves.value.Size)
+	EmitInteger(rb, rs, leaves.value.CodePage)
+	EmitInteger(rb, rs, leaves.value.Reserved)
+	
+	WriteResourceDirectoryChildren(rb, rs, leaves.next)
+}
+
+WriteResourceDirectoryChildren : buffer ref rb, integer ref rs, nothing
+
+
+ResourceCountEntries : list<ResourceDirectoryEntry> ref entries -> integer count = 1 + ResourceCountEntries(entries.next)
+ResourceCountEntries : nothing -> 0
+
+ResourceCountLeaves : list<ResourceDirectoryLeaf> ref leaves -> integer count = 1 + ResourceCountLeaves(leaves.next)
+ResourceCountLeaves : nothing -> 0
+
+
+WriteResourceData : buffer ref rb, integer ref rs, ResourceHandler ref res
+{	
+	WriteEachResourceType(rb, rs, res, res.DirectoryRoot.Children)
+}
+
+WriteEachResourceType : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryEntry> ref typeentries
+{
+	WriteEachResourceIDHeader(rb, rs, res, typeentries.value.HeaderChildren, typeentries.value.Name)
+	WriteEachResourceType(rb, rs, res, typeentries.next)
+}
+
+WriteEachResourceType : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing
+
+
+WriteEachResourceIDHeader : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryHeader> ref idheaders, integer restype
+{
+	WriteEachResourceID(rb, rs, res, idheaders.value.Children, restype)
+	WriteEachResourceIDHeader(rb, rs, res, idheaders.next, restype)
+}
+
+WriteEachResourceIDHeader : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing, integer restype
+
+
+WriteEachResourceID : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryEntry> ref identries, integer restype
+{
+	WriteEachResourceLangHeader(rb, rs, res, identries.value.HeaderChildren, restype, identries.value.Name)
+	WriteEachResourceID(rb, rs, res, identries.next, restype)
+}
+
+WriteEachResourceID : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing, integer restype
+
+
+WriteEachResourceLangHeader : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryHeader> ref langheaders, integer restype, integer resid
+{
+	WriteEachResourceLang(rb, rs, res, langheaders.value.Children, restype, resid)
+	WriteEachResourceLangHeader(rb, rs, res, langheaders.next, restype, resid)
+}
+
+WriteEachResourceLangHeader : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing, integer restype, integer resid
+
+
+WriteEachResourceLang : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryEntry> ref langs, integer restype, integer resid
+{
+	WriteEachResourceLeaf(rb, rs, res, langs.value.LeafChildren, restype, resid, langs.value.Name)
+	WriteEachResourceLang(rb, rs, res, langs.next, restype, resid)
+}
+
+WriteEachResourceLang : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing, integer restype, integer resid
+
+
+WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, list<ResourceDirectoryLeaf> ref leaves, integer restype, integer resid, integer reslang
+{
+	if(restype == 0x03)
+	{
+		CopyIconFromReference(rb, rs, res.Icons, resid)
+	}
+	elseif(restype == 0x0e)
+	{
+		EmitInteger16(rb, rs, 0)
+		EmitInteger16(rb, rs, 1)
+		EmitInteger16(rb, rs, cast(integer16, CountIconsInGroup(res.Icons, resid)))
+	
+		EmitIconGroupData(rb, rs, res.Icons, resid)
+	}
+	
+	WriteEachResourceLeaf(rb, rs, res, leaves.next, restype, resid, reslang)
+}
+
+WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, nothing, integer restype, integer resid, integer reslang
+
+
+CountIconsInGroup : list<IconReference> ref icons, integer targetid -> integer count = 0
+{
+	if(icons.value.GroupID == targetid)
+	{
+		++count
+	}
+	
+	count += CountIconsInGroup(icons.next, targetid)
+}
+
+CountIconsInGroup : nothing, integer targetid -> 0
+
+
+EmitIconGroupData : buffer ref rb, integer ref rs, list<IconReference> ref reflist, integer targetid
+{
+	if(reflist.value.GroupID == targetid)
+	{
+		EmitInteger(rb, rs, reflist.value.Details.PackedWHCR)
+		EmitInteger16(rb, rs, reflist.value.Details.Planes)
+		EmitInteger16(rb, rs, reflist.value.Details.BitCount)
+		EmitInteger(rb, rs, reflist.value.Details.BytesInResource)
+		EmitInteger16(rb, rs, cast(integer16, reflist.value.ID))
+	}
+
+	EmitIconGroupData(rb, rs, reflist.next, targetid)
+}
+
+EmitIconGroupData : buffer ref rb, integer ref rs, nothing, integer targetid
+
+
+CopyIconFromReference : buffer ref rb, integer ref rs, list<IconReference> ref reflist, integer targetid
+{
+	if(reflist.value.ID == targetid)
+	{
+		CopyIconFromFile(rb, rs, reflist.value.FileName, reflist.value.BeginOffset, reflist.value.Size)
+	}
+	else
+	{
+		CopyIconFromReference(rb, rs, reflist.next, targetid)
+	}
+}
+
+CopyIconFromFile : buffer ref rb, integer ref rs, string filename, integer beginoffset, integer size
+{
+	integer INVALID_HANDLE_VALUE = 0xffffffff
+	integer FILE_SHARE_READ = 0x01
+	integer OPEN_EXISTING = 3
+	integer GENERIC_READ = 0x80000000
+
+	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	if(filehandle != INVALID_HANDLE_VALUE)
+	{
+		integer PAGE_READONLY = 0x02
+		integer len = GetFileSize(filehandle, 0)
+
+		if(len > 0)
+		{
+			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			if(mappinghandle != 0)
+			{
+				integer FILE_MAP_READ = 0x04
+				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
+
+				if(ptr != 0)
+				{
+					writebuffer(rb, rs, ptr + beginoffset, size)
+					rs = rs + size
+				}
+				else
+				{
+					print("Failed to copy icon!")
+				}
+				
+				CloseHandle(mappinghandle)
+			}
+			else
+			{
+				print("Failed to map file!")
+			}
+		}
+		else
+		{
+			print("File is empty!")
+		}
+		CloseHandle(filehandle)
+	}
+	else
+	{
+		print("Couldn't open that icon file!")
+	}
+}
+
+
+
+WriteResources : integer filehandle, ResourceHandler ref res -> integer writtenbytes = 0
+{
+	buffer resourcebuffer = 1024 * 1024
+	integer resourcesize = 0
+	
+	WriteResourceDirectory(resourcebuffer, resourcesize, res.DirectoryRoot)
+	WriteResourceData(resourcebuffer, resourcesize, res)
+	
+	integer written = 0
+	WriteFile(filehandle, resourcebuffer, resourcesize, written, 0)
+
+	writtenbytes = resourcesize
 }
 
 
@@ -116,7 +870,7 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 }
 
 
-WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
+WriteBootstrapCode : integer filehandle, integer codebeginoffset -> integer writtenbytes = 0
 {
 	buffer codebuffer = 1024
 	integer codesize = 0
@@ -187,7 +941,7 @@ WriteBootstrapCode : integer filehandle -> integer writtenbytes = 0
 	EmitInteger(codebuffer, codesize, HackSize)
 	EmitByte(codebuffer, codesize, 0x8d)
 	EmitByte(codebuffer, codesize, 0x87)
-	EmitInteger(codebuffer, codesize, 0x1000)		// TODO - actual offset of Epoch code beginning (pad for resources)
+	EmitInteger(codebuffer, codesize, codebeginoffset)
 	EmitByte(codebuffer, codesize, 0x50)
 	EmitByte(codebuffer, codesize, 0xff)
 	EmitByte(codebuffer, codesize, 0x55)
