@@ -254,6 +254,7 @@ global
 	integer PooledStringHandleForSubchar = 0
 	integer PooledStringHandleForMarshalStructure = 0
 	integer PooledStringHandleForSizeOf = 0
+	integer PooledStringHandleForCastBufferToString = 0
 
 	integer FirstNonBuiltInStringHandle = 0
 

@@ -6724,6 +6724,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			elseif(paramindex == 1)
 			{
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
 			}
 		}
 	}
@@ -6902,6 +6903,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			elseif(paramindex == 1)
 			{
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastBufferToString)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
 			}
 		}
 	}
@@ -7390,6 +7405,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x01000001		// integer type signature
 	}
+	elseif(builtinname == PooledStringHandleForCastBufferToString)
+	{
+		returntype = 0x02000000		// string type signature
+	}
 	elseif(builtinname == PooledStringHandleForLength)
 	{
 		returntype = 0x01000001		// integer type signature
@@ -7844,6 +7863,9 @@ InitBuiltInOverloads : [nogc]
 
 	Overload caststrtoreal = PooledStringHandleForCast, PooledStringHandleForCastStringToReal, nothing
 	prepend<Overload>(AutoGenOverloads, caststrtoreal)
+	
+	Overload castbuffertostr = PooledStringHandleForCast, PooledStringHandleForCastBufferToString, nothing
+	prepend<Overload>(AutoGenOverloads, castbuffertostr)
 
 	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBuffer, nothing
 	prepend<Overload>(AutoGenOverloads, writebuffernormal)
@@ -8444,6 +8466,10 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		elseif((idtype == 0x01000001) && (origintype == 0x02000000))
 		{
 			overloadname = PooledStringHandleForCastStringToInteger
+		}
+		elseif((idtype == 0x02000000) && (origintype == 0x02000001))
+		{
+			overloadname = PooledStringHandleForCastBufferToString
 		}
 	}
 }

@@ -231,6 +231,7 @@ PrepareStringTable :
 	PooledStringHandleForCastRealToString = counter
 
 	OnCodeGenRegisterString((++counter), "cast@@buffer_to_string")
+	PooledStringHandleForCastBufferToString = counter
 
 	OnCodeGenRegisterString((++counter), "cast@@boolean_to_integer")
 	PooledStringHandleForCastBooleanToInteger = counter
