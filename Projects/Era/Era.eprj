@@ -5,5 +5,5 @@ Era.epoch
 Era.erc
 
 [output]
-output-file Era.exe
+output-file compiled\Era.exe
 

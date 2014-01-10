@@ -1286,7 +1286,7 @@ PromptToSaveAndExit : integer hwnd, list<OpenTab> ref dirtytabs -> boolean ret =
 	RegisterClassEx(wc)
 
 	Rect adjusted = 0, 0, 420, 390
-	AdjustWindowRect(adjusted, 0x02C80000, false)
+	AdjustWindowRect(adjusted, 0x02c80000, false)
 	
 	Rect parentrect = 0, 0, 0, 0
 	GetWindowRect(hwnd, parentrect)
@@ -1294,7 +1294,7 @@ PromptToSaveAndExit : integer hwnd, list<OpenTab> ref dirtytabs -> boolean ret =
 	integer centeredx = ((parentrect.right - parentrect.left) - (adjusted.right - adjusted.left)) / 2
 	integer centeredy = ((parentrect.bottom - parentrect.top) - (adjusted.bottom - adjusted.top)) / 2
 	
-	integer dialoghwnd = CreateWindowEx(0, "EraSavePromptClass", "ERA - Epoch Development Environment", 0x02C80000, centeredx, centeredy, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, hwnd, 0, GetHInstance(), 0)
+	integer dialoghwnd = CreateWindowEx(0, "EraSavePromptClass", "ERA - Epoch Development Environment", 0x02c80000, centeredx, centeredy, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, hwnd, 0, GetHInstance(), 0)
 
 	EnableWindow(hwnd, false)
 	
