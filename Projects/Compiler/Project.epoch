@@ -1,0 +1,239 @@
+//
+// The Epoch Language Project
+// EpochCompiler command line tools suite
+//
+// PROJECT.EPOCH
+// Epoch project (.eprj) file parsing and handling module
+//
+// This module is responsible for loading, parsing, and acting
+// on the directives of an Epoch Project (.eprj) file. Projects
+// are simple text files with a list of input source files,
+// resource scripts, and compilation options used to build a
+// final Epoch executable program.
+//
+
+
+//
+// Data structure describing a project
+//
+structure EpochProject :
+	string OutputFileName,
+	simplelist<string> SourceFiles,
+	simplelist<string> ResourceFiles,
+	boolean UsesConsole
+
+
+
+//
+// Jumping off point for compiling a particular .eprj file
+//
+// This function is a complete wrapper for the process of parsing
+// and acting on an Epoch Project file. Its primary purpose is to
+// delegate to other routines in this module, as well as the rest
+// of the compiler implementation.
+//
+CompileProject : string filename
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+	
+	simplelist<string> emptysourcefilelist = "", nothing
+	simplelist<string> emptyresourcefilelist = "", nothing
+	EpochProject project = "project.exe", emptysourcefilelist, emptyresourcefilelist, false
+
+	boolean haslines = true
+	while(haslines)
+	{
+		string sectionline = ExtractLine(contents)
+		if(sectionline == "[source]")
+		{
+			ProjectParseSourceSection(contents, project)
+		}
+		elseif(sectionline == "[resources]")
+		{
+			ProjectParseResourcesSection(contents, project)
+		}
+		elseif(sectionline == "[output]")
+		{
+			ProjectParseOutputSection(contents, project)
+		}
+		elseif(sectionline == "[options]")
+		{
+			ProjectParseOptionsSection(contents, project)
+		}
+		elseif(sectionline == "")
+		{
+			if(contents == "")
+			{
+				haslines = false
+			}
+		}
+		else
+		{
+			print("Malformed project file!")
+			return()
+		}
+	}
+
+	print("Parsing source code...")
+	boolean parseok = ProjectParseAllCode(project.SourceFiles)	
+	if(!parseok)
+	{
+		return()
+	}
+
+	print("Performing semantic analysis...")
+	boolean irok = IRProcess()
+	if(!irok)
+	{
+		return()
+	}
+
+	print("Generating code...")
+	OnCodeGenProcessProgram()
+	
+	print("Writing executable file...")
+	MakeExe(project.OutputFileName)
+}
+
+//
+// Helper for splitting strings; should be generalized
+// and moved to a library at some point.
+//
+SplitProjectDirective : string line, string ref directive, string ref parameter
+{
+	integer pos = 0
+	while(charat(line, pos) != " ")
+	{
+		++pos
+	}
+	
+	directive = substring(line, 0, pos)
+	parameter = substring(line, pos + 1)
+}
+
+
+//
+// Main parser for the [source] project section
+//
+ProjectParseSourceSection : string ref contents, EpochProject ref project
+{
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		else
+		{
+			simple_append<string>(project.SourceFiles, line)
+		}
+	}
+}
+
+
+//
+// Main parser for the [resources] project section
+//
+ProjectParseResourcesSection : string ref contents, EpochProject ref project
+{
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		else
+		{
+			simple_append<string>(project.ResourceFiles, line)
+		}
+	}
+}
+
+//
+// Main parser for the [output] project section
+//
+ProjectParseOutputSection : string ref contents, EpochProject ref project
+{
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		else
+		{
+			string directive = ""
+			string parameter = ""
+			SplitProjectDirective(line, directive, parameter)
+			
+			if(directive == "output-file")
+			{
+				project.OutputFileName = parameter
+			}
+			else
+			{
+				print("Unrecognized [output] directive " ; directive)
+			}
+		}
+	}
+}
+
+//
+// Main parser for the [options] project section
+//
+ProjectParseOptionsSection : string ref contents, EpochProject ref project
+{
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(contents)
+		if(line == "")
+		{
+			haslines = false
+		}
+		elseif(line == "use-console")
+		{
+			project.UsesConsole = true
+		}
+		else
+		{
+			print("Unrecognized [options] entry " ; line)
+		}
+	}
+}
+
+//
+// Helper for traversing the list of files in a project
+// and passing each in turn to the Epoch parser
+//
+ProjectParseAllCode : simplelist<string> ref files -> boolean success = true
+{
+	if(files.value != "")
+	{
+		print(files.value)
+		if(!ParseFile(files.value))
+		{
+			success = false
+		}
+	}
+	
+	if(!ProjectParseAllCode(files.next))
+	{
+		success = false
+	}
+}
+
+ProjectParseAllCode : nothing -> true
+

@@ -8,6 +8,8 @@ Globals.epoch
 IR.epoch
 Lexer.epoch
 Parser.epoch
+Project.epoch
+Resources.epoch
 TypeInfo.epoch
 
 [output]
