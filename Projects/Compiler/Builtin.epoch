@@ -155,7 +155,9 @@ PrepareStringTable :
 	OnCodeGenRegisterString((++counter), "external")
 	OnCodeGenRegisterString((++counter), "@@external")
 	OnCodeGenRegisterString((++counter), "nogc")
+	
 	OnCodeGenRegisterString((++counter), "sizeof")
+	PooledStringHandleForSizeOf = counter
 	
 	OnCodeGenRegisterString((++counter), "marshalstructure")
 	PooledStringHandleForMarshalStructure = counter

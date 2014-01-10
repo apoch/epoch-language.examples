@@ -443,7 +443,7 @@ FindStructureAndSetConstructors : integer structurename, integer constructorname
 {
 	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
-	assert(found)
+	assertmsg(found, "Internal error: constructors cannot be set on non-existent structure")
 
 	SetConstructors(wrap, constructorname, anonname, copyname)
 }
@@ -4632,6 +4632,7 @@ IsFunctionTemplateFast : integer name -> boolean istemplate = false [nogc]
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
 	if(!found)
 	{
+		print("Internal error - function undefined: " ; GetPooledString(GlobalStrings, name))
 		assert(false)
 	}
 
@@ -5452,6 +5453,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			else
 			{
 				print("Can't figure out type of expression atom!")
+				DumpAtom(expression.Atoms.value)
 				success = false
 			}
 		}
@@ -7039,6 +7041,16 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 		}
 	}
+	elseif(funcname == PooledStringHandleForSizeOf)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+		}
+	}
 }
 
 
@@ -7397,6 +7409,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	elseif(builtinname == PooledStringHandleForCmdLineIsValid)
 	{
 		returntype = 0x01000003		// boolean type signature
+	}
+	elseif(builtinname == PooledStringHandleForSizeOf)
+	{
+		returntype = 0x01000001		// integer type signature
 	}
 }
 
@@ -8026,6 +8042,11 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 {
 	if(functions.value.Name == funcname)
 	{
+		if(!functions.value.InferenceDone)
+		{
+			TypeInference(functions.value, DummyContextForFunctions)
+		}
+	
 		simplelist<integer> paramtypes = 0, nothing
 		GetFunctionParameterTypes(functions.value.Params, paramtypes)
 
@@ -8053,7 +8074,13 @@ GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<int
 {
 	GetFunctionParameterTypes(params.next, outtypenames)
 
-	assert(params.value.ResolvedType != 0)
+	if(params.value.ResolvedType == 0)
+	{
+		print("Internal error: function parameter has unresolved type")
+		print(GetPooledString(GlobalStrings, params.value.NameHandle))
+		print(GetPooledString(GlobalStrings, params.value.TypeNameHandle))
+		assert(false)
+	}
 
 	simpleprepend<integer>(outtypenames, GetNameOfType(params.value.ResolvedType))
 }
@@ -8667,7 +8694,7 @@ DoStructureInstantiation : integer defname, integer instancename, list<TemplateP
 {
 	ContextNode<StructureDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, defname, wrap)
-	assert(found)
+	assertmsg(found, "Internal error: structure definition missing")
 
 	StructInstInner(wrap, defname, instancename, params, args)
 }
@@ -8804,7 +8831,7 @@ DoFunctionInstantiation : integer basenamemangled, integer defname, integer inst
 {
 	ContextNode<FunctionDefinition> wrap = nothing
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
-	assert(found)
+	assertmsg(found, "Internal error: function definition missing")
 
 	FunctionInstantiationInner(wrap, basenamemangled, defname, instancename, params, args, overload)
 	EnumerateOverloadsAndInstantiate(wrap, defname, args)
