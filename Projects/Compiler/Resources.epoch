@@ -19,13 +19,18 @@ structure ResourceDirectoryLeaf :
 	integer Reserved
 
 	
+structure ManifestReference :
+	string Filename,
+	integer ID
+	
+	
 structure ResourceHandler :
 	ResourceDirectoryHeader ref DirectoryRoot,
 	integer DirectorySize,
 	integer DataSize,
 	list<IconReference> ref Icons,
-	integer IconCounter,
-	integer IconGroupCounter
+	list<ManifestReference> ref Manifests,
+	integer IconCounter
 	
 	
 structure IconReference :
@@ -217,12 +222,34 @@ ResourceWalkToAddResID : list<ResourceDirectoryEntry> ref entries, integer typei
 
 ResourceAddIDToType : list<ResourceDirectoryHeader> ref headers, integer resid
 {
-	ResourceDirectoryEntry newchild = resid, 0, nothing, nothing
-	list<ResourceDirectoryEntry> newchildren = newchild, headers.value.Children
-	listnode<ResourceDirectoryEntry> newchildrennode = newchildren
-	
-	headers.value.Children = newchildrennode
+	ResourceDirectoryEntry newchild = resid, 0, nothing, nothing	
+	list<ResourceDirectoryEntry> newchildren = newchild, nothing
+
+	AppendResourceDirectoryEntry(headers.value.Children, headers.value.Children, newchildren)
 }
+
+AppendResourceDirectoryEntry : listnode<ResourceDirectoryEntry> ref originalnode, list<ResourceDirectoryEntry> ref thelist, list<ResourceDirectoryEntry> ref newtail
+{
+	AppendResourceDirectoryEntryRecurse(thelist, thelist.next, newtail)
+}
+
+AppendResourceDirectoryEntry : listnode<ResourceDirectoryEntry> ref originalnode, nothing, list<ResourceDirectoryEntry> ref newlist
+{
+	listnode<ResourceDirectoryEntry> newlistnode = newlist
+	originalnode = newlistnode
+}
+
+AppendResourceDirectoryEntryRecurse : list<ResourceDirectoryEntry> ref thelist, list<ResourceDirectoryEntry> ref tail, list<ResourceDirectoryEntry> ref newtail
+{
+	AppendResourceDirectoryEntryRecurse(tail, tail.next, newtail)
+}
+
+AppendResourceDirectoryEntryRecurse : list<ResourceDirectoryEntry> ref thelist, nothing, list<ResourceDirectoryEntry> ref newtail
+{
+	listnode<ResourceDirectoryEntry> newtailnode = newtail
+	thelist.next = newtailnode
+}
+
 
 
 ResourceIDExists : list<ResourceDirectoryEntry> ref entries, integer typeid, integer resid -> boolean found = false
@@ -412,7 +439,7 @@ SetResourceDataOffsets : ResourceHandler ref res, nothing
 
 
 	
-AddResourceIcon : string filename, ResourceHandler ref res
+AddResourceIcon : string filename, integer groupid, integer language, ResourceHandler ref res
 {
 	integer INVALID_HANDLE_VALUE = 0xffffffff
 	integer FILE_SHARE_READ = 0x01
@@ -440,25 +467,25 @@ AddResourceIcon : string filename, ResourceHandler ref res
 					
 					// TODO - validate .ico
 					
-					res.IconGroupCounter = res.IconGroupCounter + 1
-
 					ptr += 6
 					integer hdrcount = cast(integer, hdr.Count)
-					ResourceAdd(res, 0x0e, res.IconGroupCounter * 100 + 1, 1033, 6 + (hdrcount * 14))
+					ResourceAdd(res, 0x0e, groupid, language, 6 + (hdrcount * 14))
+					
+					res.IconCounter = res.IconCounter + 1
 
-					integer imagecount = hdrcount
-					while(imagecount > 0)
+					integer imagecount = 0
+					while(imagecount < hdrcount)
 					{
 						IconDirectoryEntry entry = 0, 0, 0, 0, 0
 						marshalstructure(entry, ptr)
 						
-						ResourceAdd(res, 0x03, imagecount + res.IconCounter, 1033, entry.BytesInResource)
+						ResourceAdd(res, 0x03, imagecount + res.IconCounter, language, entry.BytesInResource)
 						
-						IconReference iconref = filename, res.IconGroupCounter * 100 + 1, imagecount + res.IconCounter, entry.ImageOffset, entry.BytesInResource, entry
+						IconReference iconref = filename, groupid, imagecount + res.IconCounter, entry.ImageOffset, entry.BytesInResource, entry
 						prepend<IconReference>(res.Icons, iconref)
 					
 						ptr += 16
-						--imagecount
+						++imagecount
 					}
 										
 					res.IconCounter = res.IconCounter + hdrcount
@@ -622,6 +649,10 @@ WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, 
 	
 		EmitIconGroupData(rb, rs, res.Icons, resid)
 	}
+	elseif(restype == 24)
+	{
+		CopyManifestFromReference(rb, rs, res.Manifests, resid)
+	}
 	
 	WriteEachResourceLeaf(rb, rs, res, leaves.next, restype, resid, reslang)
 }
@@ -735,5 +766,325 @@ WriteResources : integer filehandle, ResourceHandler ref res -> integer writtenb
 	WriteFile(filehandle, resourcebuffer, resourcesize, written, 0)
 
 	writtenbytes = resourcesize
+}
+
+
+LoadResourceScripts : simplelist<string> ref filenames, ResourceHandler ref res
+{
+	if(filenames.value != "")
+	{
+		LoadResourceScript(filenames.value, res)
+	}
+	
+	LoadResourceScripts(filenames.next, res)
+}
+
+LoadResourceScripts : nothing, ResourceHandler ref res
+
+
+LoadResourceScript : string filename, ResourceHandler ref res
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+
+	boolean haslines = true
+	while(haslines)
+	{
+		string resourceline = ExtractLine(contents)
+
+		if(resourceline == "[icon]")
+		{
+			LoadResourceIcon(contents, res)
+		}
+		elseif(resourceline == "[accelerators]")
+		{
+			LoadResourceAccelerators(contents, res)
+		}
+		elseif(resourceline == "[manifest]")
+		{
+			LoadResourceManifest(contents, res)
+		}
+		elseif(resourceline == "[menu]")
+		{
+			LoadResourceMenu(contents, res)
+		}
+		elseif(resourceline == "")
+		{
+			if(contents == "")
+			{
+				haslines = false
+			}
+		}
+		else
+		{
+			print("Malformed resource file! " ; filename)
+			return()
+		}
+	}
+}
+
+LoadResourceIcon : string ref scriptcontents, ResourceHandler ref res
+{
+	string idline = ExtractLine(scriptcontents)
+	string langline = ExtractLine(scriptcontents)
+	string sourceline = ExtractLine(scriptcontents)
+	
+	string idprefix = ""
+	string iddata = ""
+	SplitProjectDirective(idline, idprefix, iddata)
+	
+	string langprefix = ""
+	string langdata = ""
+	SplitProjectDirective(langline, langprefix, langdata)
+
+	string sourceprefix = ""
+	string sourcedata = ""
+	SplitProjectDirective(sourceline, sourceprefix, sourcedata)
+
+	if(idprefix != "id")
+	{
+		print("Malformed [icon] resource - expected ID!")
+		return()
+	}
+	
+	if(langprefix != "language")
+	{
+		print("Malformed [icon] resource - expected language!")
+		return()
+	}
+	
+	if(sourceprefix != "source")
+	{
+		print("Malformed [icon] resource - expected source!")
+		return()
+	}
+	
+	integer actualid = cast(integer, iddata)
+	integer actuallang = cast(integer, langdata)
+	
+	if(actualid == 0)
+	{
+		print("Invalid [icon] ID!")
+		return()
+	}
+	
+	if(actuallang == 0)
+	{
+		print("Invalid [icon] language!")
+		return()
+	}
+	
+	AddResourceIcon(StripQuotes(sourcedata), actualid, actuallang, res)
+}
+
+LoadResourceAccelerators : string ref scriptcontents, ResourceHandler ref res
+{
+	string idline = ExtractLine(scriptcontents)
+	string langline = ExtractLine(scriptcontents)
+
+	if(ExtractLine(scriptcontents) != "{")
+	{
+		print("Malformed [accelerators] resource - expected contents!")
+		return()
+	}
+	
+	boolean haslines = true
+	while(haslines)
+	{
+		string line = ExtractLine(scriptcontents)
+		if(line == "}")
+		{
+			haslines = false
+		}
+		else
+		{
+			// TODO - parse accelerator and add it to some list or something
+		}
+	}
+	
+	// TODO - add accelerator resource to res
+}
+
+LoadResourceManifest : string ref scriptcontents, ResourceHandler ref res
+{
+	string idline = ExtractLine(scriptcontents)
+	string langline = ExtractLine(scriptcontents)
+	string sourceline = ExtractLine(scriptcontents)
+	
+	string idprefix = ""
+	string iddata = ""
+	SplitProjectDirective(idline, idprefix, iddata)
+	
+	string langprefix = ""
+	string langdata = ""
+	SplitProjectDirective(langline, langprefix, langdata)
+
+	if(idprefix != "id")
+	{
+		print("Malformed [manifest] resource - expected ID!")
+		return()
+	}
+	
+	if(langprefix != "language")
+	{
+		print("Malformed [manifest] resource - expected language!")
+		return()
+	}
+	
+	integer actualid = cast(integer, iddata)
+	integer actuallang = cast(integer, langdata)
+	
+	if(actualid == 0)
+	{
+		print("Invalid [manifest] ID!")
+		return()
+	}
+	
+	if(actuallang == 0)
+	{
+		print("Invalid [manifest] language!")
+		return()
+	}
+	
+	
+	integer INVALID_HANDLE_VALUE = 0xffffffff
+	integer FILE_SHARE_READ = 0x01
+	integer OPEN_EXISTING = 3
+	integer GENERIC_READ = 0x80000000
+
+	integer filesize = 0
+	integer filehandle = CreateFile(sourceline, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	if(filehandle != INVALID_HANDLE_VALUE)
+	{
+		filesize = GetFileSize(filehandle, 0)
+		CloseHandle(filehandle)
+	}
+	else
+	{
+		print("[manifest] not found: " ; sourceline)
+		return()
+	}
+
+	ResourceAdd(res, 24, actualid, actuallang, filesize)
+	
+	ManifestReference manifest = sourceline, actualid
+	prepend<ManifestReference>(res.Manifests, manifest)
+}
+
+LoadResourceMenu : string ref scriptcontents, ResourceHandler ref res
+{
+	string idline = ExtractLine(scriptcontents)
+	string langline = ExtractLine(scriptcontents)
+
+	if(ExtractLine(scriptcontents) != "{")
+	{
+		print("Malformed [menu] resource - expected contents!")
+		return()
+	}
+	
+	integer depth = 1
+	while(depth > 0)
+	{
+		string line = ExtractLine(scriptcontents)
+		if(line == "{")
+		{
+			++depth
+		}
+		elseif(line == "}")
+		{
+			--depth
+		}
+		else
+		{
+			// TODO - parse menu resource here
+		}
+	}
+	
+	// TODO - add menu resource to res
+}
+
+
+StripQuotes : string in -> string out = in
+{
+	integer len = length(out)
+	if(len > 1)
+	{
+		if(substring(out, len - 1, 1) == unescape("\'"))
+		{
+			out = substring(out, 0, len - 1)
+			--len
+		}
+	}
+	
+	if(len > 0)
+	{
+		if(substring(out, 0, 1) == unescape("\'"))
+		{
+			out = substring(out, 1)
+		}
+	}
+}
+
+
+CopyManifestFromReference : buffer ref rb, integer ref rs, list<ManifestReference> ref manifests, integer resid
+{
+	if(manifests.value.ID == resid)
+	{
+		integer INVALID_HANDLE_VALUE = 0xffffffff
+		integer FILE_SHARE_READ = 0x01
+		integer OPEN_EXISTING = 3
+		integer GENERIC_READ = 0x80000000
+
+		integer filehandle = CreateFile(manifests.value.Filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+		if(filehandle != INVALID_HANDLE_VALUE)
+		{
+			integer PAGE_READONLY = 0x02
+			integer len = GetFileSize(filehandle, 0)
+
+			if(len > 0)
+			{
+				integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+				if(mappinghandle != 0)
+				{
+					integer FILE_MAP_READ = 0x04
+					integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
+
+					if(ptr != 0)
+					{
+						writebuffer(rb, rs, ptr, len)
+						rs = rs + len
+					}
+					else
+					{
+						print("Failed to copy manifest!")
+					}
+					
+					CloseHandle(mappinghandle)
+				}
+				else
+				{
+					print("Failed to map file!")
+				}
+			}
+			else
+			{
+				print("File is empty!")
+			}
+			CloseHandle(filehandle)
+		}
+		else
+		{
+			print("Couldn't open that manifest file!")
+		}
+	}
+	else
+	{
+		CopyManifestFromReference(rb, rs, manifests.next, resid)
+	}
 }
 

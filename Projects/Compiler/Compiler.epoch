@@ -4359,6 +4359,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		
 			success = false
 			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+			DumpTypeList(paramtypes)
 		}
 	}
 
@@ -4791,6 +4792,20 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 			overloadname = withreal
 		}
 	}
+	elseif(rawname == PooledStringHandleForBuffer)
+	{
+		integer normal = PooledStringHandleForBuffer
+		integer copy = PooledStringHandleForBufferCopy
+		
+		if(FunctionMatchesParameterTypes(nothing, normal, types))
+		{
+			overloadname = normal
+		}
+		elseif(FunctionMatchesParameterTypes(nothing, copy, types))
+		{
+			overloadname = copy
+		}		
+	}
 	elseif(IsRecognizedBuiltIn(rawname))
 	{
 		overloadname = rawname
@@ -4895,6 +4910,18 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 	elseif(funcname == PooledStringHandleForUnescape)
 	{
 		simplelist<integer> ptypes = 0x02000000, nothing
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(funcname == PooledStringHandleForBuffer)
+	{
+		simplelist<integer> ptypes = 0x01000001, nothing
+		simpleprepend<integer>(ptypes, 0x01000000)
+		match = CheckParameterTypesForMatch(types, ptypes)
+	}
+	elseif(funcname == PooledStringHandleForBufferCopy)
+	{
+		simplelist<integer> ptypes = 0x02000001, nothing
+		simpleprepend<integer>(ptypes, 0x01000000)
 		match = CheckParameterTypesForMatch(types, ptypes)
 	}
 	else
@@ -5028,7 +5055,7 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 		expected = FindTypeAliasBase(TypeAliases, expected)
 	}
 
-	if(resolved != expected)
+	if(MakeNonReferenceType(resolved) != MakeNonReferenceType(expected))
 	{
 		match = false
 		return()
@@ -6916,7 +6943,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 			elseif(paramindex == 1)
 			{
-				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+				simpleprepend<integer>(types, 0x82000001)	// reference to buffer type signature
 			}
 		}
 	}
@@ -7023,6 +7050,20 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 				simpleprepend<integer>(types, 0x01000001)	// integer type signature
 			}
 		}
+	}
+	elseif(funcname == PooledStringHandleForWidenFromBuffer)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}	
 	}
 	elseif(funcname == PooledStringHandleForCmdLineGet)
 	{
@@ -7421,6 +7462,10 @@ GetBuiltInReturnType : integer builtinname -> integer returntype = 0
 	{
 		returntype = 0x02000000		// string type signature
 	}
+	elseif(builtinname == PooledStringHandleForWidenFromBuffer)
+	{
+		returntype = 0x02000000		// string type signature
+	}
 	elseif(builtinname == PooledStringHandleForCmdLineGetCount)
 	{
 		returntype = 0x01000001		// integer type signature
@@ -7595,6 +7640,19 @@ MakeParametersReferencesForBuiltIn : integer funcname, ExpressionList ref params
 			print("WARNING: failed to bind reference")
 		}
 	}
+	elseif(funcname == PooledStringHandleForCastBufferToString)
+	{
+		MarkFirstAtomAsReference(params.Expressions.next)
+	}
+}
+
+
+MarkFirstAtomAsReference : list<Expression> ref exprs
+{
+	if(!MarkAtomAsReference(exprs.value.Atoms.value))
+	{
+		print("WARNING: failed to bind reference")
+	}	
 }
 
 
@@ -7834,6 +7892,9 @@ StripDemotedTypes : nothing, simplelist<integer> ref out [nogc]
 
 InitBuiltInOverloads : [nogc]
 {
+	Overload buffercopy = PooledStringHandleForBuffer, PooledStringHandleForBufferCopy, nothing
+	prepend<Overload>(AutoGenOverloads, buffercopy)
+
 	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength, nothing
 	prepend<Overload>(AutoGenOverloads, substrlength)
 
@@ -8467,7 +8528,7 @@ FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
 		{
 			overloadname = PooledStringHandleForCastStringToInteger
 		}
-		elseif((idtype == 0x02000000) && (origintype == 0x02000001))
+		elseif((idtype == 0x02000000) && (origintype == 0x82000001))
 		{
 			overloadname = PooledStringHandleForCastBufferToString
 		}

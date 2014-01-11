@@ -202,6 +202,7 @@ PrepareStringTable :
 	PooledStringHandleForWidenFromPtr = counter
 
 	OnCodeGenRegisterString((++counter), "widenfrombuffer")
+	PooledStringHandleForWidenFromBuffer = counter
 
 	OnCodeGenRegisterString((++counter), "string")
 	PooledStringHandleForString = counter
@@ -255,6 +256,7 @@ PrepareStringTable :
 	PooledStringHandleForNothing = counter
 
 	OnCodeGenRegisterString((++counter), "buffer@@copy")
+	PooledStringHandleForBufferCopy = counter
 
 	OnCodeGenRegisterString((++counter), "cast")
 	PooledStringHandleForCast = counter

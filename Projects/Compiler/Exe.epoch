@@ -8,17 +8,19 @@ WriteFile : integer handle, buffer ref data, integer numbytes, integer ref writt
 
 
 	
-MakeExe : string filename
+MakeExe : EpochProject ref project
 {
 	IconDirectoryEntry dummydetails = 0, 0, 0, 0, 0
 	IconReference dummyicon = "", 0, 0, 0, 0, dummydetails
 	list<IconReference> dummyiconlist = dummyicon, nothing
+	
+	ManifestReference dummymanifest = "", 0
+	list<ManifestReference> dummymanifestlist = dummymanifest, nothing
 
 	ResourceDirectoryHeader resroot = 0, 0, 0, 0, nothing
-	ResourceHandler res = resroot, 0, 0, dummyiconlist, 0, 0
+	ResourceHandler res = resroot, 0, 0, dummyiconlist, dummymanifestlist, 0
 	
-	// TODO - load resource script and embed all requested resources
-	//AddResourceIcon("epoch.ico", res)
+	LoadResourceScripts(project.ResourceFiles, res)
 	ComputeResourceOffsets(res)
 	
 
@@ -28,10 +30,10 @@ MakeExe : string filename
 	integer GENERIC_WRITE = 0x40000000
 	integer CREATE_ALWAYS = 2
 
-	integer filehandle = CreateFile(filename, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
+	integer filehandle = CreateFile(project.OutputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == -1)
 	{
-		print("Cannot open " ; filename ; " to emit .EXE!")
+		print("Cannot open " ; project.OutputFileName ; " to emit .EXE!")
 		return()
 	}
 

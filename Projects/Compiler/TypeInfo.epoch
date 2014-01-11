@@ -23,6 +23,10 @@ GetTypeSize : integer typeid -> integer size = 0 [nogc]
 	{
 		size = 4
 	}
+	elseif(typeid == 0x02000001)			// BufferHandle
+	{
+		size = 4
+	}
 	elseif(IsStructureType(typeid))			// StructureHandle
 	{
 		size = 4

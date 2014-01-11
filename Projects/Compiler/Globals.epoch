@@ -255,6 +255,8 @@ global
 	integer PooledStringHandleForMarshalStructure = 0
 	integer PooledStringHandleForSizeOf = 0
 	integer PooledStringHandleForCastBufferToString = 0
+	integer PooledStringHandleForWidenFromBuffer = 0
+	integer PooledStringHandleForBufferCopy = 0
 
 	integer FirstNonBuiltInStringHandle = 0
 

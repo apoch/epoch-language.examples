@@ -294,31 +294,6 @@ GetWindowRect : integer hwnd, Rect ref out -> boolean success = false [external(
 AllocConsole : -> boolean success = false [external("Kernel32.dll", "AllocConsole", "stdcall")]
 
 
-
-//
-// Compiler interaction - types and API declarations
-//
-// For now, we still hook into the C++ implementations of the Epoch
-// compilation toolchain and the Scintilla lexer module. These APIs
-// allow us to do extra syntax highlighting and other niftiness.
-//
-// Note that we probably won't add much more highlighting or syntax
-// completion support until after self-hosting is completed and the
-// relevant APIs are ported to pure Epoch, just for the sake of not
-// doing a ton of duplicate work. 
-//
-
-structure ParseCallbacks :
-	(ParseOKFunc : ),
-	(ParseStructureFunc : string)
-
-
-UDTListReset : [external("EpochLexer.dll", "UDTListReset", "stdcall")]
-UDTListAppend : buffer token [external("EpochLexer.dll", "UDTListAppend", "stdcall")]
-
-ParseSource : buffer source, ParseCallbacks callbacks [external("EpochCompiler.dll", "ParseSource", "stdcall")]
-
-
 //
 // Internal data structures used by Era
 //
@@ -832,12 +807,12 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	elseif(message == WM_TIMER)
 	{
 		integer scintillahwnd = GetActiveEditorHwnd()
-		integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
-		buffer output = doclength
-		SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
+		//integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
+		//buffer output = doclength
+		//SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
 
-		ParseCallbacks callbacks = ParseOK, ParseStructure
-		ParseSource(output, callbacks)
+		//ParseCallbacks callbacks = ParseOK, ParseStructure
+		//ParseSource(output, callbacks)
 		ScintillaColorize(scintillahwnd)
 	}
 	elseif(message == WM_ACTIVATE)
@@ -1373,17 +1348,6 @@ ModalDialogPump : integer dialoghwnd -> boolean active = true
 			return()
 		}
 	}
-}
-
-
-ParseOK :
-{
-	UDTListReset()
-}
-
-ParseStructure : string name
-{
-	UDTListAppend(narrowstring(name))
 }
 
 

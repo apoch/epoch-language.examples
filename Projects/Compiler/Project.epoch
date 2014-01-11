@@ -98,7 +98,7 @@ CompileProject : string filename
 	OnCodeGenProcessProgram()
 	
 	print("Writing executable file...")
-	MakeExe(project.OutputFileName)
+	MakeExe(project)
 }
 
 //
