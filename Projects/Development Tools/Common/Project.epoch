@@ -1,6 +1,6 @@
 //
 // The Epoch Language Project
-// EpochCompiler command line tools suite
+// Epoch Development Tools - Common Library Modules
 //
 // PROJECT.EPOCH
 // Epoch project (.eprj) file parsing and handling module
@@ -23,16 +23,7 @@ structure EpochProject :
 	boolean UsesConsole
 
 
-
-//
-// Jumping off point for compiling a particular .eprj file
-//
-// This function is a complete wrapper for the process of parsing
-// and acting on an Epoch Project file. Its primary purpose is to
-// delegate to other routines in this module, as well as the rest
-// of the compiler implementation.
-//
-CompileProject : string filename
+ParseProjectFile : string filename, EpochProject ref project
 {
 	integer len = 0
 	string contents = ReadFile(filename, len)
@@ -41,10 +32,6 @@ CompileProject : string filename
 	{
 		return()
 	}
-	
-	simplelist<string> emptysourcefilelist = "", nothing
-	simplelist<string> emptyresourcefilelist = "", nothing
-	EpochProject project = "project.exe", emptysourcefilelist, emptyresourcefilelist, false
 
 	boolean haslines = true
 	while(haslines)
@@ -79,27 +66,8 @@ CompileProject : string filename
 			return()
 		}
 	}
-
-	print("Parsing source code...")
-	boolean parseok = ProjectParseAllCode(project.SourceFiles)	
-	if(!parseok)
-	{
-		return()
-	}
-
-	print("Performing semantic analysis...")
-	boolean irok = IRProcess()
-	if(!irok)
-	{
-		return()
-	}
-
-	print("Generating code...")
-	OnCodeGenProcessProgram()
-	
-	print("Writing executable file...")
-	MakeExe(project)
 }
+
 
 //
 // Helper for splitting strings; should be generalized
@@ -214,26 +182,5 @@ ProjectParseOptionsSection : string ref contents, EpochProject ref project
 	}
 }
 
-//
-// Helper for traversing the list of files in a project
-// and passing each in turn to the Epoch parser
-//
-ProjectParseAllCode : simplelist<string> ref files -> boolean success = true
-{
-	if(files.value != "")
-	{
-		print(files.value)
-		if(!ParseFile(files.value))
-		{
-			success = false
-		}
-	}
-	
-	if(!ProjectParseAllCode(files.next))
-	{
-		success = false
-	}
-}
 
-ProjectParseAllCode : nothing -> true
 

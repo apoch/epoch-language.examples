@@ -462,6 +462,14 @@ global
 	//
 		
 	string FileTypeFilters = unescape("Epoch source files (*.epoch)\0*.epoch\0All files (*.*)\0*.*\0")
+	
+	
+	//
+	// Wrapper for current project
+	//
+	simplelist<string> emptysourcefilelist = "", nothing
+	simplelist<string> emptyresourcefilelist = "", nothing
+	EpochProject CurrentProject = "Unnamed.exe", emptysourcefilelist, emptyresourcefilelist, false
 }
 
 
@@ -529,7 +537,19 @@ entrypoint :
 	
 	if(cmdlinegetcount() > 1)
 	{
-		CreateEditorTab(hwnd, cmdlineget(1))
+		string filearg = cmdlineget(1)
+		if((length(filearg) > 5) && (substring(filearg, length(filearg) - 5) == ".eprj"))
+		{
+			ParseProjectFile(filearg, CurrentProject)
+			if(CreateEditorTabs(hwnd, CurrentProject.SourceFiles) == 0)
+			{
+				CreateEditorTab(hwnd, "")
+			}
+		}
+		else
+		{
+			CreateEditorTab(hwnd, filearg)
+		}
 	}
 	else
 	{
@@ -552,8 +572,8 @@ entrypoint :
 	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resources")
 	integer optionsroot = TreeViewAddItem(ProjectHWND, projectroot, "Options")
 	
-	TreeViewAddItem(ProjectHWND, coderoot, "Foo.epoch")
-	TreeViewAddItem(ProjectHWND, resourceroot, "Bar.erc")
+	AddTreeViewFiles(ProjectHWND, coderoot, CurrentProject.SourceFiles)
+	AddTreeViewFiles(ProjectHWND, resourceroot, CurrentProject.ResourceFiles)
 
 	TreeViewExpand(ProjectHWND, projectroot)
 	TreeViewExpand(ProjectHWND, coderoot)
@@ -1789,3 +1809,32 @@ DestroyTabs : list<OpenTab> ref tabs
 }
 
 DestroyTabs : nothing
+
+
+CreateEditorTabs : integer hwnd, simplelist<string> ref filenames -> integer filecount = 0
+{
+	if(filenames.value != "")
+	{
+		CreateEditorTab(hwnd, filenames.value)
+		filecount = 1
+	}
+	
+	filecount += CreateEditorTabs(hwnd, filenames.next)
+}
+
+CreateEditorTabs : integer hwnd, nothing -> 0
+
+
+AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filenames
+{
+	if(filenames.value != "")
+	{
+		TreeViewAddItem(tvhwnd, node, filenames.value)
+	}
+	
+	AddTreeViewFiles(tvhwnd, node, filenames.next)
+}
+
+AddTreeViewFiles : integer tvhwnd, integer node, nothing
+
+

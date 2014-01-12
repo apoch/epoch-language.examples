@@ -1,9 +1,11 @@
 [source]
 Era.epoch
+..\Common\Strings.epoch
+..\Common\Project.epoch
 
 [resources]
 Era.erc
 
 [output]
-output-file compiled\Era.exe
+output-file ..\Bin\Era.exe
 

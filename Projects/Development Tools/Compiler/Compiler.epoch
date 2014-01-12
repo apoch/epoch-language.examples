@@ -96,6 +96,59 @@ ParseFile : string filename -> boolean success = false
 }
 
 
+CompileProject : string filename
+{	
+	simplelist<string> emptysourcefilelist = "", nothing
+	simplelist<string> emptyresourcefilelist = "", nothing
+	EpochProject project = "project.exe", emptysourcefilelist, emptyresourcefilelist, false
+
+	ParseProjectFile(filename, project)
+
+	print("Parsing source code...")
+	boolean parseok = ProjectParseAllCode(project.SourceFiles)	
+	if(!parseok)
+	{
+		return()
+	}
+
+	print("Performing semantic analysis...")
+	boolean irok = IRProcess()
+	if(!irok)
+	{
+		return()
+	}
+
+	print("Generating code...")
+	OnCodeGenProcessProgram()
+	
+	print("Writing executable file...")
+	MakeExe(project)
+}
+
+//
+// Helper for traversing the list of files in a project
+// and passing each in turn to the Epoch parser
+//
+ProjectParseAllCode : simplelist<string> ref files -> boolean success = true
+{
+	if(files.value != "")
+	{
+		print(files.value)
+		if(!ParseFile(files.value))
+		{
+			success = false
+		}
+	}
+	
+	if(!ProjectParseAllCode(files.next))
+	{
+		success = false
+	}
+}
+
+ProjectParseAllCode : nothing -> true
+
+
 CompileFile : string filename -> boolean success = false
 {
 	integer len = 0
@@ -135,77 +188,6 @@ CompileFile : string filename -> boolean success = false
 
 	success = true
 }
-
-
-ExtractLine : string ref contents -> string line = ""
-{
-	if(length(contents) == 0)
-	{
-		return()
-	}
-
-	integer pos = 0
-	while(charat(contents, pos) != unescape("\r"))
-	{
-		++pos
-	}
-		
-	line = substring(contents, 0, pos)
-	
-	pos += 2
-	contents = substring(contents, pos)
-}
-
-
-ReadFile : string filename, integer ref len -> string contents = ""
-{
-	integer INVALID_HANDLE_VALUE = 0xffffffff
-	integer FILE_SHARE_READ = 0x01
-	integer OPEN_EXISTING = 3
-	integer GENERIC_READ = 0x80000000
-
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
-	if(filehandle != INVALID_HANDLE_VALUE)
-	{
-		integer PAGE_READONLY = 0x02
-
-		len = GetFileSize(filehandle, 0)
-
-		if(len > 0)
-		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
-			if(mappinghandle != 0)
-			{
-				integer FILE_MAP_READ = 0x04
-				integer ptr = MapViewOfFile(mappinghandle, FILE_MAP_READ, 0, 0, len)
-
-				if(ptr != 0)
-				{
-					contents = widenfromptr(ptr, len)
-				}
-				CloseHandle(mappinghandle)
-			}
-			else
-			{
-				print("Failed to map file!")
-			}
-		}
-		else
-		{
-			contents = ""
-		}
-		CloseHandle(filehandle)
-	}
-	else
-	{
-		print("Couldn't open that file!")
-	}
-}
-
-
-
-// TODO - replace with better option
-charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 
 

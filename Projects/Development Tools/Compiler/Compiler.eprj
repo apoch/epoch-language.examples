@@ -1,8 +1,20 @@
 [source]
+Builtin.epoch
+Bytecode.epoch
 Compiler.epoch
+DataStructures.epoch
+Exe.epoch
+Globals.epoch
+IR.epoch
+Lexer.epoch
+Parser.epoch
+..\Common\Project.epoch
+Resources.epoch
+..\Common\Strings.epoch
+TypeInfo.epoch
 
 [output]
-output-file compiled\EpochCompiler.exe
+output-file ..\Bin\EpochCompiler.exe
 
 [options]
 use-console
