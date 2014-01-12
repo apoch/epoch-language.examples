@@ -20,9 +20,14 @@ MakeExe : EpochProject ref project
 	list<MenuEntry> nomenuentries = MenuSentinel(0), nothing
 	MenuResource emptymenu = 0, nomenuentries
 	list<MenuResource> nomenus = emptymenu, nothing
+	
+	AcceleratorEntry nonaccel = 0, 0, 0
+	list<AcceleratorEntry> accellist = nonaccel, nothing
+	AcceleratorResource noaccel = 0, accellist
+	list<AcceleratorResource> noaccels = noaccel, nothing
 
 	ResourceDirectoryHeader resroot = 0, 0, 0, 0, nothing
-	ResourceHandler res = resroot, 0, 0, dummyiconlist, dummymanifestlist, 0, nomenus
+	ResourceHandler res = resroot, 0, 0, dummyiconlist, dummymanifestlist, 0, nomenus, noaccels
 	
 	LoadResourceScripts(project.ResourceFiles, res)
 	ComputeResourceOffsets(res)

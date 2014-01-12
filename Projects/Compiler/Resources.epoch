@@ -46,6 +46,17 @@ structure MenuResource :
 	integer ID,
 	list<MenuEntry> Entries
 	
+
+structure AcceleratorResource :
+	integer ID,
+	list<AcceleratorEntry> Entries
+	
+structure AcceleratorEntry :
+	integer Flags,
+	integer KeyCode,
+	integer ID
+
+	
 structure ResourceHandler :
 	ResourceDirectoryHeader ref DirectoryRoot,
 	integer DirectorySize,
@@ -53,7 +64,8 @@ structure ResourceHandler :
 	list<IconReference> ref Icons,
 	list<ManifestReference> ref Manifests,
 	integer IconCounter,
-	list<MenuResource> ref Menus
+	list<MenuResource> ref Menus,
+	list<AcceleratorResource> ref Accelerators
 	
 	
 structure IconReference :
@@ -724,6 +736,10 @@ WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, 
 	{
 		EmitMenuResource(rb, rs, res.Menus, resid)
 	}
+	elseif(restype == 0x09)
+	{
+		EmitAcceleratorResource(rb, rs, res.Accelerators, resid)
+	}
 	
 	WriteEachResourceLeaf(rb, rs, res, leaves.next, restype, resid, reslang)
 }
@@ -957,12 +973,52 @@ LoadResourceAccelerators : string ref scriptcontents, ResourceHandler ref res
 {
 	string idline = ExtractLine(scriptcontents)
 	string langline = ExtractLine(scriptcontents)
+	
+	string idprefix = ""
+	string iddata = ""
+	SplitProjectDirective(idline, idprefix, iddata)
+	
+	string langprefix = ""
+	string langdata = ""
+	SplitProjectDirective(langline, langprefix, langdata)
+
+	if(idprefix != "id")
+	{
+		print("Malformed [accelerators] resource - expected ID!")
+		return()
+	}
+	
+	if(langprefix != "language")
+	{
+		print("Malformed [accelerators] resource - expected language!")
+		return()
+	}
+	
+	integer actualid = cast(integer, iddata)
+	integer actuallang = cast(integer, langdata)
+	
+	if(actualid == 0)
+	{
+		print("Invalid [accelerators] ID!")
+		return()
+	}
+	
+	if(actuallang == 0)
+	{
+		print("Invalid [accelerators] language!")
+		return()
+	}
 
 	if(ExtractLine(scriptcontents) != "{")
 	{
 		print("Malformed [accelerators] resource - expected contents!")
 		return()
 	}
+
+	list<AcceleratorEntry> emptyaccellist = AcceleratorEntry(0, 0, 0), nothing
+	AcceleratorResource accelres = actualid, emptyaccellist
+	
+	integer numaccellines = 0
 	
 	boolean haslines = true
 	while(haslines)
@@ -974,11 +1030,68 @@ LoadResourceAccelerators : string ref scriptcontents, ResourceHandler ref res
 		}
 		else
 		{
-			// TODO - parse accelerator and add it to some list or something
+			line = TrimWhitespace(line)
+			++numaccellines
+			
+			string modifier = ""
+			string remainder = ""
+			SplitProjectDirective(line, modifier, remainder)
+			
+			string keycode = ""
+			string keyid = ""
+			SplitProjectDirective(remainder, keycode, keyid)
+			
+			integer actualkeyid = cast(integer, keyid)
+			
+			integer flags = 0x01
+			if(modifier == "VK")
+			{
+				// No flag adjustments
+			}
+			elseif(modifier == "CTRL")
+			{
+				flags += 0x08
+			}
+			elseif(modifier == "SHIFT")
+			{
+				flags += 0x04
+			}
+			else
+			{
+				print("Malformed [accelerators] resource - unrecognized key modifier " ; modifier)
+				return()
+			}
+			
+			integer actualkeycode = 0
+			if(keycode == "F1")
+			{
+				actualkeycode = 0x70
+			}
+			elseif(keycode == "F2")
+			{
+				actualkeycode = 0x71
+			}
+			elseif(keycode == "F3")
+			{
+				actualkeycode = 0x72
+			}
+			elseif(length(keycode) == 1)
+			{
+				actualkeycode = subchar(keycode, 0)
+			}
+			else
+			{
+				print("Malformed [accelerators] resource - keycode not recognized: " ; keycode)
+				return()
+			}
+			
+			AcceleratorEntry accel = flags, actualkeycode, actualkeyid
+			prepend<AcceleratorEntry>(accelres.Entries, accel)
 		}
 	}
 	
-	// TODO - add accelerator resource to res
+	ResourceAdd(res, 0x09, actualid, actuallang, 8 * numaccellines)
+	prepend<AcceleratorResource>(res.Accelerators, accelres)
 }
 
 LoadResourceManifest : string ref scriptcontents, ResourceHandler ref res
@@ -1389,4 +1502,47 @@ EmitMenuEntry : buffer ref rb, integer ref rs, MenuPopup ref popup, boolean isno
 
 HasMenuEntry : nothing -> false
 HasMenuEntry : list<MenuEntry> ref thelist -> true
+
+EmitAcceleratorResource : buffer ref rb, integer ref rs, list<AcceleratorResource> ref accelerators, integer targetid
+{
+	if(accelerators.value.ID == targetid)
+	{
+		EmitAcceleratorTable(rb, rs, accelerators.value)
+	}
+	else
+	{
+		EmitAcceleratorResource(rb, rs, accelerators.next, targetid)
+	}
+}
+
+EmitAcceleratorTable : buffer ref rb, integer ref rs, AcceleratorResource ref accelerator
+{
+	EmitAcceleratorEntries(rb, rs, accelerator.Entries)
+}
+
+HasAccelList : list<AcceleratorEntry> ref entries -> boolean ret = (entries.value.Flags != 0)
+HasAccelList : nothing -> false
+
+EmitAcceleratorEntries : buffer ref rb, integer ref rs, list<AcceleratorEntry> ref entries
+{
+	if(entries.value.Flags != 0)
+	{
+		if(HasAccelList(entries.next))
+		{
+			EmitInteger16(rb, rs, cast(integer16, entries.value.Flags))
+		}
+		else
+		{
+			EmitInteger16(rb, rs, cast(integer16, entries.value.Flags + 0x80))
+		}
+		EmitInteger16(rb, rs, cast(integer16, entries.value.KeyCode))
+		EmitInteger16(rb, rs, cast(integer16, entries.value.ID))
+		EmitInteger16(rb, rs, 0)
+	}
+	
+	EmitAcceleratorEntries(rb, rs, entries.next)
+}
+
+EmitAcceleratorEntries : buffer ref rb, integer ref rs, nothing
+
 
