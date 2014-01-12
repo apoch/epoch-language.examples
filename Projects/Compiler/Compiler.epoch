@@ -7282,6 +7282,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	if(var.Name == 0)
 	{
 		print("Member access is bogus!")
+		print(GetPooledString(GlobalStrings, lhs.Handle))
 		assert(false)
 	}
 

@@ -24,13 +24,36 @@ structure ManifestReference :
 	integer ID
 	
 	
+
+type MenuEntry : MenuPopup | MenuItem | MenuSeparator | MenuSentinel
+
+structure MenuPopup :
+	string Title,
+	list<MenuEntry> Children
+	
+structure MenuItem :
+	integer ID,
+	string Text
+	
+structure MenuSeparator :
+	integer Empty
+	
+structure MenuSentinel :
+	integer Empty
+
+	
+structure MenuResource :
+	integer ID,
+	list<MenuEntry> Entries
+	
 structure ResourceHandler :
 	ResourceDirectoryHeader ref DirectoryRoot,
 	integer DirectorySize,
 	integer DataSize,
 	list<IconReference> ref Icons,
 	list<ManifestReference> ref Manifests,
-	integer IconCounter
+	integer IconCounter,
+	list<MenuResource> ref Menus
 	
 	
 structure IconReference :
@@ -293,10 +316,54 @@ ResourceAddTypeGroup : ResourceHandler ref res, integer typeid
 	list<ResourceDirectoryHeader> newheaderlist = newheader, nothing
 	listnode<ResourceDirectoryHeader> newheaderlistnode = newheaderlist
 	ResourceDirectoryEntry newentry = typeid, 0, newheaderlistnode, nothing
-	
-	list<ResourceDirectoryEntry> newlist = newentry, res.DirectoryRoot.Children
-	res.DirectoryRoot.Children = newlist
+
+	if(ResourceNodeExists(res.DirectoryRoot.Children))
+	{
+		InsertSortedResourceNode(res.DirectoryRoot.Children, newentry)
+	}
+	else
+	{		
+		list<ResourceDirectoryEntry> newlist = newentry, res.DirectoryRoot.Children
+		res.DirectoryRoot.Children = newlist
+	}
 }
+
+InsertSortedResourceNode : list<ResourceDirectoryEntry> ref entries, ResourceDirectoryEntry ref newentry
+{
+	if(newentry.Name < entries.value.Name)
+	{
+		prepend<ResourceDirectoryEntry>(entries, newentry)
+	}
+	else
+	{
+		InsertSortedResourceNodeRecurse(entries, entries.next, newentry)
+	}
+}
+
+InsertSortedResourceNodeRecurse : list<ResourceDirectoryEntry> ref entries, list<ResourceDirectoryEntry> ref tail, ResourceDirectoryEntry ref newentry
+{
+	if(newentry.Name < tail.value.Name)
+	{
+		list<ResourceDirectoryEntry> newlist = newentry, tail
+		entries.next = newlist
+	}
+	else
+	{
+		InsertSortedResourceNodeRecurse(tail, tail.next, newentry)
+	}
+}
+
+InsertSortedResourceNodeRecurse : list<ResourceDirectoryEntry> ref entries, nothing, ResourceDirectoryEntry ref newentry
+{
+	assert(newentry.Name > entries.value.Name)
+	
+	list<ResourceDirectoryEntry> newlist = newentry, nothing
+	entries.next = newlist
+}
+
+
+ResourceNodeExists : list<ResourceDirectoryEntry> ref entries -> true
+ResourceNodeExists : nothing -> false
 
 ResourceHasChildOfType : list<ResourceDirectoryEntry> ref entries, integer typeid -> boolean found = false
 {
@@ -653,6 +720,10 @@ WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, 
 	{
 		CopyManifestFromReference(rb, rs, res.Manifests, resid)
 	}
+	elseif(restype == 0x04)
+	{
+		EmitMenuResource(rb, rs, res.Menus, resid)
+	}
 	
 	WriteEachResourceLeaf(rb, rs, res, leaves.next, restype, resid, reslang)
 }
@@ -980,32 +1051,132 @@ LoadResourceMenu : string ref scriptcontents, ResourceHandler ref res
 {
 	string idline = ExtractLine(scriptcontents)
 	string langline = ExtractLine(scriptcontents)
+	
+	string idprefix = ""
+	string iddata = ""
+	SplitProjectDirective(idline, idprefix, iddata)
+	
+	string langprefix = ""
+	string langdata = ""
+	SplitProjectDirective(langline, langprefix, langdata)
 
+	if(idprefix != "id")
+	{
+		print("Malformed [menu] resource - expected ID!")
+		return()
+	}
+	
+	if(langprefix != "language")
+	{
+		print("Malformed [menu] resource - expected language!")
+		return()
+	}
+	
+	integer actualid = cast(integer, iddata)
+	integer actuallang = cast(integer, langdata)
+	
+	if(actualid == 0)
+	{
+		print("Invalid [menu] ID!")
+		return()
+	}
+	
+	if(actuallang == 0)
+	{
+		print("Invalid [menu] language!")
+		return()
+	}
+	
 	if(ExtractLine(scriptcontents) != "{")
 	{
 		print("Malformed [menu] resource - expected contents!")
 		return()
 	}
 	
-	integer depth = 1
-	while(depth > 0)
+	MenuSentinel sentinel = 0
+	MenuEntry sentinelentry = sentinel
+	list<MenuEntry> emptyentrylist = sentinelentry, nothing
+
+	ParseMenu(scriptcontents, emptyentrylist)
+	MenuResource menu = actualid, emptyentrylist
+
+	prepend<MenuResource>(res.Menus, menu)
+	
+	ResourceAdd(res, 0x04, actualid, actuallang, ComputeMenuSize(menu))
+}
+
+
+ParseMenu : string ref scriptcontents, list<MenuEntry> ref entries
+{
+	boolean haslines = true
+	while(haslines)
 	{
-		string line = ExtractLine(scriptcontents)
-		if(line == "{")
+		string line = TrimWhitespace(ExtractLine(scriptcontents))
+		if(line == "}")
 		{
-			++depth
+			haslines = false
 		}
-		elseif(line == "}")
+		elseif(line == "separator")
 		{
-			--depth
+			MenuSeparator separator = 0
+			MenuEntry separatorentry = separator
+			AppendMenuEntry(entries, entries.next, separatorentry)
 		}
 		else
 		{
-			// TODO - parse menu resource here
+			string token = ""
+			string remainder = ""
+			SplitProjectDirective(line, token, remainder)
+			
+			if(token == "popup")
+			{
+				string bracket = TrimWhitespace(ExtractLine(scriptcontents))
+				if(bracket != "{")
+				{
+					print("Malformed [menu] popup submenu - expected contents!")
+					print(bracket)
+					return()
+				}
+
+				MenuSentinel sentinel = 0
+				MenuEntry sentinelentry = sentinel
+				list<MenuEntry> emptyentrylist = sentinelentry, nothing
+
+				ParseMenu(scriptcontents, emptyentrylist)
+				
+				MenuPopup popup = StripQuotes(remainder), emptyentrylist
+				MenuEntry popupentry = popup
+				AppendMenuEntry(entries, entries.next, popupentry)
+			}
+			elseif(token == "item")
+			{
+				string itemidstr = ""
+				string itemtextstr = ""
+				SplitProjectDirective(remainder, itemidstr, itemtextstr)
+				itemtextstr = StripQuotes(itemtextstr)
+				
+				MenuItem newitem = cast(integer, itemidstr), itemtextstr
+				MenuEntry itementry = newitem
+				AppendMenuEntry(entries, entries.next, itementry)
+			}
+			else
+			{
+				print("Malformed [menu] resource - unexpected token " ; token)
+			}
 		}
 	}
-	
-	// TODO - add menu resource to res
+}
+
+AppendMenuEntry : list<MenuEntry> ref thelist, list<MenuEntry> ref tail, MenuEntry ref entry
+{
+	AppendMenuEntry(tail, tail.next, entry)
+}
+
+AppendMenuEntry : list<MenuEntry> ref thelist, nothing, MenuEntry ref entry
+{
+	list<MenuEntry> newlist = entry, nothing
+	listnode<MenuEntry> newnode = newlist
+	thelist.next = newnode
 }
 
 
@@ -1087,4 +1258,135 @@ CopyManifestFromReference : buffer ref rb, integer ref rs, list<ManifestReferenc
 		CopyManifestFromReference(rb, rs, manifests.next, resid)
 	}
 }
+
+
+TrimWhitespace : string in -> string out = in
+{
+	integer startpos = 0
+	integer endpos = length(out) - 1
+	
+	boolean leadingwhite = true
+	while(leadingwhite)
+	{
+		if(substring(out, startpos, 1) == " ")
+		{
+			++startpos
+		}
+		elseif(substring(out, startpos, 1) == unescape("\t"))
+		{
+			++startpos
+		}
+		else
+		{
+			leadingwhite = false
+		}
+	}
+	
+	boolean trailingwhite = true
+	while(trailingwhite)
+	{
+		if(substring(out, endpos, 1) == " ")
+		{
+			--endpos
+		}
+		elseif(substring(out, endpos, 1) == unescape("\t"))
+		{
+			--endpos
+		}
+		else
+		{
+			trailingwhite = false
+		}
+	}
+	
+	out = substring(out, startpos, endpos - startpos + 1)
+}
+
+
+ComputeMenuSize : MenuResource ref menu -> integer size = 0
+{
+	size = 4			// version (reserved) and header size (reserved), 16 bits each
+	size += ComputeMenuSize(menu.Entries)
+}
+
+ComputeMenuSize : list<MenuEntry> ref entries -> integer size = 0
+{
+	size = ComputeMenuSize(entries.value)
+	size += ComputeMenuSize(entries.next)
+}
+
+ComputeMenuSize : nothing -> 0
+ComputeMenuSize : MenuSentinel ref entry -> 0
+ComputeMenuSize : MenuSeparator ref entry -> 6
+ComputeMenuSize : MenuItem ref entry -> integer size = 4 + ((length(entry.Text) + 1) * 2)
+ComputeMenuSize : MenuPopup ref entry -> integer size = 2 + ((length(entry.Title) + 1) * 2) + ComputeMenuSize(entry.Children)
+
+
+EmitMenuResource : buffer ref rb, integer ref rs, list<MenuResource> ref menus, integer targetid
+{
+	if(menus.value.ID == targetid)
+	{
+		EmitInteger(rb, rs, 0)
+		EmitMenuChain(rb, rs, menus.value.Entries)
+	}
+	else
+	{
+		EmitMenuResource(rb, rs, menus.next, targetid)
+	}
+}
+
+EmitMenuChain : buffer ref rb, integer ref rs, list<MenuEntry> ref entries
+{
+	EmitMenuEntry(rb, rs, entries.value, HasMenuEntry(entries.next))
+	EmitMenuChain(rb, rs, entries.next)
+}
+
+EmitMenuChain : buffer ref rb, integer ref rs, nothing
+
+
+EmitMenuEntry : buffer ref rb, integer ref rs, MenuSentinel ref sentinel, boolean isnotlast
+
+EmitMenuEntry : buffer ref rb, integer ref rs, MenuSeparator ref separator, boolean isnotlast
+{
+	EmitInteger(rb, rs, 0)
+	EmitByte(rb, rs, 0)
+	EmitByte(rb, rs, 0)
+}
+
+EmitMenuEntry : buffer ref rb, integer ref rs, MenuItem ref item, boolean isnotlast
+{
+	if(isnotlast)
+	{
+		EmitInteger16(rb, rs, 0)
+	}
+	else
+	{
+		EmitInteger16(rb, rs, 0x80)
+	}
+	
+	EmitInteger16(rb, rs, cast(integer16, item.ID))
+	
+	writebuffer(rb, rs, item.Text, (length(item.Text) + 1) * 2)
+	rs += (length(item.Text) + 1) * 2
+}
+
+EmitMenuEntry : buffer ref rb, integer ref rs, MenuPopup ref popup, boolean isnotlast
+{
+	if(isnotlast)
+	{
+		EmitInteger16(rb, rs, 0x10)
+	}
+	else
+	{
+		EmitInteger16(rb, rs, 0x90)
+	}
+	
+	writebuffer(rb, rs, popup.Title, (length(popup.Title) + 1) * 2)
+	rs += (length(popup.Title) + 1) * 2
+
+	EmitMenuChain(rb, rs, popup.Children)
+}
+
+HasMenuEntry : nothing -> false
+HasMenuEntry : list<MenuEntry> ref thelist -> true
 

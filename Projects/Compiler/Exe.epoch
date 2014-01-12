@@ -17,8 +17,12 @@ MakeExe : EpochProject ref project
 	ManifestReference dummymanifest = "", 0
 	list<ManifestReference> dummymanifestlist = dummymanifest, nothing
 
+	list<MenuEntry> nomenuentries = MenuSentinel(0), nothing
+	MenuResource emptymenu = 0, nomenuentries
+	list<MenuResource> nomenus = emptymenu, nothing
+
 	ResourceDirectoryHeader resroot = 0, 0, 0, 0, nothing
-	ResourceHandler res = resroot, 0, 0, dummyiconlist, dummymanifestlist, 0
+	ResourceHandler res = resroot, 0, 0, dummyiconlist, dummymanifestlist, 0, nomenus
 	
 	LoadResourceScripts(project.ResourceFiles, res)
 	ComputeResourceOffsets(res)
@@ -37,9 +41,14 @@ MakeExe : EpochProject ref project
 		return()
 	}
 
+	integer16 subsystem = 2		// GUI
+	if(project.UsesConsole)
+	{
+		subsystem = 3			// console
+	}
 
 	integer position = 0
-	position += WritePEHeader(filehandle, imagesize, resourcesize)
+	position += WritePEHeader(filehandle, imagesize, resourcesize, subsystem)
 
 	position += WriteSectionHeader(filehandle, ".idata", 0x400, 0x1000, 0x344, 0x400, 0xc0000040)
 	position += WriteSectionHeader(filehandle, ".text", 0x800, 0x2000, 0x150, 0x200, 0x60000020)
@@ -519,7 +528,7 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 }
 
 
-WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> integer writtenbytes = 0
+WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, integer16 subsystem -> integer writtenbytes = 0
 {
 	print("Writing PE headers...")
 
@@ -715,7 +724,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize -> i
 	EmitInteger(headerbuffer, headersize, 0x400)			// SizeOfHeaders
 	EmitInteger(headerbuffer, headersize, 0xf00d)			// Checksum
 
-	EmitInteger16(headerbuffer, headersize, 3)			// Subsystem						// TODO - set to 2 for GUI apps
+	EmitInteger16(headerbuffer, headersize, subsystem)			// Subsystem
 	EmitInteger16(headerbuffer, headersize, 0)			// DllCharacteristics
 
 	EmitInteger(headerbuffer, headersize, 0x800000)			// SizeOfStackReserve
