@@ -12,7 +12,7 @@ ExtractLine : string ref contents -> string line = ""
 	{
 		++pos
 	}
-		
+
 	line = substring(contents, 0, pos)
 	
 	pos += 2

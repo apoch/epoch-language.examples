@@ -211,6 +211,7 @@ SendMessage : integer hwnd, integer message, integer wparam, string lparam -> in
 SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, TreeViewItem ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
 
 WaitMessage : -> boolean success = false [external("User32.dll", "WaitMessage", "stdcall")]
@@ -823,6 +824,39 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				}
 			}
 		}
+		elseif(nmhdr.childid == WNDID_PROJECT_TREEVIEW)
+		{
+			integer NM_DBLCLK = 0xfffffffd
+			
+			if(nmhdr.code == NM_DBLCLK)
+			{
+				integer TVGN_CARET = 0x09
+				integer TVM_GETNEXTITEM = 0x110a
+				integer itemhandle = SendMessage(GetDlgItem(hwnd, WNDID_PROJECT_TREEVIEW), TVM_GETNEXTITEM, TVGN_CARET, 0)
+				
+				if(itemhandle != 0)
+				{
+					integer TVIF_HANDLE = 0x10
+					integer TVIF_TEXT = 0x01
+					integer TVM_GETITEM = 0x1100 + 62
+					
+					buffer holderbuffer = 256
+					string holderstr = cast(string, holderbuffer)
+					TreeViewItem item = TVIF_HANDLE + TVIF_TEXT, itemhandle, 0, 0, holderstr, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0
+					SendMessage(GetDlgItem(hwnd, WNDID_PROJECT_TREEVIEW), TVM_GETITEM, 0, item)
+					
+					integer tabindex = FindTabWithDocument(CurrentTabs, item.text)
+					if(tabindex < 0)
+					{
+						CreateEditorTab(hwnd, item.text)
+					}
+					else
+					{
+						SetActiveTab(tabindex)
+					}
+				}
+			}
+		}
 	}
 	elseif(message == WM_TIMER)
 	{
@@ -887,7 +921,18 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		integer newtabindex = TestForMouseOverTab(TabEdges, xcoord)
 		if(!(newtabindex < 0))
 		{
-			SetActiveTab(newtabindex)
+			if(TestForMouseOverTabClose(TabEdges, xcoord))
+			{
+				CloseTab(newtabindex)
+								
+				Rect client = 0, 0, 0, 0
+				GetClientRect(hwnd, client)
+				InvalidateRect(hwnd, client, true)
+			}
+			else
+			{
+				SetActiveTab(newtabindex)
+			}
 		}
 	}
 	else
@@ -1725,6 +1770,72 @@ WalkEdgeListForActiveTab : simplelist<integer> ref edges, integer xcoord, intege
 WalkEdgeListForActiveTab : nothing, integer xcoord, integer index -> -1
 
 
+TestForMouseOverTabClose : simplelist<integer> ref edges, integer xcoord -> boolean overclose = WalkEdgeListForCloseButton(edges, edges.next, xcoord)
+
+WalkEdgeListForCloseButton : simplelist<integer> ref edges, simplelist<integer> ref nextedge, integer xcoord -> boolean overclose = false
+{
+	if(xcoord < nextedge.value)
+	{
+		integer closeleft = nextedge.value - 20
+		if(xcoord > closeleft)
+		{
+			overclose = true
+		}
+	}
+	else
+	{
+		overclose = WalkEdgeListForCloseButton(nextedge, nextedge.next, xcoord)
+	}
+}
+
+WalkEdgeListForCloseButton : nothing, nothing, integer xcoord -> false
+WalkEdgeListForCloseButton : simplelist<integer> ref edges, nothing, integer xcoord -> false
+
+
+CloseTab : integer tabindex
+{
+	WalkTabsToClose(CurrentTabs, CurrentTabs.next, tabindex, tabindex)
+}
+
+WalkTabsToClose : list<OpenTab> ref tabs, list<OpenTab> ref tail, integer tabindex, integer closingtab
+{
+	if(tabindex == 0)
+	{
+		// TODO - prompt for save if dirty
+		
+		DestroyWindow(tabs.value.ContentsHWND)
+		tabs.value = tail.value
+		tabs.next = tail.next
+		
+		SetActiveTab(closingtab)
+	}
+	else
+	{
+		WalkTabsToClose(tail, tail.next, tabindex - 1, closingtab)
+	}
+}
+
+WalkTabsToClose : list<OpenTab> ref tabs, nothing, integer tabindex, integer closingtab
+{
+	if(tabindex == 0)
+	{
+		// TODO - prompt for save if dirty
+		
+		DestroyWindow(tabs.value.ContentsHWND)
+		tabs.value = SentinelTab
+		
+		if(closingtab > 0)
+		{
+			SetActiveTab(closingtab - 1)
+		}
+		else
+		{
+			SetActiveTab(-1)
+		}
+	}
+}
+
+
 ScintillaFind : integer hwnd, string needle
 {
 	integer SCI_SEARCHANCHOR = 2366
@@ -1837,4 +1948,18 @@ AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filename
 
 AddTreeViewFiles : integer tvhwnd, integer node, nothing
 
+
+FindTabWithDocument : list<OpenTab> ref tabs, string docfilename -> integer index = WalkTabsToFindOpenDocument(tabs, docfilename, 0)
+
+WalkTabsToFindOpenDocument : list<OpenTab> ref tabs, string docfilename, integer index -> integer retindex = index
+{
+	if(tabs.value.FileName == docfilename)
+	{
+		return()
+	}
+	
+	retindex = WalkTabsToFindOpenDocument(tabs.next, docfilename, index + 1)
+}
+
+WalkTabsToFindOpenDocument : nothing, string docfilename, integer index -> -1
 
