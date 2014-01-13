@@ -468,9 +468,20 @@ global
 	//
 	// Wrapper for current project
 	//
+	
 	simplelist<string> emptysourcefilelist = "", nothing
 	simplelist<string> emptyresourcefilelist = "", nothing
 	EpochProject CurrentProject = "Unnamed.exe", emptysourcefilelist, emptyresourcefilelist, false
+	
+	
+	//
+	// Project TreeView node types
+	//
+	
+	integer PROJECT_TV_NODETYPE_STRUCTURE = 0
+	integer PROJECT_TV_NODETYPE_SOURCECODE = 1
+	integer PROJECT_TV_NODETYPE_RESOURCE = 2
+	integer PROJECT_TV_NODETYPE_OPTIONS = 3
 }
 
 
@@ -542,10 +553,6 @@ entrypoint :
 		if((length(filearg) > 5) && (substring(filearg, length(filearg) - 5) == ".eprj"))
 		{
 			ParseProjectFile(filearg, CurrentProject)
-			if(CreateEditorTabs(hwnd, CurrentProject.SourceFiles) == 0)
-			{
-				CreateEditorTab(hwnd, "")
-			}
 		}
 		else
 		{
@@ -568,13 +575,13 @@ entrypoint :
 	
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
 	
-	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project")
-	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code")
-	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resources")
-	integer optionsroot = TreeViewAddItem(ProjectHWND, projectroot, "Options")
+	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project", PROJECT_TV_NODETYPE_STRUCTURE)
+	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code", PROJECT_TV_NODETYPE_STRUCTURE)
+	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resources", PROJECT_TV_NODETYPE_STRUCTURE)
+	integer optionsroot = TreeViewAddItem(ProjectHWND, projectroot, "Options", PROJECT_TV_NODETYPE_OPTIONS)
 	
-	AddTreeViewFiles(ProjectHWND, coderoot, CurrentProject.SourceFiles)
-	AddTreeViewFiles(ProjectHWND, resourceroot, CurrentProject.ResourceFiles)
+	AddTreeViewFiles(ProjectHWND, coderoot, CurrentProject.SourceFiles, PROJECT_TV_NODETYPE_SOURCECODE)
+	AddTreeViewFiles(ProjectHWND, resourceroot, CurrentProject.ResourceFiles, PROJECT_TV_NODETYPE_RESOURCE)
 
 	TreeViewExpand(ProjectHWND, projectroot)
 	TreeViewExpand(ProjectHWND, coderoot)
@@ -844,15 +851,26 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 					string holderstr = cast(string, holderbuffer)
 					TreeViewItem item = TVIF_HANDLE + TVIF_TEXT, itemhandle, 0, 0, holderstr, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0
 					SendMessage(GetDlgItem(hwnd, WNDID_PROJECT_TREEVIEW), TVM_GETITEM, 0, item)
-					
-					integer tabindex = FindTabWithDocument(CurrentTabs, item.text)
-					if(tabindex < 0)
+
+					if(item.lparam == PROJECT_TV_NODETYPE_SOURCECODE)
 					{
-						CreateEditorTab(hwnd, item.text)
+						integer tabindex = FindTabWithDocument(CurrentTabs, item.text)
+						if(tabindex < 0)
+						{
+							CreateEditorTab(hwnd, item.text)
+						}
+						else
+						{
+							SetActiveTab(tabindex)
+						}
 					}
-					else
+					elseif(item.lparam == PROJECT_TV_NODETYPE_RESOURCE)
 					{
-						SetActiveTab(tabindex)
+						// TODO - pop up resource editor
+					}
+					elseif(item.lparam == PROJECT_TV_NODETYPE_OPTIONS)
+					{
+						// TODO - pop up options tab
 					}
 				}
 			}
@@ -1538,12 +1556,13 @@ GetCurrentTimeFormatted : -> string ret = ""
 
 
 	
-TreeViewAddItem : integer tvhwnd, integer hparent, string text -> integer newhandle = 0
+TreeViewAddItem : integer tvhwnd, integer hparent, string text, integer typeflag -> integer newhandle = 0
 {
 	integer TVIF_TEXT = 0x01
+	integer TVIF_PARAM = 0x04
 	integer TVIM_INSERTITEM = 0x1100 + 50
 	
-	TreeViewItem item = TVIF_TEXT, 0, 0, 0, text, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	TreeViewItem item = TVIF_TEXT + TVIF_PARAM, 0, 0, 0, text, 0, 0, 0, 0, typeflag, 0, 0, 0, 0, 0
 	TreeViewInsert insert = hparent, 0, item
 	
 	newhandle = SendMessage(tvhwnd, TVIM_INSERTITEM, 0, insert)
@@ -1807,7 +1826,14 @@ WalkTabsToClose : list<OpenTab> ref tabs, list<OpenTab> ref tail, integer tabind
 		tabs.value = tail.value
 		tabs.next = tail.next
 		
-		SetActiveTab(closingtab)
+		if(IsNonSentinelTab(tabs.next))
+		{
+			SetActiveTab(closingtab)
+		}
+		else
+		{
+			SetActiveTab(closingtab - 1)
+		}
 	}
 	else
 	{
@@ -1936,17 +1962,17 @@ CreateEditorTabs : integer hwnd, simplelist<string> ref filenames -> integer fil
 CreateEditorTabs : integer hwnd, nothing -> 0
 
 
-AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filenames
+AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filenames, integer typeflags
 {
 	if(filenames.value != "")
 	{
-		TreeViewAddItem(tvhwnd, node, filenames.value)
+		TreeViewAddItem(tvhwnd, node, filenames.value, typeflags)
 	}
 	
-	AddTreeViewFiles(tvhwnd, node, filenames.next)
+	AddTreeViewFiles(tvhwnd, node, filenames.next, typeflags)
 }
 
-AddTreeViewFiles : integer tvhwnd, integer node, nothing
+AddTreeViewFiles : integer tvhwnd, integer node, nothing, integer typeflags
 
 
 FindTabWithDocument : list<OpenTab> ref tabs, string docfilename -> integer index = WalkTabsToFindOpenDocument(tabs, docfilename, 0)
@@ -1962,4 +1988,13 @@ WalkTabsToFindOpenDocument : list<OpenTab> ref tabs, string docfilename, integer
 }
 
 WalkTabsToFindOpenDocument : nothing, string docfilename, integer index -> -1
+
+IsNonSentinelTab : nothing -> false
+IsNonSentinelTab : list<OpenTab> ref tabs -> boolean ret = false
+{
+	if(tabs.value.ContentsType != TAB_TYPE_SENTINEL)
+	{
+		ret = true
+	}
+}
 
