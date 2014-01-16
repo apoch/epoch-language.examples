@@ -471,7 +471,7 @@ global
 	
 	simplelist<string> emptysourcefilelist = "", nothing
 	simplelist<string> emptyresourcefilelist = "", nothing
-	EpochProject CurrentProject = "Unnamed.exe", emptysourcefilelist, emptyresourcefilelist, false
+	EpochProject CurrentProject = "", "Unnamed.exe", emptysourcefilelist, emptyresourcefilelist, false
 	
 	
 	//
@@ -784,6 +784,23 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		elseif(wparam == 3001)
 		{
 			MessageBox(hwnd, "Era is the prototype Integrated Development Environment for the Epoch programming language.", "About Era", 64)
+		}
+		elseif(wparam == 4001)
+		{
+			// TODO - dialog for adding existing file to project
+		}
+		elseif(wparam == 4002)
+		{
+			integer editorwnd = CreateEditorTab(hwnd, "")
+			string filename = SaveDocumentAs(hwnd, editorwnd)
+			// TODO - add project treeview node
+			// TODO - add file to project source list
+			// TODO - support for saving projects
+		}
+		elseif(wparam == 4003)
+		{
+			// TODO - wire up SaveProject on File menu
+			ProjectSaveToDisk(CurrentProject)
 		}
 	}
 	elseif(message == WM_NOTIFY)
@@ -1293,7 +1310,7 @@ SaveDocument : integer hwnd, integer scintillahwnd
 	}
 }
 
-SaveDocumentAs : integer hwnd, integer scintillahwnd
+SaveDocumentAs : integer hwnd, integer scintillahwnd -> string filename = ""
 {
 	integer customfilterbuffersize = 256
 	buffer customfilterbuffer = customfilterbuffersize
@@ -1313,7 +1330,7 @@ SaveDocumentAs : integer hwnd, integer scintillahwnd
 	integer ofnret = GetSaveFileName(ofn)
 	if(ofnret != 0)
 	{
-		string filename = cast(string, ofn.file)
+		filename = cast(string, ofn.file)
 		SetActiveTabInfo(filename, TrimFilePath(filename))
 		DoSave(scintillahwnd)
 	}

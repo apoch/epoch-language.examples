@@ -45,6 +45,7 @@ ReadFile : string filename, integer ref len -> string contents = ""
 				if(ptr != 0)
 				{
 					contents = widenfromptr(ptr, len)
+					UnmapViewOfFile(ptr)
 				}
 				CloseHandle(mappinghandle)
 			}

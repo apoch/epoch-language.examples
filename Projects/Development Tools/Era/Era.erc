@@ -25,6 +25,9 @@ language 1033
 		item 1003 "&Save	Ctrl+S"
 		item 1004 "Save &As..."
 		separator
+		item 1010 "Save All"
+		item 1011 "Save Project"
+		separator
 		item 1005 "E&xit"
 	}
 	popup "&Edit"
@@ -32,6 +35,13 @@ language 1033
 		item 2001 "New Search	Ctrl+F"
 		item 2002 "Find Next	F3"
 		item 2003 "Find Previous	Shift+F3"
+	}
+	popup "&Project"
+	{
+		item 4001 "&Add Existing File..."
+		item 4002 "Create &New File..."
+		separator
+		item 4003 "&Save Project"
 	}
 	popup "&Help"
 	{
