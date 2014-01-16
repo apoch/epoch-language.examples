@@ -222,7 +222,7 @@ ProjectSaveToDisk : EpochProject ref project
 	integer filehandle = CreateFile(project.ProjectFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == 0)
 	{
-		MessageBox(0, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)
+		//MessageBox(0, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)
 		return()
 	}
 

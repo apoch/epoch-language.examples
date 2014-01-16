@@ -100,7 +100,7 @@ CompileProject : string filename
 {	
 	simplelist<string> emptysourcefilelist = "", nothing
 	simplelist<string> emptyresourcefilelist = "", nothing
-	EpochProject project = "project.exe", emptysourcefilelist, emptyresourcefilelist, false
+	EpochProject project = "", "project.exe", emptysourcefilelist, emptyresourcefilelist, false
 
 	ParseProjectFile(filename, project)
 

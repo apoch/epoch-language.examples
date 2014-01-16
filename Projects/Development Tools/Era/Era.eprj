@@ -2,6 +2,11 @@
 Era.epoch
 ..\Common\Strings.epoch
 ..\Common\Project.epoch
+Tabs.epoch
+Scintilla.epoch
+Documents.epoch
+MainWindow.epoch
+MultiSaveDialog.epoch
 
 [resources]
 Era.erc

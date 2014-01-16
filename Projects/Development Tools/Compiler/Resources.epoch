@@ -1075,6 +1075,10 @@ LoadResourceAccelerators : string ref scriptcontents, ResourceHandler ref res
 			{
 				actualkeycode = 0x72
 			}
+			elseif(keycode == "TAB")
+			{
+				actualkeycode = 0x09
+			}
 			elseif(length(keycode) == 1)
 			{
 				actualkeycode = subchar(keycode, 0)

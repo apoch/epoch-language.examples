@@ -1,0 +1,89 @@
+
+SavePromptWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0
+{
+	if(message == WM_CLOSE)
+	{
+		EnableWindow(GetParent(hwnd), true)
+		DestroyWindow(hwnd)
+	}
+	elseif(message == WM_DESTROY)
+	{
+		// No specific handling needed
+	}
+	elseif(message == WM_PAINT)
+	{
+		integer TRANSPARENT = 1
+
+		Rect prect = 0, 0, 0, 0
+		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
+
+		integer hdc = BeginPaint(hwnd, ps)
+		
+		SetBkMode(hdc, TRANSPARENT)
+		SelectObject(hdc, FontUIDefault)
+
+		Rect client = 0, 0, 0, 0
+		GetClientRect(hwnd, client)
+		client.top = client.top + 3
+		client.left = client.left + 10
+		DrawText(hdc, unescape("The following documents have unsaved changes.\r\nSelect which (if any) to save before proceeding."), -1, client, 0)
+
+		EndPaint(hwnd, ps)		
+	}
+	elseif(message == WM_COMMAND)
+	{
+		wparam = wparam & 0xffff
+		if(wparam == 1001)
+		{
+			// TODO - save all tabs that are dirty and then kill the app
+		}
+		elseif(wparam == 1002)
+		{
+			DestroyTabs(CurrentTabs)
+			
+			list<OpenTab> newtablist = OpenTab(TAB_TYPE_SENTINEL, 0, "", ""), nothing
+			CurrentTabs = newtablist
+
+			DestroyWindow(hwnd)
+			PostQuitMessage(0)
+		}
+		elseif(wparam == 2)
+		{
+			DestroyWindow(hwnd)
+		}
+	}
+	elseif(message == WM_KEYDOWN)
+	{
+		if(wparam == 0x1b)		// Esc
+		{
+			DestroyWindow(hwnd)
+		}
+		else
+		{
+			result = DefWindowProc(hwnd, message, wparam, lparam)
+		}
+	}
+	else
+	{
+		result = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+
+
+PopulateListWithTabTitles : integer listhwnd, list<OpenTab> ref dirtytabs
+{
+	integer LB_ADDSTRING = 0x180
+	integer LB_SETITEMDATA = 0x19a
+	
+	if(dirtytabs.value.TabTitle != "")
+	{
+		integer index = SendMessage(listhwnd, LB_ADDSTRING, 0, dirtytabs.value.TabTitle)
+		SendMessage(listhwnd, LB_SETITEMDATA, index, dirtytabs.value.ContentsHWND)
+	}
+	
+	PopulateListWithTabTitles(listhwnd, dirtytabs.next)
+}
+
+PopulateListWithTabTitles : integer listhwnd, nothing
+
+
