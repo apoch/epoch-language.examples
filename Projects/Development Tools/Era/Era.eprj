@@ -1,12 +1,12 @@
 [source]
-Era.epoch
-..\Common\Strings.epoch
-..\Common\Project.epoch
-Tabs.epoch
-Scintilla.epoch
 Documents.epoch
+Era.epoch
 MainWindow.epoch
 MultiSaveDialog.epoch
+Scintilla.epoch
+Tabs.epoch
+..\Common\Strings.epoch
+..\Common\Project.epoch
 
 [resources]
 Era.erc

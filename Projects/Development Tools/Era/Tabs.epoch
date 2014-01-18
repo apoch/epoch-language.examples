@@ -1,7 +1,8 @@
 //
 // The Epoch Language Project
-// Era Integrated Development Environment
+// Epoch Development Tools - Era Integrated Development Environment
 //
+// TABS.EPOCH
 // Infrastructure and support logic for document tabs
 //
 
@@ -133,7 +134,9 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	SelectObject(hdc, FontUIDefault)
 
 	integer BDR_RAISED = 0x5
+	integer BDR_RAISEDOUTER = 0x4
 	integer BF_RECT = 0xf
+	integer BF_FLAT = 0x4000
 
 	Rect tab = left, client.top, left + 400, client.top + 28
 
@@ -150,6 +153,7 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	elseif(index == HighlightTabIndex)
 	{
 		FillRect(hdc, tab, BrushActiveTab)
+		DrawEdge(hdc, tab, BDR_RAISEDOUTER, BF_RECT + BF_FLAT)
 	}
 	else
 	{
@@ -159,7 +163,7 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	right = tab.right
 
 	tab.top = tab.top + 3
-	tab.left = tab.left + 3
+	tab.left = tab.left + 4
 	tab.bottom = tab.bottom - 3
 	tab.right = tab.right - 3
 

@@ -1,5 +1,15 @@
+//
+// The Epoch Language Project
+// Epoch Development Tools - Era Integrated Development Environment
+//
+// DOCUMENTS.EPOCH
+// Helper routines for working with code documents
+//
 
 
+//
+// Load the given file's contents into the given Scintilla editor
+//
 Open : integer hwnd, integer ScintillaHWND, string filename
 {
 	integer INVALID_HANDLE_VALUE = 0xffffffff
@@ -49,6 +59,9 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 }
 
 
+//
+// Save the contents of the given Scintilla editor widget into a file
+//
 DoSave : integer hwnd
 {
 	integer GENERIC_WRITE = 0x40000000
@@ -77,6 +90,10 @@ DoSave : integer hwnd
 	SetScintillaNonDirty(hwnd)
 }
 
+//
+// Save the currently active document, given the main
+// IDE window handle and the editing Scintilla handle
+//
 SaveDocument : integer hwnd, integer scintillahwnd
 {
 	OpenTab tab = 0, 0, "", ""
@@ -92,6 +109,13 @@ SaveDocument : integer hwnd, integer scintillahwnd
 	}
 }
 
+//
+// Save the currently active document with a new
+// name, given the associated window handles.
+//
+// Returns the filename chosen by the user, or a
+// blank string if the operation is canceled.
+//
 SaveDocumentAs : integer hwnd, integer scintillahwnd -> string filename = ""
 {
 	integer customfilterbuffersize = 256
@@ -116,55 +140,5 @@ SaveDocumentAs : integer hwnd, integer scintillahwnd -> string filename = ""
 		SetActiveTabInfo(filename, TrimFilePath(filename))
 		DoSave(scintillahwnd)
 	}
-}
-
-
-PromptToSaveAndExit : integer hwnd, list<OpenTab> ref dirtytabs -> boolean ret = false
-{
-	integer LB_SETSEL = 0x185
-	
-	WindowClass wc = sizeof(wc), 0, SavePromptWindowProcedure, 0, 0, GetHInstance(), 0, LoadCursor(0, IDC_ARROW), BrushBackground, "", "EraSavePromptClass", 0
-	RegisterClassEx(wc)
-
-	Rect adjusted = 0, 0, 420, 390
-	AdjustWindowRect(adjusted, 0x02c80000, false)
-	
-	Rect parentrect = 0, 0, 0, 0
-	GetWindowRect(hwnd, parentrect)
-	
-	integer centeredx = ((parentrect.right - parentrect.left) - (adjusted.right - adjusted.left)) / 2
-	integer centeredy = ((parentrect.bottom - parentrect.top) - (adjusted.bottom - adjusted.top)) / 2
-	
-	integer dialoghwnd = CreateWindowEx(0, "EraSavePromptClass", "ERA - Epoch Development Environment", 0x02c80000, centeredx, centeredy, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, hwnd, 0, GetHInstance(), 0)
-
-	EnableWindow(hwnd, false)
-	
-	ShowWindow(dialoghwnd, SW_SHOW)
-
-	integer listhwnd = CreateWindowEx(0, "LISTBOX", "", 0x50800008, 10, 50, 400, 300, dialoghwnd, 0, GetHInstance(), 0)
-	SendMessage(listhwnd, WM_SETFONT, FontUIDefault, 0)
-	
-	PopulateListWithTabTitles(listhwnd, dirtytabs)
-	
-	SendMessage(listhwnd, LB_SETSEL, 1, -1)
-	
-	
-	integer savebuttonhwnd = CreateWindowEx(0, "BUTTON", "&Save Selected", 0x50800000, 10, 350, 150, 30, dialoghwnd, 1001, GetHInstance(), 0)
-	integer discardbuttonhwnd = CreateWindowEx(0, "BUTTON", "&Discard All", 0x50800000, 170, 350, 150, 30, dialoghwnd, 1002, GetHInstance(), 0)
-	integer cancelbuttonhwnd = CreateWindowEx(0, "BUTTON", "Cancel", 0x50800000, 330, 350, 80, 30, dialoghwnd, 2, GetHInstance(), 0)
-	
-	SendMessage(savebuttonhwnd, WM_SETFONT, FontUIDefault, 0)
-	SendMessage(discardbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
-	SendMessage(cancelbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
-	
-	boolean active = true
-	while(active)
-	{
-		WaitMessage()
-		active = ModalDialogPump(dialoghwnd)
-	}
-	
-	EnableWindow(hwnd, true)
-	BringWindowToTop(hwnd)
 }
 

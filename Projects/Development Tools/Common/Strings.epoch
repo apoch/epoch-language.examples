@@ -1,3 +1,11 @@
+//
+// The Epoch Language Project
+// Epoch Development Tools - Common Library Modules
+//
+// STRINGS.EPOCH
+// Common string processing and manipulation routines
+//
+
 
 
 ExtractLine : string ref contents -> string line = ""

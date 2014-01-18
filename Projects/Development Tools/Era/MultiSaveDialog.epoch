@@ -1,3 +1,66 @@
+//
+// The Epoch Language Project
+// Epoch Development Tools - Era Integrated Development Environment
+//
+// MULTISAVEDIALOG.EPOCH
+// Multiple document save prompt
+//
+// When multiple documents are eligible to be saved, this
+// dialog is used to prompt the user to select which ones
+// to save and which to discard. The most common use case
+// for this dialog is exiting the IDE.
+//
+
+
+PromptToSaveAndExit : integer hwnd, list<OpenTab> ref dirtytabs -> boolean ret = false
+{
+	integer LB_SETSEL = 0x185
+	
+	WindowClass wc = sizeof(wc), 0, SavePromptWindowProcedure, 0, 0, GetHInstance(), 0, LoadCursor(0, IDC_ARROW), BrushBackground, "", "EraSavePromptClass", 0
+	RegisterClassEx(wc)
+
+	Rect adjusted = 0, 0, 420, 390
+	AdjustWindowRect(adjusted, 0x02c80000, false)
+	
+	Rect parentrect = 0, 0, 0, 0
+	GetWindowRect(hwnd, parentrect)
+	
+	integer centeredx = ((parentrect.right - parentrect.left) - (adjusted.right - adjusted.left)) / 2
+	integer centeredy = ((parentrect.bottom - parentrect.top) - (adjusted.bottom - adjusted.top)) / 2
+	
+	integer dialoghwnd = CreateWindowEx(0, "EraSavePromptClass", "ERA - Epoch Development Environment", 0x02c80000, centeredx, centeredy, adjusted.right - adjusted.left, adjusted.bottom - adjusted.top, hwnd, 0, GetHInstance(), 0)
+
+	EnableWindow(hwnd, false)
+	
+	ShowWindow(dialoghwnd, SW_SHOW)
+
+	integer listhwnd = CreateWindowEx(0, "LISTBOX", "", 0x50800008, 10, 50, 400, 300, dialoghwnd, 0, GetHInstance(), 0)
+	SendMessage(listhwnd, WM_SETFONT, FontUIDefault, 0)
+	
+	PopulateListWithTabTitles(listhwnd, dirtytabs)
+	
+	SendMessage(listhwnd, LB_SETSEL, 1, -1)
+	
+	
+	integer savebuttonhwnd = CreateWindowEx(0, "BUTTON", "&Save Selected", 0x50800000, 10, 350, 150, 30, dialoghwnd, 1001, GetHInstance(), 0)
+	integer discardbuttonhwnd = CreateWindowEx(0, "BUTTON", "&Discard All", 0x50800000, 170, 350, 150, 30, dialoghwnd, 1002, GetHInstance(), 0)
+	integer cancelbuttonhwnd = CreateWindowEx(0, "BUTTON", "Cancel", 0x50800000, 330, 350, 80, 30, dialoghwnd, 2, GetHInstance(), 0)
+	
+	SendMessage(savebuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	SendMessage(discardbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	SendMessage(cancelbuttonhwnd, WM_SETFONT, FontUIDefault, 0)
+	
+	boolean active = true
+	while(active)
+	{
+		WaitMessage()
+		active = ModalDialogPump(dialoghwnd)
+	}
+	
+	EnableWindow(hwnd, true)
+	BringWindowToTop(hwnd)
+}
+
 
 SavePromptWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer result = 0
 {

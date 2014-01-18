@@ -1,4 +1,13 @@
 //
+// The Epoch Language Project
+// Epoch Development Tools - Era Integrated Development Environment
+//
+// MAINWINDOW.EPOCH
+// UI implementation for the main IDE window
+//
+
+
+//
 // Window procedure for the main UI window
 //
 // Receives Win32 messages and dispatches them to the
@@ -292,7 +301,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	{
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
-		Rect tabbar = client.left + 250 + 3, client.top + 30, client.right, client.top + 24 + 30
+		Rect tabbar = client.left + 250 + 3, client.top + 30, client.right, client.top + 28 + 30
 
 		integer xcoord = lparam & 0xffff
 		integer ycoord = (lparam & 0xffff0000) / 0x10000

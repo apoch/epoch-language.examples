@@ -1,11 +1,9 @@
 //
 // The Epoch Language Project
-// Era Integrated Development Environment
+// Epoch Development Tools - Era Integrated Development Environment
 //
-// This file currently comprises the entirety of Era's implementation.
-// I eagerly await the deployment of separate compilation in the Epoch
-// compiler so I can split this up into clean modules rather than this
-// monolithic mess.
+// ERA.EPOCH
+// IDE entry point and setup/teardown logic
 //
 
 
@@ -590,6 +588,9 @@ entrypoint :
 }
 
 
+//
+// Helper routine for pumping messages while a modal dialog is up
+//
 ModalDialogPump : integer dialoghwnd -> boolean active = true
 {	
 	Point pt = 0, 0
@@ -622,6 +623,9 @@ ModalDialogPump : integer dialoghwnd -> boolean active = true
 }
 
 
+//
+// Editor helper - automatic indentation
+//
 PerformAutoIndent : integer hwnd
 {
 	integer SCI_GETCURRENTPOS = 2008
@@ -678,6 +682,9 @@ PerformAutoIndent : integer hwnd
 	}
 }
 
+//
+// Editor helper - automatic unindentation
+//
 PerformAutoUnindent : integer hwnd
 {
 	integer SCI_GETCURRENTPOS = 2008
@@ -707,6 +714,9 @@ PerformAutoUnindent : integer hwnd
 }
 
 
+//
+// Helper for removing the path from a fully qualified filename
+//
 TrimFilePath : string fullpath -> string filename = ""
 {
 	integer lastslashpos = 0
@@ -731,6 +741,9 @@ TrimFilePath : string fullpath -> string filename = ""
 	filename = substring(fullpath, lastslashpos)
 }
 
+//
+// Helper for removing the filename from a path
+//
 TrimFileName : string filename -> string path = ""
 {
 	integer lastslashpos = 0
@@ -755,6 +768,11 @@ TrimFileName : string filename -> string path = ""
 	path = substring(filename, 0, lastslashpos)
 }
 
+
+//
+// Find the shortest relative path description that places
+// "filename" in the correct location relative to "path".
+//
 MakePathRelative : string filename, string path -> string relative = ""
 {
 	// TODO - implement this correctly
@@ -763,7 +781,9 @@ MakePathRelative : string filename, string path -> string relative = ""
 }
 
 
-
+//
+// Format the current timestamp according to the user's locale settings
+//
 GetCurrentTimeFormatted : -> string ret = ""
 {
 	integer reqlen = GetTimeFormatEx(0, 0, 0, 0, 0, 0) + 1
@@ -775,7 +795,9 @@ GetCurrentTimeFormatted : -> string ret = ""
 }
 
 
-	
+//
+// Helper for adding an item to a treeview control
+//	
 TreeViewAddItem : integer tvhwnd, integer hparent, string text, integer typeflag -> integer newhandle = 0
 {
 	integer TVIF_TEXT = 0x01
@@ -789,6 +811,9 @@ TreeViewAddItem : integer tvhwnd, integer hparent, string text, integer typeflag
 }
 
 
+//
+// Helper for expanding a treeview node
+//
 TreeViewExpand : integer tvhwnd, integer node
 {
 	integer TVM_EXPAND = 0x1100 + 2
@@ -797,11 +822,16 @@ TreeViewExpand : integer tvhwnd, integer node
 }
 
 
-
+//
+// Helper for grabbing the current HINSTANCE of the running IDE
+//
 GetHInstance : -> integer hinstance = GetModuleHandle(0)
 
 
 
+//
+// Helper for adding a batch of named entries to a treeview
+//
 AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filenames, integer typeflags
 {
 	if(filenames.value != "")

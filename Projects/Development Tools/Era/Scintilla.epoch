@@ -1,4 +1,17 @@
 //
+// The Epoch Language Project
+// Epoch Development Tools - Era Integrated Development Environment
+//
+// SCINTILLA.EPOCH
+// Wrapper logic and helper routines for working with Scintilla
+//
+// Scintilla is the text editing widget that powers Era. This module
+// contains a number of utility functions for interacting with instances
+// of the Scintilla editor widget.
+//
+
+
+//
 // Scintilla-specific data types
 //
 
