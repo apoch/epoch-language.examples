@@ -370,6 +370,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 								
 				Rect client = 0, 0, 0, 0
 				GetClientRect(hwnd, client)
+				RefreshWindowBackground = true
 				InvalidateRect(hwnd, client, true)
 			}
 			else

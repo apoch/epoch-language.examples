@@ -90,6 +90,15 @@ AppendTab : list<OpenTab> ref tabs, nothing, OpenTab ref tab, integer counter
 
 SetActiveTab : integer counter
 {
+	if(counter < 0)
+	{
+		counter = 0
+	}
+	elseif(counter > (CountTabs(CurrentTabs) - 1))
+	{
+		counter = 0
+	}
+	
 	ActiveTabIndex = counter
 	ShowOnlyTab(CurrentTabs, counter)
 }
@@ -269,14 +278,21 @@ WalkTabsToClose : list<OpenTab> ref tabs, list<OpenTab> ref tail, integer tabind
 		DestroyWindow(tabs.value.ContentsHWND)
 		tabs.value = tail.value
 		tabs.next = tail.next
-		
-		if(IsNonSentinelTab(tabs.next))
+
+		if(closingtab < ActiveTabIndex)
 		{
-			SetActiveTab(closingtab)
+			SetActiveTab(ActiveTabIndex - 1)
 		}
-		else
+		elseif(closingtab == ActiveTabIndex)
 		{
-			SetActiveTab(closingtab - 1)
+			if(AnySubsequentTabIsNonSentinel(tabs.next))
+			{
+				SetActiveTab(closingtab)
+			}
+			else
+			{
+				SetActiveTab(closingtab - 1)
+			}
 		}
 	}
 	else
@@ -293,14 +309,17 @@ WalkTabsToClose : list<OpenTab> ref tabs, nothing, integer tabindex, integer clo
 		
 		DestroyWindow(tabs.value.ContentsHWND)
 		tabs.value = SentinelTab
-		
-		if(closingtab > 0)
+
+		if(closingtab == ActiveTabIndex)
 		{
-			SetActiveTab(closingtab - 1)
-		}
-		else
-		{
-			SetActiveTab(-1)
+			if(closingtab > 0)
+			{
+				SetActiveTab(closingtab - 1)
+			}
+			else
+			{
+				SetActiveTab(-1)
+			}
 		}
 	}
 }
@@ -382,6 +401,21 @@ IsNonSentinelTab : list<OpenTab> ref tabs -> boolean ret = false
 		ret = true
 	}
 }
+
+
+AnySubsequentTabIsNonSentinel : list<OpenTab> ref tabs -> boolean ret = false
+{
+	if(IsNonSentinelTab(tabs))
+	{
+		ret = true
+	}
+	else
+	{
+		ret = AnySubsequentTabIsNonSentinel(tabs.next)
+	}
+}
+
+AnySubsequentTabIsNonSentinel : nothing -> false
 
 
 CycleTabs :
