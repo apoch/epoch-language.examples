@@ -415,6 +415,8 @@ global
 	integer ActiveTabIndex = 0
 	integer HighlightTabIndex = -1
 	
+	boolean RefreshWindowBackground = true
+	
 	
 	//
 	// Additional constants for simplicity

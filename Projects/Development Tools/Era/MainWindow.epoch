@@ -21,6 +21,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	integer WM_ACTIVATE = 0x06
 	integer WM_MOUSEMOVE = 0x200
 	integer WM_LBUTTONUP = 0x202
+	integer WM_ERASEBKGND = 0x0014
 
 	integer GW_CHILD = 5
 
@@ -63,6 +64,19 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		DrawText(hdc, "Line: " ; cast(string, line + 1) ; " Column: " ; cast(string, col + 1) ; " ", -1, status, DT_RIGHT)
 
 		EndPaint(hwnd, ps)
+
+		RefreshWindowBackground = false
+	}
+	elseif(message == WM_ERASEBKGND)
+	{
+		if(RefreshWindowBackground)
+		{
+			ret = DefWindowProc(hwnd, message, wparam, lparam)
+		}
+		else
+		{
+			ret = 1
+		}
 	}
 	elseif(message == WM_CLOSE)
 	{
@@ -97,6 +111,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		integer width = client.right - client.left
 		SetScintillaScrolling(scintillahwnd, width - 64)
 
+		RefreshWindowBackground = true
 		InvalidateRect(hwnd, client, true)
 	}
 	elseif(message == WM_COMMAND)
@@ -219,7 +234,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 				GetClientRect(hwnd, client)
 				Rect status = client.left, client.bottom - 24, client.right, client.bottom
 
-				InvalidateRect(hwnd, status, true)
+				InvalidateRect(hwnd, status, false)
 			}
 			elseif(nmhdr.code == SCN_CHARADDED)
 			{
@@ -299,6 +314,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	}
 	elseif(message == WM_MOUSEMOVE)
 	{
+		integer prevhighlighttab = HighlightTabIndex
+		
 		Rect client = 0, 0, 0, 0
 		GetClientRect(hwnd, client)
 		Rect tabbar = client.left + 250 + 3, client.top + 30, client.right, client.top + 28 + 30
@@ -327,7 +344,10 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			HighlightTabIndex = TestForMouseOverTab(TabEdges, xcoord)
 		}
 
-		InvalidateRect(hwnd, tabbar, true)
+		if(prevhighlighttab != HighlightTabIndex)
+		{
+			InvalidateRect(hwnd, tabbar, false)
+		}
 		
 		if(HighlightTabIndex < 0)
 		{
