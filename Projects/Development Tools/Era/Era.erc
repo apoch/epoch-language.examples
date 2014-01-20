@@ -42,6 +42,8 @@ language 1033
 		item 4002 "Create &New File..."
 		separator
 		item 4003 "&Save Project"
+		separator
+		item 4004 "&Build Project"
 	}
 	popup "&Help"
 	{

@@ -205,6 +205,10 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			// TODO - wire up SaveProject on File menu
 			ProjectSaveToDisk(CurrentProject)
 		}
+		elseif(wparam == 4004)
+		{
+			BuildProject(CurrentProject)
+		}
 	}
 	elseif(message == WM_NOTIFY)
 	{

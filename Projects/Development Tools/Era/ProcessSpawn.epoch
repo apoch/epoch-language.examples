@@ -1,0 +1,130 @@
+//
+// The Epoch Language Project
+// Epoch Development Tools - Era Integrated Development Environment
+//
+// PROCESSSPAWN.EPOCH
+// Routines and helpers for spawning child processes
+//
+// The most obvious target of this functionality is compiler invocation.
+// For Era, we spawn a child process, pipe its outputs to the status pane,
+// and treat it as if it were an integrated part of the Era code.
+//
+
+
+structure SecurityAttributes :
+	integer Length,
+	integer SecurityDescriptor,
+	integer InheritHandlesFlag
+	
+	
+structure StartupInfo :
+	integer NumBytes,
+	integer Reserved,
+	integer Desktop,
+	integer Title,
+	integer X,
+	integer Y,
+	integer XSize,
+	integer YSize,
+	integer XChars,
+	integer YChars,
+	integer FillAttribute,
+	integer Flags,
+	integer16 ShowWindow,
+	integer16 Reserved2,
+	integer Reserved3,
+	integer Input,
+	integer Output,
+	integer Error
+	
+structure ProcessInformation :
+	integer ProcessHandle,
+	integer ThreadHandle,
+	integer ProcessID,
+	integer ThreadID
+	
+	
+CreatePipe : integer ref readpipe, integer ref writepipe, SecurityAttributes ref secattr, integer buffersize -> boolean ret = false [external("Kernel32.dll", "CreatePipe", "stdcall")]
+SetHandleInformation : integer handle, integer mask, integer flags -> boolean ret = false [external("Kernel32.dll", "SetHandleInformation", "stdcall")]
+
+
+CreateProcess : buffer ref appname, buffer ref cmdline, integer procaddr, integer threadattr, boolean inherithandles,
+		integer creationflags, integer environment, integer curdirectory, StartupInfo ref startinfo, ProcessInformation ref outprocinfo
+	->
+		boolean ret = false
+	[external("Kernel32.dll", "CreateProcessA", "stdcall")]
+	
+ReadFile : integer filehandle, buffer ref data, integer databytes, integer ref bytesread, integer overlapped -> boolean ret = false [external("Kernel32.dll", "ReadFile", "stdcall")]
+
+
+GetModuleFileName : integer module, buffer ref out, integer numbytes [external("Kernel32.dll", "GetModuleFileNameA", "stdcall")]
+
+
+strlen : buffer ref str -> integer len = 0 [external("msvcr100.dll", "strlen")]
+
+
+BuildProject : EpochProject ref project
+{
+	SecurityAttributes secattr = sizeof(secattr), 0, 1
+	
+	integer HANDLE_FLAG_INHERIT = 0x01
+	integer CREATE_NO_WINDOW = 0x8000000
+	integer STARTF_USESTDHANDLES = 0x100
+	
+	integer childoutread = 0
+	integer childoutwrite = 0
+	integer childinread = 0
+	integer childinwrite = 0
+	
+	CreatePipe(childoutread, childoutwrite, secattr, 0)
+	CreatePipe(childinread, childinwrite, secattr, 0)
+	
+	SetHandleInformation(childoutread, HANDLE_FLAG_INHERIT, 1)
+	SetHandleInformation(childinwrite, HANDLE_FLAG_INHERIT, 1)
+	
+	ProcessInformation pi = 0, 0, 0, 0
+	StartupInfo si = sizeof(si), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, STARTF_USESTDHANDLES, 0, 0, 0, childinread, childoutwrite, childoutwrite
+
+
+	buffer pathtoself = 1024
+	GetModuleFileName(0, pathtoself, 1023)
+	
+	string pathtocompiler = TrimFileName(widenfrombuffer(pathtoself, strlen(pathtoself))) ; "\EpochCompiler.exe"
+
+	buffer appname = narrowstring(pathtocompiler)
+	buffer cmdline = narrowstring("EpochCompiler.exe")
+	if(!CreateProcess(appname, cmdline, 0, 0, true, CREATE_NO_WINDOW, 0, 0, si, pi))
+	{
+		// TODO - display this in the status window
+		MessageBox(0, "Failed!", "Oops", 0)
+		return()
+	}
+	
+	CloseHandle(childinread)
+	CloseHandle(childoutwrite)
+
+	boolean readfromchild = true
+	while(readfromchild)
+	{
+		buffer buf = 256
+		integer numread = 0
+		readfromchild = ReadFile(childoutread, buf, 255, numread, 0)
+		
+		if(numread == 0)
+		{
+			readfromchild = false
+		}
+		else
+		{
+			// TODO - route to status window
+			MessageBox(0, widenfrombuffer(buf, numread), "Test", 0)
+		}
+	}
+	
+	CloseHandle(pi.ProcessHandle)
+	CloseHandle(pi.ThreadHandle)
+	
+	CloseHandle(childinwrite)
+	CloseHandle(childoutread)
+}
+

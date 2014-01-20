@@ -539,8 +539,8 @@ entrypoint :
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
 	
 	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project", PROJECT_TV_NODETYPE_STRUCTURE)
-	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code", PROJECT_TV_NODETYPE_STRUCTURE)
-	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resources", PROJECT_TV_NODETYPE_STRUCTURE)
+	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code Files", PROJECT_TV_NODETYPE_STRUCTURE)
+	integer resourceroot = TreeViewAddItem(ProjectHWND, projectroot, "Resource Files", PROJECT_TV_NODETYPE_STRUCTURE)
 	integer optionsroot = TreeViewAddItem(ProjectHWND, projectroot, "Options", PROJECT_TV_NODETYPE_OPTIONS)
 	
 	AddTreeViewFiles(ProjectHWND, coderoot, CurrentProject.SourceFiles, PROJECT_TV_NODETYPE_SOURCECODE)
