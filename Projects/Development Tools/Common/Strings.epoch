@@ -81,3 +81,5 @@ charat : string in, integer index -> string c = substring(in, index, 1) [nogc]
 
 
 
+QuoteString : string in -> string out = unescape("\'") ; in ; unescape("\'")
+

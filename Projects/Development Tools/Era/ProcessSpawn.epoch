@@ -76,6 +76,8 @@ BuildProject : EpochProject ref project
 	integer childinread = 0
 	integer childinwrite = 0
 	
+	AppendHistoryLine("Build process started...")
+	
 	CreatePipe(childoutread, childoutwrite, secattr, 0)
 	CreatePipe(childinread, childinwrite, secattr, 0)
 	
@@ -92,23 +94,23 @@ BuildProject : EpochProject ref project
 	string pathtocompiler = TrimFileName(widenfrombuffer(pathtoself, strlen(pathtoself))) ; "\EpochCompiler.exe"
 
 	buffer appname = narrowstring(pathtocompiler)
-	buffer cmdline = narrowstring("EpochCompiler.exe")
+	buffer cmdline = narrowstring("EpochCompiler.exe " ; QuoteString(project.ProjectFileName))
 	if(!CreateProcess(appname, cmdline, 0, 0, true, CREATE_NO_WINDOW, 0, 0, si, pi))
 	{
-		// TODO - display this in the status window
-		MessageBox(0, "Failed!", "Oops", 0)
+		AppendHistoryLine("ERROR - EpochCompiler.exe could not be launched!")
 		return()
 	}
 	
 	CloseHandle(childinread)
 	CloseHandle(childoutwrite)
 
+	string chunk = ""
 	boolean readfromchild = true
 	while(readfromchild)
 	{
-		buffer buf = 256
+		buffer buf = 2048
 		integer numread = 0
-		readfromchild = ReadFile(childoutread, buf, 255, numread, 0)
+		readfromchild = ReadFile(childoutread, buf, 1, numread, 0)
 		
 		if(numread == 0)
 		{
@@ -116,9 +118,10 @@ BuildProject : EpochProject ref project
 		}
 		else
 		{
-			// TODO - route to status window
-			MessageBox(0, widenfrombuffer(buf, numread), "Test", 0)
+			chunk = chunk ; widenfrombuffer(buf, numread)
 		}
+		
+		TurnChunkIntoHistoryLine(chunk)
 	}
 	
 	CloseHandle(pi.ProcessHandle)
@@ -126,5 +129,38 @@ BuildProject : EpochProject ref project
 	
 	CloseHandle(childinwrite)
 	CloseHandle(childoutread)
+	
+	AppendHistoryLine("Build process completed.")
+}
+
+
+TurnChunkIntoHistoryLine : string ref chunk -> boolean more = false
+{
+	integer len = length(chunk)
+	if(len < 1)
+	{
+		return()
+	}
+	
+	integer pos = 0
+	while(pos < len)
+	{
+		if(charat(chunk, pos) == unescape("\n"))
+		{
+			string line = substring(chunk, 0, pos)
+			if(length(line) > 2)
+			{
+				AppendHistoryLine("Build: " ; line)
+			}
+			
+			chunk = substring(chunk, pos + 1)
+			
+			more = true
+			
+			return()
+		}
+				
+		++pos
+	}
 }
 

@@ -204,6 +204,7 @@ GetLastError : -> integer ret = 0 [external("Kernel32.dll", "GetLastError", "std
 
 
 GetWindowText : integer hwnd, buffer ref outbuffer, integer buffersize -> integer ret = 0 [external("User32.dll", "GetWindowTextW", "stdcall")]
+GetWindowTextLength : integer hwnd -> integer ret = 0 [external("User32.dll", "GetWindowTextLengthW", "stdcall")]
 
 
 SetFocus : integer targethwnd -> integer hwndret = 0 [external("User32.dll", "SetFocus", "stdcall")]
@@ -418,6 +419,12 @@ global
 	
 	boolean RefreshWindowBackground = true
 	
+	//
+	// UI globals - window handles
+	//
+	
+	integer HistoryHWND = 0
+	
 	
 	//
 	// Additional constants for simplicity
@@ -480,6 +487,7 @@ entrypoint :
 	integer COLOR_BTNFACE = 15
 	integer SW_SHOWMAXIMIZED = 3
 	integer ES_READONLY = 0x800
+	integer ES_MULTILINE = 0x004
 	integer ECM_SETCUEBANNER = 0x1501
 
 	integer hInstance = GetModuleHandle(0)
@@ -533,9 +541,9 @@ entrypoint :
 	FontMonospace = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Consolas")
 	FontUIMarlett = CreateFont(15, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Marlett")
 
-	integer HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50800000 + ES_READONLY, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
+	HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50a00000 + ES_READONLY + ES_MULTILINE, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
 	SendMessage(HistoryHWND, WM_SETFONT, FontMonospace, 0)
-	SetWindowText(HistoryHWND, GetCurrentTimeFormatted() ; ": Era IDE Started")
+	AppendHistoryLine("Era IDE Started")
 	
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
 	
@@ -854,4 +862,25 @@ AddTreeViewFiles : integer tvhwnd, integer node, simplelist<string> ref filename
 }
 
 AddTreeViewFiles : integer tvhwnd, integer node, nothing, integer typeflags
+
+
+
+
+//
+// Helper for history window
+//
+AppendHistoryLine : string text
+{
+	integer EM_SETSEL = 0xb1
+	integer EM_REPLACESEL = 0xc2
+	integer EM_LINESCROLL = 0xb6
+
+	string fullline = GetCurrentTimeFormatted() ; ": " ; text ; unescape("\r\n")
+	
+	integer textlen = GetWindowTextLength(HistoryHWND)
+	SendMessage(HistoryHWND, EM_SETSEL, textlen, textlen)
+	SendMessage(HistoryHWND, EM_REPLACESEL, 0, fullline)
+	SendMessage(HistoryHWND, EM_LINESCROLL, 0, 1)
+}
+
 
