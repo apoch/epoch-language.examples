@@ -294,7 +294,15 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 					}
 					elseif(item.lparam == PROJECT_TV_NODETYPE_OPTIONS)
 					{
-						// TODO - pop up options tab
+						integer tabindex = FindTabWithOptions(CurrentTabs)
+						if(tabindex < 0)
+						{
+							CreateOptionsTab(hwnd)
+						}
+						else
+						{
+							SetActiveTab(tabindex)
+						}
 					}
 				}
 			}
@@ -418,6 +426,7 @@ ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
 	}
 }
+
 
 
 //

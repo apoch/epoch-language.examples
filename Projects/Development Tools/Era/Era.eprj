@@ -3,6 +3,7 @@ Documents.epoch
 Era.epoch
 MainWindow.epoch
 MultiSaveDialog.epoch
+OptionsTab.epoch
 ProcessSpawn.epoch
 Scintilla.epoch
 Tabs.epoch

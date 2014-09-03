@@ -371,6 +371,7 @@ global
 	integer SCI_GETLENGTH = 2183
 	integer SCI_GETTEXT = 2182
 	integer SCI_LINELENGTH = 2350
+	integer SCI_SETTABWIDTH = 2036
 
 	integer SC_MARGIN_SYMBOL = 0
 	integer SC_MASK_FOLDERS = 0xfe000000
@@ -558,6 +559,14 @@ entrypoint :
 	{
 		return()
 	}
+
+
+	WindowClass optswc = sizeof(optswc), 0, OptionsWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), 0, "", "EraOptionsClass", 0
+	if(RegisterClassEx(optswc) == fail)
+	{
+		return()
+	}
+
 
 	integer ToolbarHWND = CreateWindowEx(0, "EraToolbarClass", "", 0x50000000, 0, 0, 10, 10, hwnd, WNDID_TOOLBAR, hInstance, 0)
 	integer FindBoxHWND = CreateWindowEx(0, "Edit", "", 0x50800000, 0, 0, 10, 10, ToolbarHWND, TOOLID_FIND_EDIT, hInstance, 0)

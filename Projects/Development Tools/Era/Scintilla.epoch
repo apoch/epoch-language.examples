@@ -214,3 +214,12 @@ ScintillaFindReverse : integer hwnd, string needle
 	}
 }
 
+ScintillaSetTabWidth : integer hwnd, integer width
+{
+	SendMessage(hwnd, SCI_SETTABWIDTH, width, 0)
+}
+
+
+
+
+

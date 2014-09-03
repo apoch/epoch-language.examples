@@ -1,0 +1,42 @@
+
+
+
+CreateOptionsTab : integer parenthwnd -> integer optionshwnd = 0
+{
+	optionshwnd = CreateWindowEx(0, "EraOptionsClass", "", 0x50800000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
+	
+	OpenTab tab = TAB_TYPE_OPTIONS, optionshwnd, "", "Options"
+	AppendTab(CurrentTabs, CurrentTabs.next, tab, 0)
+	SetFocus(optionshwnd)
+}
+
+
+
+
+//
+// Window procedure for the options tab
+//
+OptionsWindowProcedure : integer hwnd, integer message, integer wparam, integer lparam -> integer ret = 0
+{
+	if(message == WM_PAINT)
+	{
+		Rect prect = 0, 0, 0, 0
+		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
+
+		integer hdc = BeginPaint(hwnd, ps)
+		
+		Rect client = 0, 0, 0, 0
+		GetClientRect(hwnd, client)
+
+		FillRect(hdc, client, BrushActiveTab)
+
+		EndPaint(hwnd, ps)
+	}
+	else
+	{
+		ret = DefWindowProc(hwnd, message, wparam, lparam)
+	}
+}
+
+
+

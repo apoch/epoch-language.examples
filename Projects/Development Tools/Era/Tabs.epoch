@@ -38,6 +38,7 @@ CreateEditorTab : integer parenthwnd, string filename -> integer editorhwnd = 0
 	editorhwnd = CreateWindowEx(0, "Scintilla", "", 0x52810000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
 	SetScintillaFont(editorhwnd, "Consolas", 10)
 	SetScintillaLexer(editorhwnd)
+	ScintillaSetTabWidth(editorhwnd, 4)
 	ScintillaColorize(editorhwnd)
 
 	OpenTab tab = TAB_TYPE_EDITOR, editorhwnd, filename, TrimFilePath(filename)
@@ -377,6 +378,23 @@ CreateEditorTabs : integer hwnd, simplelist<string> ref filenames -> integer fil
 }
 
 CreateEditorTabs : integer hwnd, nothing -> 0
+
+
+
+FindTabWithOptions : list<OpenTab> ref tabs -> integer index = WalkTabsToFindOptions(tabs, 0)
+
+WalkTabsToFindOptions : list<OpenTab> ref tabs, integer index -> integer retindex = index
+{
+	if(tabs.value.ContentsType == TAB_TYPE_OPTIONS)
+	{
+		return()
+	}
+	
+	retindex = WalkTabsToFindOptions(tabs.next, index + 1)
+}
+
+WalkTabsToFindOptions : nothing, integer index -> -1
+
 
 
 FindTabWithDocument : list<OpenTab> ref tabs, string docfilename -> integer index = WalkTabsToFindOpenDocument(tabs, docfilename, 0)
