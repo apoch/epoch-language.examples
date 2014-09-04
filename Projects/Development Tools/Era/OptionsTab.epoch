@@ -5,6 +5,14 @@ CreateOptionsTab : integer parenthwnd -> integer optionshwnd = 0
 {
 	optionshwnd = CreateWindowEx(0, "EraOptionsClass", "", 0x50800000, 0, 0, 600, 600, parenthwnd, WNDID_TAB_START + CountTabs(CurrentTabs), GetHInstance(), 0)
 	
+	integer childid = 0
+	
+	integer labelhwnd1 = CreateWindowEx(0x20, "STATIC", "Output file:", 0x50000000, 10, 10, 90, 20, optionshwnd, (++childid), GetHInstance(), 0)
+	SendMessage(labelhwnd1, WM_SETFONT, FontUIDefault, 1)
+	
+	integer outputfilehwnd = CreateWindowEx(0, "EDIT", CurrentProject.OutputFileName, 0x50800000, 10, 30, 250, 20, optionshwnd, (++childid), GetHInstance(), 0)
+	SendMessage(outputfilehwnd, WM_SETFONT, FontMonospace, 1)	
+	
 	OpenTab tab = TAB_TYPE_OPTIONS, optionshwnd, "", "Options"
 	AppendTab(CurrentTabs, CurrentTabs.next, tab, 0)
 	SetFocus(optionshwnd)
@@ -24,13 +32,14 @@ OptionsWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 		PaintInfo ps = 0, false, prect, false, false, 0, 0, 0, 0, 0, 0, 0, 0
 
 		integer hdc = BeginPaint(hwnd, ps)
-		
-		Rect client = 0, 0, 0, 0
-		GetClientRect(hwnd, client)
-
-		FillRect(hdc, client, BrushActiveTab)
-
 		EndPaint(hwnd, ps)
+	}
+	elseif(message == WM_CTLCOLORSTATIC)
+	{
+		integer TRANSPARENT = 1
+		SetBkMode(wparam, TRANSPARENT)
+		
+		ret = BrushActiveTab
 	}
 	else
 	{

@@ -264,6 +264,9 @@ GetWindowRect : integer hwnd, Rect ref out -> boolean success = false [external(
 AllocConsole : -> boolean success = false [external("Kernel32.dll", "AllocConsole", "stdcall")]
 
 
+SetTextColor : integer hdc, integer color -> integer retcolor = 0 [external("Gdi32.dll", "SetTextColor", "stdcall")]
+
+
 
 //
 // Standard library routines
@@ -334,6 +337,7 @@ global
 	integer WM_SETFONT = 0x30
 	integer WM_COMMAND = 273
 	integer WM_KEYDOWN = 0x100
+	integer WM_CTLCOLORSTATIC = 0x138
 
 	integer MB_ICONEXCLAMATION = 0x30
 
@@ -537,8 +541,8 @@ entrypoint :
 	}
 	
 	
-	FontUIDefault = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Segoe UI")
-	FontMonospace = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Consolas")
+	FontUIDefault = CreateFont(16, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Segoe UI")
+	FontMonospace = CreateFont(15, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Consolas")
 	FontUIMarlett = CreateFont(15, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 4, 0, "Marlett")
 
 	HistoryHWND = CreateWindowEx(0, "Edit", "", 0x50a00000 + ES_READONLY + ES_MULTILINE, 0, 0, 100, 100, hwnd, WNDID_STATUS_HISTORY, hInstance, 0)
@@ -569,7 +573,7 @@ entrypoint :
 	}
 
 
-	WindowClass optswc = sizeof(optswc), 0, OptionsWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), 0, "", "EraOptionsClass", 0
+	WindowClass optswc = sizeof(optswc), 0, OptionsWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), BrushActiveTab, "", "EraOptionsClass", 0
 	if(RegisterClassEx(optswc) == fail)
 	{
 		return()

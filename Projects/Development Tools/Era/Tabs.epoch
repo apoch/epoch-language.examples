@@ -141,6 +141,8 @@ DrawTabList : nothing, Rect ref client, integer left, integer hdc, integer count
 
 DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, integer index -> integer right = 0
 {
+	SetTextColor(hdc, 0)
+
 	SelectObject(hdc, FontUIDefault)
 
 	integer BDR_RAISED = 0x5
@@ -182,6 +184,12 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	Rect xarea = tab.right - 20, tab.top, tab.right, tab.bottom
 	
 	SelectObject(hdc, FontUIMarlett)
+	
+	if((index != ActiveTabIndex) && (index != HighlightTabIndex))
+	{
+		SetTextColor(hdc, 0x00b00000)
+	}
+	
 	DrawText(hdc, "r", -1, xarea, 0x26)
 }
 
