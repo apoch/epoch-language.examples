@@ -23,8 +23,6 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 	integer WM_LBUTTONUP = 0x202
 	integer WM_ERASEBKGND = 0x0014
 
-	integer GW_CHILD = 5
-
 	if(message == WM_PAINT)
 	{
 		integer BDR_RAISED = 0x5
