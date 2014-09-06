@@ -12,9 +12,22 @@ Parser.epoch
 Resources.epoch
 ..\Common\Strings.epoch
 TypeInfo.epoch
+TypeChecking.epoch
+CodeGen.epoch
+Structures.epoch
+SumTypes.epoch
+Scopes.epoch
+Overloads.epoch
+Functions.epoch
+Expressions.epoch
+Assignments.epoch
+CodeBlocks.epoch
+
+[resources]
 
 [output]
 output-file ..\Bin\EpochCompiler.exe
 
 [options]
 use-console
+

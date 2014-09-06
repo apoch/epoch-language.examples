@@ -1,0 +1,748 @@
+TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0 [nogc]
+{
+	integer listval = thelist.value
+	if((listval & 0x7f000000) == 0x05000000)
+	{
+		listval = FindTypeAliasBase(TypeAliases, listval)
+	}
+
+	if(listval == value)
+	{
+		ret = listval
+		return()
+	}
+	elseif(MakeNonReferenceType(listval) == value)
+	{
+		ret = listval
+		return()
+	}
+	elseif(listval == MakeNonReferenceType(value))
+	{
+		ret = listval
+		return()
+	}
+
+	if((value & 0x7f000000) == 0x07000000)
+	{
+		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
+		{
+			ret = value
+			return()
+		}
+
+		if(SumTypeHasBase(SumTypes, MakeNonReferenceType(value), MakeNonReferenceType(listval)))
+		{
+			ret = value
+			return()
+		}
+	}
+
+	if((listval & 0x7f000000) == 0x07000000)
+	{
+		if(MakeNonReferenceType(value) == MakeNonReferenceType(listval))
+		{
+			ret = value
+			return()
+		}
+
+		if(SumTypeHasBase(SumTypes, listval, MakeNonReferenceType(value)))
+		{
+			ret = value
+			return()
+		}
+	}
+
+	ret = TypeListContains(thelist.next, value)
+}
+
+TypeListContains : nothing, integer value -> 0
+
+
+
+GetNameOfType : integer typeid -> integer name = 0
+{
+	typeid = MakeNonReferenceType(typeid)
+	if(typeid == 0x01000001)
+	{
+		name = PooledStringHandleForInteger
+	}
+	elseif(typeid == 0x01000002)
+	{
+		name = PooledStringHandleForInteger16
+	}
+	elseif(typeid == 0x01000003)
+	{
+		name = PooledStringHandleForBoolean
+	}
+	elseif(typeid == 0x01000004)
+	{
+		name = PooledStringHandleForReal
+	}
+	elseif(typeid == 0x02000000)
+	{
+		name = PooledStringHandleForString
+	}
+	elseif(typeid == 0x02000001)
+	{
+		name = PooledStringHandleForBuffer
+	}
+	elseif(typeid == 0x00000004)
+	{
+		name = PooledStringHandleForNothing
+	}
+	elseif(typeid == 0x01000000)
+	{
+		name = PooledStringHandleForIdentifier
+	}
+	elseif(IsStructureType(typeid))
+	{
+		name = GetNameOfStructureByType(typeid)
+	}
+	elseif((typeid & 0xff000000) == 0x07000000)
+	{
+		name = FindSumTypeName(typeid)
+	}
+	elseif((typeid & 0x7f000000) == 0x09000000)
+	{
+		name = PoolString("{function} " ; cast(string, typeid))
+	}
+	else
+	{
+		print("Unknown type " ; cast(string, typeid))
+		assert(false)
+	}
+}
+
+GetTypeByName : integer name -> integer typeid = 0 [nogc]
+{
+	if(name == 0)
+	{
+		return()
+	}
+
+	integer unaliasedname = UnaliasType(TypeWeakAliases, name)
+	while(unaliasedname != name)
+	{
+		name = unaliasedname
+		unaliasedname = UnaliasType(TypeWeakAliases, name)
+	}
+	name = unaliasedname
+
+	if(name == PooledStringHandleForIdentifier)
+	{
+		typeid = 0x01000000
+	}
+	elseif(name == PooledStringHandleForInteger)
+	{
+		typeid = 0x01000001
+	}
+	elseif(name == PooledStringHandleForInteger16)
+	{
+		typeid = 0x01000002
+	}
+	elseif(name == PooledStringHandleForBoolean)
+	{
+		typeid = 0x01000003
+	}
+	elseif(name == PooledStringHandleForReal)
+	{
+		typeid = 0x01000004
+	}
+	elseif(name == PooledStringHandleForString)
+	{
+		typeid = 0x02000000
+	}
+	elseif(name == PooledStringHandleForNothing)
+	{
+		typeid = 0x00000004
+	}
+	elseif(name == PooledStringHandleForBuffer)
+	{
+		typeid = 0x02000001
+	}
+	else
+	{
+		integer structuretype = GetStructureTypeByName(name)
+		if(structuretype != 0)
+		{
+			typeid = structuretype
+			return()
+		}
+
+		integer sumtype = FindSumTypeByName(name)
+		if(sumtype != 0)
+		{
+			typeid = sumtype
+			return()
+		}
+
+		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
+		if(strongaliastype != 0)
+		{
+			typeid = strongaliastype
+			return()
+		}
+	}
+}
+
+
+IsStructureType : integer typeid -> boolean ret = false [nogc]
+{
+	if((typeid & 0x7f000000) == 0x03000000)
+	{
+		ret = true
+	}
+	elseif((typeid & 0x7f000000) == 0x08000000)
+	{
+		ret = true
+	}
+}
+
+IsReferenceType : integer typeid -> boolean ret = false [nogc]
+{
+	if((typeid & 0x80000000) != 0)
+	{
+		ret = true
+	}
+}
+
+MakeReferenceType : integer typeid -> integer reftypeid = typeid [nogc]
+{
+	if(!IsReferenceType(typeid))
+	{
+		reftypeid = typeid + 0x80000000
+	}
+}
+
+MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff) [nogc]
+
+
+structure InferenceContext :
+	integer ScopeName,
+	integer StatementName,
+	simplelist<integer> ref ExpectedTypes,
+	boolean FunctionReturn,
+	integer NumParameters,
+	boolean TopLevelStatement,
+	boolean Parenthetical,
+	ContextWrapper<Scope> ScopeRef,
+	ContextWrapper<FunctionDefinition> FuncRef
+
+structure TypePossibilityList :
+	simplelist<integer> ref Types,
+	boolean Consumed
+
+structure InferencePossibility :
+	integer FunctionName,
+	list<TypePossibilityList> ref ParameterTypes,
+	TypePossibilityList ref ReturnType
+
+structure ExpressionInferenceStackEntry :
+	list<InferencePossibility> ref PossibilityList
+
+
+IRTypeInference : -> boolean success = true
+{
+	if(!TypeInference(SumTypes, DummyContextForFunctions))
+	{
+		success = false
+	}
+
+	if(!TypeInference(Structures, DummyContextForFunctions))
+	{
+		success = false
+	}
+
+	if(GlobalCodeBlockName != 0)
+	{
+		ContextWrapper<FunctionDefinition> funcwrap = nothing
+		InferenceContext globalcontext = GlobalCodeBlockName, 0, globalemptyintlist, false, 0, false, false, GlobalScope, funcwrap
+		if(!TypeInference(GlobalCodeBlock, globalcontext))
+		{
+			success = false
+		}
+	}
+
+	if(!TypeInference(Functions, DummyContextForFunctions))
+	{
+		success = false
+	}
+}
+
+TypeInference : nothing, InferenceContext ref context -> true
+
+
+TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> boolean success = true
+{
+	if(sumtypes.value.Type != 0)
+	{
+		if(!sumtypes.value.IsTemplate)
+		{
+			if(!ResolveSumTypeBases(sumtypes.value.Bases))
+			{
+				success = false
+			}
+		}
+	}
+
+	if(!TypeInference(sumtypes.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : list<StructureDefinition> ref structures, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(structures.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(structures.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : StructureDefinition ref structuredef, InferenceContext ref context -> boolean success = true
+{
+	if(structuredef.Name == 0)
+	{
+		return()
+	}
+
+	if(structuredef.IsTemplate)
+	{
+		return()
+	}
+
+	if(!TypeInference(structuredef.Members, context))
+	{
+		success = false
+	}
+
+	integer ctorname = PoolStringFast(structuredef.ReadableName ; "@@constructor")
+	integer anonname = PoolStringFast(structuredef.ReadableName ; "@@anonconstructor")
+	integer copyname = PoolStringFast(structuredef.ReadableName ; "@@copyconstructor")
+	OnCodeGenRegisterConstructors(structuredef.Name, ctorname, anonname, copyname)
+
+	Overload selfoverload = structuredef.Name, ctorname, nothing
+	prepend<Overload>(AutoGenOverloads, selfoverload)
+
+	Overload anonoverload = ctorname, anonname, nothing
+	prepend<Overload>(AutoGenOverloads, anonoverload)
+
+	Overload copyoverload = ctorname, copyname, nothing
+	prepend<Overload>(AutoGenOverloads, copyoverload)
+}
+
+
+TypeInference : list<StructureMember> ref members, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(members.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(members.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context -> boolean success = true
+{
+	if(memvar.Name == 0)
+	{
+		return()
+	}
+
+	integer pretype = memvar.Type
+	memvar.Type = GetTypeByName(InstantiateStructureTemplate(memvar.TypeNameHandle, memvar.TemplateArgs))
+	if(memvar.Type == 0)
+	{
+		memvar.Type = GetTypeByName(memvar.TypeNameHandle)
+	}
+
+	if(memvar.Type == 0)
+	{
+		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
+		success = false
+	}
+	else
+	{
+		memvar.Type = memvar.Type + pretype			// Hack to accept reference marker
+	}
+}
+
+TypeInference : StructureMemberFunctionRef ref memfunc, InferenceContext ref context -> boolean success = true
+{
+	ResolveSignatureTypes(memfunc.Signature)
+}
+
+
+TypeInference : list<FunctionDefinition> ref functions, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(functions.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(functions.next, context))
+	{
+		success = false
+	}
+}
+
+
+TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boolean success = true
+{
+	if(func.IsTemplate)
+	{
+		return()
+	}
+
+	if(func.InferenceDone)
+	{
+		return()
+	}
+
+	func.InferenceDone = true
+
+	ContextWrapper<Scope> scopewrap = func.AttachedScope.Wrapped
+	ContextWrapper<FunctionDefinition> funcwrap = func
+	InferenceContext innercontext = func.Name, 0, globalemptyintlist, false, 0, false, false, scopewrap, funcwrap
+
+
+	if(!TypeInference(func.Params, innercontext))
+	{
+		print("Parameters to function failed type inference")
+		success = false
+	}
+
+	
+	InferenceContext retcontext = func.Name, 0, globalemptyintlist, true, 0, false, false, innercontext.ScopeRef, funcwrap
+	if(!TypeInference(func.Return, retcontext))
+	{
+		print("Function return expression failed type inference")
+		success = false
+	}
+
+	integer rettype = GetOptionalExpressionType(func.Return)
+	if((rettype != 0) && (rettype != 0x00000002))	// void magic
+	{
+		if(func.AnonymousReturn)
+		{
+			StoreVariableInSingleScope(innercontext.ScopeRef.Wrapped, PooledStringHandleForAnonymousRet, rettype, false, 2)
+		}
+	}
+
+	if(!TypeInference(func.Code, innercontext))
+	{
+		print(GetPooledString(GlobalStrings, func.Name) ; "() - Function code body failed type inference")
+		success = false
+	}
+}
+
+TypeInference : FunctionParams ref params, InferenceContext ref context -> boolean success = TypeInference(params.Params, context)
+
+TypeInference : list<UnresolvedParameter> ref params, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(params.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(params.next, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> boolean success = true
+{
+	if((param.ResolvedType & 0x7f000000) == 0x09000000)
+	{
+		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
+		return()
+	}
+
+	integer patternmatchtype = GetOptionalExpressionType(param.PatternMatchValue)
+	if(patternmatchtype != 0)
+	{
+		param.ResolvedType = patternmatchtype
+		return()
+	}
+
+	param.TypeNameHandle = MangleTemplateNameByHandle(param.TypeNameHandle, param.TemplateArgs)
+
+	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
+	if(param.ResolvedType == 0)
+	{
+		print("Unknown parameter type: " ; GetPooledString(GlobalStrings, param.TypeNameHandle))
+		success = false
+	}
+	else
+	{
+		if(param.HasRefTag)
+		{
+			param.ResolvedType = param.ResolvedType + 0x80000000
+		}
+
+		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
+	}
+}
+
+TypeInference : CodeBlock ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.Entries, context))
+	{
+		success = false
+	}
+}
+
+TypeInference : list<CodeBlockEntry> ref code, InferenceContext ref context -> boolean success = true
+{
+	if(!TypeInference(code.value, context))
+	{
+		success = false
+	}
+
+	if(!TypeInference(code.next, context))
+	{
+		success = false
+	}
+}
+
+
+TypeInference : PreOpStatement ref statement, InferenceContext ref context -> boolean success = true
+{
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Operand.value, var)
+
+	if(var.Name == 0)
+	{
+		print("Cannot operate on variable, it doesn't exist!")
+		assert(false)
+	}
+
+	integer operandtype = MakeNonReferenceType(var.VarType)
+
+	if(countnonzero(statement.Operand) > 1)
+	{
+		assertmsg(operandtype != 0, "Pre-operation statement has no type")
+		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
+	}
+
+	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+	statement.Type = operandtype		// TODO - maybe don't assume that the operator returns the same type as it takes?
+}
+
+
+TypeInference : PostOpStatement ref statement, InferenceContext ref context -> boolean success = true
+{
+	Variable var = 0, 0, 0, 0
+	FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Operand.value, var)
+
+	if(var.Name == 0)
+	{
+		print("Cannot operate on variable, it doesn't exist!")
+		assert(false)
+	}
+
+	integer operandtype = MakeNonReferenceType(var.VarType)
+
+	if(countnonzero(statement.Operand) > 1)
+	{
+		assertmsg(operandtype != 0, "Post-operation statement has no type")
+		operandtype = ComputeCompoundAssignmentLHSTypeMembers(statement.Operand.next, GetNameOfType(operandtype))
+	}
+
+	statement.Operator = FindPrePostOperatorOverload(statement.Operator, operandtype)
+	statement.Type = operandtype
+}
+
+
+TypeInference : Statement ref statement, InferenceContext ref context -> boolean success = true
+{
+	if(statement.InferenceDone)
+	{
+		return()
+	}
+
+	statement.InferenceDone = true
+
+	integer originalname = statement.Name
+	statement.Name = InstantiateTemplateFast(statement.Name, statement.TemplateArgs)
+
+	integer paramcount = CountExpressions(statement.Parameters)
+
+	integer vartype = GetTypeByName(statement.Name)
+	if(vartype != 0)
+	{
+		integer origin = 0
+		if(context.FunctionReturn)
+		{
+			origin = 2
+			SetFunctionReturnType(context.FuncRef.Wrapped, context.ScopeName, vartype)
+		}
+
+		while((vartype & 0x7f000000) == 0x05000000)
+		{
+			vartype = FindTypeAliasBase(TypeAliases, vartype)
+		}
+
+		if(IsStructureType(vartype))
+		{
+			statement.Name = GetConstructorName(Structures, vartype)
+		}
+		else
+		{
+			assertmsg(vartype != 0, "Assumption failure in statement type inference")
+			statement.Name = GetNameOfType(vartype)
+		}
+
+		if(statement.TopLevel)
+		{
+			ConstructVariableFromStatement(statement, context.ScopeRef.Wrapped, vartype, origin)
+		}
+	}
+
+	InferenceContext newcontext = context.ScopeName, statement.Name, context.ExpectedTypes, false, paramcount, statement.TopLevel, false, context.ScopeRef, context.FuncRef
+
+	if(!TypeInference(statement.Parameters, newcontext))
+	{
+		success = false
+		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+	}
+
+
+	ContextNode<FunctionDefinition> contextfunc = nothing
+	ContextNode<PendingTypeMatcher> contextmatch = nothing
+	boolean isuserfunc = false
+
+
+	if(statement.Name == PooledStringHandleForCast)
+	{
+		statement.Name = GetCastOverload(statement.Parameters)
+
+		if(statement.Name == 0)
+		{
+			success = false
+			print("Invalid cast()")
+		}
+	}
+	else
+	{
+		if(IsRecognizedBuiltIn(statement.Name))
+		{
+			isuserfunc = false
+		}
+		else
+		{
+			isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
+		}
+
+		simplelist<integer> paramtypes = 0, nothing
+		AccumulateParameterTypes(paramtypes, statement.Parameters)
+
+		integer overloadname = 0
+
+		if(isuserfunc)
+		{
+			overloadname = FindOverloadWithParameterTypesFast(contextfunc, statement.Name, paramtypes)
+		}
+		else
+		{
+			overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
+		}
+
+		if(overloadname != 0)
+		{
+			statement.Name = overloadname
+
+			if(IsRecognizedBuiltIn(statement.Name))
+			{
+				isuserfunc = false
+			}
+			else
+			{
+				isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
+			}
+		}
+		else
+		{
+			Variable var = 0, 0, 0, 0
+			FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Name, var)
+
+			if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
+			{
+				// TODO - type checking on higher order functions
+
+				statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
+				return()
+			}		
+		
+			success = false
+			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+			DumpTypeList(paramtypes)
+		}
+	}
+
+	if(context.FunctionReturn)
+	{
+		statement.Type = vartype
+	}
+	else
+	{
+		if(isuserfunc)
+		{
+			statement.Type = InferFunctionReturnType(contextfunc)
+		}
+		else
+		{
+			statement.Type = GetPendingTypeMatcherReturnType(statement.Name, contextmatch)
+		}
+	}
+
+	if(isuserfunc)
+	{
+		WalkFunctionParamsAndSetReferencesShim(contextfunc, statement.Parameters)
+	}
+	else
+	{
+		MakeParametersReferencesForTypeMatcher(statement.Name, statement.Parameters)
+	}
+
+	if(vartype != 0)
+	{
+		if(isuserfunc)
+		{
+			AnnotateTypeMatchedParamsForWrapper(contextfunc, statement.Parameters)
+		}
+		else
+		{
+			FindConstructorAndAnnotateTypeMatchedParams(Structures, statement.Name, statement.Parameters)
+		}
+	}
+	elseif(ContextHasTypeMatcher(contextmatch))
+	{
+		AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
+	}
+}
+
+
+AnyTypeIsReferenceType : simplelist<integer> ref types -> boolean isref = false [nogc]
+{
+	if(IsReferenceType(types.value))
+	{
+		isref = true
+	}
+	else
+	{
+		isref = AnyTypeIsReferenceType(types.next)
+	}
+}
+
+AnyTypeIsReferenceType : nothing -> false [nogc]
+

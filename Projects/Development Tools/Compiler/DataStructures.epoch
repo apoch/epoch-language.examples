@@ -71,6 +71,27 @@ quick_append : nothing, string token [nogc]
 }
 
 
+
+append_recurse : list<Variable> ref thelist, nothing, Variable ref value [nogc]
+{
+	list<Variable> newlist = value, nothing
+	thelist.next = newlist
+}
+
+append_recurse : list<Variable> ref thelist, list<Variable> ref tail, Variable ref value [nogc]
+{
+	append_recurse(tail, tail.next, value)
+}
+
+
+append : list<Variable> ref thelist, Variable ref value [nogc]
+{
+	append_recurse(thelist, thelist.next, value)
+}
+
+
+
+
 //
 // List traversal/inspection functions
 //

@@ -1,0 +1,51 @@
+PlaceAtomInScratchExpression : ExpressionAtom ref atom
+{
+	if(ExpressionAtomIsSentinel(ScratchExpressions.value.Atoms.value))
+	{
+		list<ExpressionAtom> atoms = atom, nothing
+		Expression newexpr = atoms, 0
+		ScratchExpressions.value = newexpr
+	}
+	else
+	{
+		AppendAtomToExpression(ScratchExpressions.value.Atoms, ScratchExpressions.value.Atoms.next, atom)
+	}
+}
+
+ExpressionAtomIsSentinel : AtomSentinel 	   ref sentinel    -> true [nogc]
+ExpressionAtomIsSentinel : StringHandleAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : IdentifierAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : OperatorInvokeAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : TypeAnnotationAtom 	   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : integer 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : integer16 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : boolean 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : real 		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : Statement		   ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : RefBinding              ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : CompoundAtom            ref nonsentinel -> false [nogc]
+ExpressionAtomIsSentinel : ParentheticalExpression ref nonsentinel -> false [nogc]
+
+
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, list<ExpressionAtom> ref tail, ExpressionAtom ref atom
+{
+	AppendAtomToExpression(tail, tail.next, atom)
+}
+
+AppendAtomToExpression : list<ExpressionAtom> ref atoms, nothing, ExpressionAtom ref atom
+{
+	list<ExpressionAtom> newatoms = atom, nothing
+	atoms.next = newatoms
+}
+
+
+
+CountExpressions : nothing -> 0 [nogc]
+
+CountExpressions : ExpressionList ref exprs -> integer count = CountExpressions(exprs.Expressions) [nogc]
+
+CountExpressions : list<Expression> ref exprs -> integer count = 1 [nogc]
+{
+	count += CountExpressions(exprs.next)
+}

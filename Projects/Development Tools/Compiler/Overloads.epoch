@@ -1,0 +1,70 @@
+
+RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
+{
+	ContextNode<FunctionDefinition> funcwrap = nothing
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
+	if(found)
+	{
+		integer existingcount = CountOverloadsForContext(funcwrap, rawname)
+
+		if(existingcount > 0)
+		{
+			mangledname = PoolString(rawnamestr ; "@overload@" ; cast(string, existingcount))
+		}
+
+		Overload overload = rawname, mangledname, nothing
+		AddOverloadToFunc(funcwrap, overload)
+	}
+}
+
+
+FindFunctionAndAddOverload : Overload ref overload
+{
+	ContextNode<FunctionDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overload.NormalName, wrap)
+	if(found)
+	{
+		AddOverloadToFunc(wrap, overload)
+	}
+}
+
+AddOverloadToFunc : FunctionDefinition ref func, Overload ref overload
+{
+	prepend<Overload>(func.Overloads, overload)
+}
+
+
+CountOverloadsForContext : FunctionDefinition ref func, integer rawname -> integer count = 0
+{
+	count = CountOverloads(func.Overloads, rawname)
+}
+
+
+CountOverloads : list<Overload> ref overloads, integer rawname -> integer count = 0
+{
+	if(rawname == overloads.value.NormalName)
+	{
+		++count
+	}
+
+	count += CountOverloads(overloads.next, rawname)
+}
+
+CountOverloads : nothing, integer rawname -> 0
+
+
+AttachContextToOverload : list<Overload> ref overloads, integer mangledname, FunctionDefinition ref func
+{
+	if(overloads.value.MangledName == mangledname)
+	{
+		overloads.value.Implementation = func
+	}
+	else
+	{
+		AttachContextToOverload(overloads.next, mangledname, func)
+	}
+}
+
+
+
+

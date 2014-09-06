@@ -1,0 +1,223 @@
+
+
+FindStructureAndAddMember : list<StructureDefinition> ref structures, integer structurename, integer structuretype, StructureMember ref member [nogc]
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMember(structures.value.Members, structures.value.Members.next, member)
+		structures.value.MemberCount = structures.value.MemberCount + 1
+	}
+	else
+	{
+		FindStructureAndAddMember(structures.next, structurename, structuretype, member)
+	}
+}
+
+FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member [nogc]
+{
+	list<StructureMember> members = member, nothing
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(GlobalStrings, structurename), false
+
+	prepend<StructureDefinition>(Structures, def)
+	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, structurename, def)
+}
+
+AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member [nogc]
+{
+	AppendStructureMember(tail, tail.next, member)
+}
+
+AppendStructureMember : list<StructureMember> ref members, nothing, StructureMember ref member [nogc]
+{
+	list<StructureMember> newtail = member, nothing
+	members.next = newtail
+}
+
+
+FindStructureAndAddMemberParam : list<StructureDefinition> ref structures, integer structurename, integer structuretype, integer membername, Parameter ref param
+{
+	if(structures.value.Name == structurename)
+	{
+		AppendStructureMemberParam(structures.value.Members, membername, param)
+	}
+	else
+	{
+		FindStructureAndAddMemberParam(structures.next, structurename, structuretype, membername, param)
+	}
+}
+
+AppendStructureMemberParam : list<StructureMember> ref members, integer membername, Parameter ref param
+{
+	boolean match = CheckMemberForAddingParam(members.value, membername, param)
+	if(!match)
+	{
+		AppendStructureMemberParam(members.next, membername, param)
+	}
+}
+
+CheckMemberForAddingParam : StructureMemberVariable ref member, integer membername, Parameter ref param -> false
+
+CheckMemberForAddingParam : StructureMemberFunctionRef ref member, integer membername, Parameter ref param -> boolean ret = false
+{
+	if(member.Name == membername)
+	{
+		AppendParameter(member.Signature.Parameters, param)
+		ret = true
+	}
+}
+
+
+
+
+FindStructureAndSetConstructors : integer structurename, integer constructorname, integer anonname, integer copyname [nogc]
+{
+	ContextNode<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	assertmsg(found, "Internal error: constructors cannot be set on non-existent structure")
+
+	SetConstructors(wrap, constructorname, anonname, copyname)
+}
+
+SetConstructors : StructureDefinition ref struct, integer constructorname, integer anonname, integer copyname [nogc]
+{
+	struct.ConstructorName = constructorname
+	struct.AnonConstructorName = anonname
+	struct.CopyConstructorName = copyname
+}
+
+
+
+GetNameOfStructureByType : integer typeid -> integer name = 0
+{
+	name = GetNameOfStructureByType(Structures, typeid)
+}
+
+GetNameOfStructureByType : list<StructureDefinition> ref structures, integer typeid -> integer name = 0
+{
+	if(structures.value.Type == typeid)
+	{
+		name = structures.value.Name
+	}
+	else
+	{
+		name = GetNameOfStructureByType(structures.next, typeid)
+	}
+}
+
+GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
+
+
+GetStructureMemberTypeAndOffset : integer structurename, integer membername, integer ref memtype, integer ref memoffset
+{
+	ContextNode<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	assert(found)
+
+	memtype = 0
+	memoffset = 0
+	GetMemberTypeAndOffset(wrap, membername, memtype, memoffset)
+}
+
+GetStructureMemberType : integer structurename, integer membername -> integer rtype = 0
+{
+	ContextNode<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	if(found)
+	{
+		rtype = GetMemberType(wrap, membername)
+		
+		if(rtype == 0)
+		{
+			print(GetPooledString(GlobalStrings, structurename))
+		}
+	}
+	else
+	{
+		print("Bogus structure")
+		assert(false)
+	}
+}
+
+
+GetMemberType : StructureDefinition ref struct, integer membername -> integer ty = GetMemberType(struct.Members, membername)
+
+
+GetMemberType : list<StructureMember> ref members, integer membername -> integer rtype = 0
+{
+	if(GetMemberName(members.value) == membername)
+	{
+		rtype = GetMemberTypeDecompose(members.value)
+		assertmsg(rtype != 0, "Member has no type; cannot return from GetMemberType")
+	}
+	else
+	{
+		rtype = GetMemberType(members.next, membername)
+	}
+}
+
+GetMemberType : nothing, integer membername -> integer rtype = 0
+{
+	print("Bogus structure member!")
+	print(GetPooledString(GlobalStrings, membername))
+}
+
+
+GetMemberTypeAndOffset : StructureDefinition ref struct, integer membername, integer ref memtype, integer ref memoffset
+{
+	GetMemberTypeAndOffset(struct.Members, membername, memtype, memoffset)
+}
+
+
+GetMemberTypeAndOffset : list<StructureMember> ref members, integer membername, integer ref memtype, integer ref memoffset
+{
+	integer thisname = GetMemberName(members.value)
+	if(thisname == membername)
+	{
+		memtype = GetMemberTypeDecompose(members.value)
+	}
+	else
+	{
+		if(thisname != 0)
+		{
+			memoffset += GetMemberSize(members.value)
+		}
+		GetMemberTypeAndOffset(members.next, membername, memtype, memoffset)
+	}
+}
+
+GetMemberTypeAndOffset : nothing, integer membername, integer ref memtype, integer ref memoffset
+{
+	print("Bogus structure member!")
+	assert(false)
+}
+
+
+GetMemberTypeDecompose : StructureMemberVariable ref memvar -> integer rtype = memvar.Type [nogc]
+
+GetMemberTypeDecompose : StructureMemberFunctionRef ref member -> integer rtype = FindOrCreateFunctionSignatureType(member.Signature) [nogc]
+
+
+GetMemberName : StructureMemberVariable ref memvar -> integer name = memvar.Name [nogc]
+
+GetMemberName : StructureMemberFunctionRef ref member -> integer name = member.Name [nogc]
+
+
+GetMemberSize : StructureMemberVariable ref memvar -> integer r = GetTypeSize(memvar.Type) [nogc]
+
+GetMemberSize : StructureMemberFunctionRef ref member -> 4 [nogc]
+
+
+GetStructureTypeByName : integer name -> integer typeid = 0 [nogc]
+{
+	ContextNode<StructureDefinition> wrap = nothing
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
+
+	if(found)
+	{
+		typeid = UnwrapStructureType(wrap)
+	}
+}
+
+UnwrapStructureType : StructureDefinition ref struct -> integer ty = struct.Type [nogc]
+
+
