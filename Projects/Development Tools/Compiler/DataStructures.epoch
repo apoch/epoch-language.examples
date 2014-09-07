@@ -36,6 +36,20 @@ prepend<type T> : list<T> ref thelist, T ref value [nogc]
 }
 
 
+countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
+{
+	if(thelist.value != 0)
+	{
+		++count
+	}
+
+	count += countnonzero(thelist.next)
+}
+
+countnonzero : nothing -> 0 [nogc]
+
+
+
 
 simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value [nogc]
 {

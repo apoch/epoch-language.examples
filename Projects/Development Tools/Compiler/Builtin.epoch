@@ -290,3 +290,846 @@ IsRecognizedBuiltIn : integer namehandle -> boolean recognized = false [nogc]
 		recognized = true
 	}
 }
+
+
+
+GetFunctionParameterCount : integer funcname -> integer count = -1 [nogc]
+{
+	if(funcname == PooledStringHandleForSubstringWithLength)
+	{
+		count = 3
+	}
+	elseif(funcname == PooledStringHandleForSubstringNoLength)
+	{
+		count = 2
+	}
+	elseif(funcname == PooledStringHandleForSubchar)
+	{
+		count = 2
+	}
+	elseif(funcname == PooledStringHandleForUnescape)
+	{
+		count = 1
+	}
+	elseif(funcname == PooledStringHandleForWriteBuffer)
+	{
+		count = 3
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferString)
+	{
+		count = 4
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
+	{
+		count = 4
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
+	{
+		count = 3
+	}
+}
+
+
+AddPossibilityPerOperatorOverload : integer basenamehandle, list<InferencePossibility> ref possibilities
+{
+	if(basenamehandle == PooledStringHandleForEquality)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityInteger,   0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityInteger16, 0x01000002, 0x01000002, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityBoolean,   0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityReal,      0x01000004, 0x01000004, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForEqualityString,    0x02000000, 0x02000000, 0x01000003)
+	}
+	elseif(basenamehandle == PooledStringHandleForInequality)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityInteger, 0x01000001, 0x01000001, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityBoolean, 0x01000003, 0x01000003, 0x01000003)
+		AddBinaryPossibility(possibilities, PooledStringHandleForInequalityString,  0x02000000, 0x02000000, 0x01000003)
+	}
+	elseif(basenamehandle == PooledStringHandleForGreaterThan)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForGreaterThanInteger, 0x01000001, 0x01000001, 0x01000003)
+	}
+	elseif(basenamehandle == PooledStringHandleForLessThan)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForLessThanInteger, 0x01000001, 0x01000001, 0x01000003)
+	}
+	elseif(basenamehandle == PooledStringHandleForPlus)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForPlusInteger, 0x01000001, 0x01000001, 0x01000001)
+		AddBinaryPossibility(possibilities, PooledStringHandleForPlusReal, 0x01000004, 0x01000004, 0x01000004)
+	}
+	elseif(basenamehandle == PooledStringHandleForMinus)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForMinusInteger, 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basenamehandle == PooledStringHandleForMultiply)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForMultiplyInteger, 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basenamehandle == PooledStringHandleForDivide)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForDivideInteger, 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basenamehandle == PooledStringHandleForBitwiseAnd)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForBitwiseAnd, 0x01000001, 0x01000001, 0x01000001)
+	}
+	elseif(basenamehandle == PooledStringHandleForBooleanAnd)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForBooleanAnd, 0x01000003, 0x01000003, 0x01000003)
+	}
+	elseif(basenamehandle == PooledStringHandleForStringConcat)
+	{
+		AddBinaryPossibility(possibilities, PooledStringHandleForStringConcat, 0x02000000, 0x02000000, 0x02000000)
+	}
+	elseif(basenamehandle == PooledStringHandleForUnaryNot)
+	{
+		AddUnaryPossibility(possibilities, PooledStringHandleForUnaryNotBoolean, 0x01000003, 0x01000003)
+	}
+	else
+	{
+		print("Unrecognized operator")
+		assert(false)
+	}
+}
+
+FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer paramcount, simplelist<integer> ref types
+{
+	integer ctype = GetTypeByName(funcname)
+	if((ctype & 0x7f000000) == 0x05000000)
+	{
+		funcname = GetNameOfType(FindTypeAliasBase(TypeAliases, ctype))
+	}
+
+	if((ctype & 0x7f000000) == 0x07000000)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				FindSumTypeAndPrependTypesToList(SumTypes, ctype, types)
+			}
+		}
+		return()
+	}
+
+	if(funcname == PooledStringHandleForPassTest)
+	{
+		// No parameters
+	}
+	elseif(funcname == PooledStringHandleForAssert)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForPrint)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForInteger)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForInteger16)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000002)	// integer16 type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForBoolean)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForReal)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForString)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForBuffer)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForNarrowString)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForUnescape)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForSubstringWithLength)
+	{
+		if(paramcount == 3)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForSubstringNoLength)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForSubchar)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastBooleanToInteger)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000003)	// boolean type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastRealToInteger)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastRealToString)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastStringToReal)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastIntegerToString)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastStringToInteger)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastInteger16ToInteger)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000002)	// integer16 type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastIntegerToInteger16)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastBufferToString)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x82000001)	// reference to buffer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBuffer)
+	{
+		if(paramcount == 3)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferString)
+	{
+		if(paramcount == 4)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+			elseif(paramindex == 3)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
+	{
+		if(paramcount == 4)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 3)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
+	{
+		if(paramcount == 3)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x82000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 2)
+			{
+				simpleprepend<integer>(types, 0x01000004)	// real type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForLength)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000000)	// string type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWidenFromPtr)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForWidenFromBuffer)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x02000001)	// buffer type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}	
+	}
+	elseif(funcname == PooledStringHandleForCmdLineGet)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForCmdLineGetCount)
+	{
+		// no params
+	}
+	elseif(funcname == PooledStringHandleForCmdLineIsValid)
+	{
+		// no params
+	}
+	elseif(funcname == PooledStringHandleForMarshalStructure)
+	{
+		if(paramcount == 2)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+			elseif(paramindex == 1)
+			{
+				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+			}
+		}
+	}
+	elseif(funcname == PooledStringHandleForSizeOf)
+	{
+		if(paramcount == 1)
+		{
+			if(paramindex == 0)
+			{
+				simpleprepend<integer>(types, 0x01000000)	// identifier type signature
+			}
+		}
+	}
+}
+
+
+
+GetBuiltInReturnType : integer builtinname -> integer returntype = 0
+{
+	if(StructureConstructorExists(Structures, builtinname))
+	{
+		returntype = GetStructureByAnonConstructorName(Structures, builtinname)
+		return()
+	}
+
+	if(builtinname == PooledStringHandleForNarrowString)
+	{
+		returntype = 0x02000001		// buffer type signature
+	}
+	elseif(builtinname == PooledStringHandleForUnescape)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForSubstringWithLength)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForSubstringNoLength)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForSubchar)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastRealToInteger)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastBooleanToInteger)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastInteger16ToInteger)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastIntegerToInteger16)
+	{
+		returntype = 0x01000002		// integer16 type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastIntegerToString)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastRealToString)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastStringToReal)
+	{
+		returntype = 0x01000004		// real type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastStringToInteger)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCastBufferToString)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForLength)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCmdLineGet)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForWidenFromPtr)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForWidenFromBuffer)
+	{
+		returntype = 0x02000000		// string type signature
+	}
+	elseif(builtinname == PooledStringHandleForCmdLineGetCount)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+	elseif(builtinname == PooledStringHandleForCmdLineIsValid)
+	{
+		returntype = 0x01000003		// boolean type signature
+	}
+	elseif(builtinname == PooledStringHandleForSizeOf)
+	{
+		returntype = 0x01000001		// integer type signature
+	}
+}
+
+
+MakeParametersReferencesForBuiltIn : integer funcname, ExpressionList ref params
+{
+	if(funcname == PooledStringHandleForWriteBuffer)
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferString)
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferMultiple)
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(funcname == PooledStringHandleForWriteBufferReal)
+	{
+		if(!MarkAtomAsReference(params.Expressions.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+		}
+	}
+	elseif(funcname == PooledStringHandleForCastBufferToString)
+	{
+		MarkFirstAtomAsReference(params.Expressions.next)
+	}
+}
+
+
+
+InitBuiltInOverloads : [nogc]
+{
+	Overload buffercopy = PooledStringHandleForBuffer, PooledStringHandleForBufferCopy, nothing
+	prepend<Overload>(AutoGenOverloads, buffercopy)
+
+	Overload substrlength = PooledStringHandleForSubstring, PooledStringHandleForSubstringWithLength, nothing
+	prepend<Overload>(AutoGenOverloads, substrlength)
+
+	Overload substrnolen = PooledStringHandleForSubstring, PooledStringHandleForSubstringNoLength, nothing
+	prepend<Overload>(AutoGenOverloads, substrnolen)
+
+	Overload castrealtoint = PooledStringHandleForCast, PooledStringHandleForCastRealToInteger, nothing
+	prepend<Overload>(AutoGenOverloads, castrealtoint)
+
+	Overload castinttostr = PooledStringHandleForCast, PooledStringHandleForCastIntegerToString, nothing
+	prepend<Overload>(AutoGenOverloads, castinttostr)
+
+	Overload caststrtoint = PooledStringHandleForCast, PoolString("cast@@string_to_integer"), nothing
+	prepend<Overload>(AutoGenOverloads, caststrtoint)
+
+	Overload castrealtostr = PooledStringHandleForCast, PooledStringHandleForCastRealToString, nothing
+	prepend<Overload>(AutoGenOverloads, castrealtostr)
+
+	Overload castbooltoint = PooledStringHandleForCast, PooledStringHandleForCastBooleanToInteger, nothing
+	prepend<Overload>(AutoGenOverloads, castbooltoint)
+
+	Overload castint16toint = PooledStringHandleForCast, PoolString("cast@@integer16_to_integer"), nothing
+	prepend<Overload>(AutoGenOverloads, castint16toint)
+
+	Overload castinttoint16 = PooledStringHandleForCast, PoolString("cast@@integer_to_integer16"), nothing
+	prepend<Overload>(AutoGenOverloads, castinttoint16)
+
+	Overload caststrtoreal = PooledStringHandleForCast, PooledStringHandleForCastStringToReal, nothing
+	prepend<Overload>(AutoGenOverloads, caststrtoreal)
+	
+	Overload castbuffertostr = PooledStringHandleForCast, PooledStringHandleForCastBufferToString, nothing
+	prepend<Overload>(AutoGenOverloads, castbuffertostr)
+
+	Overload writebuffernormal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBuffer, nothing
+	prepend<Overload>(AutoGenOverloads, writebuffernormal)
+
+	Overload writebuffermultiple = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferMultiple, nothing
+	prepend<Overload>(AutoGenOverloads, writebuffermultiple)
+
+	Overload writebufferstring = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferString, nothing
+	prepend<Overload>(AutoGenOverloads, writebufferstring)
+
+	Overload writebufferreal = PooledStringHandleForWriteBuffer, PooledStringHandleForWriteBufferReal, nothing
+	prepend<Overload>(AutoGenOverloads, writebufferreal)
+}
+
+
+
+FindBuiltinAndGetSignatureType : integer builtinname -> integer typeid = 0
+{
+	if(builtinname == PooledStringHandleForPassTest)
+	{
+		simplelist<integer> paramtypes = 0, nothing
+		typeid = FindOrCreateFunctionSignatureType(paramtypes, 0)
+	}
+}
+
+
+
+GetCastOverload : nothing -> 0
+
+GetCastOverload : ExpressionList ref params -> integer overloadname = FigureOutCastOverload(params.Expressions)
+
+
+FigureOutCastOverload : list<Expression> ref params -> integer overloadname = 0
+{
+	integer idtype = GetTypeByName(GetIdentifier(params.value.Atoms.value))
+	if(idtype != 0)
+	{
+		integer origintype = FigureOutCastOriginType(params.next)
+
+		if((idtype == 0x01000001) && (origintype == 0x01000004))
+		{
+			overloadname = PooledStringHandleForCastRealToInteger
+		}
+		elseif((idtype == 0x02000000) && (origintype == 0x01000001))
+		{
+			overloadname = PooledStringHandleForCastIntegerToString
+		}
+		elseif((idtype == 0x02000000) && (origintype == 0x01000004))
+		{
+			overloadname = PooledStringHandleForCastRealToString
+		}
+		elseif((idtype == 0x01000001) && (origintype == 0x01000002))
+		{
+			overloadname = PooledStringHandleForCastInteger16ToInteger
+		}
+		elseif((idtype == 0x01000002) && (origintype == 0x01000001))
+		{
+			overloadname = PooledStringHandleForCastIntegerToInteger16
+		}
+		elseif((idtype == 0x01000001) && (origintype == 0x01000003))
+		{
+			overloadname = PooledStringHandleForCastBooleanToInteger
+		}
+		elseif((idtype == 0x01000004) && (origintype == 0x02000000))
+		{
+			overloadname = PooledStringHandleForCastStringToReal
+		}
+		elseif((idtype == 0x01000001) && (origintype == 0x02000000))
+		{
+			overloadname = PooledStringHandleForCastStringToInteger
+		}
+		elseif((idtype == 0x02000000) && (origintype == 0x82000001))
+		{
+			overloadname = PooledStringHandleForCastBufferToString
+		}
+	}
+}
+
+FigureOutCastOverload : nothing -> 0
+

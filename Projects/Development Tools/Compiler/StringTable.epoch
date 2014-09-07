@@ -1,0 +1,36 @@
+
+PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s) [nogc]
+{
+	if(handle == 0)
+	{
+		handle = PoolStringFast(s)
+	}
+}
+
+PoolStringFast : string s -> integer handle = 0 [nogc]
+{
+	++CurrentStringHandle
+	OnCodeGenRegisterString(CurrentStringHandle, s)
+	handle = CurrentStringHandle
+}
+
+
+
+GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = "" [nogc]
+{
+	if(strings.value.Handle == handle)
+	{
+		pooled = strings.value.Data
+	}
+	else
+	{
+		pooled = GetPooledString(strings.next, handle)
+	}
+}
+
+GetPooledString : nothing, integer handle -> "" [nogc]
+{
+	print("String handle not pooled: " ; cast(string, handle))
+	assert(false)
+}
+

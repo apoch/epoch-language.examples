@@ -285,3 +285,63 @@ type ContextNode<type T> : T | nothing
 structure ContextWrapper<type T> :
 	ContextNode<T> ref Wrapped
 
+
+
+
+
+
+
+IREnterFunction : integer namehandle
+{
+	OnCodeGenRegisterScope(namehandle, 0)
+}
+
+IRExitFunction :
+{
+	OnCodeGenExitContext()
+}
+
+
+IREnterStatement : string funcname, boolean istoplevel, boolean hastemplateargs
+{
+	integer namehandle = PoolString(funcname)
+	OnCodeGenEnterStatement(namehandle, 0, istoplevel, hastemplateargs)
+}
+
+IRExitStatement :
+{
+	OnCodeGenExitContext()
+}
+
+
+IRAddOperator : string operatorname
+{
+	OnCodeGenRegisterOperatorInvoke(PoolString(operatorname))
+}
+
+IRAddLiteralString : string literal
+{
+	OnCodeGenRegisterLiteralString(PoolString(literal))
+}
+
+IRAddLiteralBoolean : boolean literal
+{
+	OnCodeGenRegisterLiteralBoolean(literal)
+}
+
+IRAddLiteralReal : real literal
+{
+	OnCodeGenRegisterLiteralReal(literal)
+}
+
+IRAddLiteralInteger : integer literal
+{
+	OnCodeGenRegisterLiteralInteger(literal, 0x01000001)		// We can demote the integer later
+}
+
+IRAddLiteralIdentifier : string token
+{
+	OnCodeGenRegisterAtomIdentifier(PoolString(token), 0)
+}
+
+

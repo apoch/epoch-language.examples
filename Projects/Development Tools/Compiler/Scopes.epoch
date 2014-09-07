@@ -210,3 +210,38 @@ GetVariableTypeFromScope : list<Variable> ref vars, integer varname -> integer v
 
 GetVariableTypeFromScope : nothing, integer varname -> 0 [nogc]
 
+
+
+
+ConstructVariableFromStatement : Statement ref statement, Scope ref scope, integer vartype, integer origin
+{
+	integer varname = ExtractConstructorIdentifier(statement.Parameters)
+
+	if(varname != 0)
+	{
+		// TODO - do real shadowing checks here
+		Variable var = 0, 0, 0, 0
+		FindVariableDataInSingleScope(scope, varname, var)
+		if(var.Name != 0)
+		{
+			return()
+		}
+
+		StoreVariableInSingleScope(scope, varname, vartype, false, origin)
+	}
+}
+
+
+
+CacheGlobalCodeBlock : list<Scope> ref scopes [nogc]
+{
+	if(scopes.value.Name == GlobalCodeBlockName)
+	{
+		GlobalScope.Wrapped = scopes.value
+	}
+	else
+	{
+		CacheGlobalCodeBlock(scopes.next)
+	}
+}
+

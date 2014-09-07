@@ -168,3 +168,11 @@ ComputeCompoundAssignmentLHSTypeMembers : simplelist<integer> ref lhsmembers, in
 ComputeCompoundAssignmentLHSTypeMembers : nothing, integer structurename -> integer typeid = GetTypeByName(structurename)
 
 
+
+
+
+GetAssignmentRHSType : Expression ref expr -> integer rettype = expr.Type
+GetAssignmentRHSType : Assignment ref assignment -> integer rettype = GetAssignmentRHSType(assignment.RHS)
+GetAssignmentRHSType : AssignmentCompound ref assignment -> integer rettype = GetAssignmentRHSType(assignment.RHS)
+
+

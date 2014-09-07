@@ -211,3 +211,27 @@ ResolveSingleBase : SumTypeBase ref base, nothing -> integer ret = GetTypeByName
 ResolveSingleBase : SumTypeBase ref base, TemplateArgumentList ref args -> integer ret = GetTypeByName(InstantiateStructureTemplate(base.Name, args))
 
 
+
+
+PrependSumTypeBases : simplelist<integer> ref input, list<SumTypeBase> ref newentries [nogc]
+{
+	simpleprepend<integer>(input, newentries.value.Name)
+	PrependSumTypeBases(input, newentries.next)
+}
+
+PrependSumTypeBases : simplelist<integer> ref input, nothing [nogc]
+
+
+FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid, simplelist<integer> ref types [nogc]
+{
+	if(sumtypes.value.Type == sumtypeid)
+	{
+		PrependSumTypeBases(types, sumtypes.value.Bases)
+	}
+	else
+	{
+		FindSumTypeAndPrependTypesToList(sumtypes.next, sumtypeid, types)
+	}
+}
+
+

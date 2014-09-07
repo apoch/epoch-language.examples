@@ -1705,3 +1705,49 @@ CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
 	}
 }
 
+
+EmitPatternMatchingForFunction : FunctionDefinition ref function
+{
+	OnBytecodeEmitByte(0x12)			// PatternMatch instruction
+	OnBytecodeEmitInteger(function.Name)
+	OnBytecodeEmitInteger(0)
+	OnBytecodeEmitInteger(CountUnresolvedParameters(function.Params))
+	EmitPatternMatchingForParameters(function.Params)
+}
+
+EmitPatternMatchingForParameters : FunctionParams ref params
+{
+	EmitPatternMatchingForParameters(params.Params)
+}
+
+EmitPatternMatchingForParameters : list<UnresolvedParameter> ref params
+{
+	integer parampatterntype = GetOptionalExpressionType(params.value.PatternMatchValue)
+	OnBytecodeEmitInteger(MakeNonReferenceType(parampatterntype))
+
+	if(parampatterntype != 0)
+	{
+		OnBytecodeEmitBoolean(true)
+		EmitPatternMatchLiteral(params.value.PatternMatchValue)
+	}
+	else
+	{
+		OnBytecodeEmitBoolean(false)
+	}
+
+	EmitPatternMatchingForParameters(params.next)
+}
+
+EmitPatternMatchingForParameters : nothing
+
+
+EmitPatternMatchLiteral : Expression ref expr
+{
+	EmitPatternMatchLiteralAtom(expr.Atoms.value)
+}
+
+EmitPatternMatchLiteralAtom : integer value
+{
+	OnBytecodeEmitInteger(value)
+}
+

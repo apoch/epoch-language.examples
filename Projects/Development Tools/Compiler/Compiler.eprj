@@ -22,6 +22,12 @@ Functions.epoch
 Expressions.epoch
 Assignments.epoch
 CodeBlocks.epoch
+TypeMatching.epoch
+Entities.epoch
+Templates.epoch
+StringTable.epoch
+PatternMatching.epoch
+Dump.epoch
 
 [resources]
 
