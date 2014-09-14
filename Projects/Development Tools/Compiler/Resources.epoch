@@ -1075,6 +1075,42 @@ LoadResourceAccelerators : string ref scriptcontents, ResourceHandler ref res
 			{
 				actualkeycode = 0x72
 			}
+			elseif(keycode == "F4")
+			{
+				actualkeycode = 0x73
+			}
+			elseif(keycode == "F5")
+			{
+				actualkeycode = 0x74
+			}
+			elseif(keycode == "F6")
+			{
+				actualkeycode = 0x75
+			}
+			elseif(keycode == "F7")
+			{
+				actualkeycode = 0x76
+			}
+			elseif(keycode == "F8")
+			{
+				actualkeycode = 0x77
+			}
+			elseif(keycode == "F9")
+			{
+				actualkeycode = 0x78
+			}
+			elseif(keycode == "F10")
+			{
+				actualkeycode = 0x79
+			}
+			elseif(keycode == "F11")
+			{
+				actualkeycode = 0x7a
+			}
+			elseif(keycode == "F12")
+			{
+				actualkeycode = 0x7b
+			}
 			elseif(keycode == "TAB")
 			{
 				actualkeycode = 0x09

@@ -523,7 +523,10 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
-		assert(false)
+		print(GetPooledString(GlobalStrings, statement.Operand.value))
+		
+		success = false
+		return()
 	}
 
 	integer operandtype = MakeNonReferenceType(var.VarType)
@@ -547,7 +550,10 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
-		assert(false)
+		print(GetPooledString(GlobalStrings, statement.Operand.value))
+		
+		success = false
+		return()
 	}
 
 	integer operandtype = MakeNonReferenceType(var.VarType)

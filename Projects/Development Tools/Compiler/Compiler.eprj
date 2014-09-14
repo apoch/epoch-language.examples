@@ -6,8 +6,6 @@ DataStructures.epoch
 Exe.epoch
 Globals.epoch
 IR.epoch
-Lexer.epoch
-Parser.epoch
 ..\Common\Project.epoch
 Resources.epoch
 ..\Common\Strings.epoch
@@ -25,9 +23,11 @@ CodeBlocks.epoch
 TypeMatching.epoch
 Entities.epoch
 Templates.epoch
-StringTable.epoch
+..\Common\StringTable.epoch
 PatternMatching.epoch
 Dump.epoch
+..\Common\Lexer.epoch
+..\Common\Parser.epoch
 
 [resources]
 

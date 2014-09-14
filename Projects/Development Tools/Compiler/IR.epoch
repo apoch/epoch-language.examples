@@ -2,10 +2,6 @@
 // Data structures for holding the internal representation of a compiled program
 //
 
-structure StringTableEntry :
-	integer Handle,
-	string Data
-
 structure TypeAlias :
 	integer TypeID,
 	integer AliasNameHandle,
@@ -342,6 +338,13 @@ IRAddLiteralInteger : integer literal
 IRAddLiteralIdentifier : string token
 {
 	OnCodeGenRegisterAtomIdentifier(PoolString(token), 0)
+}
+
+
+IRRegisterUnresolvedParameter : string name, integer typeid
+{
+	UnresolvedParameter p = PoolString(name), 0, typeid, false, nothing, nothing
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 
 

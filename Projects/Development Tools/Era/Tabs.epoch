@@ -160,7 +160,7 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	if(index == ActiveTabIndex)
 	{
 		FillRect(hdc, tab, BrushActiveTab)
-		DrawEdge(hdc, tab, BDR_RAISED, BF_RECT)
+		DrawEdge(hdc, tab, BDR_RAISED, BF_RECT + BF_FLAT)
 	}
 	elseif(index == HighlightTabIndex)
 	{

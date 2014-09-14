@@ -245,3 +245,10 @@ CacheGlobalCodeBlock : list<Scope> ref scopes [nogc]
 	}
 }
 
+
+
+AttachCurrentScopeToCurrentFunction : [nogc]
+{
+	Functions.value.AttachedScope.Wrapped = Scopes.value
+}
+

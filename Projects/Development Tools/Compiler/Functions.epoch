@@ -535,3 +535,38 @@ FunctionSignatureHasLiterals : list<UnresolvedParameter> ref params -> boolean h
 }
 
 FunctionSignatureHasLiterals : nothing -> false [nogc]
+
+
+
+
+RegisterLiteralFunctionParam : integer literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000001		// integer type signature
+
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
+
+RegisterLiteralFunctionParam : real literalvalue
+{
+	ExpressionAtom atom = literalvalue
+	list<ExpressionAtom> atoms = atom, nothing
+	Expression expr = atoms, 0x01000004		// real type signature
+
+	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
+	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+}
+
+DisableAnonymousReturnOnCurrentFunction :
+{
+	Functions.value.AnonymousReturn = false
+}
+
+FlagFunctionAsExternal : integer functionnname
+{
+	FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
+}
+
+

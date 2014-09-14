@@ -119,6 +119,10 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		{
 			CycleTabs()
 		}
+		elseif(wparam == 901)
+		{
+			AppendHistoryLine("TODO")
+		}
 		elseif(wparam == 1001)
 		{
 			CreateEditorTab(hwnd, "")

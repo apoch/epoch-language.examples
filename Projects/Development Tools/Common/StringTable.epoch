@@ -1,4 +1,9 @@
 
+structure StringTableEntry :
+	integer Handle,
+	string Data
+
+
 PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s) [nogc]
 {
 	if(handle == 0)

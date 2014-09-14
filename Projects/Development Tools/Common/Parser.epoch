@@ -447,7 +447,7 @@ ParseFunction : -> boolean matched = false
 	{
 		matched = true
 		IREnterFunction(namehandle)
-		Functions.value.AttachedScope.Wrapped = Scopes.value
+		AttachCurrentScopeToCurrentFunction()
 		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
@@ -455,7 +455,7 @@ ParseFunction : -> boolean matched = false
 
 	PopTokens(1)
 	IREnterFunction(namehandle)
-	Functions.value.AttachedScope.Wrapped = Scopes.value
+	AttachCurrentScopeToCurrentFunction()
 	OnCodeGenEnterFunctionBody(namehandle)
 
 	ParseCodeBlock()
@@ -567,8 +567,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 					return()
 				}
 
-				UnresolvedParameter p = PoolString(higherordername), 0, sigtype, false, nothing, nothing
-				AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
+				IRRegisterUnresolvedParameter(higherordername, sigtype)
 
 				PopToken()
 			}
@@ -576,8 +575,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 		elseif(HandleLiteralFunctionParam(typetoken))
 		{
 			PopToken()
-			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, mangledname)
-			EnsurePatternMatcherExists(PendingPatternMatchers, rawname, rawname)			// kind of a dumb hack
+			IRSetupPatternMatching(rawname, mangledname)
 		}
 		else
 		{
@@ -701,7 +699,7 @@ ParseSingleFunctionTag : integer functionname, integer rawfuncname
 
 	if(tagname == "external")
 	{
-		FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
+		FlagFunctionAsExternal(functionname)
 	}
 
 	if(PeekToken(0) == ",")
@@ -886,7 +884,7 @@ ParseInitialization : boolean inreturn -> boolean matched = false
 	if(inreturn)
 	{
 		IRExitStatement()
-		Functions.value.AnonymousReturn = false
+		DisableAnonymousReturnOnCurrentFunction()
 	}
 }
 
@@ -1434,26 +1432,5 @@ HandleLiteralFunctionParam : string token -> boolean isliteral = false
 
 		// TODO - support pattern match literals of other types
 	}
-}
-
-
-RegisterLiteralFunctionParam : integer literalvalue
-{
-	ExpressionAtom atom = literalvalue
-	list<ExpressionAtom> atoms = atom, nothing
-	Expression expr = atoms, 0x01000001		// integer type signature
-
-	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
-	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
-}
-
-RegisterLiteralFunctionParam : real literalvalue
-{
-	ExpressionAtom atom = literalvalue
-	list<ExpressionAtom> atoms = atom, nothing
-	Expression expr = atoms, 0x01000004		// real type signature
-
-	UnresolvedParameter p = 0, GetNameOfType(expr.Type), expr.Type, false, expr, nothing
-	AppendUnresolvedParameterToFunction(Functions.value, Functions.value.Params, p)
 }
 

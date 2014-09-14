@@ -9,6 +9,10 @@ Scintilla.epoch
 Tabs.epoch
 ..\Common\Strings.epoch
 ..\Common\Project.epoch
+..\Common\Lexer.epoch
+..\Common\Parser.epoch
+..\Common\StringTable.epoch
+ParserHooks.epoch
 
 [resources]
 Era.erc

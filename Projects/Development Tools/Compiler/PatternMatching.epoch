@@ -121,3 +121,11 @@ PatternMatcherExists : list<PendingPatternMatcher> ref matchers, integer matcher
 		exists = PatternMatcherExists(matchers.next, matchername)
 	}
 }
+
+
+IRSetupPatternMatching : integer rawname, integer mangledname
+{
+	EnsurePatternMatcherExists(PendingPatternMatchers, rawname, mangledname)
+	EnsurePatternMatcherExists(PendingPatternMatchers, rawname, rawname)			// kind of a dumb hack
+}
+
