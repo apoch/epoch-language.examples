@@ -373,7 +373,7 @@ prepend<type T> : list<T> ref thelist, T ref value
 }
 
 
-simpleprepend<type T> : simplelist<T> ref thelist, T ref value
+simpleprepend<type T> : simplelist<T> ref thelist, T value
 {
 	simplelist<T> newlist = value, thelist
 	thelist = newlist
@@ -396,6 +396,20 @@ simple_append<type T> : simplelist<T> ref thelist, T value
 {
 	simple_append_recurse<T>(thelist, thelist.next, value)
 }
+
+
+quick_append : simplelist<string> ref tailnode, string token [nogc]
+{
+	simplelist<string> newlist = token, nothing
+	tailnode.next = newlist
+	TokenStreamTail.tail = newlist
+}
+
+quick_append : nothing, string token [nogc]
+{
+	assert(false)
+}
+
 
 
 //
@@ -631,6 +645,11 @@ global
 	list<TemplateArgument> scratchtemplateargs = scratchtemplatearg, nothing
 	TemplateArgumentList scratchtemplatearglist = scratchtemplateargs
 	list<TemplateArgumentList> ScratchTemplateArgumentStack = scratchtemplatearglist, nothing
+	
+	integer GlobalStructureCounter = 0
+	integer GlobalSumTypeCounter = 0
+	integer GlobalAliasCounter = 0
+	integer GlobalWeakAliasCounter = 0
 
 }
 

@@ -113,7 +113,6 @@ ParseGlobalBlock : -> boolean matched = false
 	integer blockname = PoolString("@@globalblock")
 	OnCodeGenRegisterScope(blockname, 0)
 	OnCodeGenRegisterGlobalBlock(blockname)
-	CacheGlobalCodeBlock(Scopes)
 
 	while(PeekToken(0) != "}")
 	{
@@ -218,12 +217,12 @@ ParseSumType : -> boolean matched = false
 	ParseSumTypeBases(typename, typeid)
 
 	string finalbasename = PeekToken(0)
-	FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
+	FindSumTypeAndAddBase(typename, typeid, PoolString(finalbasename), false)		// TODO - allow template args on trailing type
 	PopToken()
 
 	if(templated)
 	{
-		SetUpSumTypeTemplate(SumTypes, typeid)
+		SetUpSumTypeTemplate(typeid)
 	}
 
 	matched = true
@@ -243,11 +242,11 @@ ParseSumTypeBases : integer typename, integer typeid
 			integer baselookahead = ParseTemplateArgs(2)
 			PopTokens(baselookahead + 2)
 
-			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), true)
+			FindSumTypeAndAddBase(typename, typeid, PoolString(basename), true)
 		}
 		else
 		{
-			FindSumTypeAndAddBase(SumTypes, typename, typeid, PoolString(basename), false)
+			FindSumTypeAndAddBase(typename, typeid, PoolString(basename), false)
 			PopTokens(2)
 		}
 

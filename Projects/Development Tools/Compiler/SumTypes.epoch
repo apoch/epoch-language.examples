@@ -1,3 +1,10 @@
+
+FindSumTypeAndAddBase : integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated [nogc]
+{
+	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid, templated)
+}
+
+
 FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated [nogc]
 {
 	if(sumtypes.value.Type == sumtypeid)
@@ -39,6 +46,12 @@ FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer
 	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, sumtypename, st)
 }
 
+
+
+SetUpSumTypeTemplate : integer sumtypeid
+{
+	SetUpSumTypeTemplate(SumTypes, sumtypeid)
+}
 
 SetUpSumTypeTemplate : list<SumType> ref sumtypes, integer sumtypeid
 {

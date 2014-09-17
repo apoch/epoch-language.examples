@@ -36,6 +36,15 @@ OnCodeGenAddPostOpCompoundOperand : integer operand
 OnCodeGenCompletePostOpStatement : boolean substatement
 
 OnCodeGenEnterEntity : integer ignored, integer ignored2
+OnCodeGenEnterEntityCode : {}
+
+OnCodeGenEnterChain : {}
+
+OnCodeGenRegisterParenthetical : {}
+
+OnCodeGenEnterSubStatement : {}
+
+OnCodeGenShiftParameter : {}
 
 OnCodeGenEnterAssignment : integer ignored1, integer ignored2, integer ignored3, integer ignored4
 OnCodeGenEnterAssignmentCompound : integer ignored1, integer ignored2, integer ignored3, integer ignored4
@@ -68,11 +77,13 @@ IRAddLiteralString : string lit
 IRAddLiteralIdentifier : string lit
 
 IREnterStatement : string n, boolean s, boolean t
+IRExitStatement : {}
 
 IRRegisterFunctionParam : integer name, integer typeid, boolean isref, boolean istemplated
 IRRegisterUnresolvedParameter : string name, integer typeid
 
 IREnterFunction : integer name
+IRExitFunction : {}
 
 IRSetupPatternMatching : integer raw, integer mangled
 
@@ -131,4 +142,20 @@ PopTemplateArgList : list<TemplateArgument> ref thelist, list<TemplateArgument> 
 
 FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, integer returntypename -> 0
 
+
+FindSumTypeAndAddBase : integer name, integer typeid, integer basename, boolean templated
+
+
+
+OnCodeGenRegisterAlias : integer typeid, integer aliasname, integer basename
+OnCodeGenRegisterWeakAlias : integer typeid, integer aliasname, integer basename
+
+SetUpSumTypeTemplate : integer typeid
+
+
+OnCodeGenRegisterScope : integer blockname, integer ignored
+OnCodeGenRegisterGlobalBlock : integer blockname
+
+
+DisableAnonymousReturnOnCurrentFunction : {}
 

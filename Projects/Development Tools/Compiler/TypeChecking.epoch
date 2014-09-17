@@ -1872,6 +1872,7 @@ MakeParametersReferencesForStructureMembers : list<StructureMember> ref members,
 		if(!MarkAtomAsReference(params.value.Atoms.value))
 		{
 			print("WARNING: failed to bind reference")
+			DumpAtom(params.value.Atoms.value)
 		}
 	}
 
@@ -1926,6 +1927,7 @@ WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref para
 		if(!MarkAtomAsReference(paramexprs.value.Atoms.value))
 		{
 			print("WARNING: failed to bind reference")
+			DumpAtom(paramexprs.value.Atoms.value)
 		}
 	}
 

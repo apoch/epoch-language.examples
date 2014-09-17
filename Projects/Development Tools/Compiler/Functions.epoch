@@ -564,7 +564,7 @@ DisableAnonymousReturnOnCurrentFunction :
 	Functions.value.AnonymousReturn = false
 }
 
-FlagFunctionAsExternal : integer functionnname
+FlagFunctionAsExternal : integer functionname
 {
 	FindFunctionAndSetInvokeTag(Functions, functionname, PoolString("@@external"))
 }

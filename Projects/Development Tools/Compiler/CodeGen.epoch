@@ -119,6 +119,9 @@ OnCodeGenRegisterGlobalBlock : integer name
 	CurrentCodeBlockStack = newstack
 
 	GlobalCodeBlockName = name
+	
+	
+	CacheGlobalCodeBlock(Scopes)
 }
 
 
@@ -673,6 +676,12 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 		}
 		else
 		{
+			if(!IsRecognizedBuiltIn(s.Name))
+			{
+				print("ILLEGAL EXTERNAL FUNCTION: " ; GetPooledString(GlobalStrings, s.Name))
+				assert(false)
+			}
+			
 			OnBytecodeInvoke(s.Name)
 		}
 	}
