@@ -72,14 +72,14 @@ simple_append<type T> : simplelist<T> ref thelist, T value [nogc]
 
 
 
-quick_append : simplelist<string> ref tailnode, string token [nogc]
+quick_append : list<ParsedToken> ref tailnode, ParsedToken ref token [nogc]
 {
-	simplelist<string> newlist = token, nothing
+	list<ParsedToken> newlist = token, nothing
 	tailnode.next = newlist
 	TokenStreamTail.tail = newlist
 }
 
-quick_append : nothing, string token [nogc]
+quick_append : nothing, ParsedToken ref token [nogc]
 {
 	assertmsg(false, "quick_append failure")
 }
@@ -465,5 +465,5 @@ SwapNodePayload<type T> : BinaryTree<T> ref a, BinaryTree<T> ref b
 
 
 structure tailhack :
-	simplelistnode<string> tail
+	listnode<ParsedToken> tail
 

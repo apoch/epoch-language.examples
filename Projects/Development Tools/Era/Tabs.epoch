@@ -206,6 +206,18 @@ GetActiveEditorHwnd : -> integer hwnd = 0
 GetActiveEditorChildCode : -> WNDID_TAB_START + ActiveTabIndex
 
 
+
+GetActiveEditorFileName : -> string filename = ""
+{
+	if(CountTabs(CurrentTabs) > 0)
+	{
+		OpenTab tab = 0, 0, "", ""
+		FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
+		filename = tab.FileName
+	}
+}
+
+
 FindTabAtIndex : list<OpenTab> ref tabs, integer offset, OpenTab ref out
 {
 	if(offset == 0)

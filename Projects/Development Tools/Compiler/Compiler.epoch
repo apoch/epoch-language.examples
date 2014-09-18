@@ -20,6 +20,13 @@ timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")
 ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll", "ExecuteByteCodeDeferred", "stdcall")]
 
 
+PrinterReplacement : string line
+{
+	print(line)
+}
+
+
+
 entrypoint :
 {
 	print("Epoch Language Project")
@@ -92,7 +99,7 @@ ParseFile : string filename -> boolean success = false
 		return()
 	}
 	
-	success = Parse(contents, len)
+	success = Parse(filename, contents, len)
 }
 
 
@@ -160,7 +167,7 @@ CompileFile : string filename -> boolean success = false
 	}
 
 	integer startparsems = timeGetTime()
-	boolean parseok = Parse(contents, len)
+	boolean parseok = Parse(filename, contents, len)
 	integer durationparsems = timeGetTime() - startparsems
 
 	print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
@@ -303,4 +310,13 @@ FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing
 {
 	AppendCompoundMemberHelper(entries.value, membername)
 }
+
+
+
+
+SourceLookupTableAddStrongAlias : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddStructure : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddSumType : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddWeakAlias : integer structureid, string structurename, ParsedToken ref token
+
 

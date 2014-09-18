@@ -33,8 +33,14 @@ structure simplelist<type T> :
 	
 	
 structure tailhack :
-	simplelistnode<string> tail
+	listnode<ParsedToken> tail
 
+
+structure ParsedToken :
+	string Token,
+	string FileName,
+	integer Row,
+	integer Column
 
 
 
@@ -398,14 +404,14 @@ simple_append<type T> : simplelist<T> ref thelist, T value
 }
 
 
-quick_append : simplelist<string> ref tailnode, string token [nogc]
+quick_append : list<ParsedToken> ref tailnode, ParsedToken ref token [nogc]
 {
-	simplelist<string> newlist = token, nothing
+	list<ParsedToken> newlist = token, nothing
 	tailnode.next = newlist
 	TokenStreamTail.tail = newlist
 }
 
-quick_append : nothing, string token [nogc]
+quick_append : nothing, ParsedToken ref token [nogc]
 {
 	assert(false)
 }
@@ -629,7 +635,8 @@ global
 	//
 	// Storage used for lexing/parsing
 	//
-	simplelist<string> TokenStream = "", nothing
+	ParsedToken DummyParsedToken = "", "", 0, 0
+	list<ParsedToken> TokenStream = DummyParsedToken, nothing
 	tailhack TokenStreamTail = TokenStream
 
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing

@@ -7,6 +7,12 @@
 //
 
 
+PrinterReplacement : string line
+{
+	AppendHistoryLine(line)
+}
+
+
 //
 // Window procedure for the main UI window
 //
@@ -121,7 +127,12 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 901)
 		{
-			AppendHistoryLine("TODO")
+			integer scintillahwnd = GetActiveEditorHwnd()
+			integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
+			buffer output = doclength
+			SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
+			
+			Parse(GetActiveEditorFileName(), widenfrombuffer(output, doclength), doclength)
 		}
 		elseif(wparam == 1001)
 		{

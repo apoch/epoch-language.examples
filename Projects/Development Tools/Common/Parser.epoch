@@ -3,9 +3,9 @@
 //
 
 
-Parse : string code, integer len -> boolean success = false
+Parse : string filename, string code, integer len -> boolean success = false
 {
-	Lex(code, len)
+	Lex(filename, code, len)
 
 	// Discard the dummy token
 	PopToken()
@@ -30,7 +30,13 @@ Parse : string code, integer len -> boolean success = false
 		}
 		elseif(!ParseFunction())
 		{
-			print("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			PrinterReplacement("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			
+			ParsedToken t = PeekParsedToken(0)
+			PrinterReplacement("File: " ; t.FileName)
+			PrinterReplacement("Line: " ; cast(string, t.Row))
+			PrinterReplacement("Column: " ; cast(string, t.Column))
+			
 			return()
 		}
 
@@ -41,9 +47,10 @@ Parse : string code, integer len -> boolean success = false
 }
 
 
-PushToken : string token [nogc]
+PushToken : string token, string filename, integer row, integer column [nogc]
 {
-	quick_append(TokenStreamTail.tail, token)
+	ParsedToken pt = token, filename, row, column
+	quick_append(TokenStreamTail.tail, pt)
 }
 
 
@@ -61,20 +68,20 @@ PopTokens : integer count [nogc]
 	}
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, simplelist<string> ref tail [nogc]
+PopTokenFromStream : list<ParsedToken> ref tokens, list<ParsedToken> ref tail [nogc]
 {
 	tokens = tail
 }
 
-PopTokenFromStream : simplelist<string> ref tokens, nothing [nogc]
+PopTokenFromStream : list<ParsedToken> ref tokens, nothing [nogc]
 {
-	tokens.value = ""
+	tokens.value = DummyParsedToken
 }
 
 
 PeekToken : integer displacement -> string token = PeekTokenInStream(TokenStream, displacement) [nogc]
 
-PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> string token = tokens.value [nogc]
+PeekTokenInStream : list<ParsedToken> ref tokens, integer displacement -> string token = tokens.value.Token [nogc]
 {
 	if(displacement > 0)
 	{
@@ -83,6 +90,17 @@ PeekTokenInStream : simplelist<string> ref tokens, integer displacement -> strin
 }
 
 PeekTokenInStream : nothing, integer displacement -> "" [nogc]
+
+
+PeekParsedToken : integer displacement -> ParsedToken ret = PeekParsedTokenInStream(TokenStream, displacement) [nogc]
+PeekParsedTokenInStream : list<ParsedToken> ref tokens, integer displacement -> ParsedToken token = tokens.value [nogc]
+{
+	if(displacement > 0)
+	{
+		token = PeekParsedTokenInStream(tokens.next, displacement - 1)
+	}
+}
+PeekParsedTokenInStream : nothing, integer displacement -> DummyParsedToken [nogc]
 
 
 
@@ -143,10 +161,15 @@ ParseWeakAlias : -> boolean matched = false
 
 	PopToken()
 	string aliasname = PeekToken(0)
+	
+	ParsedToken aliastoken = PeekParsedToken(0)
+	
 	string basename = PeekToken(2)
 	PopTokens(3)
 
 	OnCodeGenRegisterWeakAlias((++GlobalWeakAliasCounter), PoolString(aliasname), PoolString(basename))
+	
+	SourceLookupTableAddWeakAlias(GlobalWeakAliasCounter, aliasname, aliastoken)
 
 	matched = true
 }
@@ -166,10 +189,15 @@ ParseStrongAlias : -> boolean matched = false
 
 	PopToken()
 	string aliasname = PeekToken(0)
+	
+	ParsedToken aliastoken = PeekParsedToken(0)
+	
 	string basename = PeekToken(2)
 	PopTokens(3)
 
 	OnCodeGenRegisterAlias((++GlobalAliasCounter), PoolString(aliasname), PoolString(basename))
+	
+	SourceLookupTableAddStrongAlias(GlobalAliasCounter, aliasname, aliastoken)
 
 	matched = true
 }
@@ -185,6 +213,7 @@ ParseSumType : -> boolean matched = false
 	}
 
 	string sumtypename = PeekToken(1)
+	ParsedToken sumtypetoken = PeekParsedToken(1)
 
 	if(PeekToken(2) == "<")
 	{
@@ -213,6 +242,8 @@ ParseSumType : -> boolean matched = false
 	integer typename = PoolString(sumtypename)
 	integer typeid = (++GlobalSumTypeCounter)
 	PopTokens(2)
+	
+	SourceLookupTableAddSumType(GlobalSumTypeCounter, sumtypename, sumtypetoken)
 
 	ParseSumTypeBases(typename, typeid)
 
@@ -265,6 +296,7 @@ ParseStructure : -> boolean matched = false
 	}
 
 	string structurename = PeekToken(1)
+	ParsedToken structuretoken = PeekParsedToken(1)
 
 	if(PeekToken(2) == "<")
 	{
@@ -294,6 +326,8 @@ ParseStructure : -> boolean matched = false
 
 	integer structuretype = (++GlobalStructureCounter)
 	integer structurenamehandle = PoolString(structurename)
+	
+	SourceLookupTableAddStructure(GlobalStructureCounter, structurename, structuretoken)
 
 	boolean moremembers = true
 	while(moremembers)

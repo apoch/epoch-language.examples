@@ -122,7 +122,8 @@ global
 	PendingPatternMatcher dummypatternpending = 0, 0, 0
 	list<PendingPatternMatcher> PendingPatternMatchers = dummypatternpending, nothing
 
-	simplelist<string> TokenStream = "", nothing
+	ParsedToken DummyParsedToken = "", "", 0, 0
+	list<ParsedToken> TokenStream = DummyParsedToken, nothing
 	tailhack TokenStreamTail = TokenStream
 
 	simplelist<integer> EmittedPatternMatchers = 0, nothing

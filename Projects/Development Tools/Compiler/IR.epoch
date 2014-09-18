@@ -2,6 +2,12 @@
 // Data structures for holding the internal representation of a compiled program
 //
 
+structure ParsedToken :
+	string Token,
+	string FileName,
+	integer Row,
+	integer Column
+
 structure TypeAlias :
 	integer TypeID,
 	integer AliasNameHandle,

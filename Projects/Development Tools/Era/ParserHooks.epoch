@@ -159,3 +159,28 @@ OnCodeGenRegisterGlobalBlock : integer blockname
 
 DisableAnonymousReturnOnCurrentFunction : {}
 
+
+
+
+SourceLookupTableAddStrongAlias : integer structureid, string structurename, ParsedToken ref token
+{
+	// TODO
+}
+
+SourceLookupTableAddStructure : integer structureid, string structurename, ParsedToken ref token
+{
+	string foo = "Structure " ; structurename ; " defined in " ; token.FileName ; " on line " ; cast(string, token.Row)
+	AppendHistoryLine(foo)
+}
+
+SourceLookupTableAddSumType : integer structureid, string structurename, ParsedToken ref token
+{
+	// TODO
+}
+
+SourceLookupTableAddWeakAlias : integer structureid, string structurename, ParsedToken ref token
+{
+	// TODO
+}
+
+
