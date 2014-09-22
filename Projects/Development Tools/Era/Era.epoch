@@ -1106,4 +1106,12 @@ AppendHistoryLine : string text
 	SendMessage(HistoryHWND, EM_LINESCROLL, 0, 1)
 }
 
+ClearHistory :
+{
+	SetWindowText(HistoryHWND, "")
+}
+
+
+
+
 

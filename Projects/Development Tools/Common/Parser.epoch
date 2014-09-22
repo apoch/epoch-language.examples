@@ -445,6 +445,8 @@ ParseStructure : -> boolean matched = false
 ParseFunction : -> boolean matched = false
 {
 	string functionname = PeekToken(0)
+	ParsedToken functiontoken = PeekParsedToken(0)
+	
 	boolean templated = false
 
 	if(PeekToken(1) == "<")
@@ -469,6 +471,9 @@ ParseFunction : -> boolean matched = false
 	integer namehandle = RegisterOverloadForFunction(functionname, rawnamehandle)
 
 	OnCodeGenRegisterFunction(namehandle, rawnamehandle, functionname, templated)
+	
+	SourceLookupTableAddFunction(namehandle, functionname, functiontoken)
+	
 	if(PeekToken(0) != "[")
 	{
 		ParseFunctionParams(rawnamehandle, namehandle)

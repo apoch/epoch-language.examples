@@ -133,6 +133,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
 			
 			AppendHistoryLine("*** BEGIN PARSE OF " ; GetActiveEditorFileName())
+			SourceLookupTableInit()
 			Parse(GetActiveEditorFileName(), widenfrombuffer(output, doclength), doclength)
 			AppendHistoryLine("*** END PARSE")
 		}
@@ -222,6 +223,7 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 4004)
 		{
+			ClearHistory()
 			BuildProject(CurrentProject)
 		}
 	}

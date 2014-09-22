@@ -162,25 +162,47 @@ DisableAnonymousReturnOnCurrentFunction : {}
 
 
 
-SourceLookupTableAddStrongAlias : integer structureid, string structurename, ParsedToken ref token
+
+
+UDTListReset : [external("EpochLexer.dll", "UDTListReset", "stdcall")]
+UDTListAppend : buffer ref rawtoken [external("EpochLexer.dll", "UDTListAppend", "stdcall")]
+UDFListAppend : buffer ref tawtoken [external("EpochLexer.dll", "UDFListAppend", "stdcall")]
+
+
+SourceLookupTableInit :
 {
-	// TODO
+	UDTListReset()
+}
+
+
+SourceLookupTableAddStrongAlias : integer aliasid, string aliasname, ParsedToken ref token
+{
+	buffer namebuf = narrowstring(aliasname)
+	UDTListAppend(namebuf)
 }
 
 SourceLookupTableAddStructure : integer structureid, string structurename, ParsedToken ref token
 {
-	string foo = "Structure " ; structurename ; " defined in " ; token.FileName ; " on line " ; cast(string, token.Row)
-	AppendHistoryLine(foo)
+	buffer snbuf = narrowstring(structurename)
+	UDTListAppend(snbuf)
 }
 
-SourceLookupTableAddSumType : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddSumType : integer sumtypeid, string sumtypename, ParsedToken ref token
 {
-	// TODO
+	buffer namebuf = narrowstring(sumtypename)
+	UDTListAppend(namebuf)
 }
 
-SourceLookupTableAddWeakAlias : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddWeakAlias : integer aliasid, string aliasname, ParsedToken ref token
 {
-	// TODO
+	buffer namebuf = narrowstring(aliasname)
+	UDTListAppend(namebuf)
 }
 
+
+SourceLookupTableAddFunction : integer functionid, string functionname, ParsedToken ref token
+{
+	buffer namebuf = narrowstring(functionname)
+	UDFListAppend(namebuf)
+}
 
