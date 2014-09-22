@@ -221,6 +221,23 @@ structure TreeViewItem :
 	integer expandedimage,
 	integer reserved
 
+structure TreeViewItemBuffer :
+	integer mask,
+	integer handle,
+	integer state,
+	integer statemask,
+	buffer text,
+	integer textmax,
+	integer image,
+	integer selectedimage,
+	integer children,
+	integer lparam,
+	integer integral,
+	integer stateex,
+	integer hwnd,
+	integer expandedimage,
+	integer reserved
+
 structure TreeViewInsert :
 	integer parent,
 	integer insertafter,
@@ -275,6 +292,7 @@ SendMessage : integer hwnd, integer message, integer wparam, buffer ref lparam -
 SendMessage : integer hwnd, integer message, buffer wparam, buffer lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewInsert ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 SendMessage : integer hwnd, integer message, integer wparam, TreeViewItem ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
+SendMessage : integer hwnd, integer message, integer wparam, TreeViewItemBuffer ref lparam -> integer ret = 0 [external("User32.dll", "SendMessageW", "stdcall")]
 
 
 WaitMessage : -> boolean success = false [external("User32.dll", "WaitMessage", "stdcall")]

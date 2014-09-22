@@ -10,7 +10,9 @@
 
 ExtractLine : string ref contents -> string line = ""
 {
-	if(length(contents) == 0)
+	integer len = length(contents)
+	
+	if(len == 0)
 	{
 		return()
 	}
@@ -19,6 +21,13 @@ ExtractLine : string ref contents -> string line = ""
 	while(charat(contents, pos) != unescape("\r"))
 	{
 		++pos
+		
+		if(pos == len)
+		{
+			line = substring(contents, 0, len)
+			contents = ""
+			return()
+		}
 	}
 
 	line = substring(contents, 0, pos)

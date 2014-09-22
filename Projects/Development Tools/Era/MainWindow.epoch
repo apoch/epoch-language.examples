@@ -132,7 +132,9 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			buffer output = doclength
 			SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
 			
+			AppendHistoryLine("*** BEGIN PARSE OF " ; GetActiveEditorFileName())
 			Parse(GetActiveEditorFileName(), widenfrombuffer(output, doclength), doclength)
+			AppendHistoryLine("*** END PARSE")
 		}
 		elseif(wparam == 1001)
 		{
@@ -285,16 +287,15 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 					integer TVM_GETITEM = 0x1100 + 62
 					
 					buffer holderbuffer = 256
-					string holderstr = cast(string, holderbuffer)
-					TreeViewItem item = TVIF_HANDLE + TVIF_TEXT, itemhandle, 0, 0, holderstr, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0
+					TreeViewItemBuffer item = TVIF_HANDLE + TVIF_TEXT, itemhandle, 0, 0, holderbuffer, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0
 					SendMessage(GetDlgItem(hwnd, WNDID_PROJECT_TREEVIEW), TVM_GETITEM, 0, item)
 
 					if(item.lparam == PROJECT_TV_NODETYPE_SOURCECODE)
 					{
-						integer tabindex = FindTabWithDocument(CurrentTabs, item.text)
+						integer tabindex = FindTabWithDocument(CurrentTabs, cast(string, item.text))
 						if(tabindex < 0)
 						{
-							CreateEditorTab(hwnd, item.text)
+							CreateEditorTab(hwnd, cast(string, item.text))
 						}
 						else
 						{
