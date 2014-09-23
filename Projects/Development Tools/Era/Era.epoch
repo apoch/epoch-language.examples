@@ -378,7 +378,7 @@ AllocConsole : -> boolean success = false [external("Kernel32.dll", "AllocConsol
 
 
 SetTextColor : integer hdc, integer color -> integer retcolor = 0 [external("Gdi32.dll", "SetTextColor", "stdcall")]
-
+SetBkColor : integer hdc, integer color -> integer retcolor = 0 [external("Gdi32.dll", "SetBkColor", "stdcall")]
 
 
 //
@@ -473,6 +473,8 @@ global
 	integer WM_COMMAND = 273
 	integer WM_KEYDOWN = 0x100
 	integer WM_CTLCOLORSTATIC = 0x138
+	integer WM_CTLCOLOREDIT = 0x133
+	integer WM_CTLCOLORBTN = 0x135
 
 	integer MB_ICONEXCLAMATION = 0x30
 
@@ -538,6 +540,7 @@ global
 	
 	integer BrushBackground = 0
 	integer BrushActiveTab = 0
+	integer BrushDarkBackground = 0
 
 
 	//
@@ -712,11 +715,14 @@ entrypoint :
 	integer ES_READONLY = 0x800
 	integer ES_MULTILINE = 0x004
 	integer ECM_SETCUEBANNER = 0x1501
+	integer TVM_SETBKCOLOR = 0x1100 + 29
+	integer TVM_SETTEXTCOLOR = 0x1100 + 30
 
 	integer hInstance = GetModuleHandle(0)
 	
-	BrushBackground = CreateSolidBrush(0xffaa9e)
+	BrushBackground = CreateSolidBrush(0x7f5a4e)
 	BrushActiveTab = CreateSolidBrush(0xffccc6)
+	BrushDarkBackground = CreateSolidBrush(0x202020)
 
 	WindowClass wc = sizeof(wc), 0, MainWindowProcedure, 0, 0, hInstance, LoadIcon(hInstance, IDI_ICON), LoadCursor(0, IDC_ARROW), BrushBackground, "", "ERAClass", 0
 	integer16 fail = 0
@@ -769,6 +775,8 @@ entrypoint :
 	AppendHistoryLine("Era IDE Started")
 	
 	integer ProjectHWND = CreateWindowEx(0, "SysTreeView32", "ProjectTree", 0x50801007, 0, 0, 100, 100, hwnd, WNDID_PROJECT_TREEVIEW, hInstance, 0)
+	SendMessage(ProjectHWND, TVM_SETBKCOLOR, 0, 0x202020)
+	SendMessage(ProjectHWND, TVM_SETTEXTCOLOR, 0, 0xb0b0b0)
 	
 	integer projectroot = TreeViewAddItem(ProjectHWND, 0, "Project", PROJECT_TV_NODETYPE_STRUCTURE)
 	integer coderoot = TreeViewAddItem(ProjectHWND, projectroot, "Source Code Files", PROJECT_TV_NODETYPE_STRUCTURE)
@@ -792,7 +800,7 @@ entrypoint :
 	}
 
 
-	WindowClass optswc = sizeof(optswc), 0, OptionsWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), BrushActiveTab, "", "EraOptionsClass", 0
+	WindowClass optswc = sizeof(optswc), 0, OptionsWindowProcedure, 0, 0, hInstance, 0, LoadCursor(0, IDC_ARROW), BrushBackground, "", "EraOptionsClass", 0
 	if(RegisterClassEx(optswc) == fail)
 	{
 		return()

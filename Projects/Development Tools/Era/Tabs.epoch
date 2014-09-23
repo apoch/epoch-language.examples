@@ -141,7 +141,14 @@ DrawTabList : nothing, Rect ref client, integer left, integer hdc, integer count
 
 DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, integer index -> integer right = 0
 {
-	SetTextColor(hdc, 0)
+	if((index != ActiveTabIndex) && (index != HighlightTabIndex))
+	{
+		SetTextColor(hdc, 0xe0e0e0)
+	}
+	else
+	{
+		SetTextColor(hdc, 0)
+	}
 
 	SelectObject(hdc, FontUIDefault)
 
@@ -187,7 +194,7 @@ DrawTab : OpenTab ref thetab, Rect ref client, integer left, integer hdc, intege
 	
 	if((index != ActiveTabIndex) && (index != HighlightTabIndex))
 	{
-		SetTextColor(hdc, 0x00b00000)
+		SetTextColor(hdc, 0xb0b0b0)
 	}
 	
 	DrawText(hdc, "r", -1, xarea, 0x26)

@@ -57,33 +57,48 @@ SetScintillaFont : integer hwnd, string fontname, integer fontsize
 	integer SCI_STYLERESETDEFAULT = 2058
 	integer SCI_STYLESETSIZE = 2055
 	integer SCI_STYLESETFORE = 2051
+	integer SCI_STYLESETBACK = 2052
 	integer SCI_STYLESETBOLD = 2053
+	integer SCI_SETCARETFORE = 2069
 
 	buffer narrowfontname = narrowstring(fontname)
 
 	SendMessage(hwnd, SCI_STYLERESETDEFAULT, 0, 0)
 	SendMessage(hwnd, SCI_STYLESETFONT, 32, narrowfontname)
 	SendMessage(hwnd, SCI_STYLESETSIZE, 32, fontsize)
+	SendMessage(hwnd, SCI_STYLESETBACK, 32, 0x303030)
 	SendMessage(hwnd, SCI_STYLECLEARALL, 0, 0)
+	
+	SendMessage(hwnd, SCI_STYLESETBACK, 33, 0x202020)
+
+	SendMessage(hwnd, SCI_STYLESETFORE, 0, 0xb0b0b0)
+	SendMessage(hwnd, SCI_STYLESETFORE, 32, 0xb0b0b0)
+	SendMessage(hwnd, SCI_STYLESETFORE, 33, 0xb0b0b0)
 
 	SendMessage(hwnd, SCI_STYLESETFORE, 1, 32768)
 	SendMessage(hwnd, SCI_STYLESETFORE, 2, 0xff5b77)
-	SendMessage(hwnd, SCI_STYLESETFORE, 3, 1381795)
+	SendMessage(hwnd, SCI_STYLESETFORE, 3, 0x0000e0)
 
 	SendMessage(hwnd, SCI_STYLESETBOLD, 4, 1)
+	SendMessage(hwnd, SCI_STYLESETFORE, 4, 0xb0b0b0)
 
 	SendMessage(hwnd, SCI_STYLESETFORE, 5, 8421376)
 	SendMessage(hwnd, SCI_STYLESETFORE, 6, 8421376)
 	SendMessage(hwnd, SCI_STYLESETFORE, 7, 16744576)
 
-	SendMessage(hwnd, SCI_STYLESETFORE, 8, 16711680)
-	SendMessage(hwnd, SCI_STYLESETFORE, 9, 0x775bdd)
+	SendMessage(hwnd, SCI_STYLESETFORE, 8, 0xff6565)
+	SendMessage(hwnd, SCI_STYLESETFORE, 9, 0x573bdd)
+	
+	SendMessage(hwnd, SCI_SETCARETFORE, 0xffffff, 0)
 }
 
 SetScintillaLexer : integer hwnd
 {
 	integer SCI_SETLEXERLANGUAGE = 4006
 	integer SCI_LOADLEXERLIBRARY = 4007
+	integer SCI_SETMARGINTYPE = 2240
+	integer SCI_SETFOLDMARGINCOLOUR = 2290
+	integer SCI_SETFOLDMARGINHICOLOUR = 2291
 
 	buffer narrowdllname = narrowstring("epochlexer.dll")
 	buffer narrowlanguagename = narrowstring("epoch")
@@ -94,10 +109,16 @@ SetScintillaLexer : integer hwnd
 	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold"), narrowstring("1"))
 	SendMessage(hwnd, SCI_SETPROPERTY, narrowstring("fold.compact"), narrowstring("0"))
 
+	SendMessage(hwnd, SCI_SETMARGINTYPE, 0, 1)
+	SendMessage(hwnd, SCI_SETMARGINWIDTHN, 0, 35)
+
 	SendMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 0)
-	SendMessage(hwnd, SCI_SETMARGINTYPEN, 1, SC_MARGIN_SYMBOL)
+	SendMessage(hwnd, SCI_SETMARGINTYPEN, 1, 2)
 	SendMessage(hwnd, SCI_SETMARGINMASKN, 1, SC_MASK_FOLDERS)
 	SendMessage(hwnd, SCI_SETMARGINWIDTHN, 1, 20)
+	SendMessage(hwnd, SCI_SETMARGINTYPEN, 1, 2)
+	SendMessage(hwnd, SCI_SETFOLDMARGINCOLOUR, 1, 0x202020)
+	SendMessage(hwnd, SCI_SETFOLDMARGINHICOLOUR, 1, 0x202020)
 
 	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDER, SC_MARK_PLUS)
 	SendMessage(hwnd, SCI_MARKERDEFINE, SC_MARKNUM_FOLDEROPEN, SC_MARK_MINUS)

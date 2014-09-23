@@ -127,15 +127,8 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 		}
 		elseif(wparam == 901)
 		{
-			integer scintillahwnd = GetActiveEditorHwnd()
-			integer doclength = SendMessage(scintillahwnd, SCI_GETLENGTH, 0, 0) + 1
-			buffer output = doclength
-			SendMessage(scintillahwnd, SCI_GETTEXT, doclength, output)
-			
-			AppendHistoryLine("*** BEGIN PARSE OF " ; GetActiveEditorFileName())
 			SourceLookupTableInit()
-			Parse(GetActiveEditorFileName(), widenfrombuffer(output, doclength), doclength)
-			AppendHistoryLine("*** END PARSE")
+			ParseAllProjectCode(CurrentProject)
 		}
 		elseif(wparam == 1001)
 		{
@@ -407,6 +400,18 @@ MainWindowProcedure : integer hwnd, integer message, integer wparam, integer lpa
 			}
 		}
 	}
+	elseif(message == WM_CTLCOLOREDIT)
+	{
+		SetTextColor(wparam, 0xb0b0b0)
+		SetBkColor(wparam, 0x202020)
+		ret = BrushDarkBackground
+	}
+	elseif(message == WM_CTLCOLORSTATIC)
+	{
+		SetTextColor(wparam, 0xb0b0b0)
+		SetBkColor(wparam, 0x202020)
+		ret = BrushDarkBackground
+	}
 	else
 	{
 		ret = DefWindowProc(hwnd, message, wparam, lparam)
@@ -436,6 +441,22 @@ ToolbarWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 			
 			ScintillaFind(GetActiveEditorHwnd(), cast(string, needlebuffer))
 		}
+	}
+	elseif(message == WM_CTLCOLOREDIT)
+	{
+		SetTextColor(wparam, 0xb0b0b0)
+		SetBkColor(wparam, 0x202020)
+		ret = BrushDarkBackground
+	}
+	elseif(message == WM_CTLCOLORSTATIC)
+	{
+		SetTextColor(wparam, 0xb0b0b0)
+		SetBkColor(wparam, 0x202020)
+		ret = BrushDarkBackground
+	}
+	elseif(message == WM_CTLCOLORBTN)
+	{
+		ret = BrushBackground
 	}
 	else
 	{
@@ -467,4 +488,27 @@ FindBoxSubclassProc : integer hwnd, integer message, integer wparam, integer lpa
 		result = DefSubclassProc(hwnd, message, wparam, lparam)
 	}
 }
+
+
+ParseAllProjectCode : EpochProject ref project
+{
+	AppendHistoryLine("Parsing project...")
+	ParseAllCodeFiles(project.SourceFiles)
+	AppendHistoryLine("Parsing complete.")
+}
+
+ParseAllCodeFiles : simplelist<string> ref filelist
+{
+	if(filelist.value != "")
+	{
+		integer len = 0
+		string contents = ReadFile(filelist.value, len)
+		
+		Parse(filelist.value, contents, len)
+	}
+	
+	ParseAllCodeFiles(filelist.next)
+}
+
+ParseAllCodeFiles : nothing
 
