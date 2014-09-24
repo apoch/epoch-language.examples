@@ -175,6 +175,14 @@ GetScintillaPosition : integer hwnd, integer ref outline, integer ref outcol
 	outcol = SendMessage(hwnd, SCI_GETCOLUMN, pos, 0)
 }
 
+ScintillaGoToPosition : integer hwnd, integer row, integer col
+{
+	integer SCI_GOTOLINE = 2024
+	SendMessage(hwnd, SCI_GOTOLINE, row, 0)
+	
+	// TODO - go to correct column as well
+}
+
 
 
 SetScintillaNonDirty : integer hwnd
@@ -241,7 +249,46 @@ ScintillaSetTabWidth : integer hwnd, integer width
 	SendMessage(hwnd, SCI_SETTABWIDTH, width, 0)
 }
 
+ScintillaGetSelectedToken : integer hwnd -> string token = ""
+{
+	integer SCI_GETCURRENTPOS = 2008
+	integer SCI_WORDSTARTPOSITION = 2266
+	integer SCI_WORDENDPOSITION = 2267
 
-
-
+	integer SCI_GETSELECTIONSTART = 2143
+	integer SCI_GETSELECTIONEND = 2145
+	integer SCI_GETSELTEXT = 2161
+	integer SCI_GETTEXTRANGE = 2162
+	
+	integer selstart = SendMessage(hwnd, SCI_GETSELECTIONSTART, 0, 0)
+	integer selend = SendMessage(hwnd, SCI_GETSELECTIONEND, 0, 0)
+	
+	if(selstart == selend)
+	{
+		integer pos = SendMessage(hwnd, SCI_GETCURRENTPOS, 0, 0)
+		integer begin = SendMessage(hwnd, SCI_WORDSTARTPOSITION, pos, 1)
+		integer end = SendMessage(hwnd, SCI_WORDENDPOSITION, pos, 1)
+		
+		if(end < begin)
+		{
+			return()
+		}
+		
+		integer length = end - begin		
+		buffer selection = length + 2
+		ScintillaTextRange range = begin, end, selection
+		SendMessage(hwnd, SCI_GETTEXTRANGE, 0, range)
+		
+		token = widenfrombuffer(range.Text, length)
+	}
+	else
+	{
+		integer length = SendMessage(hwnd, SCI_GETSELTEXT, 0, 0)
+		buffer selection = length + 2
+		
+		SendMessage(hwnd, SCI_GETSELTEXT, 0, selection)
+		
+		token = widenfrombuffer(selection, length)
+	}
+}
 

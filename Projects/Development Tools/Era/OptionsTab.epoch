@@ -39,7 +39,7 @@ OptionsWindowProcedure : integer hwnd, integer message, integer wparam, integer 
 		integer TRANSPARENT = 1
 		SetBkMode(wparam, TRANSPARENT)
 		
-		ret = BrushActiveTab
+		ret = BrushBackground
 	}
 	else
 	{

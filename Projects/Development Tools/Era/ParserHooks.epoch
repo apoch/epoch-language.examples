@@ -172,29 +172,44 @@ UDFListAppend : buffer ref tawtoken [external("EpochLexer.dll", "UDFListAppend",
 SourceLookupTableInit :
 {
 	UDTListReset()
+	
+	list<SymbolEntry> newlist = DummySymbolEntry, nothing
+	KnownSymbols = newlist
 }
 
 
 SourceLookupTableAddStrongAlias : integer aliasid, string aliasname, ParsedToken ref token
 {
+	SymbolEntry sym = token.Token, token.FileName, token.Row, token.Column
+	prepend<SymbolEntry>(KnownSymbols, sym)
+
 	buffer namebuf = narrowstring(aliasname)
 	UDTListAppend(namebuf)
 }
 
 SourceLookupTableAddStructure : integer structureid, string structurename, ParsedToken ref token
 {
+	SymbolEntry sym = token.Token, token.FileName, token.Row, token.Column
+	prepend<SymbolEntry>(KnownSymbols, sym)
+
 	buffer snbuf = narrowstring(structurename)
 	UDTListAppend(snbuf)
 }
 
 SourceLookupTableAddSumType : integer sumtypeid, string sumtypename, ParsedToken ref token
 {
+	SymbolEntry sym = token.Token, token.FileName, token.Row, token.Column
+	prepend<SymbolEntry>(KnownSymbols, sym)
+
 	buffer namebuf = narrowstring(sumtypename)
 	UDTListAppend(namebuf)
 }
 
 SourceLookupTableAddWeakAlias : integer aliasid, string aliasname, ParsedToken ref token
 {
+	SymbolEntry sym = token.Token, token.FileName, token.Row, token.Column
+	prepend<SymbolEntry>(KnownSymbols, sym)
+
 	buffer namebuf = narrowstring(aliasname)
 	UDTListAppend(namebuf)
 }
@@ -202,7 +217,43 @@ SourceLookupTableAddWeakAlias : integer aliasid, string aliasname, ParsedToken r
 
 SourceLookupTableAddFunction : integer functionid, string functionname, ParsedToken ref token
 {
+	SymbolEntry sym = token.Token, token.FileName, token.Row, token.Column
+	prepend<SymbolEntry>(KnownSymbols, sym)
+
 	buffer namebuf = narrowstring(functionname)
 	UDFListAppend(namebuf)
 }
+
+
+
+SourceLookupTableFindSymbol : string symbol
+{
+	WalkSymbolTableToFindSymbol(KnownSymbols, symbol)
+}
+
+WalkSymbolTableToFindSymbol : list<SymbolEntry> ref symbols, string symbol
+{
+	if(symbols.value.Symbol == symbol)
+	{
+		integer tabindex = FindTabWithDocument(CurrentTabs, symbols.value.FileName)
+		if(tabindex < 0)
+		{
+			CreateEditorTab(MainHWND, symbols.value.FileName)
+		}
+		else
+		{
+			SetActiveTab(tabindex)
+		}
+		
+		integer scintillawnd = GetActiveEditorHwnd()
+		ScintillaGoToPosition(scintillawnd, symbols.value.Row - 1, symbols.value.Column - 1)
+	}
+	else
+	{
+		WalkSymbolTableToFindSymbol(symbols.next, symbol)
+	}
+}
+
+WalkSymbolTableToFindSymbol : nothing, string symbol
+
 
