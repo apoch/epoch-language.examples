@@ -1282,6 +1282,8 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				print("Can't figure out type of expression atom!")
 				DumpAtom(expression.Atoms.value)
+				print("Expected types:")
+				DumpTypeList(context.ExpectedTypes)
 				success = false
 			}
 		}

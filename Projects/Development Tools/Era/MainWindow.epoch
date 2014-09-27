@@ -7,12 +7,6 @@
 //
 
 
-PrinterReplacement : string line
-{
-	AppendHistoryLine(line)
-}
-
-
 //
 // Window procedure for the main UI window
 //
@@ -516,7 +510,7 @@ ParseAllCodeFiles : simplelist<string> ref filelist
 		integer len = 0
 		string contents = ReadFile(filelist.value, len)
 		
-		Parse(filelist.value, contents, len)
+		Parse(filelist.value, contents, len, AppendHistoryLine)
 	}
 	
 	ParseAllCodeFiles(filelist.next)

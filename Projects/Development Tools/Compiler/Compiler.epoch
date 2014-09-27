@@ -99,7 +99,7 @@ ParseFile : string filename -> boolean success = false
 		return()
 	}
 	
-	success = Parse(filename, contents, len)
+	success = Parse(filename, contents, len, PrinterReplacement)
 }
 
 
@@ -167,7 +167,7 @@ CompileFile : string filename -> boolean success = false
 	}
 
 	integer startparsems = timeGetTime()
-	boolean parseok = Parse(filename, contents, len)
+	boolean parseok = Parse(filename, contents, len, PrinterReplacement)
 	integer durationparsems = timeGetTime() - startparsems
 
 	print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")

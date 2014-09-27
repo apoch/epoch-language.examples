@@ -2,8 +2,7 @@
 // Testing of separate compilation - hosting parser in its own file (partially...)
 //
 
-
-Parse : string filename, string code, integer len -> boolean success = false
+Parse : string filename, string code, integer len, (printer : string) -> boolean success = false
 {
 	Lex(filename, code, len)
 
@@ -30,12 +29,12 @@ Parse : string filename, string code, integer len -> boolean success = false
 		}
 		elseif(!ParseFunction())
 		{
-			PrinterReplacement("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
+			printer("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
 			
 			ParsedToken t = PeekParsedToken(0)
-			PrinterReplacement("File: " ; t.FileName)
-			PrinterReplacement("Line: " ; cast(string, t.Row))
-			PrinterReplacement("Column: " ; cast(string, t.Column))
+			printer("File: " ; t.FileName)
+			printer("Line: " ; cast(string, t.Row))
+			printer("Column: " ; cast(string, t.Column))
 			
 			return()
 		}
