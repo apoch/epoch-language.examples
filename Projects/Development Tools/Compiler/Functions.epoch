@@ -382,6 +382,46 @@ GetSignatureReturnType : list<FunctionSignature> ref signatures, integer functyp
 }
 
 
+GetFunctionSignatureParamType : list<FunctionSignature> ref signatures, integer functype, integer paramindex -> integer rettype = 0
+{
+	if(signatures.value.Name == functype)
+	{
+		rettype = GetSignatureParamType(signatures.value.Parameters, paramindex)
+	}
+	else
+	{
+		rettype = GetFunctionSignatureParamType(signatures.next, functype, paramindex)
+	}
+}
+
+GetFunctionSignatureParamType : nothing, integer functype, integer paramindex -> 0
+
+
+
+GetSignatureParamType : list<Parameter> ref params, integer paramindex -> integer rettype = 0
+{
+	if(paramindex == 0)
+	{
+		if(params.value.Name != 0)
+		{
+			rettype = params.value.Type
+			return()
+		}
+	}
+
+	if(params.value.Name == 0)
+	{
+		rettype = GetSignatureParamType(params.next, paramindex)
+	}
+	else
+	{
+		rettype = GetSignatureParamType(params.next, paramindex - 1)
+	}
+}
+
+GetSignatureParamType : nothing, integer paramindex -> 0
+
+
 FindOrCreateFunctionSignatureType : FunctionSignature ref signature -> integer typeid = 0
 {
 	typeid = FindMatchingSignature(FunctionSignatures, signature)

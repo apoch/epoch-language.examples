@@ -314,9 +314,11 @@ FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing
 
 
 
-SourceLookupTableAddStrongAlias : integer structureid, string structurename, ParsedToken ref token
-SourceLookupTableAddStructure : integer structureid, string structurename, ParsedToken ref token
-SourceLookupTableAddSumType : integer structureid, string structurename, ParsedToken ref token
-SourceLookupTableAddWeakAlias : integer structureid, string structurename, ParsedToken ref token
+SourceLookupTableAddStrongAlias : integer id, string name, ParsedToken ref token
+SourceLookupTableAddStructure : integer id, string name, ParsedToken ref token
+SourceLookupTableAddSumType : integer id, string name, ParsedToken ref token
+SourceLookupTableAddWeakAlias : integer id, string name, ParsedToken ref token
+SourceLookupTableAddFunction : integer id, string name, ParsedToken ref token
+
 
 

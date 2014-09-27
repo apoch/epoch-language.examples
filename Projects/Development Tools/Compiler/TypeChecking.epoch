@@ -664,7 +664,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 
 		if(overloadname != 0)
-		{
+		{	
 			statement.Name = overloadname
 
 			if(IsRecognizedBuiltIn(statement.Name))
@@ -675,20 +675,20 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
 			}
-		}
-		else
-		{
+
+
 			Variable var = 0, 0, 0, 0
 			FindVariableDataInSingleScope(context.ScopeRef.Wrapped, statement.Name, var)
 
 			if((var.Name != 0) && ((var.VarType & 0x7f000000) == 0x09000000))
 			{
 				// TODO - type checking on higher order functions
-
 				statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
 				return()
 			}		
-		
+		}
+		else
+		{
 			success = false
 			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
 			DumpTypeList(paramtypes)
@@ -1134,6 +1134,7 @@ TypeInferenceExpressionList : list<Expression> ref parameters, InferenceContext 
 	else
 	{
 		GetExpectedParameterTypes(context.StatementName, paramindex, context.NumParameters, context.TopLevelStatement, temp)
+		GetHigherOrderParameterTypes(context.StatementName, paramindex, context.ScopeRef.Wrapped, temp)
 	}
 
 	InferenceContext newcontext = context.ScopeName, context.StatementName, temp, context.FunctionReturn, context.NumParameters, context.TopLevelStatement, false, context.ScopeRef, context.FuncRef
@@ -1719,6 +1720,19 @@ GetExpectedParameterTypes : integer funcname, integer paramindex, integer paramc
 	EnumerateOverloadsAndAddParameterTypes(AutoGenOverloads, funcname, paramindex, paramcount, toplevel, types)
 }
 
+
+GetHigherOrderParameterTypes : integer funcname, integer paramindex, Scope ref scope, simplelist<integer> ref types
+{
+	integer vartype = GetVariableTypeFromScope(scope, funcname)
+	if(vartype != 0)
+	{
+		integer t = GetFunctionSignatureParamType(FunctionSignatures, vartype, paramindex)
+		if(t != 0)
+		{
+			simpleprepend<integer>(types, t)
+		}
+	}
+}
 
 
 InferFunctionParameterTypes : FunctionDefinition ref function, integer paramindex, integer paramcount, boolean toplevel, simplelist<integer> ref types
