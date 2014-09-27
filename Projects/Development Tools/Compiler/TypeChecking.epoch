@@ -59,163 +59,6 @@ TypeListContains : nothing, integer value -> 0
 
 
 
-GetNameOfType : integer typeid -> integer name = 0
-{
-	typeid = MakeNonReferenceType(typeid)
-	if(typeid == 0x01000001)
-	{
-		name = PooledStringHandleForInteger
-	}
-	elseif(typeid == 0x01000002)
-	{
-		name = PooledStringHandleForInteger16
-	}
-	elseif(typeid == 0x01000003)
-	{
-		name = PooledStringHandleForBoolean
-	}
-	elseif(typeid == 0x01000004)
-	{
-		name = PooledStringHandleForReal
-	}
-	elseif(typeid == 0x02000000)
-	{
-		name = PooledStringHandleForString
-	}
-	elseif(typeid == 0x02000001)
-	{
-		name = PooledStringHandleForBuffer
-	}
-	elseif(typeid == 0x00000004)
-	{
-		name = PooledStringHandleForNothing
-	}
-	elseif(typeid == 0x01000000)
-	{
-		name = PooledStringHandleForIdentifier
-	}
-	elseif(IsStructureType(typeid))
-	{
-		name = GetNameOfStructureByType(typeid)
-	}
-	elseif((typeid & 0xff000000) == 0x07000000)
-	{
-		name = FindSumTypeName(typeid)
-	}
-	elseif((typeid & 0x7f000000) == 0x09000000)
-	{
-		name = PoolString("{function} " ; cast(string, typeid))
-	}
-	else
-	{
-		print("Unknown type " ; cast(string, typeid))
-		assert(false)
-	}
-}
-
-GetTypeByName : integer name -> integer typeid = 0 [nogc]
-{
-	if(name == 0)
-	{
-		return()
-	}
-
-	integer unaliasedname = UnaliasType(TypeWeakAliases, name)
-	while(unaliasedname != name)
-	{
-		name = unaliasedname
-		unaliasedname = UnaliasType(TypeWeakAliases, name)
-	}
-	name = unaliasedname
-
-	if(name == PooledStringHandleForIdentifier)
-	{
-		typeid = 0x01000000
-	}
-	elseif(name == PooledStringHandleForInteger)
-	{
-		typeid = 0x01000001
-	}
-	elseif(name == PooledStringHandleForInteger16)
-	{
-		typeid = 0x01000002
-	}
-	elseif(name == PooledStringHandleForBoolean)
-	{
-		typeid = 0x01000003
-	}
-	elseif(name == PooledStringHandleForReal)
-	{
-		typeid = 0x01000004
-	}
-	elseif(name == PooledStringHandleForString)
-	{
-		typeid = 0x02000000
-	}
-	elseif(name == PooledStringHandleForNothing)
-	{
-		typeid = 0x00000004
-	}
-	elseif(name == PooledStringHandleForBuffer)
-	{
-		typeid = 0x02000001
-	}
-	else
-	{
-		integer structuretype = GetStructureTypeByName(name)
-		if(structuretype != 0)
-		{
-			typeid = structuretype
-			return()
-		}
-
-		integer sumtype = FindSumTypeByName(name)
-		if(sumtype != 0)
-		{
-			typeid = sumtype
-			return()
-		}
-
-		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
-		if(strongaliastype != 0)
-		{
-			typeid = strongaliastype
-			return()
-		}
-	}
-}
-
-
-IsStructureType : integer typeid -> boolean ret = false [nogc]
-{
-	if((typeid & 0x7f000000) == 0x03000000)
-	{
-		ret = true
-	}
-	elseif((typeid & 0x7f000000) == 0x08000000)
-	{
-		ret = true
-	}
-}
-
-IsReferenceType : integer typeid -> boolean ret = false [nogc]
-{
-	if((typeid & 0x80000000) != 0)
-	{
-		ret = true
-	}
-}
-
-MakeReferenceType : integer typeid -> integer reftypeid = typeid [nogc]
-{
-	if(!IsReferenceType(typeid))
-	{
-		reftypeid = typeid + 0x80000000
-	}
-}
-
-MakeNonReferenceType : integer typeid -> (typeid & 0x7fffffff) [nogc]
-
 
 structure InferenceContext :
 	integer ScopeName,
@@ -661,6 +504,29 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		else
 		{
 			overloadname = FindOverloadWithParameterTypes(AutoGenOverloads, statement.Name, paramtypes)
+			
+			if(vartype == 0)
+			{
+				if(!FunctionIsAutoGenOrHasIR(statement.Name))
+				{
+					integer localtype = GetVariableTypeFromScope(context.ScopeRef.Wrapped, statement.Name)
+					if(localtype != 0)
+					{
+						if((localtype & 0x7f000000) != 0x09000000)
+						{
+							print("Call to " ; GetPooledString(GlobalStrings, statement.Name) ; "() is invalid - variable is not a function")
+							success = false
+						}
+					}
+					else
+					{
+						if(!IsRecognizedBuiltIn(statement.Name))
+						{
+							overloadname = 0
+						}
+					}
+				}
+			}
 		}
 
 		if(overloadname != 0)
