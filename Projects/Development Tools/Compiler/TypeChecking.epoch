@@ -604,6 +604,14 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 }
 
 
+
+TypeInference : MessageSend ref msg, InferenceContext ref context -> boolean success = true
+{
+	// TODO - typechecking on messages
+}
+
+
+
 AnyTypeIsReferenceType : simplelist<integer> ref types -> boolean isref = false [nogc]
 {
 	if(IsReferenceType(types.value))

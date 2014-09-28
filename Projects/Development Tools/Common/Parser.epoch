@@ -27,6 +27,9 @@ Parse : string filename, string code, integer len, (printer : string) -> boolean
 		elseif(ParseGlobalBlock())
 		{
 		}
+		elseif(ParseTask())
+		{
+		}
 		elseif(!ParseFunction())
 		{
 			printer("Error: code could not be parsed: " ; token ; " " ; PeekToken(1) ; " " ; PeekToken(2))
@@ -144,6 +147,40 @@ ParseGlobalBlock : -> boolean matched = false
 	OnCodeGenExitContext()
 	matched = true
 }
+
+
+
+ParseTask : -> boolean matched = false
+{
+	if(PeekToken(0) != "task")
+	{
+		return()
+	}
+	
+	if(PeekToken(2) != "{")
+	{
+		return()
+	}
+	
+	PopToken()
+	
+	string taskname = PeekToken(0)
+	
+	PopTokens(2)
+	
+	while(PeekToken(0) != "}")
+	{
+		if(!ParseFunction())
+		{
+			print("Illegal task contents")
+			return()
+		}
+	}
+	
+	PopToken()
+	matched = true
+}
+
 
 
 ParseWeakAlias : -> boolean matched = false
@@ -1144,6 +1181,43 @@ ParseExpressionOperator : -> boolean matched = false
 	}
 }
 
+
+ParseMessage : -> boolean matched = false
+{
+	if(PeekToken(1) != "=>")
+	{
+		return()
+	}
+	
+	
+	string targetname = PeekToken(0)
+	PopTokens(2)
+	
+	string messagename = PeekToken(0)
+	PopToken()
+	
+	if(PeekToken(0) != "(")
+	{
+		return()
+	}
+
+
+	IREnterMessageSend(PoolString(targetname), PoolString(messagename))
+	
+	
+	while(PeekToken(0) != ")")
+	{
+		PopToken()
+	}
+	
+	PopToken()
+	
+	IRExitMessageSend()
+	
+	matched = true
+}
+
+
 ParseAssignment : -> boolean matched = false
 {
 	integer lhslength = 1
@@ -1325,6 +1399,9 @@ ParseCodeBlock :
 		{
 		}
 		elseif(ParseAssignment())
+		{
+		}
+		elseif(ParseMessage())
 		{
 		}
 		else

@@ -234,6 +234,10 @@ IsValidPunctuation : string token -> boolean valid = false [nogc]
 	{
 		valid = true
 	}
+	elseif(token == "=>")
+	{
+		valid = true
+	}
 }
 
 

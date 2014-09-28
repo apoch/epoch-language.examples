@@ -370,6 +370,22 @@ OnCodeGenEmplaceStatement : Statement ref statement
 	prepend<Expression>(ScratchExpressions, expr)
 }
 
+
+OnCodeGenEnterMessageSend : integer targetname, integer messagename
+{
+	MessageSend msg = targetname, messagename, nothing, 0, nothing, false
+	
+	CodeBlockEntry cbe = msg
+	AppendEntryToCurrentCodeBlock(cbe)
+	
+	ContextStackEntry entry = STACK_TYPE_MESSAGE, msg.MessageName
+	prepend<ContextStackEntry>(ContextStack, entry)
+
+	Expression expr = dummyatomlist, 0
+	prepend<Expression>(ScratchExpressions, expr)
+}
+
+
 OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	Expression tempexpr = dummyatomlist, 0
@@ -685,6 +701,13 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 			OnBytecodeInvoke(s.Name)
 		}
 	}
+}
+
+CodeGenEmitSingleCodeBlockEntry : MessageSend ref m
+{
+	// TODO - send message to target task instead of just invoking a function
+	CodeGenEmitExpressionList(m.Parameters, false, false)
+	OnBytecodeInvokeOffset(m.MessageName)
 }
 
 CodeGenEmitAssignmentRHS : Expression ref expr
@@ -1279,7 +1302,7 @@ CodeGenEmitFunctionTags : list<FunctionTag> ref tags
 {
 	if(tags.value.FunctionName != 0)
 	{
-		if(tags.value.TagName != "")
+		if((tags.value.TagName != "") && (tags.value.TagName != "static"))
 		{
 			OnBytecodeEmitByte(0x1a)
 			OnBytecodeEmitInteger(tags.value.FunctionName)

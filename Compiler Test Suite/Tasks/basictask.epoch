@@ -1,0 +1,22 @@
+//
+// BASICTASK.EPOCH
+//
+// Compiler test for a very, very simple task
+//
+
+
+task SuccessTask
+{
+	succeed : [static]
+	{
+		passtest()
+	}
+}
+
+
+entrypoint :
+{
+	SuccessTask => succeed()
+}
+
+

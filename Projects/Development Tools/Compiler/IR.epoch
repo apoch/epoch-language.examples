@@ -99,6 +99,14 @@ structure Statement :
 	boolean TopLevel,
 	boolean InferenceDone
 
+structure MessageSend :
+	integer TargetName,
+	integer MessageName,
+	OptionalExpressionList Parameters,
+	integer Type,
+	OptionalTemplateArgs TemplateArgs,
+	boolean InferenceDone
+
 structure Assignment :
 	integer Operator,
 	integer LHSName,
@@ -130,7 +138,7 @@ structure ParentheticalExpression :
 	ExpressionOrPrePostOp Inner
 
 
-type CodeBlockEntry : Statement | PreOpStatement | PostOpStatement |
+type CodeBlockEntry : Statement | MessageSend | PreOpStatement | PostOpStatement |
 		      Assignment | AssignmentCompound | EntityChain
 
 structure CodeBlock :
@@ -311,6 +319,17 @@ IREnterStatement : string funcname, boolean istoplevel, boolean hastemplateargs
 }
 
 IRExitStatement :
+{
+	OnCodeGenExitContext()
+}
+
+
+IREnterMessageSend : integer targetname, integer messagename
+{
+	OnCodeGenEnterMessageSend(targetname, messagename)
+}
+
+IRExitMessageSend :
 {
 	OnCodeGenExitContext()
 }
