@@ -386,6 +386,13 @@ OnCodeGenEnterMessageSend : integer targetname, integer messagename
 }
 
 
+OnCodeGenEnterTask : integer taskname
+{
+	ContextStackEntry entry = STACK_TYPE_TASK, taskname
+	prepend<ContextStackEntry>(ContextStack, entry)
+}
+
+
 OnCodeGenEnterAssignment : integer operator, integer lhsname, integer lhstype, integer annotation
 {
 	Expression tempexpr = dummyatomlist, 0

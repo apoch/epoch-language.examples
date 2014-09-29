@@ -168,6 +168,8 @@ ParseTask : -> boolean matched = false
 	
 	PopTokens(2)
 	
+	OnCodeGenEnterTask(PoolString(taskname))
+	
 	while(PeekToken(0) != "}")
 	{
 		if(!ParseFunction())
@@ -176,6 +178,8 @@ ParseTask : -> boolean matched = false
 			return()
 		}
 	}
+	
+	OnCodeGenExitContext()
 	
 	PopToken()
 	matched = true
