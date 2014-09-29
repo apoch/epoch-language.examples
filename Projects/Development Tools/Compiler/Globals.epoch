@@ -4,6 +4,34 @@
 
 global
 {
+
+	//
+	// This stuff is fairly clean and written to use the newest language/compiler features
+	//
+	
+	//Namespace GlobalRootNamespace =
+	//	0,
+	//	BinaryTreeRoot<Scope>(nothing),
+	//	BinaryTreeRoot<SumType>(nothing),
+	//	BinaryTreeRoot<TypeAlias>(nothing),
+	//	BinaryTreeRoot<TypeAlias>(nothing),
+	//	BinaryTreeRoot<StructureDefinition>(nothing),
+	//	BinaryTreeRoot<FunctionSignature>(nothing),
+	//	BinaryTreeRoot<FunctionTag>(nothing),
+	//	BinaryTreeRoot<FunctionDefinition>(nothing),
+	//	BinaryTreeRoot<Overload>(nothing),
+	//	BinaryTreeRoot<TypeMatcher>(nothing),
+	//	BinaryTreeRoot<TemplateFunction>(nothing),
+	//	BinaryTreeRoot<TemplateStructure>(nothing),
+	//	BinaryTreeRoot<TemplateSumType>(nothing),
+	//	BinaryTreeRoot<TemplateInstance>(nothing),
+	//	BinaryTreeRoot<TemplateInstance>(nothing),
+	//	BinaryTreeRoot<TemplateInstance>(nothing)
+
+
+
+	// Remaining contents are largely hacky
+	
 	buffer Hack = 8192000
 	integer HackSize = 0
 

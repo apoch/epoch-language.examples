@@ -242,9 +242,23 @@ structure BinaryTree<type T> :
 	BinaryTreeNode<T> Left,
 	BinaryTreeNode<T> Right,
 	integer Height
+	
+structure BinaryTreeRoot<type T> :
+	BinaryTreeNode<T> RootNode
+	
+	
+BinaryTreeCreateOrInsert<type T> : BinaryTreeRoot<T> ref root, integer value, T ref payload
+{
+	if(!InsertIntoBinaryTree<T>(root.RootNode, value, payload))
+	{
+		BTPayloadWrap<T> wrap = payload
+		BinaryTree<T> newtree = value, wrap, nothing, nothing, 0
+		root.RootNode = newtree
+	}
+}
 
 
-InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payload -> true
+InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payload -> boolean ret = true
 {
 	if(tree.Value > value)
 	{
@@ -296,7 +310,7 @@ InsertIntoBinaryTree<type T> : BinaryTree<T> ref tree, integer value, T ref payl
 	}
 }
 
-InsertIntoBinaryTree<type T> : nothing, integer value, T ref payload -> false
+InsertIntoBinaryTree<type T> : nothing, integer value, T ref payload -> boolean ret = false
 
 RotateLL<type T> : BinaryTree<T> ref tree
 {

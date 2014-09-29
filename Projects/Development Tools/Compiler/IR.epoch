@@ -297,10 +297,6 @@ structure ContextWrapper<type T> :
 
 
 
-
-
-
-
 IREnterFunction : integer namehandle
 {
 	OnCodeGenRegisterScope(namehandle, 0)

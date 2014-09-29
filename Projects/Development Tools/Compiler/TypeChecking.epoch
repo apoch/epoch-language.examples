@@ -317,6 +317,7 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		return()
 	}
 
+	InstantiateStructureTemplateFast(param.TypeNameHandle, param.TemplateArgs)
 	param.TypeNameHandle = MangleTemplateNameByHandle(param.TypeNameHandle, param.TemplateArgs)
 
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
