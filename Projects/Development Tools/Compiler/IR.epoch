@@ -297,6 +297,27 @@ structure ContextWrapper<type T> :
 
 
 
+structure Namespace :
+	integer								NameHandle,
+	BinaryTreeRoot<Scope>				Scopes,
+	BinaryTreeRoot<SumType>				SumTypes,
+	BinaryTreeRoot<TypeAlias>			TypeAliases,
+	BinaryTreeRoot<TypeAlias>			TypeWeakAliases,
+	BinaryTreeRoot<StructureDefinition>	Structures,
+	BinaryTreeRoot<FunctionSignature>	FunctionSignatures,
+	BinaryTreeRoot<FunctionTag>			FunctionTags,
+	BinaryTreeRoot<FunctionDefinition> 	Functions,
+	BinaryTreeRoot<Overload> 			Overloads,
+	BinaryTreeRoot<TypeMatcher>			TypeMatchers,
+	BinaryTreeRoot<TemplateFunction>	TemplateFunctions,
+	BinaryTreeRoot<TemplateStructure>	TemplateStructures,
+	BinaryTreeRoot<TemplateSumType>		TemplateSumTypes,
+	BinaryTreeRoot<TemplateInstance>	TemplateFunctionInstances,
+	BinaryTreeRoot<TemplateInstance>	TemplateStructureInstances,
+	BinaryTreeRoot<TemplateInstance>	TemplateSumTypeInstancess
+
+
+
 IREnterFunction : integer namehandle
 {
 	OnCodeGenRegisterScope(namehandle, 0)
