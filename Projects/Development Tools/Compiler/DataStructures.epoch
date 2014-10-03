@@ -244,7 +244,7 @@ structure BinaryTree<type T> :
 	integer Height
 	
 structure BinaryTreeRoot<type T> :
-	BinaryTreeNode<T> RootNode
+	BinaryTreeNode<T> ref RootNode
 	
 	
 BinaryTreeCreateOrInsert<type T> : BinaryTreeRoot<T> ref root, integer value, T ref payload
