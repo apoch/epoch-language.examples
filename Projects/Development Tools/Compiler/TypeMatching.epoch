@@ -253,6 +253,10 @@ FindConstructorAndAnnotateTypeMatchedParams : list<StructureDefinition> ref stru
 		listnode<Expression> ne = paramexprs.next
 		AnnotateTypeMatchedParamsFromConstructor(structures.value.Members, ne)
 	}
+	elseif(structures.value.AnonConstructorName == funcname)
+	{
+		AnnotateTypeMatchedParamsFromConstructor(structures.value.Members, paramexprs)
+	}
 	else
 	{
 		FindConstructorAndAnnotateTypeMatchedParams(structures.next, funcname, paramexprs)
