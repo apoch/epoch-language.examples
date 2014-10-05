@@ -1,0 +1,26 @@
+//
+// PASSTHROUGH.EPOCH
+//
+// Test of higher-order functions and recursion, to catch a compiler bug
+//
+
+
+entrypoint :
+{
+	recurse(4, test)
+	passtest()
+}
+
+
+test : integer foo -> integer bar = foo - 1
+
+
+recurse : integer count, (func : integer -> integer)
+{
+	integer newcount = func(count)
+	if(newcount > 0)
+	{
+		recurse(newcount, func)
+	}
+}
+

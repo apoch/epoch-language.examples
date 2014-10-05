@@ -1805,6 +1805,7 @@ WalkFunctionParamsAndSetReferencesUnwrapped : list<UnresolvedParameter> ref para
 	boolean needref = false
 	if(IsReferenceType(params.value.ResolvedType))
 	{
+		assert((params.value.ResolvedType & 0x7f000000) != 0x09000000)
 		needref = true
 	}
 	elseif(params.value.ResolvedType == 0x00000004)			// TODO - don't assume "nothing" is always passed by ref
