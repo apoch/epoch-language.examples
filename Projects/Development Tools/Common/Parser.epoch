@@ -604,6 +604,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 				PopTokens(2)
 
 				simplelist<integer> paramtypenames = 0, nothing
+				simplelist<boolean> paramrefflags = false, nothing
 
 				boolean moreparams = true
 				if(PeekToken(0) == ")")
@@ -615,8 +616,16 @@ ParseFunctionParams : integer rawname, integer mangledname
 				{
 					string paramtypename = PeekToken(0)
 					PopToken()
+					
+					boolean paramisref = false
+					if(PeekToken(0) == "ref")
+					{
+						paramisref = true
+						PopToken()
+					}
 
 					simpleprepend<integer>(paramtypenames, PoolString(paramtypename))
+					simpleprepend<boolean>(paramrefflags, paramisref)
 
 					if(PeekToken(0) != ",")
 					{
@@ -637,7 +646,7 @@ ParseFunctionParams : integer rawname, integer mangledname
 					PopToken()
 				}
 
-				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, returntypename)
+				integer sigtype = FindOrCreateFunctionSignatureType(paramtypenames, paramrefflags, returntypename)
 
 				if(!PeekWithExpectation(0, ")"))
 				{

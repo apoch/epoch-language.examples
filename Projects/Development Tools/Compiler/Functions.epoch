@@ -405,6 +405,10 @@ GetSignatureParamType : list<Parameter> ref params, integer paramindex -> intege
 		if(params.value.Name != 0)
 		{
 			rettype = params.value.Type
+			if(params.value.Name == 2)			// Horrifying hack
+			{
+				rettype = MakeReferenceType(rettype)
+			}
 			return()
 		}
 	}
@@ -435,33 +439,33 @@ FindOrCreateFunctionSignatureType : FunctionSignature ref signature -> integer t
 	}
 }
 
-FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, integer returntypename -> integer typeid = 0
+FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, simplelist<boolean> ref paramrefflags, integer returntypename -> integer typeid = 0
 {
-	typeid = FindFunctionSignatureType(FunctionSignatures, paramtypenames, returntypename)
+	typeid = FindFunctionSignatureType(FunctionSignatures, paramtypenames, paramrefflags, returntypename)
 	if(typeid == 0)
 	{
 		OnCodeGenRegisterFunctionSig((++GlobalFunctionTypeCounter), returntypename)
-		OnCodeGenRegisterFunctionSigParamList(paramtypenames)
+		OnCodeGenRegisterFunctionSigParamList(paramtypenames, paramrefflags)
 
 		typeid = GlobalFunctionTypeCounter
 	}
 }
 
-FindFunctionSignatureType : list<FunctionSignature> ref signatures, simplelist<integer> ref paramtypes, integer returntypename -> integer typeid = 0
+FindFunctionSignatureType : list<FunctionSignature> ref signatures, simplelist<integer> ref paramtypes, simplelist<boolean> ref paramrefflags, integer returntypename -> integer typeid = 0
 {
 	if(signatures.value.ReturnTypeName == returntypename)
 	{
-		if(SignatureMatchesParams(signatures.value.Parameters, paramtypes))
+		if(SignatureMatchesParams(signatures.value.Parameters, paramtypes, paramrefflags))
 		{
 			typeid = signatures.value.Name
 			return()
 		}
 	}
 
-	typeid = FindFunctionSignatureType(signatures.next, paramtypes, returntypename)
+	typeid = FindFunctionSignatureType(signatures.next, paramtypes, paramrefflags, returntypename)
 }
 
-FindFunctionSignatureType : nothing, simplelist<integer> ref paramtypes, integer returntypename -> 0
+FindFunctionSignatureType : nothing, simplelist<integer> ref paramtypes, simplelist<boolean> ref paramrefflags, integer returntypename -> 0
 
 
 
@@ -475,7 +479,8 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 		}
 	
 		simplelist<integer> paramtypes = 0, nothing
-		GetFunctionParameterTypes(functions.value.Params, paramtypes)
+		simplelist<boolean> paramrefflags = false, nothing
+		GetFunctionParameterTypes(functions.value.Params, paramtypes, paramrefflags)
 
 		integer rettypename = 0
 		integer rettype = InferFunctionReturnType(functions.value)
@@ -483,7 +488,7 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 		{
 			rettypename = GetNameOfType(rettype)
 		}
-		typeid = FindOrCreateFunctionSignatureType(paramtypes, rettypename)
+		typeid = FindOrCreateFunctionSignatureType(paramtypes, paramrefflags, rettypename)
 	}
 	else
 	{
@@ -492,14 +497,14 @@ FindFunctionAndGetSignatureType : list<FunctionDefinition> ref functions, intege
 }
 
 
-GetFunctionParameterTypes : FunctionParams ref params, simplelist<integer> ref outtypenames
+GetFunctionParameterTypes : FunctionParams ref params, simplelist<integer> ref outtypenames, simplelist<boolean> ref outrefflags
 {
-	GetFunctionParameterTypes(params.Params, outtypenames)
+	GetFunctionParameterTypes(params.Params, outtypenames, outrefflags)
 }
 
-GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<integer> ref outtypenames
+GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<integer> ref outtypenames, simplelist<boolean> ref outrefflags
 {
-	GetFunctionParameterTypes(params.next, outtypenames)
+	GetFunctionParameterTypes(params.next, outtypenames, outrefflags)
 
 	if(params.value.ResolvedType == 0)
 	{
@@ -510,9 +515,10 @@ GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<int
 	}
 
 	simpleprepend<integer>(outtypenames, GetNameOfType(params.value.ResolvedType))
+	simpleprepend<boolean>(outrefflags, IsReferenceType(params.value.ResolvedType))
 }
 
-GetFunctionParameterTypes : nothing, simplelist<integer> ref outtypenames
+GetFunctionParameterTypes : nothing, simplelist<integer> ref outtypenames, simplelist<boolean> ref outrefflags
 
 
 FindMatchingSignature : list<FunctionSignature> ref signatures, FunctionSignature ref targetsig -> integer typeid = 0

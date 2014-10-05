@@ -200,7 +200,12 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 		return()
 	}
 
-	integer pretype = memvar.Type
+	integer pretype = 0
+	if(IsReferenceType(memvar.Type))
+	{
+		pretype = MakeReferenceType(0)
+	}
+	
 	memvar.Type = GetTypeByName(InstantiateStructureTemplate(memvar.TypeNameHandle, memvar.TemplateArgs))
 	if(memvar.Type == 0)
 	{
@@ -550,6 +555,9 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			{
 				// TODO - type checking on higher order functions
 				statement.Type = GetSignatureReturnType(FunctionSignatures, var.VarType)
+				
+				WalkFunctionParamsAndSetReferencesForSignature(FunctionSignatures, var.VarType, statement.Parameters)
+				
 				return()
 			}		
 		}
@@ -602,6 +610,47 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		AnnotateAllParameters(statement.Parameters, originalname, 0, paramcount, statement.TopLevel)
 	}
 }
+
+
+WalkFunctionParamsAndSetReferencesForSignature : list<FunctionSignature> ref signatures, integer sigtype, OptionalExpressionList ref optexprs
+{
+	if(signatures.value.Name == sigtype)
+	{
+		SetReferencesFromSignature(optexprs, signatures.value)
+	}
+	else
+	{
+		WalkFunctionParamsAndSetReferencesForSignature(signatures.next, sigtype, optexprs)
+	}
+}
+
+
+SetReferencesFromSignature : ExpressionList ref exprs, FunctionSignature ref signature
+{
+	SetReferencesFromSignature(exprs.Expressions, signature.Parameters)
+}
+
+SetReferencesFromSignature : list<Expression> ref exprs, list<Parameter> ref params
+{
+	if(params.value.Name == 0)
+	{
+		SetReferencesFromSignature(exprs, params.next)
+		return()
+	}
+
+	if(params.value.Name == 2)
+	{
+		if(!MarkAtomAsReference(exprs.value.Atoms.value))
+		{
+			print("WARNING: failed to bind reference")
+			DumpAtom(exprs.value.Atoms.value)
+		}
+	}
+
+	SetReferencesFromSignature(exprs.next, params.next)
+}
+
+SetReferencesFromSignature : nothing, nothing
 
 
 
@@ -805,7 +854,7 @@ CheckParameterTypesForMatch : simplelist<integer> ref atypes, simplelist<integer
 
 TypesMatch : simplelist<integer> ref a, simplelist<integer> ref b -> boolean match = true
 {
-	if(a.value != b.value)
+	if(MakeNonReferenceType(a.value) != MakeNonReferenceType(b.value))
 	{
 		match = false
 	}
@@ -2009,30 +2058,30 @@ CheckMemberTypes : nothing, simplelist<integer> ref types -> boolean match = fal
 
 
 
-SignatureMatchesParams : list<Parameter> ref params, simplelist<integer> ref paramtypes -> boolean match = true
+SignatureMatchesParams : list<Parameter> ref params, simplelist<integer> ref paramtypes, simplelist<boolean> ref paramrefflags -> boolean match = true
 {
 	if(params.value.Name == 0)
 	{
-		match = SignatureMatchesParams(params.next, paramtypes)
+		match = SignatureMatchesParams(params.next, paramtypes, paramrefflags)
 	}
 	elseif(paramtypes.value == 0)
 	{
-		match = SignatureMatchesParams(params, paramtypes.next)
+		match = SignatureMatchesParams(params, paramtypes.next, paramrefflags.next)
 	}
-	elseif(params.value.Type != GetTypeByName(paramtypes.value))
+	elseif(MakeNonReferenceType(params.value.Type) != GetTypeByName(paramtypes.value))
 	{
 		match = false
 	}
 	else
 	{
-		match = SignatureMatchesParams(params.next, paramtypes.next)
+		match = SignatureMatchesParams(params.next, paramtypes.next, paramrefflags.next)
 	}
 }
 
-SignatureMatchesParams : nothing, simplelist<integer> ref paramtypes -> (paramtypes.value == 0)
-SignatureMatchesParams : list<Parameter> ref params, nothing -> (params.value.Name == 0)
+SignatureMatchesParams : nothing, simplelist<integer> ref paramtypes, simplelist<boolean> ref paramrefflags -> (paramtypes.value == 0)
+SignatureMatchesParams : list<Parameter> ref params, nothing, nothing -> (params.value.Name == 0)
 
-SignatureMatchesParams : nothing, nothing -> true
+SignatureMatchesParams : nothing, nothing, nothing -> true
 
 ResolveSignatureTypes : FunctionSignature ref signature
 {

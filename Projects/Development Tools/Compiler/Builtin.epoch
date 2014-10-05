@@ -1101,7 +1101,8 @@ FindBuiltinAndGetSignatureType : integer builtinname -> integer typeid = 0
 	if(builtinname == PooledStringHandleForPassTest)
 	{
 		simplelist<integer> paramtypes = 0, nothing
-		typeid = FindOrCreateFunctionSignatureType(paramtypes, 0)
+		simplelist<boolean> refflags = false, nothing
+		typeid = FindOrCreateFunctionSignatureType(paramtypes, refflags, 0)
 	}
 }
 

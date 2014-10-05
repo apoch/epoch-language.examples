@@ -1581,15 +1581,22 @@ OnCodeGenRegisterFunctionSig : integer sigtype, integer rettypename
 	prepend<FunctionSignature>(FunctionSignatures, sig)
 }
 
-OnCodeGenRegisterFunctionSigParam : integer paramtype
+OnCodeGenRegisterFunctionSigParam : integer paramtype, boolean isref
 {
-	Parameter param = 1, paramtype
+	// TODO - this is a really lame hack
+	integer flag = 1
+	if(isref)
+	{
+		flag = 2
+	}
+	
+	Parameter param = flag, paramtype
 	AppendParameter(FunctionSignatures.value.Parameters, param)
 }
 
-OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
+OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames, simplelist<boolean> ref paramrefflags
 {
-	OnCodeGenRegisterFunctionSigParamList(paramtypenames.next)
+	OnCodeGenRegisterFunctionSigParamList(paramtypenames.next, paramrefflags.next)
 
 	if(paramtypenames.value != 0)
 	{
@@ -1599,11 +1606,11 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames
 			paramtype = paramtypenames.value
 		}
 
-		OnCodeGenRegisterFunctionSigParam(paramtype)		// TODO - defer higher order function parameter type resolution until type inference
+		OnCodeGenRegisterFunctionSigParam(paramtype, paramrefflags.value)		// TODO - defer higher order function parameter type resolution until type inference
 	}
 }
 
-OnCodeGenRegisterFunctionSigParamList : nothing
+OnCodeGenRegisterFunctionSigParamList : nothing, nothing
 
 
 CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
@@ -1629,7 +1636,12 @@ CodeGenEmitFunctionSigParams : list<Parameter> ref params
 {
 	if(params.value.Type != 0)
 	{
-		OnBytecodeEmitFunctionSigParam(params.value.Type)
+		integer t = params.value.Type
+		if(params.value.Name == 2)		// VERY BAD HACK
+		{
+			t = MakeReferenceType(t)
+		}
+		OnBytecodeEmitFunctionSigParam(t)
 	}
 	CodeGenEmitFunctionSigParams(params.next)
 }
