@@ -233,22 +233,13 @@ ConstructVariableFromStatement : Statement ref statement, Scope ref scope, integ
 
 
 
-CacheGlobalCodeBlock : list<Scope> ref scopes [nogc]
+CacheGlobalCodeBlock : [nogc]
 {
-	if(scopes.value.Name == GlobalCodeBlockName)
-	{
-		GlobalScope.Wrapped = scopes.value
-	}
-	else
-	{
-		CacheGlobalCodeBlock(scopes.next)
-	}
-}
+	ContextNode<Scope> wrap = nothing
+	boolean success = SearchBinaryTreeForPayload<Scope>(GlobalRootNamespace.Scopes.RootNode, GlobalCodeBlockName, wrap)
+	
+	assertmsg(success, "Failed to cache global code block; internal error.")
 
-
-
-AttachCurrentScopeToCurrentFunction : [nogc]
-{
-	Functions.value.AttachedScope.Wrapped = Scopes.value
+	GlobalScope.Wrapped = wrap
 }
 

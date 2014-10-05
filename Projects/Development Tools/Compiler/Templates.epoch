@@ -432,7 +432,6 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	//ParseFunctionTags(namehandle, rawnamehandle)
 
 	IREnterFunction(instancename)
-	Functions.value.AttachedScope.Wrapped = Scopes.value
 	OnCodeGenEnterFunctionBody(instancename)
 
 	DoCodeBlockInstantiation(originalfunc.Code, params, args)

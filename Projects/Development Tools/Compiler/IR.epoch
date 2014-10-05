@@ -321,7 +321,7 @@ structure Namespace :
 
 IREnterFunction : integer namehandle
 {
-	OnCodeGenRegisterScope(namehandle, 0)
+	OnCodeGenRegisterScope(namehandle, 0, true)
 }
 
 IRExitFunction :

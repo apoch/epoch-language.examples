@@ -131,7 +131,7 @@ ParseGlobalBlock : -> boolean matched = false
 	PopTokens(2)
 
 	integer blockname = PoolString("@@globalblock")
-	OnCodeGenRegisterScope(blockname, 0)
+	OnCodeGenRegisterScope(blockname, 0, false)
 	OnCodeGenRegisterGlobalBlock(blockname)
 
 	while(PeekToken(0) != "}")
@@ -525,7 +525,6 @@ ParseFunction : -> boolean matched = false
 	{
 		matched = true
 		IREnterFunction(namehandle)
-		AttachCurrentScopeToCurrentFunction()
 		OnCodeGenEnterFunctionBody(namehandle)
 		IRExitFunction()
 		return()
@@ -533,7 +532,6 @@ ParseFunction : -> boolean matched = false
 
 	PopTokens(1)
 	IREnterFunction(namehandle)
-	AttachCurrentScopeToCurrentFunction()
 	OnCodeGenEnterFunctionBody(namehandle)
 
 	ParseCodeBlock()

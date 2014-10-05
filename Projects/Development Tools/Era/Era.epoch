@@ -698,6 +698,10 @@ global
 	SymbolEntry DummySymbolEntry = "", "", 0, 0
 	list<SymbolEntry> KnownSymbols = DummySymbolEntry, nothing
 
+
+	// Terrible hack until the compiler instantiates templated parameters correctly
+	simplelist<boolean> TerribadHack = false, nothing
+
 }
 
 

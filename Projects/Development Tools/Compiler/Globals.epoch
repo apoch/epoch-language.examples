@@ -39,9 +39,6 @@ global
 	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
 
 	Variable dummyvar = 0, 0, 0, 0
-	list<Variable> dummyvarlist = dummyvar, nothing
-	Scope dummyscope = 0, 0, dummyvarlist, 0, 0
-	list<Scope> Scopes = dummyscope, nothing
 
 	Overload dummyoverload = 0, 0, nothing
 	list<Overload> dummyoverloadlist = dummyoverload, nothing

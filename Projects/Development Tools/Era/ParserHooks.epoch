@@ -140,7 +140,7 @@ PopTemplateArgList : list<TemplateArgument> ref thelist, list<TemplateArgument> 
 }
 
 
-FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, integer returntypename -> 0
+FindOrCreateFunctionSignatureType : simplelist<integer> ref paramtypenames, simplelist<boolean> ref paramrefflags, integer returntypename -> 0
 
 
 FindSumTypeAndAddBase : integer name, integer typeid, integer basename, boolean templated
@@ -153,13 +153,14 @@ OnCodeGenRegisterWeakAlias : integer typeid, integer aliasname, integer basename
 SetUpSumTypeTemplate : integer typeid
 
 
-OnCodeGenRegisterScope : integer blockname, integer ignored
+OnCodeGenRegisterScope : integer blockname, integer ignored, boolean alsoignored
 OnCodeGenRegisterGlobalBlock : integer blockname
 
 
 DisableAnonymousReturnOnCurrentFunction : {}
 
 
+OnCodeGenEnterTask : integer taskname
 
 
 
@@ -257,3 +258,5 @@ WalkSymbolTableToFindSymbol : list<SymbolEntry> ref symbols, string symbol
 WalkSymbolTableToFindSymbol : nothing, string symbol
 
 
+IREnterMessageSend : integer targetname, integer messagename {}
+IRExitMessageSend : {}
