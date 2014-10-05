@@ -439,7 +439,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 			elseif(paramindex == 1)
 			{
-				FindSumTypeAndPrependTypesToList(SumTypes, ctype, types)
+				FindSumTypeAndPrependTypesToList(ctype, types)
 			}
 		}
 		return()

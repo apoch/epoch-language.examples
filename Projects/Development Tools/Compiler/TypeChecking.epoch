@@ -30,7 +30,7 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 			return()
 		}
 
-		if(SumTypeHasBase(SumTypes, MakeNonReferenceType(value), MakeNonReferenceType(listval)))
+		if(SumTypeHasBase(MakeNonReferenceType(value), MakeNonReferenceType(listval)))
 		{
 			ret = value
 			return()
@@ -45,7 +45,7 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 			return()
 		}
 
-		if(SumTypeHasBase(SumTypes, listval, MakeNonReferenceType(value)))
+		if(SumTypeHasBase(listval, MakeNonReferenceType(value)))
 		{
 			ret = value
 			return()
@@ -84,9 +84,25 @@ structure ExpressionInferenceStackEntry :
 	list<InferencePossibility> ref PossibilityList
 
 
+
+TypeInferenceSumTypeHelper : SumType ref st -> boolean success = true [nogc]
+{
+	if(st.Type != 0)
+	{
+		if(!st.IsTemplate)
+		{
+			if(!ResolveSumTypeBases(st.Bases))
+			{
+				success = false
+			}
+		}
+	}
+}
+
+
 IRTypeInference : -> boolean success = true
 {
-	if(!TypeInference(SumTypes, DummyContextForFunctions))
+	if(!BinaryTreeWalkAllNodes<SumType>(GlobalRootNamespace.SumTypes.RootNode, TypeInferenceSumTypeHelper))
 	{
 		success = false
 	}
@@ -113,26 +129,6 @@ IRTypeInference : -> boolean success = true
 }
 
 TypeInference : nothing, InferenceContext ref context -> true
-
-
-TypeInference : list<SumType> ref sumtypes, InferenceContext ref context -> boolean success = true
-{
-	if(sumtypes.value.Type != 0)
-	{
-		if(!sumtypes.value.IsTemplate)
-		{
-			if(!ResolveSumTypeBases(sumtypes.value.Bases))
-			{
-				success = false
-			}
-		}
-	}
-
-	if(!TypeInference(sumtypes.next, context))
-	{
-		success = false
-	}
-}
 
 TypeInference : list<StructureDefinition> ref structures, InferenceContext ref context -> boolean success = true
 {
@@ -2034,7 +2030,7 @@ CheckMemberTypes : list<StructureMember> ref members, simplelist<integer> ref ty
 	{
 		match = CheckMemberTypes(members.next, types.next)
 	}
-	elseif(SumTypeHasBase(SumTypes, membertype, curtype))
+	elseif(SumTypeHasBase(membertype, curtype))
 	{
 		match = CheckMemberTypes(members.next, types.next)
 	}

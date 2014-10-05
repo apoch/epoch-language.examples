@@ -280,11 +280,15 @@ StructInstInner : StructureDefinition ref templstruct, integer defname, integer 
 DoSumTypeInstantiation : integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	ContextNode<SumType> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, defname, wrap)
+	boolean found = SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, defname, wrap)
 
 	if(found)
 	{
 		STInst(wrap, instancename, params, args)
+	}
+	else
+	{
+		assertmsg(false, "Cannot instantiate non-existing sum type!")
 	}
 }
 
@@ -294,17 +298,18 @@ STInst : SumType ref templst, integer instancename, list<TemplateParameter> ref 
 
 	++GlobalSumTypeCounter
 
+	SumTypeBase dummybasetype = 0, nothing
 	list<SumTypeBase> bases = dummybasetype, nothing
 	DoBaseTypeInstantiation(templst.Bases, bases, params, args)
 
 	SumType st = instancename, GlobalSumTypeCounter, bases, false
-	prepend<SumType>(SumTypes, st)
-	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, instancename, st)
+	BinaryTreeCreateOrInsert<SumType>(GlobalRootNamespace.SumTypes, instancename, st)
+	BinaryTreeCreateOrInsert<integer>(TypeToNameMap, st.Type, instancename)
 
 	TemplateInstance instance = templst.Name, instancename, args
 	prepend<TemplateInstance>(TemplateSumTypeInstances, instance)
 
-	ResolveSumTypeBases(SumTypes.value.Bases)
+	ResolveSumTypeBases(st.Bases)
 }
 
 

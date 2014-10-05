@@ -9,7 +9,7 @@ OnCodeGenProcessProgram :
 	GeneratePendingTypeMatchers(PendingTypeMatchers)
 
 	CodeGenEmitStrings(GlobalStrings)
-	CodeGenEmitSumTypes(SumTypes)
+	CodeGenEmitSumTypes()
 	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
 	CodeGenEmitFunctionSignatures(FunctionSignatures)
@@ -1193,21 +1193,21 @@ EmitCompoundSubsequentBindings : list<RefBinding> ref bindings
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
 
 
-CodeGenEmitSumTypes : list<SumType> ref sumtypes
+CodeGenEmitSingleSumType : SumType ref st -> boolean ret = true [nogc]
 {
-	if((sumtypes.value.Type != 0) && (!sumtypes.value.IsTemplate))
+	if((st.Type != 0) && (!st.IsTemplate))
 	{
 		OnBytecodeEmitByte(0x1f)			// SumTypeDef instruction
-		OnBytecodeEmitInteger(sumtypes.value.Type)
-		OnBytecodeEmitInteger(CountSumTypeBases(sumtypes.value.Bases))
-		CodeGenEmitSumTypeBase(sumtypes.value.Bases)
+		OnBytecodeEmitInteger(st.Type)
+		OnBytecodeEmitInteger(CountSumTypeBases(st.Bases))
+		CodeGenEmitSumTypeBase(st.Bases)
 	}
-
-	CodeGenEmitSumTypes(sumtypes.next)
 }
 
-CodeGenEmitSumTypes : nothing
-
+CodeGenEmitSumTypes :
+{
+	BinaryTreeWalkAllNodes<SumType>(GlobalRootNamespace.SumTypes.RootNode, CodeGenEmitSingleSumType)
+}
 
 
 

@@ -1,13 +1,9 @@
 
 FindSumTypeAndAddBase : integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated [nogc]
 {
-	FindSumTypeAndAddBase(SumTypes, sumtypename, sumtypeid, basetypeid, templated)
-}
+	ContextNode<SumType> wrap = nothing
 
-
-FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated [nogc]
-{
-	if(sumtypes.value.Type == sumtypeid)
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, sumtypename, wrap))
 	{
 		SumTypeBase base = basetypeid, nothing
 
@@ -20,45 +16,42 @@ FindSumTypeAndAddBase : list<SumType> ref sumtypes, integer sumtypename, integer
 			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
 		}
 
-		prepend<SumTypeBase>(sumtypes.value.Bases, base)
+		AddBaseToSumType(wrap, base)
 	}
 	else
 	{
-		FindSumTypeAndAddBase(sumtypes.next, sumtypename, sumtypeid, basetypeid, templated)
+		SumTypeBase base = basetypeid, nothing
+		if(templated)
+		{
+			PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
+			TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
+			base.TemplateArgs = arglist
+
+			PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
+		}
+
+		list<SumTypeBase> bases = base, nothing
+		SumType st = sumtypename, sumtypeid, bases, false
+		BinaryTreeCreateOrInsert<SumType>(GlobalRootNamespace.SumTypes, sumtypename, st)
+
+		BinaryTreeCreateOrInsert<integer>(TypeToNameMap, sumtypeid, sumtypename)
 	}
+	
+	assertmsg(SumTypeHasBase(sumtypeid, basetypeid), "Sum type failed to register base type!")
 }
 
-FindSumTypeAndAddBase : nothing, integer sumtypename, integer sumtypeid, integer basetypeid, boolean templated [nogc]
+AddBaseToSumType : SumType ref st, SumTypeBase ref base [nogc]
 {
-	SumTypeBase base = basetypeid, nothing
-	if(templated)
+	prepend<SumTypeBase>(st.Bases, base)
+}
+
+
+SetUpSumTypeTemplate : integer sumtypeid [nogc]
+{
+	ContextNode<SumType> wrap = nothing
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, FindSumTypeName(sumtypeid), wrap))
 	{
-		PopTemplateArgList(ScratchTemplateArgumentStack.value.Args, ScratchTemplateArgumentStack.value.Args.next)
-		TemplateArgumentList arglist = ScratchTemplateArgumentStack.value
-		base.TemplateArgs = arglist
-
-		PopTemplateArgStack(ScratchTemplateArgumentStack, ScratchTemplateArgumentStack.next)
-	}
-
-	list<SumTypeBase> bases = base, nothing
-	SumType st = sumtypename, sumtypeid, bases, false
-	prepend<SumType>(SumTypes, st)
-	InsertIntoBinaryTree<SumType>(SumTypesWhichExist, sumtypename, st)
-}
-
-
-
-SetUpSumTypeTemplate : integer sumtypeid
-{
-	SetUpSumTypeTemplate(SumTypes, sumtypeid)
-}
-
-SetUpSumTypeTemplate : list<SumType> ref sumtypes, integer sumtypeid
-{
-	if(sumtypes.value.Type == sumtypeid)
-	{
-		sumtypes.value.IsTemplate = true
-		CreateSumTypeTemplateAndAttachParams(sumtypes.value.Name, TemplateParameterQueue)
+		SetUpSumTypeTemplate(wrap)
 
 		// Reset template parameter queue
 		list<TemplateParameter> dummylist = scratchtemplateparam, nothing
@@ -66,14 +59,15 @@ SetUpSumTypeTemplate : list<SumType> ref sumtypes, integer sumtypeid
 	}
 	else
 	{
-		SetUpSumTypeTemplate(sumtypes.next, sumtypeid)
+		print("Sum type not found!")
+		assert(false)
 	}
 }
 
-SetUpSumTypeTemplate : nothing, integer sumtypeid
+SetUpSumTypeTemplate : SumType ref st [nogc]
 {
-	print("Sum type not found!")
-	assert(false)
+	st.IsTemplate = true
+	CreateSumTypeTemplateAndAttachParams(st.Name, TemplateParameterQueue)
 }
 
 
@@ -91,27 +85,17 @@ CountSumTypeBases : list<SumTypeBase> ref bases -> integer count = 0 [nogc]
 CountSumTypeBases : nothing -> integer count = 0 [nogc]
 
 
-SumTypeExists : integer typename -> boolean exists = SearchBinaryTree<SumType>(SumTypesWhichExist, typename) [nogc]
+SumTypeExists : integer typename -> boolean exists = SearchBinaryTree<SumType>(GlobalRootNamespace.SumTypes.RootNode, typename) [nogc]
 
 
-FindSumTypeName : integer typeid -> integer name = FindSumTypeName(SumTypes, typeid) [nogc]
-
-FindSumTypeName : list<SumType> ref sumtypes, integer typeid -> integer name = 0 [nogc]
+FindSumTypeName : integer typeid -> integer name = 0 [nogc]
 {
-	if(sumtypes.value.Type == typeid)
-	{
-		name = sumtypes.value.Name
-	}
-	else
-	{
-		name = FindSumTypeName(sumtypes.next, typeid)
-	}
+	BinaryTreeCopyPayload<integer>(TypeToNameMap.RootNode, typeid, name)
 }
 
-FindSumTypeName : nothing, integer typeid -> 0 [nogc]
 
 
-SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetypeid -> boolean hasbase = false [nogc]
+SumTypeHasBase : integer sumtypeid, integer basetypeid -> boolean hasbase = false [nogc]
 {
 	if(basetypeid == 0)
 	{
@@ -123,18 +107,15 @@ SumTypeHasBase : list<SumType> ref sumtypes, integer sumtypeid, integer basetype
 		return()
 	}
 
-	if(sumtypes.value.Type == sumtypeid)
+	ContextNode<SumType> wrap = nothing
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, FindSumTypeName(sumtypeid), wrap))
 	{
-		hasbase = CheckBaseTypes(sumtypes.value.Bases, basetypeid)
-	}
-	else
-	{
-		hasbase = SumTypeHasBase(sumtypes.next, sumtypeid, basetypeid)
+		hasbase = CheckBaseTypes(wrap, basetypeid)
 	}
 }
 
-SumTypeHasBase : nothing, integer sumtypeid, integer basetypeid -> false [nogc]
 
+CheckBaseTypes : SumType ref st, integer basetypeid -> boolean hasbase = CheckBaseTypes(st.Bases, basetypeid) [nogc]
 
 CheckBaseTypes : list<SumTypeBase> ref bases, integer basetypeid -> boolean hasbase = false [nogc]
 {
@@ -154,7 +135,7 @@ CheckBaseTypes : nothing, integer basetypeid -> false [nogc]
 FindSumTypeByName : integer name -> integer typeid = 0 [nogc]
 {
 	ContextNode<SumType> wrap = nothing
-	if(SearchBinaryTreeForPayload<SumType>(SumTypesWhichExist, name, wrap))
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, name, wrap))
 	{
 		typeid = GrabSumTypeID(wrap)
 	}
@@ -163,22 +144,19 @@ FindSumTypeByName : integer name -> integer typeid = 0 [nogc]
 GrabSumTypeID : SumType ref st -> integer typeid = st.Type [nogc]
 
 
-GetLargestSumTypeBaseSize : integer typeid -> integer size = FindSumTypeAndGetBaseMaxSize(SumTypes, typeid) [nogc]
-
-FindSumTypeAndGetBaseMaxSize : list<SumType> ref sumtypes, integer typeid -> integer size = 0 [nogc]
+GetLargestSumTypeBaseSize : integer typeid -> integer size = 0 [nogc]
 {
-	if(sumtypes.value.Type == typeid)
+	ContextNode<SumType> wrap = nothing
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, FindSumTypeName(typeid), wrap))
 	{
-		GetBaseMaxSize(sumtypes.value.Bases, size)
-	}
-	else
-	{
-		size = FindSumTypeAndGetBaseMaxSize(sumtypes.next, typeid)
+		GetBaseMaxSize(wrap, size)
 	}
 }
 
-FindSumTypeAndGetBaseMaxSize : nothing, integer typeid -> 0 [nogc]
-
+GetBaseMaxSize : SumType ref st, integer ref outsize [nogc]
+{
+	GetBaseMaxSize(st.Bases, outsize)
+}
 
 GetBaseMaxSize : list<SumTypeBase> ref basetypes, integer ref outsize [nogc]
 {
@@ -225,6 +203,10 @@ ResolveSingleBase : SumTypeBase ref base, TemplateArgumentList ref args -> integ
 
 
 
+PrependSumTypeBases : simplelist<integer> ref input, SumType ref st [nogc]
+{
+	PrependSumTypeBases(input, st.Bases)
+}
 
 PrependSumTypeBases : simplelist<integer> ref input, list<SumTypeBase> ref newentries [nogc]
 {
@@ -235,15 +217,12 @@ PrependSumTypeBases : simplelist<integer> ref input, list<SumTypeBase> ref newen
 PrependSumTypeBases : simplelist<integer> ref input, nothing [nogc]
 
 
-FindSumTypeAndPrependTypesToList : list<SumType> ref sumtypes, integer sumtypeid, simplelist<integer> ref types [nogc]
+FindSumTypeAndPrependTypesToList : integer sumtypeid, simplelist<integer> ref types [nogc]
 {
-	if(sumtypes.value.Type == sumtypeid)
+	ContextNode<SumType> wrap = nothing
+	if(SearchBinaryTreeForPayload<SumType>(GlobalRootNamespace.SumTypes.RootNode, FindSumTypeName(sumtypeid), wrap))
 	{
-		PrependSumTypeBases(types, sumtypes.value.Bases)
-	}
-	else
-	{
-		FindSumTypeAndPrependTypesToList(sumtypes.next, sumtypeid, types)
+		PrependSumTypeBases(types, wrap)
 	}
 }
 

@@ -299,6 +299,7 @@ structure ContextWrapper<type T> :
 
 structure Namespace :
 	integer								NameHandle,
+	listnode<Namespace>					Children,
 	BinaryTreeRoot<Scope>				Scopes,
 	BinaryTreeRoot<SumType>				SumTypes,
 	BinaryTreeRoot<TypeAlias>			TypeAliases,

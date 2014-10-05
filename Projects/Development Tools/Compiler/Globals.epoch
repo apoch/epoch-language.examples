@@ -11,6 +11,7 @@ global
 	
 	Namespace GlobalRootNamespace =
 		0,
+		nothing,
 		BinaryTreeRoot<Scope>(nothing),
 		BinaryTreeRoot<SumType>(nothing),
 		BinaryTreeRoot<TypeAlias>(nothing),
@@ -49,14 +50,6 @@ global
 	ContextWrapper<Scope> dummyscopewrap = nothing
 	FunctionDefinition dummyfunc = 0, 0, nothing, nothing, nothing, dummyoverloadlist, dummyscopewrap, "", 0, false, false, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
-
-	SumTypeBase dummybasetype = 0, nothing
-	list<SumTypeBase> dummybases = dummybasetype, nothing
-	SumType dummysumtype = 0, 0, dummybases, false
-	list<SumType> SumTypes = dummysumtype, nothing
-
-	BTPayloadWrap<SumType> stwewrap = dummysumtype
-	BinaryTree<SumType> SumTypesWhichExist = 0, stwewrap, nothing, nothing, -1
 
 
 	StructureMemberVariable dummymember = 0, 0, 0, nothing
@@ -340,6 +333,7 @@ global
 	list<FunctionDefinition> PendingInferenceFunctions = dummyfunc, nothing
 
 	Trie GlobalStringTrie = 0, nothing, 0
+	BinaryTreeRoot<integer> TypeToNameMap = nothing
 
 	BTPayloadWrap<FunctionDefinition> fwewrap = dummyfunc
 	BinaryTree<FunctionDefinition> FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
