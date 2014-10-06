@@ -125,15 +125,11 @@ GetStructureMemberType : integer structurename, integer membername -> integer rt
 	if(found)
 	{
 		rtype = GetMemberType(wrap, membername)
-		
-		if(rtype == 0)
-		{
-			print(GetPooledString(GlobalStrings, structurename))
-		}
 	}
 	else
 	{
 		print("Bogus structure")
+		print(GetPooledString(GlobalStrings, structurename))
 		assert(false)
 	}
 }

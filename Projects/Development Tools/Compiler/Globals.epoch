@@ -18,7 +18,7 @@ global
 		BinaryTreeRoot<TypeAlias>(nothing),
 		BinaryTreeRoot<StructureDefinition>(nothing),
 		BinaryTreeRoot<FunctionSignature>(nothing),
-		BinaryTreeRoot<FunctionTag>(nothing),
+		nothing,
 		BinaryTreeRoot<FunctionDefinition>(nothing),
 		BinaryTreeRoot<Overload>(nothing),
 		BinaryTreeRoot<TypeMatcher>(nothing),
@@ -44,8 +44,7 @@ global
 	list<Overload> dummyoverloadlist = dummyoverload, nothing
 	list<Overload> AutoGenOverloads = dummyoverload, nothing
 
-	ContextWrapper<Scope> dummyscopewrap = nothing
-	FunctionDefinition dummyfunc = 0, 0, nothing, nothing, nothing, dummyoverloadlist, dummyscopewrap, "", 0, false, false, false
+	FunctionDefinition dummyfunc = 0, 0, nothing, nothing, nothing, dummyoverloadlist, ContextWrapper<Scope>(nothing), "", 0, false, false, false
 	list<FunctionDefinition> Functions = dummyfunc, nothing
 
 
@@ -90,11 +89,6 @@ global
 
 	Entity dummyentity = 0, 0, nothing, nothing
 	list<Entity> EntityStack = dummyentity, nothing
-
-
-	list<string> dummytagparams = "", nothing
-	FunctionTag dummytag = 0, "", dummytagparams
-	list<FunctionTag> FunctionTags = dummytag, nothing
 
 	integer EmittingFunctionName = 0
 

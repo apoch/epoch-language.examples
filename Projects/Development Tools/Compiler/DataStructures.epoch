@@ -35,6 +35,14 @@ prepend<type T> : list<T> ref thelist, T ref value [nogc]
 	thelist = newlist
 }
 
+ListPrependOrCreate<type T> : listnode<T> ref node, T ref value [nogc]
+{
+	list<T> newlist = value, node
+	listnode<T> wrap = newlist
+	node = wrap
+}
+
+
 
 countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
 {

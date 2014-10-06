@@ -20,7 +20,7 @@ OnCodeGenProcessProgram :
 	}
 
 	CodeGenEmitScopes()
-	CodeGenEmitFunctionTags(FunctionTags)
+	CodeGenEmitFunctionTags(GlobalRootNamespace.FunctionTags)
 	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
 	CodeGenEmitFunctions(Functions)
 	CodeGenEmitGlobalBlockEpilogue(GlobalCodeBlock)
@@ -1289,7 +1289,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 {
 	list<string> dtp = "", nothing
 	FunctionTag tag = funcname, tagname, dtp
-	prepend<FunctionTag>(FunctionTags, tag)
+	ListPrependOrCreate<FunctionTag>(GlobalRootNamespace.FunctionTags, tag)
 
 	if(tagname == "constructor")
 	{
@@ -1308,7 +1308,17 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 OnCodeGenRegisterFunctionTagParam : integer funcname, string tagname, string param
 {
 	// TODO - less lazy implementation (find function and tag)
-	AppendFunctionTagParam(FunctionTags.value.Parameters, FunctionTags.value.Parameters.next, param)
+	AppendFunctionTagParamUnwrap(GlobalRootNamespace.FunctionTags, param)
+}
+
+AppendFunctionTagParamUnwrap : list<FunctionTag> ref tags, string param
+{
+	AppendFunctionTagParam(tags.value.Parameters, tags.value.Parameters.next, param)
+}
+
+AppendFunctionTagParamUnwrap : nothing, string param
+{
+	assertmsg(false, "Function tag parameter registered but no function tags have been set up!")
 }
 
 

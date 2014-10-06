@@ -306,7 +306,7 @@ structure Namespace :
 	BinaryTreeRoot<TypeAlias>			TypeWeakAliases,
 	BinaryTreeRoot<StructureDefinition>	Structures,
 	BinaryTreeRoot<FunctionSignature>	FunctionSignatures,
-	BinaryTreeRoot<FunctionTag>			FunctionTags,
+	listnode<FunctionTag>				FunctionTags,
 	BinaryTreeRoot<FunctionDefinition> 	Functions,
 	BinaryTreeRoot<Overload> 			Overloads,
 	BinaryTreeRoot<TypeMatcher>			TypeMatchers,
