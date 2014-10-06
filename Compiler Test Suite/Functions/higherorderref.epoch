@@ -8,7 +8,7 @@
 entrypoint :
 {
 	integer foo = 41
-	mutate(foo, incrementer)
+	mutate(1, foo, incrementer)
 	
 	assert(foo == 42)
 
@@ -16,14 +16,14 @@ entrypoint :
 }
 
 
-incrementer : integer ref in
+incrementer : integer amount, integer ref in
 {
-	++in
+	in = in + amount
 }
 
 
-mutate : integer ref in, (func : integer ref)
+mutate : integer amount, integer ref in, (func : integer, integer ref)
 {
-	func(in)
+	func(amount, in)
 }
 

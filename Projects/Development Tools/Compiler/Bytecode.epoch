@@ -49,7 +49,6 @@ OnBytecodeEmitBoolean : boolean value [nogc]
 	OnBytecodeEmitByte(cast(integer, value))
 }
 
-
 OnBytecodePoolString : integer handle, string data [nogc]
 {
 	OnBytecodeEmitByte(0x10)			// PoolString instruction
@@ -78,11 +77,15 @@ OnBytecodeInvokeOffset : integer name [nogc]
 	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
 	OnBytecodeEmitInteger(name)
 	OnBytecodeEmitInteger(0)
+	
+	Echo("INVOKE_OFFSET " ; cast(string, name))
 }
 
 OnBytecodeHalt : [nogc]
 {
 	OnBytecodeEmitByte(0x00)			// Halt instruction
+	
+	Echo("HALT")
 }
 
 OnBytecodeEnterFunction : integer name [nogc]
@@ -90,18 +93,24 @@ OnBytecodeEnterFunction : integer name [nogc]
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
 	OnBytecodeEmitInteger(name)
+	
+	Echo("FUNCTION " ; cast(string, name))
 }
 
 OnBytecodeExitFunction : [nogc]
 {
 	OnBytecodeEmitByte(0x09)			// Return instruction
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	
+	Echo("END FUNCTION")
 }
 
 OnBytecodeInvoke : integer target [nogc]
 {
 	OnBytecodeEmitByte(0x07)			// Invoke instruction
 	OnBytecodeEmitInteger(target)
+	
+	Echo("INVOKE " ; cast(string, target))
 }
 
 OnBytecodeEnterEntity : integer tag, integer name [nogc]
@@ -109,21 +118,26 @@ OnBytecodeEnterEntity : integer tag, integer name [nogc]
 	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
 	OnBytecodeEmitInteger(tag)
 	OnBytecodeEmitInteger(name)
+	
+	Echo("ENTITY " ; cast(string, tag) ; " " ; cast(string, name))
 }
 
 OnBytecodeExitEntity : [nogc]
 {
 	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	Echo("END ENTITY")
 }
 
 OnBytecodeBeginChain : [nogc]
 {
 	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
+	Echo("CHAIN")
 }
 
 OnBytecodeEndChain : [nogc]
 {
 	OnBytecodeEmitByte(0x0e)			// EndChain instruction
+	Echo("END CHAIN")
 }
 
 OnBytecodeDefineStructure : integer typeid, integer nummembers [nogc]
@@ -142,17 +156,21 @@ OnBytecodeStructureMember : integer name, integer typeid [nogc]
 OnBytecodeReadReference : [nogc]
 {
 	OnBytecodeEmitByte(0x17)			// ReadRef instruction
+	Echo("READREF")
 }
 
 OnBytecodeReadReferenceAnnotated : [nogc]
 {
 	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
+	Echo("READREFANNOTATED")
 }
 
 OnBytecodeAllocStructure : integer typeid [nogc]
 {
 	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
 	OnBytecodeEmitInteger(typeid)
+	
+	Echo("ALLOCSTRUCT " ; cast(string, typeid))
 }
 
 OnBytecodeBindReference : integer frameskip, integer index [nogc]
@@ -166,17 +184,23 @@ OnBytecodeBindReference : integer frameskip, integer index [nogc]
 	OnBytecodeEmitByte(0x03)			// BindRef instruction
 	OnBytecodeEmitInteger(frameskip)
 	OnBytecodeEmitInteger(index)
+	
+	Echo("BINDREF")
 }
 
 OnBytecodeAssign : [nogc]
 {
 	OnBytecodeEmitByte(0x06)			// Assign instruction
+	
+	Echo("ASSIGN")
 }
 
 OnBytecodePushVarValueNoCopy : integer name [nogc]
 {
 	OnBytecodeEmitByte(0x05)			// Read instruction
 	OnBytecodeEmitInteger(name)
+	
+	Echo("PUSH_NOCOPY")
 }
 
 OnBytecodePushVarValue : integer name, integer typeid [nogc]
@@ -202,11 +226,15 @@ OnBytecodePushVarValue : integer name, integer typeid [nogc]
 OnBytecodeCopyBuffer : [nogc]
 {
 	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
+	
+	Echo("COPYBUFFER")
 }
 
 OnBytecodeCopyStructure : [nogc]
 {
 	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
+	
+	Echo("COPYSTRUCT")
 }
 
 OnBytecodeCopyToStructure : integer structurename, integer membername [nogc]
@@ -214,18 +242,24 @@ OnBytecodeCopyToStructure : integer structurename, integer membername [nogc]
 	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
 	OnBytecodeEmitInteger(structurename)
 	OnBytecodeEmitInteger(membername)
+	
+	Echo("COPYTOSTRUCT")
 }
 
 OnBytecodeSetReturnRegister : integer varindex [nogc]
 {
 	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
 	OnBytecodeEmitInteger(varindex)
+	
+	Echo("SETRET")
 }
 
 OnBytecodeInvokeIndirect : integer varname [nogc]
 {
 	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
 	OnBytecodeEmitInteger(varname)
+	
+	Echo("INVOKE INDIRECT" ; cast(string, varname))
 }
 
 OnBytecodeEnterPatternResolver : integer name [nogc]
@@ -263,12 +297,16 @@ OnBytecodePopStack : integer bytes [nogc]
 {
 	OnBytecodeEmitByte(0x04)			// Pop instruction
 	OnBytecodeEmitInteger(bytes)
+	
+	Echo("POP " ; cast(string, bytes))
 }
 
 OnBytecodeBindRefByHandle : integer id [nogc]
 {
 	OnBytecodeEmitByte(0x1d)
 	OnBytecodeEmitInteger(id)
+	
+	Echo("BINDREF BY HANDLE " ; cast(string, id))
 }
 
 OnBytecodeBindStructReference : integer membertype, integer memberoffset [nogc]
@@ -276,6 +314,8 @@ OnBytecodeBindStructReference : integer membertype, integer memberoffset [nogc]
 	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
 	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
 	OnBytecodeEmitInteger(memberoffset)
+	
+	Echo("BINDMEMBERREF")
 }
 
 OnBytecodePushType : integer typeid [nogc]
@@ -283,6 +323,8 @@ OnBytecodePushType : integer typeid [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(typeid)
+	
+	Echo("PUSH TYPE")
 }
 
 OnBytecodeAssignSumType : [nogc]
@@ -296,6 +338,8 @@ OnBytecodePushLocal : integer frameskip, integer offset [nogc]
 	OnBytecodeEmitInteger(frameskip)
 	OnBytecodeEmitInteger(offset)
 	OnBytecodeEmitInteger(0)
+	
+	Echo("PUSH LOCAL")
 }
 
 OnBytecodePushBoolean : boolean literal [nogc]
@@ -303,6 +347,8 @@ OnBytecodePushBoolean : boolean literal [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
 	OnBytecodeEmitBoolean(literal)
+	
+	Echo("PUSH LITERAL BOOLEAN")
 }
 
 OnBytecodePushLiteralString : integer literalhandle [nogc]
@@ -310,6 +356,8 @@ OnBytecodePushLiteralString : integer literalhandle [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x02000000)		// String type signature
 	OnBytecodeEmitInteger(literalhandle)
+	
+	Echo("PUSH LITERAL STRING")
 }
 
 OnBytecodePushLiteralInteger : integer literal [nogc]
@@ -317,6 +365,8 @@ OnBytecodePushLiteralInteger : integer literal [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(literal)
+	
+	Echo("PUSH LITERAL INTEGER")
 }
 
 OnBytecodePushLiteralInteger16 : integer16 literal [nogc]
@@ -331,6 +381,8 @@ OnBytecodePushTypeAnnotation : integer annotation [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
 	OnBytecodeEmitInteger(annotation)
+	
+	Echo("PUSH TYPE ANNOTATIONS")
 }
 
 OnBytecodePushLiteralFunction : integer name [nogc]
@@ -338,6 +390,8 @@ OnBytecodePushLiteralFunction : integer name [nogc]
 	OnBytecodeEmitByte(0x02)			// Push instruction
 	OnBytecodeEmitInteger(0x09000000)		// Function family signature (N.B. not the actual function type!)
 	OnBytecodeEmitInteger(name)
+	
+	Echo("PUSH LITERAL FUNCTION")
 }
 
 OnBytecodePushLiteralReal : real value [nogc]
@@ -360,3 +414,12 @@ OnBytecodeEmitFunctionSigParam : integer paramtype [nogc]
 	OnBytecodeEmitInteger(paramtype)
 	OnBytecodeEmitBoolean(false)
 }
+
+
+
+Echo : string s
+{
+	//print(s)
+}
+
+

@@ -633,7 +633,7 @@ SetReferencesFromSignature : list<Expression> ref exprs, list<Parameter> ref par
 		SetReferencesFromSignature(exprs, params.next)
 		return()
 	}
-
+	
 	if(params.value.Name == 2)
 	{
 		if(!MarkAtomAsReference(exprs.value.Atoms.value))
