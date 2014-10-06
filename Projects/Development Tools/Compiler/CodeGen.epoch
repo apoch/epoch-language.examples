@@ -272,7 +272,7 @@ OnCodeGenRegisterLiteralInteger : integer value, integer literaltype
 {
 	while((literaltype & 0xff000000) == 0x05000000)
 	{
-		literaltype = FindTypeAliasBase(TypeAliases, literaltype)
+		literaltype = FindTypeAliasBase(literaltype)
 	}
 
 	if(literaltype == 0x01000001)		// Integer32 type signature
@@ -557,7 +557,7 @@ CodeGenEmitVariables : list<Variable> ref vars, integer funcname
 		integer basetype = vars.value.VarType
 		while((basetype & 0x7f000000) == 0x05000000)
 		{
-			basetype = FindTypeAliasBase(TypeAliases, basetype)
+			basetype = FindTypeAliasBase(basetype)
 		}
 
 		if(vars.value.Origin == 2)
@@ -1581,13 +1581,15 @@ OnCodeGenEnterChain :
 OnCodeGenRegisterAlias : integer aliastype, integer aliasname, integer base
 {
 	TypeAlias newalias = aliastype, aliasname, base
-	prepend<TypeAlias>(TypeAliases, newalias)
+	BinaryTreeCreateOrInsert<TypeAlias>(GlobalRootNamespace.TypeAliases, aliastype, newalias)
+	BinaryTreeCreateOrInsert<integer>(NameToTypeMap, aliasname, aliastype)
 }
 
 OnCodeGenRegisterWeakAlias : integer aliastype, integer aliasname, integer basename
 {
 	TypeAlias newalias = aliastype, aliasname, basename
-	prepend<TypeAlias>(TypeWeakAliases, newalias)
+	BinaryTreeCreateOrInsert<TypeAlias>(GlobalRootNamespace.TypeWeakAliases, aliastype, newalias)
+	BinaryTreeCreateOrInsert<integer>(NameToTypeMap, aliasname, aliastype)
 }
 
 

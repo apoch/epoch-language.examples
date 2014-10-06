@@ -15,10 +15,10 @@ Parse : string filename, string code, integer len, (printer : string) -> boolean
 		if(ParseSumType())
 		{
 		}
-		elseif(ParseWeakAlias())
+		elseif(ParseStrongAlias())
 		{
 		}
-		elseif(ParseStrongAlias())
+		elseif(ParseWeakAlias())
 		{
 		}
 		elseif(ParseStructure())
@@ -271,6 +271,10 @@ ParseSumType : -> boolean matched = false
 		}
 	}
 	elseif(!PeekWithExpectation(2, ":"))
+	{
+		return()
+	}
+	elseif(!PeekWithExpectation(4, "|"))
 	{
 		return()
 	}

@@ -3,7 +3,7 @@ TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret
 	integer listval = thelist.value
 	if((listval & 0x7f000000) == 0x05000000)
 	{
-		listval = FindTypeAliasBase(TypeAliases, listval)
+		listval = FindTypeAliasBase(listval)
 	}
 
 	if(listval == value)
@@ -439,7 +439,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 
 		while((vartype & 0x7f000000) == 0x05000000)
 		{
-			vartype = FindTypeAliasBase(TypeAliases, vartype)
+			vartype = FindTypeAliasBase(vartype)
 		}
 
 		if(IsStructureType(vartype))
@@ -672,50 +672,44 @@ AnyTypeIsReferenceType : simplelist<integer> ref types -> boolean isref = false 
 AnyTypeIsReferenceType : nothing -> false [nogc]
 
 
-UnaliasType : list<TypeAlias> ref aliases, integer namehandle -> integer unaliasedname = 0 [nogc]
+UnaliasType : integer namehandle -> integer unaliasedname = namehandle [nogc]
 {
-	if(aliases.value.AliasNameHandle == namehandle)
+	integer typeid = 0
+	BinaryTreeCopyPayload<integer>(NameToTypeMap.RootNode, namehandle, typeid)
+	
+	if(typeid == 0)
 	{
-		unaliasedname = aliases.value.BaseNameHandle
+		return()
 	}
-	else
+
+
+	ContextNode<TypeAlias> wrap = nothing
+	if(SearchBinaryTreeForPayload<TypeAlias>(GlobalRootNamespace.TypeWeakAliases.RootNode, typeid, wrap))
 	{
-		unaliasedname = UnaliasType(aliases.next, namehandle)
+		unaliasedname = GrabAliasBaseTypeName(wrap)
 	}
 }
 
-UnaliasType : nothing, integer namehandle -> integer unaliasedname = namehandle [nogc]
 
 
-FindTypeAliasBase : list<TypeAlias> ref aliases, integer aliastype -> integer basetype = 0 [nogc]
+FindTypeAliasBase : integer aliastype -> integer basetype = 0 [nogc]
 {
-	if(aliases.value.TypeID == aliastype)
+	ContextNode<TypeAlias> wrap = nothing
+
+	if(SearchBinaryTreeForPayload<TypeAlias>(GlobalRootNamespace.TypeAliases.RootNode, aliastype, wrap))
 	{
-		basetype = GetTypeByName(aliases.value.BaseNameHandle)
-	}
-	else
-	{
-		basetype = FindTypeAliasBase(aliases.next, aliastype)
+		basetype = GrabAliasBaseType(wrap)
 	}
 }
 
-FindTypeAliasBase : nothing, integer aliastype -> integer basetype = 0 [nogc]
+GrabAliasBaseType : TypeAlias ref alias -> integer typeid = GetTypeByName(alias.BaseNameHandle)
+GrabAliasBaseTypeName : TypeAlias ref alias -> integer typename = alias.BaseNameHandle
 
 
-FindTypeAliasByName : list<TypeAlias> ref aliases, integer aliasname -> integer aliastype = 0 [nogc]
+FindTypeAliasByName : integer aliasname -> integer aliastype = 0 [nogc]
 {
-	if(aliases.value.AliasNameHandle == aliasname)
-	{
-		aliastype = aliases.value.TypeID
-	}
-	else
-	{
-		aliastype = FindTypeAliasByName(aliases.next, aliasname)
-	}
+	BinaryTreeCopyPayload<integer>(NameToTypeMap.RootNode, aliasname, aliastype)
 }
-
-FindTypeAliasByName : nothing, integer aliasname -> 0 [nogc]
-
 
 
 
@@ -883,13 +877,13 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 	integer resolved = params.value.ResolvedType
 	while((resolved & 0x7f000000) == 0x05000000)
 	{
-		resolved = FindTypeAliasBase(TypeAliases, resolved)
+		resolved = FindTypeAliasBase(resolved)
 	}
 
 	integer expected = types.value
 	while((expected & 0x7f000000) == 0x0500000)
 	{
-		expected = FindTypeAliasBase(TypeAliases, expected)
+		expected = FindTypeAliasBase(expected)
 	}
 
 	if(MakeNonReferenceType(resolved) != MakeNonReferenceType(expected))
@@ -1594,7 +1588,7 @@ AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype 
 
 	if((paramtype & 0x7f000000) == 0x05000000)
 	{
-		simpleprepend<integer>(possibilities, FindTypeAliasBase(TypeAliases, paramtype))
+		simpleprepend<integer>(possibilities, FindTypeAliasBase(paramtype))
 	}
 }
 

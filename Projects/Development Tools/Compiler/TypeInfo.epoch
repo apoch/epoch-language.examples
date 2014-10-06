@@ -111,11 +111,11 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 		return()
 	}
 
-	integer unaliasedname = UnaliasType(TypeWeakAliases, name)
+	integer unaliasedname = UnaliasType(name)
 	while(unaliasedname != name)
 	{
 		name = unaliasedname
-		unaliasedname = UnaliasType(TypeWeakAliases, name)
+		unaliasedname = UnaliasType(name)
 	}
 	name = unaliasedname
 
@@ -167,7 +167,7 @@ GetTypeByName : integer name -> integer typeid = 0 [nogc]
 			return()
 		}
 
-		integer strongaliastype = FindTypeAliasByName(TypeAliases, name)
+		integer strongaliastype = FindTypeAliasByName(name)
 		if(strongaliastype != 0)
 		{
 			typeid = strongaliastype
