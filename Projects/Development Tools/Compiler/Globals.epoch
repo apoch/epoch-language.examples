@@ -30,13 +30,16 @@ global
 		BinaryTreeRoot<TemplateInstance>(nothing)
 
 
+	StringPool GlobalStringPool =
+		BinaryTreeRoot<string>(nothing),
+		Trie(0, nothing, 0),
+		0
+
 
 	// Remaining contents are largely hacky
 	
 	buffer Hack = 8192000
 	integer HackSize = 0
-
-	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
 
 	Variable dummyvar = 0, 0, 0, 0
 
@@ -112,8 +115,6 @@ global
 
 	boolean InFuncRetHack = false
 	ContextWrapper<Statement> LastTopLevelStatementHack = nothing
-
-	integer CurrentStringHandle = 0
 
 	simplelist<integer> scratchpossibletypes = 0, nothing
 	TypePossibilityList scratchreturns = scratchpossibletypes, false
@@ -318,7 +319,6 @@ global
 
 	list<FunctionDefinition> PendingInferenceFunctions = dummyfunc, nothing
 
-	Trie GlobalStringTrie = 0, nothing, 0
 	BinaryTreeRoot<integer> TypeToNameMap = nothing
 	BinaryTreeRoot<integer> NameToTypeMap = nothing
 

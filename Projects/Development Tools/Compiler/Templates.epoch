@@ -9,7 +9,7 @@ IsFunctionTemplateFast : integer name -> boolean istemplate = false [nogc]
 	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
 	if(!found)
 	{
-		print("Internal error - function undefined: " ; GetPooledString(GlobalStrings, name))
+		print("Internal error - function undefined: " ; GetPooledString(name))
 		assert(false)
 	}
 
@@ -242,7 +242,7 @@ FindSumTypeTemplateAndInstantiate : nothing, integer defname, list<TemplateArgum
 		return()
 	}
 
-	string namestr = GetPooledString(GlobalStrings, defname)
+	string namestr = GetPooledString(defname)
 	print("Error - no template provided for '" ; namestr ; "', cannot create instance!")
 }
 
@@ -266,7 +266,7 @@ StructInstInner : StructureDefinition ref templstruct, integer defname, integer 
 	DoMemberListInstantiation(templstruct.Members, members, params, args)
 	PopMember(members, members.next)
 
-	StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, templstruct.MemberCount, GetPooledString(GlobalStrings, instancename), false
+	StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, templstruct.MemberCount, GetPooledString(instancename), false
 	prepend<StructureDefinition>(Structures, struct)
 	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, instancename, struct)
 
@@ -376,7 +376,7 @@ RemapAllTemplateArguments : list<TemplateArgument> ref toremap, list<TemplatePar
 	if(toremap.value.ReplaceWith != 0)
 	{
 		toremap.value.ReplaceWith = MapTemplateType(toremap.value.ReplaceWith, params, args)
-		toremap.value.ReplaceWithString = GetPooledString(GlobalStrings, toremap.value.ReplaceWith)
+		toremap.value.ReplaceWithString = GetPooledString(toremap.value.ReplaceWith)
 	}
 
 	RemapAllTemplateArguments(toremap.next, params, args)
@@ -404,7 +404,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 {
 	if(!originalfunc.IsTemplate)
 	{
-		print("Function is not template: " ; GetPooledString(GlobalStrings, defname))
+		print("Function is not template: " ; GetPooledString(defname))
 		assert(false)
 	}
 
@@ -412,7 +412,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	prepend<TemplateInstance>(TemplateFunctionInstances, inst)
 
 	ContextWrapper<Scope> scopewrap = nothing
-	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(GlobalStrings, basenamemangled), 0, false, false, originalfunc.AnonymousReturn
+	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(basenamemangled), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
 	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, instancename, func)
 
@@ -537,7 +537,7 @@ MangleTemplateNameByHandle : integer defname, nothing -> integer mangled = defna
 MangleTemplateNameByHandle : integer defname, TemplateArgumentList ref args -> integer mangled = PoolString(MangleTemplateName(defname, args.Args)) [nogc]
 
 
-MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(GlobalStrings, defname) ; "@@templateinst@" [nogc]
+MangleTemplateName : integer defname, list<TemplateArgument> ref args -> string mangled = GetPooledString(defname) ; "@@templateinst@" [nogc]
 {
 	mangled = mangled ; MangleTemplateArguments(args)
 }

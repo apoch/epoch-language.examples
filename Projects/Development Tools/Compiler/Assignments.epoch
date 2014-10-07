@@ -149,7 +149,7 @@ ComputeCompoundAssignmentLHSType : AssignmentCompound ref assignment, Scope ref 
 	if(var.Name == 0)
 	{
 		print("Assignment has bogus LHS")
-		print(GetPooledString(GlobalStrings, rootname))
+		print(GetPooledString(rootname))
 		assert(false)
 	}
 

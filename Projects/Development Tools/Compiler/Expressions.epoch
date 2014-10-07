@@ -357,7 +357,7 @@ GetOperatorPrecedence : OperatorInvokeAtom ref atom -> integer precedence = 0 [n
 	}
 	else
 	{
-		print("Unknown operator " ; GetPooledString(GlobalStrings, atom.OperatorName))
+		print("Unknown operator " ; GetPooledString(atom.OperatorName))
 		assert(false)
 	}
 }
@@ -442,7 +442,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	if(var.Name == 0)
 	{
 		print("Member access is bogus!")
-		print(GetPooledString(GlobalStrings, lhs.Handle))
+		print(GetPooledString(lhs.Handle))
 		assert(false)
 	}
 
@@ -452,7 +452,7 @@ CoalesceMemberAccessAtomsUnwrapped : list<ExpressionAtom> ref lhslist, Identifie
 	integer rhstype = GetStructureMemberType(lhstypename, rhs.Handle)
 	if(rhstype == 0)
 	{
-		print(GetPooledString(GlobalStrings, rhs.Handle))
+		print(GetPooledString(rhs.Handle))
 	}
 	
 	assert(rhstype != 0)

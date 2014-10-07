@@ -509,8 +509,8 @@ GetFunctionParameterTypes : list<UnresolvedParameter> ref params, simplelist<int
 	if(params.value.ResolvedType == 0)
 	{
 		print("Internal error: function parameter has unresolved type")
-		print(GetPooledString(GlobalStrings, params.value.NameHandle))
-		print(GetPooledString(GlobalStrings, params.value.TypeNameHandle))
+		print(GetPooledString(params.value.NameHandle))
+		print(GetPooledString(params.value.TypeNameHandle))
 		assert(false)
 	}
 

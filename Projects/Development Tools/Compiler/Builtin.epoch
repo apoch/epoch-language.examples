@@ -30,280 +30,280 @@
 PrepareStringTable :
 {
 	integer counter = 0
-	OnCodeGenRegisterString((++counter), "+")
+	StringTableRegisterString((++counter), "+")
 	PooledStringHandleForPlus = counter
 
-	OnCodeGenRegisterString((++counter), "-")
+	StringTableRegisterString((++counter), "-")
 	PooledStringHandleForMinus = counter
 
-	OnCodeGenRegisterString((++counter), "*")
+	StringTableRegisterString((++counter), "*")
 	PooledStringHandleForMultiply = counter
 
-	OnCodeGenRegisterString((++counter), "/")
+	StringTableRegisterString((++counter), "/")
 	PooledStringHandleForDivide = counter
 
-	OnCodeGenRegisterString((++counter), "+=@@real")
+	StringTableRegisterString((++counter), "+=@@real")
 
-	OnCodeGenRegisterString((++counter), "+@@real")
+	StringTableRegisterString((++counter), "+@@real")
 	PooledStringHandleForPlusReal = counter
 
-	OnCodeGenRegisterString((++counter), "-=@@real")
-	OnCodeGenRegisterString((++counter), "-@@real")
-	OnCodeGenRegisterString((++counter), "*@@real")
-	OnCodeGenRegisterString((++counter), "/@@real")
+	StringTableRegisterString((++counter), "-=@@real")
+	StringTableRegisterString((++counter), "-@@real")
+	StringTableRegisterString((++counter), "*@@real")
+	StringTableRegisterString((++counter), "/@@real")
 
-	OnCodeGenRegisterString((++counter), "+=@@integer")
+	StringTableRegisterString((++counter), "+=@@integer")
 	PooledStringHandleForIncrementAssignInteger = counter
 
-	OnCodeGenRegisterString((++counter), "+@@integer")
+	StringTableRegisterString((++counter), "+@@integer")
 	PooledStringHandleForPlusInteger = counter
 
-	OnCodeGenRegisterString((++counter), "-=@@integer")
+	StringTableRegisterString((++counter), "-=@@integer")
 	PooledStringHandleForDecrementAssignInteger = counter
 
-	OnCodeGenRegisterString((++counter), "-@@integer")
+	StringTableRegisterString((++counter), "-@@integer")
 	PooledStringHandleForMinusInteger = counter
 
-	OnCodeGenRegisterString((++counter), "*@@integer")
+	StringTableRegisterString((++counter), "*@@integer")
 	PooledStringHandleForMultiplyInteger = counter
 
-	OnCodeGenRegisterString((++counter), "/@@integer")
+	StringTableRegisterString((++counter), "/@@integer")
 	PooledStringHandleForDivideInteger = counter
 
-	OnCodeGenRegisterString((++counter), "++@@integer")
+	StringTableRegisterString((++counter), "++@@integer")
 	PooledStringHandleForPrePostIncrementInteger = counter
 
-	OnCodeGenRegisterString((++counter), "--@@integer")
+	StringTableRegisterString((++counter), "--@@integer")
 	PooledStringHandleForPrePostDecrementInteger = counter
 
-	OnCodeGenRegisterString((++counter), "!@@integer")
-	OnCodeGenRegisterString((++counter), "++@@real")
-	OnCodeGenRegisterString((++counter), "--@@real")
+	StringTableRegisterString((++counter), "!@@integer")
+	StringTableRegisterString((++counter), "++@@real")
+	StringTableRegisterString((++counter), "--@@real")
 
-	OnCodeGenRegisterString((++counter), "+=")
+	StringTableRegisterString((++counter), "+=")
 	PooledStringHandleForIncrementAssign = counter
 
-	OnCodeGenRegisterString((++counter), "-=")
+	StringTableRegisterString((++counter), "-=")
 	PooledStringHandleForDecrementAssign = counter
 
-	OnCodeGenRegisterString((++counter), "!")
+	StringTableRegisterString((++counter), "!")
 	PooledStringHandleForUnaryNot = counter
 
-	OnCodeGenRegisterString((++counter), "++")
+	StringTableRegisterString((++counter), "++")
 	PooledStringHandleForPrePostIncrement = counter
 
-	OnCodeGenRegisterString((++counter), "--")
+	StringTableRegisterString((++counter), "--")
 	PooledStringHandleForPrePostDecrement = counter
 
-	OnCodeGenRegisterString((++counter), "&")
+	StringTableRegisterString((++counter), "&")
 	PooledStringHandleForBitwiseAnd = counter
 
-	OnCodeGenRegisterString((++counter), "&&")
+	StringTableRegisterString((++counter), "&&")
 	PooledStringHandleForBooleanAnd = counter
 
-	OnCodeGenRegisterString((++counter), "!@@boolean")
+	StringTableRegisterString((++counter), "!@@boolean")
 	PooledStringHandleForUnaryNotBoolean = counter
 
-	OnCodeGenRegisterString((++counter), "cmdlineisvalid")
+	StringTableRegisterString((++counter), "cmdlineisvalid")
 	PooledStringHandleForCmdLineIsValid = counter
 
-	OnCodeGenRegisterString((++counter), "cmdlinegetcount")
+	StringTableRegisterString((++counter), "cmdlinegetcount")
 	PooledStringHandleForCmdLineGetCount = counter
 
-	OnCodeGenRegisterString((++counter), "cmdlineget")
+	StringTableRegisterString((++counter), "cmdlineget")
 	PooledStringHandleForCmdLineGet = counter
 
-	OnCodeGenRegisterString((++counter), "==")
+	StringTableRegisterString((++counter), "==")
 	PooledStringHandleForEquality = counter
 
-	OnCodeGenRegisterString((++counter), "!=")
+	StringTableRegisterString((++counter), "!=")
 	PooledStringHandleForInequality = counter
 
-	OnCodeGenRegisterString((++counter), ">")
+	StringTableRegisterString((++counter), ">")
 	PooledStringHandleForGreaterThan = counter
 
-	OnCodeGenRegisterString((++counter), "<")
+	StringTableRegisterString((++counter), "<")
 	PooledStringHandleForLessThan = counter
 
-	OnCodeGenRegisterString((++counter), "==@@integer")
+	StringTableRegisterString((++counter), "==@@integer")
 	PooledStringHandleForEqualityInteger = counter
 
-	OnCodeGenRegisterString((++counter), "==@@integer16")
+	StringTableRegisterString((++counter), "==@@integer16")
 	PooledStringHandleForEqualityInteger16 = counter
 
-	OnCodeGenRegisterString((++counter), "!=@@integer")
+	StringTableRegisterString((++counter), "!=@@integer")
 	PooledStringHandleForInequalityInteger = counter
 
-	OnCodeGenRegisterString((++counter), "==@@boolean")
+	StringTableRegisterString((++counter), "==@@boolean")
 	PooledStringHandleForEqualityBoolean = counter
 
-	OnCodeGenRegisterString((++counter), "!=@@boolean")
+	StringTableRegisterString((++counter), "!=@@boolean")
 	PooledStringHandleForInequalityBoolean = counter
 
-	OnCodeGenRegisterString((++counter), "==@@string")
+	StringTableRegisterString((++counter), "==@@string")
 	PooledStringHandleForEqualityString = counter
 
-	OnCodeGenRegisterString((++counter), "!=@@string")
+	StringTableRegisterString((++counter), "!=@@string")
 	PooledStringHandleForInequalityString = counter
 
-	OnCodeGenRegisterString((++counter), "==@@real")
+	StringTableRegisterString((++counter), "==@@real")
 	PooledStringHandleForEqualityReal = counter
 
-	OnCodeGenRegisterString((++counter), ">@@integer")
+	StringTableRegisterString((++counter), ">@@integer")
 	PooledStringHandleForGreaterThanInteger = counter
 
-	OnCodeGenRegisterString((++counter), "<@@integer")
+	StringTableRegisterString((++counter), "<@@integer")
 	PooledStringHandleForLessThanInteger = counter
 
-	OnCodeGenRegisterString((++counter), ">@@real")
-	OnCodeGenRegisterString((++counter), "<@@real")
+	StringTableRegisterString((++counter), ">@@real")
+	StringTableRegisterString((++counter), "<@@real")
 
-	OnCodeGenRegisterString((++counter), "print")
+	StringTableRegisterString((++counter), "print")
 	PooledStringHandleForPrint = counter
 
-	OnCodeGenRegisterString((++counter), "read")
+	StringTableRegisterString((++counter), "read")
 
-	OnCodeGenRegisterString((++counter), "assert")
+	StringTableRegisterString((++counter), "assert")
 	PooledStringHandleForAssert = counter
 
-	OnCodeGenRegisterString((++counter), "passtest")
+	StringTableRegisterString((++counter), "passtest")
 	PooledStringHandleForPassTest = counter
 
-	OnCodeGenRegisterString((++counter), "sqrt")
-	OnCodeGenRegisterString((++counter), "plotpixel")
-	OnCodeGenRegisterString((++counter), "breakpoint")
-	OnCodeGenRegisterString((++counter), "if")
-	OnCodeGenRegisterString((++counter), "elseif")
-	OnCodeGenRegisterString((++counter), "else")
-	OnCodeGenRegisterString((++counter), "while")
-	OnCodeGenRegisterString((++counter), "do")
-	OnCodeGenRegisterString((++counter), "return")
-	OnCodeGenRegisterString((++counter), "constructor")
-	OnCodeGenRegisterString((++counter), "external")
-	OnCodeGenRegisterString((++counter), "@@external")
-	OnCodeGenRegisterString((++counter), "nogc")
+	StringTableRegisterString((++counter), "sqrt")
+	StringTableRegisterString((++counter), "plotpixel")
+	StringTableRegisterString((++counter), "breakpoint")
+	StringTableRegisterString((++counter), "if")
+	StringTableRegisterString((++counter), "elseif")
+	StringTableRegisterString((++counter), "else")
+	StringTableRegisterString((++counter), "while")
+	StringTableRegisterString((++counter), "do")
+	StringTableRegisterString((++counter), "return")
+	StringTableRegisterString((++counter), "constructor")
+	StringTableRegisterString((++counter), "external")
+	StringTableRegisterString((++counter), "@@external")
+	StringTableRegisterString((++counter), "nogc")
 	
-	OnCodeGenRegisterString((++counter), "sizeof")
+	StringTableRegisterString((++counter), "sizeof")
 	PooledStringHandleForSizeOf = counter
 	
-	OnCodeGenRegisterString((++counter), "marshalstructure")
+	StringTableRegisterString((++counter), "marshalstructure")
 	PooledStringHandleForMarshalStructure = counter
 
-	OnCodeGenRegisterString((++counter), "writebuffer")
+	StringTableRegisterString((++counter), "writebuffer")
 	PooledStringHandleForWriteBuffer = counter
 
-	OnCodeGenRegisterString((++counter), "writebuffer@@string")
+	StringTableRegisterString((++counter), "writebuffer@@string")
 	PooledStringHandleForWriteBufferString = counter
 
-	OnCodeGenRegisterString((++counter), "writebuffer@@multiple")
+	StringTableRegisterString((++counter), "writebuffer@@multiple")
 	PooledStringHandleForWriteBufferMultiple = counter
 
-	OnCodeGenRegisterString((++counter), "writebuffer@@real")
+	StringTableRegisterString((++counter), "writebuffer@@real")
 	PooledStringHandleForWriteBufferReal = counter
 
-	OnCodeGenRegisterString((++counter), "unescape")
+	StringTableRegisterString((++counter), "unescape")
 	PooledStringHandleForUnescape = counter
 
-	OnCodeGenRegisterString((++counter), "substring")
+	StringTableRegisterString((++counter), "substring")
 	PooledStringHandleForSubstring = counter
 
-	OnCodeGenRegisterString((++counter), "substring@@withlength")
+	StringTableRegisterString((++counter), "substring@@withlength")
 	PooledStringHandleForSubstringWithLength = counter
 
-	OnCodeGenRegisterString((++counter), "substring@@nolength")
+	StringTableRegisterString((++counter), "substring@@nolength")
 	PooledStringHandleForSubstringNoLength = counter
 
-	OnCodeGenRegisterString((++counter), "subchar")
+	StringTableRegisterString((++counter), "subchar")
 	PooledStringHandleForSubchar = counter
 
-	OnCodeGenRegisterString((++counter), ";")
+	StringTableRegisterString((++counter), ";")
 	PooledStringHandleForStringConcat = counter
 
-	OnCodeGenRegisterString((++counter), "length")
+	StringTableRegisterString((++counter), "length")
 	PooledStringHandleForLength = counter
 
-	OnCodeGenRegisterString((++counter), "narrowstring")
+	StringTableRegisterString((++counter), "narrowstring")
 	PooledStringHandleForNarrowString = counter
 
-	OnCodeGenRegisterString((++counter), "widenfromptr")
+	StringTableRegisterString((++counter), "widenfromptr")
 	PooledStringHandleForWidenFromPtr = counter
 
-	OnCodeGenRegisterString((++counter), "widenfrombuffer")
+	StringTableRegisterString((++counter), "widenfrombuffer")
 	PooledStringHandleForWidenFromBuffer = counter
 
-	OnCodeGenRegisterString((++counter), "string")
+	StringTableRegisterString((++counter), "string")
 	PooledStringHandleForString = counter
 
-	OnCodeGenRegisterString((++counter), "integer")
+	StringTableRegisterString((++counter), "integer")
 	PooledStringHandleForInteger = counter
 
-	OnCodeGenRegisterString((++counter), "integer16")
+	StringTableRegisterString((++counter), "integer16")
 	PooledStringHandleForInteger16 = counter
 
-	OnCodeGenRegisterString((++counter), "real")
+	StringTableRegisterString((++counter), "real")
 	PooledStringHandleForReal = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@integer_to_string")
+	StringTableRegisterString((++counter), "cast@@integer_to_string")
 	PooledStringHandleForCastIntegerToString = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@string_to_integer")
+	StringTableRegisterString((++counter), "cast@@string_to_integer")
 	PooledStringHandleForCastStringToInteger = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@real_to_integer")
+	StringTableRegisterString((++counter), "cast@@real_to_integer")
 	PooledStringHandleForCastRealToInteger = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@integer_to_real")
-	OnCodeGenRegisterString((++counter), "cast@@boolean_to_string")
+	StringTableRegisterString((++counter), "cast@@integer_to_real")
+	StringTableRegisterString((++counter), "cast@@boolean_to_string")
 
-	OnCodeGenRegisterString((++counter), "cast@@real_to_string")
+	StringTableRegisterString((++counter), "cast@@real_to_string")
 	PooledStringHandleForCastRealToString = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@buffer_to_string")
+	StringTableRegisterString((++counter), "cast@@buffer_to_string")
 	PooledStringHandleForCastBufferToString = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@boolean_to_integer")
+	StringTableRegisterString((++counter), "cast@@boolean_to_integer")
 	PooledStringHandleForCastBooleanToInteger = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@integer_to_integer16")
+	StringTableRegisterString((++counter), "cast@@integer_to_integer16")
 	PooledStringHandleForCastIntegerToInteger16 = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@integer16_to_integer")
+	StringTableRegisterString((++counter), "cast@@integer16_to_integer")
 	PooledStringHandleForCastInteger16ToInteger = counter
 
-	OnCodeGenRegisterString((++counter), "cast@@string_to_real")
+	StringTableRegisterString((++counter), "cast@@string_to_real")
 	PooledStringHandleForCastStringToReal = counter
 
-	OnCodeGenRegisterString((++counter), "boolean")
+	StringTableRegisterString((++counter), "boolean")
 	PooledStringHandleForBoolean = counter
 
-	OnCodeGenRegisterString((++counter), "buffer")
+	StringTableRegisterString((++counter), "buffer")
 	PooledStringHandleForBuffer = counter
 
-	OnCodeGenRegisterString((++counter), "nothing")
+	StringTableRegisterString((++counter), "nothing")
 	PooledStringHandleForNothing = counter
 
-	OnCodeGenRegisterString((++counter), "buffer@@copy")
+	StringTableRegisterString((++counter), "buffer@@copy")
 	PooledStringHandleForBufferCopy = counter
 
-	OnCodeGenRegisterString((++counter), "cast")
+	StringTableRegisterString((++counter), "cast")
 	PooledStringHandleForCast = counter
 
-	OnCodeGenRegisterString((++counter), ".")
+	StringTableRegisterString((++counter), ".")
 	PooledStringHandleForMemberAccess = counter
 
-	OnCodeGenRegisterString((++counter), "identifier")
+	StringTableRegisterString((++counter), "identifier")
 	PooledStringHandleForIdentifier = counter
 
-	OnCodeGenRegisterString((++counter), "function")
+	StringTableRegisterString((++counter), "function")
 
-	OnCodeGenRegisterString((++counter), "@@anonymousret")
+	StringTableRegisterString((++counter), "@@anonymousret")
 	PooledStringHandleForAnonymousRet = counter
 
-	OnCodeGenRegisterString((++counter), "=")
+	StringTableRegisterString((++counter), "=")
 	PooledStringHandleForAssignment = counter
 
-	CurrentStringHandle = counter + 1
-	FirstNonBuiltInStringHandle = CurrentStringHandle
+	GlobalStringPool.CurrentStringHandle = counter + 1
+	FirstNonBuiltInStringHandle = GlobalStringPool.CurrentStringHandle
 }
 
 

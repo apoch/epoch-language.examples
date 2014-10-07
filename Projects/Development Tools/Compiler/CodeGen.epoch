@@ -8,7 +8,7 @@ OnCodeGenProcessProgram :
 	GenerateTypeMatcherMappings(Functions)
 	GeneratePendingTypeMatchers(PendingTypeMatchers)
 
-	CodeGenEmitStrings(GlobalStrings)
+	CodeGenEmitStrings()
 	CodeGenEmitSumTypes()
 	CodeGenRearrangeStructures(Structures)
 	CodeGenEmitStructures(Structures)
@@ -27,19 +27,6 @@ OnCodeGenProcessProgram :
 	CodeGenEmitTypeMatchers(TypeMatchers)
 	CodeGenEmitPatternMatchers(PendingPatternMatchers)
 	CodeGenEmitConstructors(Structures)
-}
-
-OnCodeGenRegisterString : integer handle, string data [nogc]
-{
-	StringTableEntry entry = handle, data
-	prepend<StringTableEntry>(GlobalStrings, entry)
-
-	PlaceDataInTrie(GlobalStringTrie, data, handle)
-
-	if(handle > CurrentStringHandle)
-	{
-		CurrentStringHandle = handle
-	}
 }
 
 OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle, boolean isref, boolean templated [nogc]
@@ -464,28 +451,18 @@ OnCodeGenEnterSubStatement :
 
 
 
-
-
-CodeGenEmitStrings : list<StringTableEntry> ref table
+CodeGenEmitSingleString : integer handle, string ref contents -> boolean ret = true [nogc]
 {
-	listnode<StringTableEntry> cur = table
-	while(HasSTEntry(cur))
-	{
-		if(GetSTHandle(cur) != 0)
-		{
-			OnBytecodePoolString(GetSTHandle(cur), GetSTData(cur))
-		}
-
-		cur = GetSTNext(cur)
-	}
+	OnBytecodePoolString(handle, contents)
 }
 
-HasSTEntry : list<StringTableEntry> ref table -> true
-HasSTEntry : nothing -> false
 
-GetSTHandle : list<StringTableEntry> ref table -> integer handle = table.value.Handle
-GetSTData : list<StringTableEntry> ref table -> string data = table.value.Data
-GetSTNext : list<StringTableEntry> ref table -> listnode<StringTableEntry> ret = table.next
+CodeGenEmitStrings :
+{
+	BinaryTreeWalkAllNodes<string>(GlobalStringPool.LookupMap.RootNode, CodeGenEmitSingleString)
+}
+
+
 
 CodeGenEmitStructures : list<StructureDefinition> ref structures
 {
@@ -520,7 +497,7 @@ CodeGenEmitMember : StructureMemberFunctionRef ref member
 
 
 
-CodeGenEmitSingleScope : Scope ref scope -> boolean ret = true
+CodeGenEmitSingleScope : integer scopename, Scope ref scope -> boolean ret = true
 {
 	if((scope.Name != 0) && (scope.Name != GlobalCodeBlockName))
 	{
@@ -708,7 +685,7 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 		{
 			if(!IsRecognizedBuiltIn(s.Name))
 			{
-				print("ILLEGAL EXTERNAL FUNCTION: " ; GetPooledString(GlobalStrings, s.Name))
+				print("ILLEGAL EXTERNAL FUNCTION: " ; GetPooledString(s.Name))
 				assert(false)
 			}
 			
@@ -1096,7 +1073,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 						if(var.Name == 0)
 						{
-							print("Code generation error - missing local variable " ; GetPooledString(GlobalStrings, idatom.Handle) ; " in scope " ; GetPooledString(GlobalStrings, EmittingFunctionName))
+							print("Code generation error - missing local variable " ; GetPooledString(idatom.Handle) ; " in scope " ; GetPooledString(EmittingFunctionName))
 							assert(false)
 						}
 						OnBytecodePushLocal(frames, var.Offset)
@@ -1200,7 +1177,7 @@ EmitCompoundSubsequentBindings : list<RefBinding> ref bindings
 CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
 
 
-CodeGenEmitSingleSumType : SumType ref st -> boolean ret = true [nogc]
+CodeGenEmitSingleSumType : integer typeid, SumType ref st -> boolean ret = true [nogc]
 {
 	if((st.Type != 0) && (!st.IsTemplate))
 	{
@@ -1295,7 +1272,7 @@ OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfunc
 	{
 		simpleprepend<integer>(CustomConstructors, funcname)
 
-		integer baseconstructorname = PoolString(GetPooledString(GlobalStrings, rawfuncname) ; "@@constructor")
+		integer baseconstructorname = PoolString(GetPooledString(rawfuncname) ; "@@constructor")
 
 		Overload overload = baseconstructorname, funcname, nothing
 		prepend<Overload>(AutoGenOverloads, overload)
@@ -1756,7 +1733,7 @@ CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
 
 		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
 		CodeGenEmitCodeBlock(block)
-		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringTrie, "entrypoint"))
+		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringPool.LookupTrie, "entrypoint"))
 		OnBytecodeHalt()
 	}
 }

@@ -508,9 +508,9 @@ SwapNodePayload<type T> : BinaryTree<T> ref a, BinaryTree<T> ref b [nogc]
 
 
 
-BinaryTreeWalkAllNodes<type T> : BinaryTree<T> ref tree, (func : T ref -> boolean) -> boolean ret = true
+BinaryTreeWalkAllNodes<type T> : BinaryTree<T> ref tree, (func : integer, T ref -> boolean) -> boolean ret = true
 {
-	if(!func(tree.Payload.Payload))
+	if(!func(tree.Value, tree.Payload.Payload))
 	{
 		ret = false
 	}
@@ -526,7 +526,7 @@ BinaryTreeWalkAllNodes<type T> : BinaryTree<T> ref tree, (func : T ref -> boolea
 	}
 }
 
-BinaryTreeWalkAllNodes<type T> : nothing, (func : T ref -> boolean) -> boolean ret = true
+BinaryTreeWalkAllNodes<type T> : nothing, (func : integer, T ref -> boolean) -> boolean ret = true
 
 
 

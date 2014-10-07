@@ -85,7 +85,7 @@ structure ExpressionInferenceStackEntry :
 
 
 
-TypeInferenceSumTypeHelper : SumType ref st -> boolean success = true [nogc]
+TypeInferenceSumTypeHelper : integer typeid, SumType ref st -> boolean success = true [nogc]
 {
 	if(st.Type != 0)
 	{
@@ -210,7 +210,7 @@ TypeInference : StructureMemberVariable ref memvar, InferenceContext ref context
 
 	if(memvar.Type == 0)
 	{
-		print("Type not recognized: " ; GetPooledString(GlobalStrings, memvar.TypeNameHandle))
+		print("Type not recognized: " ; GetPooledString(memvar.TypeNameHandle))
 		success = false
 	}
 	else
@@ -283,7 +283,7 @@ TypeInference : FunctionDefinition ref func, InferenceContext ref context -> boo
 
 	if(!TypeInference(func.Code, innercontext))
 	{
-		print(GetPooledString(GlobalStrings, func.Name) ; "() - Function code body failed type inference")
+		print(GetPooledString(func.Name) ; "() - Function code body failed type inference")
 		success = false
 	}
 }
@@ -324,7 +324,7 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 	param.ResolvedType = GetTypeByName(param.TypeNameHandle)
 	if(param.ResolvedType == 0)
 	{
-		print("Unknown parameter type: " ; GetPooledString(GlobalStrings, param.TypeNameHandle))
+		print("Unknown parameter type: " ; GetPooledString(param.TypeNameHandle))
 		success = false
 	}
 	else
@@ -386,7 +386,7 @@ TypeInference : PreOpStatement ref statement, InferenceContext ref context -> bo
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
-		print(GetPooledString(GlobalStrings, statement.Operand.value))
+		print(GetPooledString(statement.Operand.value))
 		
 		success = false
 		return()
@@ -413,7 +413,7 @@ TypeInference : PostOpStatement ref statement, InferenceContext ref context -> b
 	if(var.Name == 0)
 	{
 		print("Cannot operate on variable, it doesn't exist!")
-		print(GetPooledString(GlobalStrings, statement.Operand.value))
+		print(GetPooledString(statement.Operand.value))
 		
 		success = false
 		return()
@@ -482,7 +482,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 	if(!TypeInference(statement.Parameters, newcontext))
 	{
 		success = false
-		print("Type inference failed for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+		print("Type inference failed for call to " ; GetPooledString(statement.Name) ; "()")
 	}
 
 
@@ -534,7 +534,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 					{
 						if((localtype & 0x7f000000) != 0x09000000)
 						{
-							print("Call to " ; GetPooledString(GlobalStrings, statement.Name) ; "() is invalid - variable is not a function")
+							print("Call to " ; GetPooledString(statement.Name) ; "() is invalid - variable is not a function")
 							success = false
 						}
 					}
@@ -579,7 +579,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		else
 		{
 			success = false
-			print("No matching overload for call to " ; GetPooledString(GlobalStrings, statement.Name) ; "()")
+			print("No matching overload for call to " ; GetPooledString(statement.Name) ; "()")
 			DumpTypeList(paramtypes)
 		}
 	}
@@ -934,7 +934,7 @@ TypeInference : Assignment ref assignment, InferenceContext ref context -> boole
 	if(vartype == 0)
 	{
 		success = false
-		print("Assignment to non-existent variable " ; GetPooledString(GlobalStrings, assignment.LHSName))
+		print("Assignment to non-existent variable " ; GetPooledString(assignment.LHSName))
 		return()
 	}
 
@@ -1605,7 +1605,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 			}
 			else
 			{
-				print(GetPooledString(GlobalStrings, atom.Handle) ; " is not a defined identifier!")
+				print(GetPooledString(atom.Handle) ; " is not a defined identifier!")
 			}
 		}
 	}
@@ -1806,7 +1806,7 @@ MakeParametersReferencesForConstructor : list<StructureDefinition> ref structure
 		boolean ok = MakeParametersReferencesForStructureMembers(structures.value.Members, params.Expressions.next)
 		if(!ok)
 		{
-			print("Failed to generate call to constructor " ; GetPooledString(GlobalStrings, constructorname))
+			print("Failed to generate call to constructor " ; GetPooledString(constructorname))
 			assert(false)
 		}
 	}

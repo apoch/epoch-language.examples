@@ -16,7 +16,7 @@ FindStructureAndAddMember : list<StructureDefinition> ref structures, integer st
 FindStructureAndAddMember : nothing, integer structurename, integer structuretype, StructureMember ref member [nogc]
 {
 	list<StructureMember> members = member, nothing
-	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(GlobalStrings, structurename), false
+	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(structurename), false
 
 	prepend<StructureDefinition>(Structures, def)
 	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, structurename, def)
@@ -129,7 +129,7 @@ GetStructureMemberType : integer structurename, integer membername -> integer rt
 	else
 	{
 		print("Bogus structure")
-		print(GetPooledString(GlobalStrings, structurename))
+		print(GetPooledString(structurename))
 		assert(false)
 	}
 }
@@ -154,7 +154,7 @@ GetMemberType : list<StructureMember> ref members, integer membername -> integer
 GetMemberType : nothing, integer membername -> integer rtype = 0
 {
 	print("Bogus structure member!")
-	print(GetPooledString(GlobalStrings, membername))
+	print(GetPooledString(membername))
 }
 
 

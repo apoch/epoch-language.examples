@@ -1,10 +1,12 @@
 
-structure StringTableEntry :
-	integer Handle,
-	string Data
+
+structure StringPool :
+	BinaryTreeRoot<string> LookupMap,
+	Trie LookupTrie,
+	integer CurrentStringHandle
 
 
-PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s) [nogc]
+PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringPool.LookupTrie, s) [nogc]
 {
 	if(handle == 0)
 	{
@@ -14,28 +16,20 @@ PoolString : string s -> integer handle = FindHandleInTrie(GlobalStringTrie, s) 
 
 PoolStringFast : string s -> integer handle = 0 [nogc]
 {
-	++CurrentStringHandle
-	OnCodeGenRegisterString(CurrentStringHandle, s)
-	handle = CurrentStringHandle
+	++GlobalStringPool.CurrentStringHandle
+	StringTableRegisterString(GlobalStringPool.CurrentStringHandle, s)
+	handle = GlobalStringPool.CurrentStringHandle
 }
 
 
-
-GetPooledString : list<StringTableEntry> ref strings, integer handle -> string pooled = "" [nogc]
+StringTableRegisterString : integer handle, string contents
 {
-	if(strings.value.Handle == handle)
-	{
-		pooled = strings.value.Data
-	}
-	else
-	{
-		pooled = GetPooledString(strings.next, handle)
-	}
+	BinaryTreeCreateOrInsert<string>(GlobalStringPool.LookupMap, handle, contents)
+	PlaceDataInTrie(GlobalStringPool.LookupTrie, contents, handle)
 }
 
-GetPooledString : nothing, integer handle -> "" [nogc]
+
+GetPooledString : integer handle -> string pooled = "" [nogc]
 {
-	print("String handle not pooled: " ; cast(string, handle))
-	assert(false)
+	BinaryTreeCopyPayload<string>(GlobalStringPool.LookupMap.RootNode, handle, pooled)
 }
-
