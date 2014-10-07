@@ -8,7 +8,7 @@
 entrypoint :
 {
 	integer foo = 41
-	mutate(1, foo, incrementer)
+	mutate<integer>(true, foo, incrementer)
 	
 	assert(foo == 42)
 
@@ -16,14 +16,17 @@ entrypoint :
 }
 
 
-incrementer : integer amount, integer ref in
+incrementer : boolean actuallydoit, integer ref in
 {
-	in = in + amount
+	if(actuallydoit)
+	{
+		++in
+	}
 }
 
 
-mutate : integer amount, integer ref in, (func : integer, integer ref)
+mutate<type T> : boolean flag, T ref in, (func : boolean, T ref)
 {
-	func(amount, in)
+	func(flag, in)
 }
 

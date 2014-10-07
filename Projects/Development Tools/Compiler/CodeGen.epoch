@@ -66,7 +66,7 @@ OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype,
 OnCodeGenRegisterStructureMemFuncSig : integer structurename, integer structuretype, integer name, integer rettypename [nogc]
 {
 	list<Parameter> p = dummyparam, nothing
-	FunctionSignature signature = name, p, rettypename
+	FunctionSignature signature = name, p, rettypename, false
 	StructureMemberFunctionRef m = name, signature
 	StructureMember memwrap = m
 	FindStructureAndAddMember(Structures, structurename, structuretype, memwrap)
@@ -1596,7 +1596,7 @@ OnCodeGenRegisterWeakAlias : integer aliastype, integer aliasname, integer basen
 OnCodeGenRegisterFunctionSig : integer sigtype, integer rettypename
 {
 	list<Parameter> d = dummyparam, nothing
-	FunctionSignature sig = sigtype, d, rettypename
+	FunctionSignature sig = sigtype, d, rettypename, false
 	prepend<FunctionSignature>(FunctionSignatures, sig)
 }
 
@@ -1619,13 +1619,7 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames, 
 
 	if(paramtypenames.value != 0)
 	{
-		integer paramtype = GetTypeByName(paramtypenames.value)
-		if(paramtype == 0)
-		{
-			paramtype = paramtypenames.value
-		}
-
-		OnCodeGenRegisterFunctionSigParam(paramtype, paramrefflags.value)		// TODO - defer higher order function parameter type resolution until type inference
+		OnCodeGenRegisterFunctionSigParam(paramtypenames.value, paramrefflags.value)
 	}
 }
 

@@ -234,7 +234,8 @@ structure SumType :
 structure FunctionSignature :
 	integer Name,
 	list<Parameter> ref Parameters,
-	integer ReturnTypeName
+	integer ReturnTypeName,
+	boolean InferenceDone
 
 structure PendingTypeMatcher :
 	integer OverloadName,

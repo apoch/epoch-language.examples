@@ -83,7 +83,7 @@ global
 
 	Parameter dummyparam = 0, 0
 	list<Parameter> dummyparamlist = dummyparam, nothing
-	FunctionSignature dummysignature = 0, dummyparamlist, 0
+	FunctionSignature dummysignature = 0, dummyparamlist, 0, false
 	list<FunctionSignature> dummysignaturelist = dummysignature, nothing
 	TypeMatcher dummytypematch = 0, dummysignaturelist
 	list<TypeMatcher> TypeMatchers = dummytypematch, nothing

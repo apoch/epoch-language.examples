@@ -486,7 +486,11 @@ InstantiateFunctionSignature : list<FunctionSignature> ref sigs, integer targett
 
 RemapSignatureParamTypes : list<Parameter> ref parameters, list<TemplateParameter> ref templateparams, list<TemplateArgument> ref templateargs
 {
-	parameters.value.Type = GetTypeByName(MapTemplateType(parameters.value.Type, templateparams, templateargs))
+	if(parameters.value.Name != 0)
+	{
+		parameters.value.Type = MapTemplateType(parameters.value.Type, templateparams, templateargs)
+	}
+	
 	RemapSignatureParamTypes(parameters.next, templateparams, templateargs)
 }
 

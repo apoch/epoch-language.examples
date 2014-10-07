@@ -307,6 +307,7 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 {
 	if((param.ResolvedType & 0x7f000000) == 0x09000000)
 	{
+		TypeInferenceOnFunctionSignature(FunctionSignatures, param.ResolvedType)
 		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
 		return()
 	}
@@ -336,6 +337,24 @@ TypeInference : UnresolvedParameter ref param, InferenceContext ref context -> b
 		StoreVariableInSingleScope(context.ScopeRef.Wrapped, param.NameHandle, param.ResolvedType, false, 1)
 	}
 }
+
+
+TypeInferenceOnFunctionSignature : list<FunctionSignature> ref signatures, integer sigtype
+{
+	if(signatures.value.Name == sigtype)
+	{
+		if(!signatures.value.InferenceDone)
+		{
+			ResolveSignatureTypes(signatures.value.Parameters)
+			signatures.value.InferenceDone = true
+		}
+	}
+	else
+	{
+		TypeInferenceOnFunctionSignature(signatures.next, sigtype)
+	}
+}
+
 
 TypeInference : CodeBlock ref code, InferenceContext ref context -> boolean success = true
 {
@@ -644,6 +663,16 @@ SetReferencesFromSignature : list<Expression> ref exprs, list<Parameter> ref par
 	}
 
 	SetReferencesFromSignature(exprs.next, params.next)
+}
+
+SetReferencesFromSignature : nothing, list<Parameter> ref params
+{
+	assertmsg(params.value.Name == 0, "Parameter count mismatch for higher-order function")
+}
+
+SetReferencesFromSignature : list<Expression> ref exprs, nothing
+{
+	assertmsg(ExpressionAtomIsSentinel(exprs.value.Atoms.value), "Parameter count mismatch for higher-order function")
 }
 
 SetReferencesFromSignature : nothing, nothing
