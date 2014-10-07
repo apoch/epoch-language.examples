@@ -10,121 +10,12 @@
 // TODO - type aliases for cleanliness?
 
 
-//
-// Foundational types
-//
-// Basic types required for getting anything useful done.
-// These are all candidates for extraction into the Epoch
-// standard library, whenever such a thing exists.
-//
-
-type listnode<type T> : list<T> | nothing
-
-structure list<type T> :
-	T ref value,
-	listnode<T> next
-
-
-type simplelistnode<type T> : simplelist<T> | nothing
-
-structure simplelist<type T> :
-	T value,
-	simplelistnode<T> next
-	
-	
-structure tailhack :
-	listnode<ParsedToken> tail
-
 
 structure ParsedToken :
 	string Token,
 	string FileName,
 	integer Row,
 	integer Column
-
-
-
-structure Trie :
-	integer Character,
-	listnode<Trie> Children,
-	integer Handle
-
-
-PlaceDataInTrie : Trie ref trie, string data, integer handle [nogc]
-{
-	integer datalen = length(data)
-	if(datalen == 0)
-	{
-		trie.Handle = handle
-		return()
-	}
-
-	PlaceDataInTrieChild(trie.Children, trie, subchar(data, 0), data, 1, datalen, handle)
-}
-
-PlaceDataInTrieRecurse : Trie ref trie, string data, integer offset, integer datalen, integer handle [nogc]
-{
-	if(datalen == offset)
-	{
-		trie.Handle = handle
-		return()
-	}
-
-	PlaceDataInTrieChild(trie.Children, trie, subchar(data, offset), data, offset + 1, datalen, handle)
-}
-
-PlaceDataInTrieChild : list<Trie> ref children, Trie ref originaltrie, integer character, string alldata, integer offset, integer datalen, integer handle [nogc]
-{
-	if(children.value.Character == character)
-	{
-		PlaceDataInTrieRecurse(children.value, alldata, offset, datalen, handle)
-	}
-	else
-	{
-		PlaceDataInTrieChild(children.next, originaltrie, character, alldata, offset, datalen, handle)
-	}
-}
-
-PlaceDataInTrieChild : nothing, Trie ref originaltrie, integer character, string alldata, integer offset, integer datalen, integer handle [nogc]
-{
-	Trie newtrie = character, nothing, 0
-	PlaceDataInTrieRecurse(newtrie, alldata, offset, datalen, handle)
-
-	list<Trie> newtrielist = newtrie, originaltrie.Children
-	originaltrie.Children = newtrielist
-}
-
-
-FindHandleInTrie : Trie ref trie, string data -> integer handle = 0 [nogc]
-{
-	if(length(data) == 0)
-	{
-		handle = trie.Handle
-		return()
-	}
-
-	handle = FindHandleInTrieChildren(trie.Children, subchar(data, 0), data, 1, length(data))
-}
-
-FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, string alldata, integer offset, integer datalength -> integer handle = 0 [nogc]
-{
-	if(triechildren.value.Character == character)
-	{
-		if(datalength == offset)
-		{
-			handle = triechildren.value.Handle
-			return()
-		}
-
-		handle = FindHandleInTrieChildren(triechildren.value.Children, subchar(alldata, offset), alldata, offset + 1, datalength)
-		return()
-	}
-
-	handle = FindHandleInTrieChildren(triechildren.next, character, alldata, offset, datalength)
-}
-
-FindHandleInTrieChildren : nothing, integer character, string alldata, integer offset, integer datalength -> integer handle = 0 [nogc]
-
 
 
 //
@@ -675,11 +566,11 @@ global
 	list<ParsedToken> TokenStream = DummyParsedToken, nothing
 	tailhack TokenStreamTail = TokenStream
 
-	list<StringTableEntry> GlobalStrings = StringTableEntry(0, ""), nothing
+	StringPool GlobalStringPool =
+		BinaryTreeRoot<string>(nothing),
+		Trie(0, nothing, 0),
+		0
 
-	Trie GlobalStringTrie = 0, nothing, 0
-	
-	integer CurrentStringHandle = 0
 	
 	integer PooledStringHandleForNothing = 0
 	integer GlobalNothingCounter = 0

@@ -12,6 +12,7 @@ Tabs.epoch
 ..\Common\Lexer.epoch
 ..\Common\Parser.epoch
 ..\Common\StringTable.epoch
+..\Common\DataStructures.epoch
 ParserHooks.epoch
 
 [resources]

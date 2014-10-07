@@ -2,7 +2,7 @@
 Builtin.epoch
 Bytecode.epoch
 Compiler.epoch
-DataStructures.epoch
+..\Common\DataStructures.epoch
 Exe.epoch
 Globals.epoch
 IR.epoch

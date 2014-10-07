@@ -14,14 +14,6 @@ RegisterLiteralFunctionParam : integer ignored
 RegisterLiteralFunctionParam : real ignored
 
 
-OnCodeGenRegisterString : integer handle, string data [nogc]
-{
-	StringTableEntry entry = handle, data
-	prepend<StringTableEntry>(GlobalStrings, entry)
-
-	PlaceDataInTrie(GlobalStringTrie, data, handle)
-}
-
 OnCodeGenRegisterFunctionTag : integer funcname, string tag, integer rawfuncname
 OnCodeGenRegisterFunctionTagParam : integer funcname, string tag, string param
 
