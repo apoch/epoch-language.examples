@@ -51,10 +51,10 @@ CodeGenEmitPatternMatchers : list<PendingPatternMatcher> ref matchers
 {
 	if(!listcontains(EmittedPatternMatchers, matchers.value.MatcherName))
 	{
-		OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
-		OnBytecodeEmitInteger(matchers.value.MatcherName)
-		OnBytecodeEmitInteger(0)
-		OnBytecodeEmitInteger(0)
+		ByteStreamEmitByte(Hack, HackSize, 0x11)			// DefineLexicalScope instruction
+		ByteStreamEmitInteger(Hack, HackSize, matchers.value.MatcherName)
+		ByteStreamEmitInteger(Hack, HackSize, 0)
+		ByteStreamEmitInteger(Hack, HackSize, 0)
 
 		OnBytecodeEnterPatternResolver(matchers.value.MatcherName)
 		EmitOverloadsForPatternMatcher(PendingPatternMatchers, matchers.value.MatcherName, true)

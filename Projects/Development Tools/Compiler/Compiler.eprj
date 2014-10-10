@@ -1,6 +1,7 @@
 [source]
 Builtin.epoch
 Bytecode.epoch
+ByteStream.epoch
 Compiler.epoch
 ..\Common\DataStructures.epoch
 Exe.epoch

@@ -95,20 +95,20 @@ WriteStringTable : integer filehandle -> integer writtenbytes = 0
 	integer tablesize = 0
 
 
-	EmitInteger(tablebuffer, tablesize, 0x63657845)
-	EmitInteger(tablebuffer, tablesize, 0x42657475)
-	EmitInteger(tablebuffer, tablesize, 0x43657479)
-	EmitInteger(tablebuffer, tablesize, 0x0065646f)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x63657845)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x42657475)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x43657479)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x0065646f)
 
-	EmitInteger(tablebuffer, tablesize, 0x00700065)
-	EmitInteger(tablebuffer, tablesize, 0x0063006f)
-	EmitInteger(tablebuffer, tablesize, 0x00720068)
-	EmitInteger(tablebuffer, tablesize, 0x006e0075)
-	EmitInteger(tablebuffer, tablesize, 0x00690074)
-	EmitInteger(tablebuffer, tablesize, 0x0065006d)
-	EmitInteger(tablebuffer, tablesize, 0x0064002e)
-	EmitInteger(tablebuffer, tablesize, 0x006c006c)
-	EmitInteger16(tablebuffer, tablesize, 0x0000)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x00700065)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x0063006f)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x00720068)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x006e0075)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x00690074)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x0065006d)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x0064002e)
+	ByteStreamEmitInteger(tablebuffer, tablesize, 0x006c006c)
+	ByteStreamEmitInteger16(tablebuffer, tablesize, 0x0000)
 
 	// TODO - embed error strings
 
@@ -126,16 +126,16 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 	integer thunksize = 0
 
 
-	EmitInteger(thunkbuffer, thunksize, 0x000010bc)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	EmitInteger(thunkbuffer, thunksize, 0x00001096)
-	EmitInteger(thunkbuffer, thunksize, 0x000010ec)
-	EmitInteger(thunkbuffer, thunksize, 0x000010e4)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
-	EmitInteger(thunkbuffer, thunksize, 0x000010b1)
-	EmitInteger(thunkbuffer, thunksize, 0x00001114)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010bc)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001096)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010ec)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010e4)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010b1)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001114)
 
 
 	integer written = 0
@@ -150,84 +150,84 @@ WriteBootstrapCode : integer filehandle, integer codebeginoffset -> integer writ
 	buffer codebuffer = 1024
 	integer codesize = 0
 
-	EmitInteger(codebuffer, codesize, 0x81ec8b55)
-	EmitInteger(codebuffer, codesize, 0x000404ec)
-	EmitInteger(codebuffer, codesize, 0x10685600)
-	EmitInteger(codebuffer, codesize, 0xff004030)
-	EmitInteger(codebuffer, codesize, 0x40110415)
-	EmitInteger(codebuffer, codesize, 0x3bf63300)
-	EmitInteger(codebuffer, codesize, 0x6a1a75c6)
-	EmitInteger(codebuffer, codesize, 0x30326810)
-	EmitInteger(codebuffer, codesize, 0x52680040)
-	EmitInteger(codebuffer, codesize, 0x56004030)
-	EmitInteger(codebuffer, codesize, 0x111415ff)
-	EmitInteger(codebuffer, codesize, 0xc0330040)
-	EmitInteger(codebuffer, codesize, 0x00008be9)
-	EmitInteger(codebuffer, codesize, 0x30006800)
-	EmitInteger(codebuffer, codesize, 0xff500040)
-	EmitInteger(codebuffer, codesize, 0x40110015)
-	EmitInteger(codebuffer, codesize, 0xfc458900)
-	EmitInteger(codebuffer, codesize, 0x0e75c63b)
-	EmitInteger(codebuffer, codesize, 0x3268106a)
-	EmitInteger(codebuffer, codesize, 0x68004030)
-	EmitInteger(codebuffer, codesize, 0x004030e8)
-	EmitInteger(codebuffer, codesize, 0x6853d1eb)
-	EmitInteger(codebuffer, codesize, 0x000001ff)
-	EmitInteger(codebuffer, codesize, 0xfbfc858d)
-	EmitInteger(codebuffer, codesize, 0x5650ffff)
-	EmitInteger(codebuffer, codesize, 0x10fc15ff)
-	EmitInteger(codebuffer, codesize, 0x6a560040)
-	EmitInteger(codebuffer, codesize, 0x56036a20)
-	EmitInteger(codebuffer, codesize, 0x0068016a)
-	EmitInteger(codebuffer, codesize, 0x8d800000)
-	EmitInteger(codebuffer, codesize, 0xfffbfc85)
-	EmitInteger(codebuffer, codesize, 0x15ff50ff)
-	EmitInteger(codebuffer, codesize, 0x004010f4)
-	EmitInteger(codebuffer, codesize, 0xfb83d88b)
-	EmitInteger(codebuffer, codesize, 0x6a0e75ff)
-	EmitInteger(codebuffer, codesize, 0x30326810)
-	EmitInteger(codebuffer, codesize, 0xf2680040)
-	EmitInteger(codebuffer, codesize, 0xeb004031)
-	EmitInteger(codebuffer, codesize, 0x5656561d)
-	EmitInteger(codebuffer, codesize, 0x5356026a)
-	EmitInteger(codebuffer, codesize, 0x10f015ff)
-	EmitInteger(codebuffer, codesize, 0xc63b0040)
-	EmitInteger(codebuffer, codesize, 0x106a1975)
-	EmitInteger(codebuffer, codesize, 0x40303268)
-	EmitInteger(codebuffer, codesize, 0x32326800)
-	EmitInteger(codebuffer, codesize, 0xff560040)
-	EmitInteger(codebuffer, codesize, 0x40111415)
-	EmitInteger(codebuffer, codesize, 0x5bc03300)
-	EmitInteger(codebuffer, codesize, 0x57c3c95e)
-	EmitInteger(codebuffer, codesize, 0x6a565656)
-	EmitInteger(codebuffer, codesize, 0x15ff5001)
-	EmitInteger(codebuffer, codesize, 0x00401108)
-	EmitInteger(codebuffer, codesize, 0xfe3bf88b)
-	EmitInteger(codebuffer, codesize, 0x106a1875)
-	EmitInteger(codebuffer, codesize, 0x40303268)
-	EmitInteger(codebuffer, codesize, 0x326c6800)
-	EmitInteger(codebuffer, codesize, 0xff560040)
-	EmitInteger(codebuffer, codesize, 0x40111415)
-	EmitInteger(codebuffer, codesize, 0x5fc03300)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x81ec8b55)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x000404ec)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x10685600)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xff004030)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40110415)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x3bf63300)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x6a1a75c6)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x30326810)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x52680040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x56004030)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x111415ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xc0330040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x00008be9)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x30006800)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xff500040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40110015)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xfc458900)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x0e75c63b)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x3268106a)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x68004030)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x004030e8)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x6853d1eb)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x000001ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xfbfc858d)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x5650ffff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x10fc15ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x6a560040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x56036a20)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x0068016a)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x8d800000)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xfffbfc85)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x15ff50ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x004010f4)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xfb83d88b)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x6a0e75ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x30326810)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xf2680040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xeb004031)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x5656561d)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x5356026a)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x10f015ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xc63b0040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x106a1975)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40303268)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x32326800)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xff560040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40111415)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x5bc03300)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x57c3c95e)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x6a565656)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x15ff5001)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x00401108)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xfe3bf88b)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x106a1875)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40303268)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x326c6800)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xff560040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x40111415)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x5fc03300)
 
-	EmitByte(codebuffer, codesize, 0xeb)
-	EmitByte(codebuffer, codesize, 0xd1)
-	EmitByte(codebuffer, codesize, 0x68)
-	EmitInteger(codebuffer, codesize, HackSize)
-	EmitByte(codebuffer, codesize, 0x8d)
-	EmitByte(codebuffer, codesize, 0x87)
-	EmitInteger(codebuffer, codesize, codebeginoffset)
-	EmitByte(codebuffer, codesize, 0x50)
-	EmitByte(codebuffer, codesize, 0xff)
-	EmitByte(codebuffer, codesize, 0x55)
+	ByteStreamEmitByte(codebuffer, codesize, 0xeb)
+	ByteStreamEmitByte(codebuffer, codesize, 0xd1)
+	ByteStreamEmitByte(codebuffer, codesize, 0x68)
+	ByteStreamEmitInteger(codebuffer, codesize, HackSize)
+	ByteStreamEmitByte(codebuffer, codesize, 0x8d)
+	ByteStreamEmitByte(codebuffer, codesize, 0x87)
+	ByteStreamEmitInteger(codebuffer, codesize, codebeginoffset)
+	ByteStreamEmitByte(codebuffer, codesize, 0x50)
+	ByteStreamEmitByte(codebuffer, codesize, 0xff)
+	ByteStreamEmitByte(codebuffer, codesize, 0x55)
 
-	EmitInteger(codebuffer, codesize, 0x15ff57fc)
-	EmitInteger(codebuffer, codesize, 0x0040110c)
-	EmitInteger(codebuffer, codesize, 0xec15ff53)
-	EmitInteger(codebuffer, codesize, 0x56004010)
-	EmitInteger(codebuffer, codesize, 0x10f815ff)
-	EmitInteger(codebuffer, codesize, 0x00000040)
-	EmitInteger(codebuffer, codesize, 0x00000000)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x15ff57fc)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x0040110c)
+	ByteStreamEmitInteger(codebuffer, codesize, 0xec15ff53)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x56004010)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x10f815ff)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x00000040)
+	ByteStreamEmitInteger(codebuffer, codesize, 0x00000000)
 
 	integer written = 0
 	WriteFile(filehandle, codebuffer, codesize, written, 0)
@@ -242,235 +242,235 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 	integer thunksize = 0
 
 	// CloseHandle
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x43)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x48)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x6e)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x43)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x48)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// CreateFileMappingW
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x43)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x74)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x46)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x4d)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x70)
-	EmitByte(thunkbuffer, thunksize, 0x70)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6e)
-	EmitByte(thunkbuffer, thunksize, 0x67)
-	EmitByte(thunkbuffer, thunksize, 0x57)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x43)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x74)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x46)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x70)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x70)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x67)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x57)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// CreateFileW
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x43)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x74)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x46)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x57)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x43)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x74)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x46)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x57)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// ExitProcess
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x45)
-	EmitByte(thunkbuffer, thunksize, 0x78)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x74)
-	EmitByte(thunkbuffer, thunksize, 0x50)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x63)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x45)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x78)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x74)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x50)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x63)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// GetModuleFileNameW
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x47)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x74)
-	EmitByte(thunkbuffer, thunksize, 0x4d)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x75)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x46)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x4e)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x6d)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x57)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x47)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x74)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x75)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x46)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x57)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// GetProcAddress
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x47)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x74)
-	EmitByte(thunkbuffer, thunksize, 0x50)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x63)
-	EmitByte(thunkbuffer, thunksize, 0x41)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x47)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x74)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x50)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x63)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x41)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// LoadLibraryW
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x4c)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x4c)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x62)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x79)
-	EmitByte(thunkbuffer, thunksize, 0x57)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x62)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x79)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x57)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// MapViewOfFile
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x4d)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x70)
-	EmitByte(thunkbuffer, thunksize, 0x56)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x77)
-	EmitByte(thunkbuffer, thunksize, 0x4f)
-	EmitByte(thunkbuffer, thunksize, 0x66)
-	EmitByte(thunkbuffer, thunksize, 0x46)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x70)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x56)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x77)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x66)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x46)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// UnmapViewOfFile
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x55)
-	EmitByte(thunkbuffer, thunksize, 0x6e)
-	EmitByte(thunkbuffer, thunksize, 0x6d)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x70)
-	EmitByte(thunkbuffer, thunksize, 0x56)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x77)
-	EmitByte(thunkbuffer, thunksize, 0x4f)
-	EmitByte(thunkbuffer, thunksize, 0x66)
-	EmitByte(thunkbuffer, thunksize, 0x46)
-	EmitByte(thunkbuffer, thunksize, 0x69)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x55)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x70)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x56)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x77)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x66)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x46)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x69)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// kernel32.dll
-	EmitByte(thunkbuffer, thunksize, 0x6b)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x6e)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x33)
-	EmitByte(thunkbuffer, thunksize, 0x32)
-	EmitByte(thunkbuffer, thunksize, 0x2e)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6b)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x33)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x32)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x2e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// MessageBoxW
-	EmitInteger16(thunkbuffer, thunksize, 0)
-	EmitByte(thunkbuffer, thunksize, 0x4d)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x61)
-	EmitByte(thunkbuffer, thunksize, 0x67)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x42)
-	EmitByte(thunkbuffer, thunksize, 0x6f)
-	EmitByte(thunkbuffer, thunksize, 0x78)
-	EmitByte(thunkbuffer, thunksize, 0x57)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitInteger16(thunkbuffer, thunksize, 0)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x4d)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x61)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x67)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x42)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6f)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x78)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x57)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
 	// user32.dll
-	EmitByte(thunkbuffer, thunksize, 0x75)
-	EmitByte(thunkbuffer, thunksize, 0x73)
-	EmitByte(thunkbuffer, thunksize, 0x65)
-	EmitByte(thunkbuffer, thunksize, 0x72)
-	EmitByte(thunkbuffer, thunksize, 0x33)
-	EmitByte(thunkbuffer, thunksize, 0x32)
-	EmitByte(thunkbuffer, thunksize, 0x2e)
-	EmitByte(thunkbuffer, thunksize, 0x64)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x6c)
-	EmitByte(thunkbuffer, thunksize, 0x00)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x75)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x73)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x65)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x72)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x33)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x32)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x2e)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x64)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x6c)
+	ByteStreamEmitByte(thunkbuffer, thunksize, 0x00)
 
-	EmitInteger(thunkbuffer, thunksize, 0x00001000)
-	EmitInteger(thunkbuffer, thunksize, 0x0000100e)
-	EmitInteger(thunkbuffer, thunksize, 0x00001023)
-	EmitInteger(thunkbuffer, thunksize, 0x00001031)
-	EmitInteger(thunkbuffer, thunksize, 0x0000103f)
-	EmitInteger(thunkbuffer, thunksize, 0x00001054)
-	EmitInteger(thunkbuffer, thunksize, 0x00001065)
-	EmitInteger(thunkbuffer, thunksize, 0x00001074)
-	EmitInteger(thunkbuffer, thunksize, 0x00001084)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x0000100e)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001023)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001031)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x0000103f)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001054)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001065)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001074)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001084)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
 
-	EmitInteger(thunkbuffer, thunksize, 0x000010a3)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010a3)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
 
 	// Yes, this appears twice.
-	EmitInteger(thunkbuffer, thunksize, 0x00001000)
-	EmitInteger(thunkbuffer, thunksize, 0x0000100e)
-	EmitInteger(thunkbuffer, thunksize, 0x00001023)
-	EmitInteger(thunkbuffer, thunksize, 0x00001031)
-	EmitInteger(thunkbuffer, thunksize, 0x0000103f)
-	EmitInteger(thunkbuffer, thunksize, 0x00001054)
-	EmitInteger(thunkbuffer, thunksize, 0x00001065)
-	EmitInteger(thunkbuffer, thunksize, 0x00001074)
-	EmitInteger(thunkbuffer, thunksize, 0x00001084)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x0000100e)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001023)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001031)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x0000103f)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001054)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001065)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001074)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00001084)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
 
-	EmitInteger(thunkbuffer, thunksize, 0x000010a3)
-	EmitInteger(thunkbuffer, thunksize, 0x00000000)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x000010a3)
+	ByteStreamEmitInteger(thunkbuffer, thunksize, 0x00000000)
 
 	integer written = 0
 	WriteFile(filehandle, thunkbuffer, thunksize, written, 0)
@@ -503,28 +503,28 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 	while(count < length(sectionname))
 	{
 		string char = charat(sectionname, count)
-		EmitSubstring(headerbuffer, headersize, char, 1)
+		ByteStreamEmitSubstring(headerbuffer, headersize, char, 1)
 
 		++count
 	}
 
 	while(count < 8)
 	{
-		EmitByte(headerbuffer, headersize, 0)
+		ByteStreamEmitByte(headerbuffer, headersize, 0)
 		++count
 	}
 
 	// End hack.
 
-	EmitInteger(headerbuffer, headersize, sectionsize)
-	EmitInteger(headerbuffer, headersize, virtuallocation)
-	EmitInteger(headerbuffer, headersize, sectionvirtualsize)
-	EmitInteger(headerbuffer, headersize, location)
-	EmitInteger(headerbuffer, headersize, 0)
-	EmitInteger(headerbuffer, headersize, 0)
-	EmitInteger16(headerbuffer, headersize, 0)
-	EmitInteger16(headerbuffer, headersize, 0)
-	EmitInteger(headerbuffer, headersize, flags)
+	ByteStreamEmitInteger(headerbuffer, headersize, sectionsize)
+	ByteStreamEmitInteger(headerbuffer, headersize, virtuallocation)
+	ByteStreamEmitInteger(headerbuffer, headersize, sectionvirtualsize)
+	ByteStreamEmitInteger(headerbuffer, headersize, location)
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)
+	ByteStreamEmitInteger(headerbuffer, headersize, flags)
 
 	integer written = 0
 	WriteFile(filehandle, headerbuffer, headersize, written, 0)
@@ -541,251 +541,251 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, int
 	integer headersize = 0
 
 	// Begin DOS header
-	EmitInteger16(headerbuffer, headersize, 0x5a4d)		// e_magic
-	EmitInteger16(headerbuffer, headersize, 0x90)		// e_cblp
-	EmitInteger16(headerbuffer, headersize, 0x03)		// e_cp
-	EmitInteger16(headerbuffer, headersize, 0)		// e_crlc
-	EmitInteger16(headerbuffer, headersize, 0x04)		// e_cparhdr
-	EmitInteger16(headerbuffer, headersize, 0)		// e_minalloc
-	EmitInteger16(headerbuffer, headersize, 0xffff)		// e_maxalloc
-	EmitInteger16(headerbuffer, headersize, 0)		// e_ss
-	EmitInteger16(headerbuffer, headersize, 0xb8)		// e_sp
-	EmitInteger16(headerbuffer, headersize, 0)		// e_csum
-	EmitInteger16(headerbuffer, headersize, 0)		// e_ip
-	EmitInteger16(headerbuffer, headersize, 0)		// e_cs
-	EmitInteger16(headerbuffer, headersize, 0x40)		// e_lfarlc
-	EmitInteger16(headerbuffer, headersize, 0)		// e_ovno
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x5a4d)		// e_magic
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x90)		// e_cblp
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x03)		// e_cp
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_crlc
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x04)		// e_cparhdr
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_minalloc
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0xffff)		// e_maxalloc
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_ss
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0xb8)		// e_sp
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_csum
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_ip
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_cs
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x40)		// e_lfarlc
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_ovno
 
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res[0]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res[1]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res[2]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res[3]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res[0]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res[1]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res[2]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res[3]
 
-	EmitInteger16(headerbuffer, headersize, 0)		// e_oemid
-	EmitInteger16(headerbuffer, headersize, 0)		// e_oeminfo
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_oemid
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_oeminfo
 
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[0]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[1]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[2]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[3]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[4]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[5]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[6]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[7]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[8]
-	EmitInteger16(headerbuffer, headersize, 0)		// e_res2[9]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[0]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[1]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[2]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[3]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[4]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[5]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[6]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[7]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[8]
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)		// e_res2[9]
 
-	EmitInteger(headerbuffer, headersize, 0xb0)		// e_lfanew
+	ByteStreamEmitInteger(headerbuffer, headersize, 0xb0)		// e_lfanew
 
 
 	// Begin DOS stub
-	EmitByte(headerbuffer, headersize, 0x0e)
-	EmitByte(headerbuffer, headersize, 0x1f)
-	EmitByte(headerbuffer, headersize, 0xba)
-	EmitByte(headerbuffer, headersize, 0x0e)
-	EmitByte(headerbuffer, headersize, 0x00)
-	EmitByte(headerbuffer, headersize, 0xb4)
-	EmitByte(headerbuffer, headersize, 0x09)
-	EmitByte(headerbuffer, headersize, 0xcd)
-	EmitByte(headerbuffer, headersize, 0x21)
-	EmitByte(headerbuffer, headersize, 0xb8)
-	EmitByte(headerbuffer, headersize, 0x01)
-	EmitByte(headerbuffer, headersize, 0x4c)
-	EmitByte(headerbuffer, headersize, 0xcd)
-	EmitByte(headerbuffer, headersize, 0x21)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x1f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0xba)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x00)
+	ByteStreamEmitByte(headerbuffer, headersize, 0xb4)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x09)
+	ByteStreamEmitByte(headerbuffer, headersize, 0xcd)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x21)
+	ByteStreamEmitByte(headerbuffer, headersize, 0xb8)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x01)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x4c)
+	ByteStreamEmitByte(headerbuffer, headersize, 0xcd)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x21)
 
-	EmitByte(headerbuffer, headersize, 0x54)
-	EmitByte(headerbuffer, headersize, 0x68)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x73)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x70)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x6f)
-	EmitByte(headerbuffer, headersize, 0x67)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x61)
-	EmitByte(headerbuffer, headersize, 0x6d)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x54)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x68)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x73)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x70)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x67)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x61)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
 
-	EmitByte(headerbuffer, headersize, 0x73)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x66)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x6f)
-	EmitByte(headerbuffer, headersize, 0x6d)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x74)
-	EmitByte(headerbuffer, headersize, 0x68)
-	EmitByte(headerbuffer, headersize, 0x65)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x66)
-	EmitByte(headerbuffer, headersize, 0x75)
-	EmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x73)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x66)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x68)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x65)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x66)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x75)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
 
-	EmitByte(headerbuffer, headersize, 0x75)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x65)
-	EmitByte(headerbuffer, headersize, 0x2e)
-	EmitByte(headerbuffer, headersize, 0x0d)
-	EmitByte(headerbuffer, headersize, 0x0a)
-	EmitByte(headerbuffer, headersize, 0x49)
-	EmitByte(headerbuffer, headersize, 0x74)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x77)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x6c)
-	EmitByte(headerbuffer, headersize, 0x6c)
-	EmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x75)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x65)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x2e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0a)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x49)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x77)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6c)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6c)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
 
-	EmitByte(headerbuffer, headersize, 0x6e)
-	EmitByte(headerbuffer, headersize, 0x6f)
-	EmitByte(headerbuffer, headersize, 0x74)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x75)
-	EmitByte(headerbuffer, headersize, 0x6e)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x6f)
-	EmitByte(headerbuffer, headersize, 0x6e)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x79)
-	EmitByte(headerbuffer, headersize, 0x6f)
-	EmitByte(headerbuffer, headersize, 0x75)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x75)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x79)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x75)
 
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x70)
-	EmitByte(headerbuffer, headersize, 0x72)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x6d)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x74)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x76)
-	EmitByte(headerbuffer, headersize, 0x65)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x63)
-	EmitByte(headerbuffer, headersize, 0x6f)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x70)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x72)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x76)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x65)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x63)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6f)
 
-	EmitByte(headerbuffer, headersize, 0x6d)
-	EmitByte(headerbuffer, headersize, 0x70)
-	EmitByte(headerbuffer, headersize, 0x75)
-	EmitByte(headerbuffer, headersize, 0x74)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x6e)
-	EmitByte(headerbuffer, headersize, 0x67)
-	EmitByte(headerbuffer, headersize, 0x20)
-	EmitByte(headerbuffer, headersize, 0x64)
-	EmitByte(headerbuffer, headersize, 0x65)
-	EmitByte(headerbuffer, headersize, 0x76)
-	EmitByte(headerbuffer, headersize, 0x69)
-	EmitByte(headerbuffer, headersize, 0x63)
-	EmitByte(headerbuffer, headersize, 0x65)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x70)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x75)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x74)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x6e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x67)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x20)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x64)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x65)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x76)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x69)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x63)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x65)
 
-	EmitByte(headerbuffer, headersize, 0x2e)
-	EmitByte(headerbuffer, headersize, 0x0d)
-	EmitByte(headerbuffer, headersize, 0x0a)
-	EmitByte(headerbuffer, headersize, 0x24)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x2e)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0d)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x0a)
+	ByteStreamEmitByte(headerbuffer, headersize, 0x24)
 
-	EmitPadding(headerbuffer, headersize, 0xb0)
+	ByteStreamEmitPadding(headerbuffer, headersize, 0xb0)
 
 
 	// Begin NT headers
-	EmitInteger(headerbuffer, headersize, 0x00004550)
-	EmitInteger16(headerbuffer, headersize, 0x014c)			// Machine
-	EmitInteger16(headerbuffer, headersize, 5)			// NumberOfSections
-	EmitInteger(headerbuffer, headersize, 0x00000000)		// TimeDateStamp
-	EmitInteger(headerbuffer, headersize, 0)			// PointerToSymbolTable
-	EmitInteger(headerbuffer, headersize, 0)			// NumberOfSymbols
-	EmitInteger16(headerbuffer, headersize, 0xe0)			// SizeOfOptionalHeader
-	EmitInteger16(headerbuffer, headersize, 0x0103)			// Characteristics
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x00004550)
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x014c)			// Machine
+	ByteStreamEmitInteger16(headerbuffer, headersize, 5)			// NumberOfSections
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x00000000)		// TimeDateStamp
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// PointerToSymbolTable
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// NumberOfSymbols
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0xe0)			// SizeOfOptionalHeader
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x0103)			// Characteristics
 
-	EmitInteger16(headerbuffer, headersize, 0x010b)			// Magic
-	EmitByte(headerbuffer, headersize, 0x02)			// MajorLinkerVersion
-	EmitByte(headerbuffer, headersize, 0x00)			// MinorLinkerVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x010b)			// Magic
+	ByteStreamEmitByte(headerbuffer, headersize, 0x02)			// MajorLinkerVersion
+	ByteStreamEmitByte(headerbuffer, headersize, 0x00)			// MinorLinkerVersion
 
-	EmitInteger(headerbuffer, headersize, RoundUp(HackSize))			// SizeOfCode
-	EmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfInitializedData
-	EmitInteger(headerbuffer, headersize, 0)			// SizeOfUninitializedData
-	EmitInteger(headerbuffer, headersize, 0x2000)			// AddressOfEntryPoint
-	EmitInteger(headerbuffer, headersize, 0x800)			// BaseOfCode
-	EmitInteger(headerbuffer, headersize, 0x1000)			// BaseOfData
+	ByteStreamEmitInteger(headerbuffer, headersize, RoundUp(HackSize))			// SizeOfCode
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfInitializedData
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// SizeOfUninitializedData
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x2000)			// AddressOfEntryPoint
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x800)			// BaseOfCode
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x1000)			// BaseOfData
 
-	EmitInteger(headerbuffer, headersize, 0x400000)			// ImageBase
-	EmitInteger(headerbuffer, headersize, 0x1000)			// SectionAlignment
-	EmitInteger(headerbuffer, headersize, 0x200)			// FileAlignment
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x400000)			// ImageBase
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x1000)			// SectionAlignment
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x200)			// FileAlignment
 
-	EmitInteger16(headerbuffer, headersize, 0x04)			// MajorOperatingSystemVersion
-	EmitInteger16(headerbuffer, headersize, 0x00)			// MinorOperatingSystemVersion
-	EmitInteger16(headerbuffer, headersize, 0)			// MajorImageVersion
-	EmitInteger16(headerbuffer, headersize, 0)			// MinorImageVersion
-	EmitInteger16(headerbuffer, headersize, 0x04)			// MajorSubsystemVersion
-	EmitInteger16(headerbuffer, headersize, 0x00)			// MinorSubsystemVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x04)			// MajorOperatingSystemVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x00)			// MinorOperatingSystemVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)			// MajorImageVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)			// MinorImageVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x04)			// MajorSubsystemVersion
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0x00)			// MinorSubsystemVersion
 
-	EmitInteger(headerbuffer, headersize, 0)			// Win32VersionValue
-	EmitInteger(headerbuffer, headersize, imagesize)		// SizeOfImage
-	EmitInteger(headerbuffer, headersize, 0x400)			// SizeOfHeaders
-	EmitInteger(headerbuffer, headersize, 0xf00d)			// Checksum
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Win32VersionValue
+	ByteStreamEmitInteger(headerbuffer, headersize, imagesize)		// SizeOfImage
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x400)			// SizeOfHeaders
+	ByteStreamEmitInteger(headerbuffer, headersize, 0xf00d)			// Checksum
 
-	EmitInteger16(headerbuffer, headersize, subsystem)			// Subsystem
-	EmitInteger16(headerbuffer, headersize, 0)			// DllCharacteristics
+	ByteStreamEmitInteger16(headerbuffer, headersize, subsystem)			// Subsystem
+	ByteStreamEmitInteger16(headerbuffer, headersize, 0)			// DllCharacteristics
 
-	EmitInteger(headerbuffer, headersize, 0x800000)			// SizeOfStackReserve
-	EmitInteger(headerbuffer, headersize, 0x80000)			// SizeOfStackCommit
-	EmitInteger(headerbuffer, headersize, 0x500000)			// SizeOfHeapReserve
-	EmitInteger(headerbuffer, headersize, 0x50000)			// SizeOfHeapCommit
-	EmitInteger(headerbuffer, headersize, 0)			// LoaderFlags
-	EmitInteger(headerbuffer, headersize, 0x10)			// NumberOfRvaAndSizes
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x800000)			// SizeOfStackReserve
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x80000)			// SizeOfStackCommit
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x500000)			// SizeOfHeapReserve
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x50000)			// SizeOfHeapCommit
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// LoaderFlags
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x10)			// NumberOfRvaAndSizes
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 1
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 1
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0x1200)			// RVA virtual address 2
-	EmitInteger(headerbuffer, headersize, 0x28)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x1200)			// RVA virtual address 2
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x28)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0x4000)			// RVA virtual address 3
-	EmitInteger(headerbuffer, headersize, resourcesize)		// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0x4000)			// RVA virtual address 3
+	ByteStreamEmitInteger(headerbuffer, headersize, resourcesize)		// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 4
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 4
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 5
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 5
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 6
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 6
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 7
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 7
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 8
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 8
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 9
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 9
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 10
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 10
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 11
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 11
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 12
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 12
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 13
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 13
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 14
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 14
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 15
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 15
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
-	EmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 16
-	EmitInteger(headerbuffer, headersize, 0)			// Size
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// RVA virtual address 16
+	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// Size
 
 
 	integer written = 0
@@ -794,45 +794,4 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, int
 	writtenbytes = headersize
 }
 
-
-EmitInteger : buffer ref b, integer ref size, integer value [nogc]
-{
-	writebuffer(b, size, (value) & 0xff)
-	++size
-	writebuffer(b, size, (value / 0x100) & 0xff)
-	++size
-	writebuffer(b, size, (value / 0x10000) & 0xff)
-	++size
-	writebuffer(b, size, (value / 0x1000000) & 0xff)
-	++size
-}
-
-EmitInteger16 : buffer ref b, integer ref size, integer16 value [nogc]
-{
-	integer v = cast(integer, value)
-	writebuffer(b, size, (v) & 0xff)
-	++size
-	writebuffer(b, size, (v / 0x100) & 0xff)
-	++size
-}
-
-EmitByte : buffer ref b, integer ref size, integer value [nogc]
-{
-	writebuffer(b, size, (value) & 0xff)
-	++size
-}
-
-EmitPadding : buffer ref b, integer ref size, integer targetsize [nogc]
-{
-	while(size < targetsize)
-	{
-		EmitByte(b, size, 0x00)
-	}
-}
-
-EmitSubstring : buffer ref b, integer ref size, string s, integer bytes [nogc]
-{
-	writebuffer(b, size, s, bytes)
-	size += bytes
-}
 

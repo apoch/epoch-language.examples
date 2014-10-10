@@ -1,35 +1,27 @@
-
 //
-// Callback used to emit a byte to a bytecode stream
+// The Epoch Language Project
+// Epoch Development Tools - Compiler Core
+//
+// BYTECODE.EPOCH
+// Collecting point for all logic related to emitting Epoch bytecode
+//
+// Epoch bytecode targets a "mythical machine" that is fairly high-level
+// and abstract. When an Epoch program launches, this bytecode stream is
+// converted into LLVM instructions by the JIT runtime. The LLVM bitcode
+// is in turn converted into native machine code. After this is complete
+// the entrypoint function is called and the program proper runs.
+//
+// A good way to think about this bytecode is as a shorthand for bitcode
+// sequences in LLVM. Optimization, native code generation, etc. are all
+// the responsibility of LLVM rather than the compiler "front-end."
+//
+// So even though this compiler generates a form of executable code (for
+// a machine which doesn't exist) it's really more a form of IR, instead
+// of a final target code sequence.
 //
 
-OnBytecodeEmitByte : integer b [nogc]
-{
-	writebuffer(Hack, HackSize, b)
-	++HackSize
-}
 
-
-OnBytecodeEmitInteger : integer value [nogc]
-{
-	writebuffer(Hack, HackSize, value & 0xff)
-	++HackSize
-	writebuffer(Hack, HackSize, (value / 0x100) & 0xff)
-	++HackSize
-	writebuffer(Hack, HackSize, (value / 0x10000) & 0xff)
-	++HackSize
-	writebuffer(Hack, HackSize, (value / 0x1000000) & 0xff)
-	++HackSize
-}
-
-OnBytecodeEmitInteger16 : integer16 value [nogc]
-{
-	integer v = cast(integer, value)
-	writebuffer(Hack, HackSize, v & 0xff)
-	++HackSize
-	writebuffer(Hack, HackSize, (v / 0x100) & 0xff)
-	++HackSize
-}
+// Everything below this line is ancient cruftiness that needs cleanup.
 
 OnBytecodeEmitReal : real value [nogc]
 {
@@ -46,129 +38,129 @@ OnBytecodeEmitString : string value [nogc]
 
 OnBytecodeEmitBoolean : boolean value [nogc]
 {
-	OnBytecodeEmitByte(cast(integer, value))
+	ByteStreamEmitByte(Hack, HackSize, cast(integer, value))
 }
 
 OnBytecodePoolString : integer handle, string data [nogc]
 {
-	OnBytecodeEmitByte(0x10)			// PoolString instruction
-	OnBytecodeEmitInteger(handle)
+	ByteStreamEmitByte(Hack, HackSize, 0x10) // PoolString instruction
+	ByteStreamEmitInteger(Hack, HackSize, handle)
 	OnBytecodeEmitString(data)
 }
 
 OnBytecodeLexicalScope : integer name, integer parent, integer count [nogc]
 {
-	OnBytecodeEmitByte(0x11)			// DefineLexicalScope instruction
-	OnBytecodeEmitInteger(name)
-	OnBytecodeEmitInteger(parent)
-	OnBytecodeEmitInteger(count)
+	ByteStreamEmitByte(Hack, HackSize, 0x11)			// DefineLexicalScope instruction
+	ByteStreamEmitInteger(Hack, HackSize, name)
+	ByteStreamEmitInteger(Hack, HackSize, parent)
+	ByteStreamEmitInteger(Hack, HackSize, count)
 }
 
 OnBytecodeLexicalScopeEntry : integer varname, integer vartype, integer origin [nogc]
 {
-	OnBytecodeEmitInteger(varname)
-	OnBytecodeEmitInteger(vartype)
-	OnBytecodeEmitInteger(origin)
+	ByteStreamEmitInteger(Hack, HackSize, varname)
+	ByteStreamEmitInteger(Hack, HackSize, vartype)
+	ByteStreamEmitInteger(Hack, HackSize, origin)
 	OnBytecodeEmitBoolean(false)
 }
 
 OnBytecodeInvokeOffset : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x27)			// InvokeOffset instruction
-	OnBytecodeEmitInteger(name)
-	OnBytecodeEmitInteger(0)
+	ByteStreamEmitByte(Hack, HackSize, 0x27)			// InvokeOffset instruction
+	ByteStreamEmitInteger(Hack, HackSize, name)
+	ByteStreamEmitInteger(Hack, HackSize, 0)
 	
 	Echo("INVOKE_OFFSET " ; cast(string, name))
 }
 
 OnBytecodeHalt : [nogc]
 {
-	OnBytecodeEmitByte(0x00)			// Halt instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x00)			// Halt instruction
 	
 	Echo("HALT")
 }
 
 OnBytecodeEnterFunction : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
-	OnBytecodeEmitInteger(0x01)			// EntityTags::Function
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x0b)			// BeginEntity instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01)			// EntityTags::Function
+	ByteStreamEmitInteger(Hack, HackSize, name)
 	
 	Echo("FUNCTION " ; cast(string, name))
 }
 
 OnBytecodeExitFunction : [nogc]
 {
-	OnBytecodeEmitByte(0x09)			// Return instruction
-	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x09)			// Return instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0c)			// EndEntity instruction
 	
 	Echo("END FUNCTION")
 }
 
 OnBytecodeInvoke : integer target [nogc]
 {
-	OnBytecodeEmitByte(0x07)			// Invoke instruction
-	OnBytecodeEmitInteger(target)
+	ByteStreamEmitByte(Hack, HackSize, 0x07)			// Invoke instruction
+	ByteStreamEmitInteger(Hack, HackSize, target)
 	
 	Echo("INVOKE " ; cast(string, target))
 }
 
 OnBytecodeEnterEntity : integer tag, integer name [nogc]
 {
-	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
-	OnBytecodeEmitInteger(tag)
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x0b)			// BeginEntity instruction
+	ByteStreamEmitInteger(Hack, HackSize, tag)
+	ByteStreamEmitInteger(Hack, HackSize, name)
 	
 	Echo("ENTITY " ; cast(string, tag) ; " " ; cast(string, name))
 }
 
 OnBytecodeExitEntity : [nogc]
 {
-	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0c)			// EndEntity instruction
 	Echo("END ENTITY")
 }
 
 OnBytecodeBeginChain : [nogc]
 {
-	OnBytecodeEmitByte(0x0d)			// BeginChain instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0d)			// BeginChain instruction
 	Echo("CHAIN")
 }
 
 OnBytecodeEndChain : [nogc]
 {
-	OnBytecodeEmitByte(0x0e)			// EndChain instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0e)			// EndChain instruction
 	Echo("END CHAIN")
 }
 
 OnBytecodeDefineStructure : integer typeid, integer nummembers [nogc]
 {
-	OnBytecodeEmitByte(0x14)			// DefineStructure instruction
-	OnBytecodeEmitInteger(typeid)
-	OnBytecodeEmitInteger(nummembers)
+	ByteStreamEmitByte(Hack, HackSize, 0x14)			// DefineStructure instruction
+	ByteStreamEmitInteger(Hack, HackSize, typeid)
+	ByteStreamEmitInteger(Hack, HackSize, nummembers)
 }
 
 OnBytecodeStructureMember : integer name, integer typeid [nogc]
 {
-	OnBytecodeEmitInteger(name)
-	OnBytecodeEmitInteger(typeid)
+	ByteStreamEmitInteger(Hack, HackSize, name)
+	ByteStreamEmitInteger(Hack, HackSize, typeid)
 }
 
 OnBytecodeReadReference : [nogc]
 {
-	OnBytecodeEmitByte(0x17)			// ReadRef instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x17)			// ReadRef instruction
 	Echo("READREF")
 }
 
 OnBytecodeReadReferenceAnnotated : [nogc]
 {
-	OnBytecodeEmitByte(0x24)			// ReadRefAnnotated instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x24)			// ReadRefAnnotated instruction
 	Echo("READREFANNOTATED")
 }
 
 OnBytecodeAllocStructure : integer typeid [nogc]
 {
-	OnBytecodeEmitByte(0x13)			// AllocStructure instruction
-	OnBytecodeEmitInteger(typeid)
+	ByteStreamEmitByte(Hack, HackSize, 0x13)			// AllocStructure instruction
+	ByteStreamEmitInteger(Hack, HackSize, typeid)
 	
 	Echo("ALLOCSTRUCT " ; cast(string, typeid))
 }
@@ -181,24 +173,24 @@ OnBytecodeBindReference : integer frameskip, integer index [nogc]
 		assert(false)
 	}
 
-	OnBytecodeEmitByte(0x03)			// BindRef instruction
-	OnBytecodeEmitInteger(frameskip)
-	OnBytecodeEmitInteger(index)
+	ByteStreamEmitByte(Hack, HackSize, 0x03)			// BindRef instruction
+	ByteStreamEmitInteger(Hack, HackSize, frameskip)
+	ByteStreamEmitInteger(Hack, HackSize, index)
 	
 	Echo("BINDREF")
 }
 
 OnBytecodeAssign : [nogc]
 {
-	OnBytecodeEmitByte(0x06)			// Assign instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x06)			// Assign instruction
 	
 	Echo("ASSIGN")
 }
 
 OnBytecodePushVarValueNoCopy : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x05)			// Read instruction
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x05)			// Read instruction
+	ByteStreamEmitInteger(Hack, HackSize, name)
 	
 	Echo("PUSH_NOCOPY")
 }
@@ -225,127 +217,127 @@ OnBytecodePushVarValue : integer name, integer typeid [nogc]
 
 OnBytecodeCopyBuffer : [nogc]
 {
-	OnBytecodeEmitByte(0x19)			// CopyBuffer instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x19)			// CopyBuffer instruction
 	
 	Echo("COPYBUFFER")
 }
 
 OnBytecodeCopyStructure : [nogc]
 {
-	OnBytecodeEmitByte(0x1b)			// CopyStructure instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x1b)			// CopyStructure instruction
 	
 	Echo("COPYSTRUCT")
 }
 
 OnBytecodeCopyToStructure : integer structurename, integer membername [nogc]
 {
-	OnBytecodeEmitByte(0x16)			// CopyToStructure instruction
-	OnBytecodeEmitInteger(structurename)
-	OnBytecodeEmitInteger(membername)
+	ByteStreamEmitByte(Hack, HackSize, 0x16)			// CopyToStructure instruction
+	ByteStreamEmitInteger(Hack, HackSize, structurename)
+	ByteStreamEmitInteger(Hack, HackSize, membername)
 	
 	Echo("COPYTOSTRUCT")
 }
 
 OnBytecodeSetReturnRegister : integer varindex [nogc]
 {
-	OnBytecodeEmitByte(0x0a)			// SetRetVal instruction
-	OnBytecodeEmitInteger(varindex)
+	ByteStreamEmitByte(Hack, HackSize, 0x0a)			// SetRetVal instruction
+	ByteStreamEmitInteger(Hack, HackSize, varindex)
 	
 	Echo("SETRET")
 }
 
 OnBytecodeInvokeIndirect : integer varname [nogc]
 {
-	OnBytecodeEmitByte(0x08)			// InvokeIndirect instruction
-	OnBytecodeEmitInteger(varname)
+	ByteStreamEmitByte(Hack, HackSize, 0x08)			// InvokeIndirect instruction
+	ByteStreamEmitInteger(Hack, HackSize, varname)
 	
 	Echo("INVOKE INDIRECT" ; cast(string, varname))
 }
 
 OnBytecodeEnterPatternResolver : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
-	OnBytecodeEmitInteger(0x02)			// EntityTags::PatternMatchingResolver
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x0b)			// BeginEntity instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x02)			// EntityTags::PatternMatchingResolver
+	ByteStreamEmitInteger(Hack, HackSize, name)
 }
 
 OnBytecodeExitPatternResolver : [nogc]
 {
 	OnBytecodeHalt()
-	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0c)			// EndEntity instruction
 }
 
 OnBytecodeConstructSumType : [nogc]
 {
-	OnBytecodeEmitByte(0x21)			// ConstructSumType instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x21)			// ConstructSumType instruction
 }
 
 OnBytecodeEnterTypeResolver : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x0b)			// BeginEntity instruction
-	OnBytecodeEmitInteger(0x05)			// EntityTags::TypeResolver
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x0b)			// BeginEntity instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x05)			// EntityTags::TypeResolver
+	ByteStreamEmitInteger(Hack, HackSize, name)
 }
 
 OnBytecodeExitTypeResolver : [nogc]
 {
 	OnBytecodeHalt()
-	OnBytecodeEmitByte(0x0c)			// EndEntity instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x0c)			// EndEntity instruction
 }
 
 OnBytecodePopStack : integer bytes [nogc]
 {
-	OnBytecodeEmitByte(0x04)			// Pop instruction
-	OnBytecodeEmitInteger(bytes)
+	ByteStreamEmitByte(Hack, HackSize, 0x04)			// Pop instruction
+	ByteStreamEmitInteger(Hack, HackSize, bytes)
 	
 	Echo("POP " ; cast(string, bytes))
 }
 
 OnBytecodeBindRefByHandle : integer id [nogc]
 {
-	OnBytecodeEmitByte(0x1d)
-	OnBytecodeEmitInteger(id)
+	ByteStreamEmitByte(Hack, HackSize, 0x1d)
+	ByteStreamEmitInteger(Hack, HackSize, id)
 	
 	Echo("BINDREF BY HANDLE " ; cast(string, id))
 }
 
 OnBytecodeBindStructReference : integer membertype, integer memberoffset [nogc]
 {
-	OnBytecodeEmitByte(0x18)			// BindMemberRef instruction
-	OnBytecodeEmitInteger(MakeNonReferenceType(membertype))
-	OnBytecodeEmitInteger(memberoffset)
+	ByteStreamEmitByte(Hack, HackSize, 0x18)			// BindMemberRef instruction
+	ByteStreamEmitInteger(Hack, HackSize, MakeNonReferenceType(membertype))
+	ByteStreamEmitInteger(Hack, HackSize, memberoffset)
 	
 	Echo("BINDMEMBERREF")
 }
 
 OnBytecodePushType : integer typeid [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
-	OnBytecodeEmitInteger(typeid)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000001)		// Integer type signature
+	ByteStreamEmitInteger(Hack, HackSize, typeid)
 	
 	Echo("PUSH TYPE")
 }
 
 OnBytecodeAssignSumType : [nogc]
 {
-	OnBytecodeEmitByte(0x23)			// AssignSumType instruction
+	ByteStreamEmitByte(Hack, HackSize, 0x23)			// AssignSumType instruction
 }
 
 OnBytecodePushLocal : integer frameskip, integer offset [nogc]
 {
-	OnBytecodeEmitByte(0x25)			// ReadStack instruction
-	OnBytecodeEmitInteger(frameskip)
-	OnBytecodeEmitInteger(offset)
-	OnBytecodeEmitInteger(0)
+	ByteStreamEmitByte(Hack, HackSize, 0x25)			// ReadStack instruction
+	ByteStreamEmitInteger(Hack, HackSize, frameskip)
+	ByteStreamEmitInteger(Hack, HackSize, offset)
+	ByteStreamEmitInteger(Hack, HackSize, 0)
 	
 	Echo("PUSH LOCAL")
 }
 
 OnBytecodePushBoolean : boolean literal [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000003)		// Boolean type signature
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000003)		// Boolean type signature
 	OnBytecodeEmitBoolean(literal)
 	
 	Echo("PUSH LITERAL BOOLEAN")
@@ -353,65 +345,65 @@ OnBytecodePushBoolean : boolean literal [nogc]
 
 OnBytecodePushLiteralString : integer literalhandle [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x02000000)		// String type signature
-	OnBytecodeEmitInteger(literalhandle)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x02000000)		// String type signature
+	ByteStreamEmitInteger(Hack, HackSize, literalhandle)
 	
 	Echo("PUSH LITERAL STRING")
 }
 
 OnBytecodePushLiteralInteger : integer literal [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
-	OnBytecodeEmitInteger(literal)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000001)		// Integer type signature
+	ByteStreamEmitInteger(Hack, HackSize, literal)
 	
 	Echo("PUSH LITERAL INTEGER")
 }
 
 OnBytecodePushLiteralInteger16 : integer16 literal [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000002)		// Integer16 type signature
-	OnBytecodeEmitInteger16(literal)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000002)		// Integer16 type signature
+	ByteStreamEmitInteger16(Hack, HackSize, literal)
 }
 
 OnBytecodePushTypeAnnotation : integer annotation [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000001)		// Integer type signature
-	OnBytecodeEmitInteger(annotation)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000001)		// Integer type signature
+	ByteStreamEmitInteger(Hack, HackSize, annotation)
 	
 	Echo("PUSH TYPE ANNOTATIONS")
 }
 
 OnBytecodePushLiteralFunction : integer name [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x09000000)		// Function family signature (N.B. not the actual function type!)
-	OnBytecodeEmitInteger(name)
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x09000000)		// Function family signature (N.B. not the actual function type!)
+	ByteStreamEmitInteger(Hack, HackSize, name)
 	
 	Echo("PUSH LITERAL FUNCTION")
 }
 
 OnBytecodePushLiteralReal : real value [nogc]
 {
-	OnBytecodeEmitByte(0x02)			// Push instruction
-	OnBytecodeEmitInteger(0x01000004)		// Real type signature
+	ByteStreamEmitByte(Hack, HackSize, 0x02)			// Push instruction
+	ByteStreamEmitInteger(Hack, HackSize, 0x01000004)		// Real type signature
 	OnBytecodeEmitReal(value)
 }
 
 OnBytecodeEmitFunctionSignature : integer typeid, integer rettype, integer paramcount [nogc]
 {
-	OnBytecodeEmitByte(0x28)			// FuncSig instruction
-	OnBytecodeEmitInteger(typeid)
-	OnBytecodeEmitInteger(rettype)
-	OnBytecodeEmitInteger(paramcount)
+	ByteStreamEmitByte(Hack, HackSize, 0x28)			// FuncSig instruction
+	ByteStreamEmitInteger(Hack, HackSize, typeid)
+	ByteStreamEmitInteger(Hack, HackSize, rettype)
+	ByteStreamEmitInteger(Hack, HackSize, paramcount)
 }
 
 OnBytecodeEmitFunctionSigParam : integer paramtype [nogc]
 {
-	OnBytecodeEmitInteger(paramtype)
+	ByteStreamEmitInteger(Hack, HackSize, paramtype)
 	OnBytecodeEmitBoolean(false)
 }
 

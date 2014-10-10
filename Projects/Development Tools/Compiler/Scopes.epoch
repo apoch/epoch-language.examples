@@ -32,7 +32,7 @@ StoreVariableInSingleScope : Scope ref scope, integer varname, integer vartype, 
 	}
 
 	Variable var = varname, vartype, origin, offset
-	append(scope.Variables, var)
+	append<Variable>(scope.Variables, var)
 }
 
 

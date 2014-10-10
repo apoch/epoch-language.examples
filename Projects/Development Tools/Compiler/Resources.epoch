@@ -591,12 +591,12 @@ AddResourceIcon : string filename, integer groupid, integer language, ResourceHa
 
 WriteResourceDirectory : buffer ref rb, integer ref rs, ResourceDirectoryHeader ref header
 {
-	EmitInteger(rb, rs, 0)
-	EmitInteger(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(header.Children)))
+	ByteStreamEmitInteger(rb, rs, 0)
+	ByteStreamEmitInteger(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(header.Children)))
 	
 	WriteResourceDirectorySelf(rb, rs, header.Children)
 	WriteResourceDirectoryChildren(rb, rs, header.Children)
@@ -610,8 +610,8 @@ WriteResourceDirectorySelf : buffer ref rb, integer ref rs, list<ResourceDirecto
 		offset += 0x80000000
 	}
 
-	EmitInteger(rb, rs, entries.value.Name)
-	EmitInteger(rb, rs, offset)
+	ByteStreamEmitInteger(rb, rs, entries.value.Name)
+	ByteStreamEmitInteger(rb, rs, offset)
 	
 	WriteResourceDirectorySelf(rb, rs, entries.next)
 }
@@ -628,12 +628,12 @@ WriteResourceDirectoryChildren : buffer ref rb, integer ref rs, list<ResourceDir
 
 WriteResourceDirectory : buffer ref rb, integer ref rs, list<ResourceDirectoryHeader> ref headers
 {
-	EmitInteger(rb, rs, 0)
-	EmitInteger(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, 0)
-	EmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(headers.value.Children)))
+	ByteStreamEmitInteger(rb, rs, 0)
+	ByteStreamEmitInteger(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, 0)
+	ByteStreamEmitInteger16(rb, rs, cast(integer16, ResourceCountEntries(headers.value.Children)))
 	
 	WriteResourceDirectory(rb, rs, headers.next)
 	
@@ -646,10 +646,10 @@ WriteResourceDirectory : buffer ref rb, integer ref rs, nothing
 
 WriteResourceDirectoryChildren : buffer ref rb, integer ref rs, list<ResourceDirectoryLeaf> ref leaves
 {
-	EmitInteger(rb, rs, leaves.value.OffsetToData + 0x4000)
-	EmitInteger(rb, rs, leaves.value.Size)
-	EmitInteger(rb, rs, leaves.value.CodePage)
-	EmitInteger(rb, rs, leaves.value.Reserved)
+	ByteStreamEmitInteger(rb, rs, leaves.value.OffsetToData + 0x4000)
+	ByteStreamEmitInteger(rb, rs, leaves.value.Size)
+	ByteStreamEmitInteger(rb, rs, leaves.value.CodePage)
+	ByteStreamEmitInteger(rb, rs, leaves.value.Reserved)
 	
 	WriteResourceDirectoryChildren(rb, rs, leaves.next)
 }
@@ -722,9 +722,9 @@ WriteEachResourceLeaf : buffer ref rb, integer ref rs, ResourceHandler ref res, 
 	}
 	elseif(restype == 0x0e)
 	{
-		EmitInteger16(rb, rs, 0)
-		EmitInteger16(rb, rs, 1)
-		EmitInteger16(rb, rs, cast(integer16, CountIconsInGroup(res.Icons, resid)))
+		ByteStreamEmitInteger16(rb, rs, 0)
+		ByteStreamEmitInteger16(rb, rs, 1)
+		ByteStreamEmitInteger16(rb, rs, cast(integer16, CountIconsInGroup(res.Icons, resid)))
 	
 		EmitIconGroupData(rb, rs, res.Icons, resid)
 	}
@@ -764,11 +764,11 @@ EmitIconGroupData : buffer ref rb, integer ref rs, list<IconReference> ref refli
 {
 	if(reflist.value.GroupID == targetid)
 	{
-		EmitInteger(rb, rs, reflist.value.Details.PackedWHCR)
-		EmitInteger16(rb, rs, reflist.value.Details.Planes)
-		EmitInteger16(rb, rs, reflist.value.Details.BitCount)
-		EmitInteger(rb, rs, reflist.value.Details.BytesInResource)
-		EmitInteger16(rb, rs, cast(integer16, reflist.value.ID))
+		ByteStreamEmitInteger(rb, rs, reflist.value.Details.PackedWHCR)
+		ByteStreamEmitInteger16(rb, rs, reflist.value.Details.Planes)
+		ByteStreamEmitInteger16(rb, rs, reflist.value.Details.BitCount)
+		ByteStreamEmitInteger(rb, rs, reflist.value.Details.BytesInResource)
+		ByteStreamEmitInteger16(rb, rs, cast(integer16, reflist.value.ID))
 	}
 
 	EmitIconGroupData(rb, rs, reflist.next, targetid)
@@ -1479,7 +1479,7 @@ EmitMenuResource : buffer ref rb, integer ref rs, list<MenuResource> ref menus, 
 {
 	if(menus.value.ID == targetid)
 	{
-		EmitInteger(rb, rs, 0)
+		ByteStreamEmitInteger(rb, rs, 0)
 		EmitMenuChain(rb, rs, menus.value.Entries)
 	}
 	else
@@ -1501,23 +1501,23 @@ EmitMenuEntry : buffer ref rb, integer ref rs, MenuSentinel ref sentinel, boolea
 
 EmitMenuEntry : buffer ref rb, integer ref rs, MenuSeparator ref separator, boolean isnotlast
 {
-	EmitInteger(rb, rs, 0)
-	EmitByte(rb, rs, 0)
-	EmitByte(rb, rs, 0)
+	ByteStreamEmitInteger(rb, rs, 0)
+	ByteStreamEmitByte(rb, rs, 0)
+	ByteStreamEmitByte(rb, rs, 0)
 }
 
 EmitMenuEntry : buffer ref rb, integer ref rs, MenuItem ref item, boolean isnotlast
 {
 	if(isnotlast)
 	{
-		EmitInteger16(rb, rs, 0)
+		ByteStreamEmitInteger16(rb, rs, 0)
 	}
 	else
 	{
-		EmitInteger16(rb, rs, 0x80)
+		ByteStreamEmitInteger16(rb, rs, 0x80)
 	}
 	
-	EmitInteger16(rb, rs, cast(integer16, item.ID))
+	ByteStreamEmitInteger16(rb, rs, cast(integer16, item.ID))
 	
 	writebuffer(rb, rs, item.Text, (length(item.Text) + 1) * 2)
 	rs += (length(item.Text) + 1) * 2
@@ -1527,11 +1527,11 @@ EmitMenuEntry : buffer ref rb, integer ref rs, MenuPopup ref popup, boolean isno
 {
 	if(isnotlast)
 	{
-		EmitInteger16(rb, rs, 0x10)
+		ByteStreamEmitInteger16(rb, rs, 0x10)
 	}
 	else
 	{
-		EmitInteger16(rb, rs, 0x90)
+		ByteStreamEmitInteger16(rb, rs, 0x90)
 	}
 	
 	writebuffer(rb, rs, popup.Title, (length(popup.Title) + 1) * 2)
@@ -1569,15 +1569,15 @@ EmitAcceleratorEntries : buffer ref rb, integer ref rs, list<AcceleratorEntry> r
 	{
 		if(HasAccelList(entries.next))
 		{
-			EmitInteger16(rb, rs, cast(integer16, entries.value.Flags))
+			ByteStreamEmitInteger16(rb, rs, cast(integer16, entries.value.Flags))
 		}
 		else
 		{
-			EmitInteger16(rb, rs, cast(integer16, entries.value.Flags + 0x80))
+			ByteStreamEmitInteger16(rb, rs, cast(integer16, entries.value.Flags + 0x80))
 		}
-		EmitInteger16(rb, rs, cast(integer16, entries.value.KeyCode))
-		EmitInteger16(rb, rs, cast(integer16, entries.value.ID))
-		EmitInteger16(rb, rs, 0)
+		ByteStreamEmitInteger16(rb, rs, cast(integer16, entries.value.KeyCode))
+		ByteStreamEmitInteger16(rb, rs, cast(integer16, entries.value.ID))
+		ByteStreamEmitInteger16(rb, rs, 0)
 	}
 	
 	EmitAcceleratorEntries(rb, rs, entries.next)

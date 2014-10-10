@@ -247,6 +247,11 @@ ScintillaFindReverse : integer hwnd, string needle
 ScintillaSetTabWidth : integer hwnd, integer width
 {
 	SendMessage(hwnd, SCI_SETTABWIDTH, width, 0)
+	
+	
+	// TODO - move this to a different place
+	integer SCI_SETMULTIPASTE = 2614
+	SendMessage(hwnd, SCI_SETMULTIPASTE, 1, 1)
 }
 
 ScintillaGetSelectedToken : integer hwnd -> string token = ""
