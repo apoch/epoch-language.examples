@@ -60,8 +60,6 @@ TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<Template
 {
 	if(queue.value.ParamType != 0)
 	{
-		TransferTemplateParamsFromQueue(out, queue.next)
-
 		if(out.value.ParamType == 0)
 		{
 			out.value = queue.value
@@ -71,7 +69,11 @@ TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, list<Template
 			prepend<TemplateParameter>(out, queue.value)
 		}
 	}
+	
+	TransferTemplateParamsFromQueue(out, queue.next)
 }
+
+TransferTemplateParamsFromQueue : list<TemplateParameter> ref out, nothing
 
 
 

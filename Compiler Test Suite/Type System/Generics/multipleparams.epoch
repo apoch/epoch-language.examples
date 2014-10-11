@@ -1,0 +1,38 @@
+//
+// MULTIPLEPARAMS.EPOCH
+//
+// Basic test of templates with multiple parameters
+//
+
+
+entrypoint :
+{
+	string result = ""
+	RepeatFunction<integer, string>(BuildString, 42, result)
+	
+	assert(length(result) == 42)
+	
+	passtest()
+}
+
+
+RepeatFunction<type T, type U> : (func : T, U ref -> boolean), T param, U ref out
+{
+	while(func(param, out))
+	{
+	}
+}
+
+
+BuildString : integer counter, string ref out -> boolean continue = true
+{
+	if(length(out) == counter)
+	{
+		continue = false
+		return()
+	}
+	
+	out = out ; "x"
+}
+
+
