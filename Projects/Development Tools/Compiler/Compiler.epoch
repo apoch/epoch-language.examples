@@ -58,9 +58,12 @@ entrypoint :
 		}
 		else
 		{
-			if(CompileFile(filename))
+			buffer codebuffer = 1024000
+			BytecodeStream codestream = codebuffer, 0
+			
+			if(CompileFile(filename, codestream))
 			{
-				ExecuteByteCodeBuffer(Hack, HackSize)		
+				ExecuteByteCodeBuffer(codestream.Buffer, codestream.Offset)
 			}
 		}
 	}
@@ -126,10 +129,14 @@ CompileProject : string filename
 	}
 
 	print("Generating code...")
-	OnCodeGenProcessProgram()
+
+	buffer streambuffer = 8192000
+	BytecodeStream stream = streambuffer, 0
+
+	OnCodeGenProcessProgram(stream)
 	
 	print("Writing executable file...")
-	MakeExe(project)
+	MakeExe(project, stream)
 }
 
 //
@@ -156,7 +163,7 @@ ProjectParseAllCode : simplelist<string> ref files -> boolean success = true
 ProjectParseAllCode : nothing -> true
 
 
-CompileFile : string filename -> boolean success = false
+CompileFile : string filename, BytecodeStream ref codestream -> boolean success = false
 {
 	integer len = 0
 	string contents = ReadFile(filename, len)
@@ -187,7 +194,7 @@ CompileFile : string filename -> boolean success = false
 	}
 
 	integer startcodegenms = timeGetTime()
-	OnCodeGenProcessProgram()
+	OnCodeGenProcessProgram(codestream)
 	integer durationcodegenms = timeGetTime() - startcodegenms
 
 	print("Code generation completed in " ; cast(string, durationcodegenms) ; " milliseconds")

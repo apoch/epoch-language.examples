@@ -34,13 +34,49 @@ global
 		BinaryTreeRoot<string>(nothing),
 		Trie(0, nothing, 0),
 		0
+		
+		
+	//
+	// Bytecode instruction constants
+	//
+
+	integer BYTECODE_INSTRUCTION_HALT                     = 0x00
+	integer BYTECODE_INSTRUCTION_PUSH                     = 0x02
+	integer BYTECODE_INSTRUCTION_BIND_REFERENCE           = 0x03
+	integer BYTECODE_INSTRUCTION_POP                      = 0x04
+	integer BYTECODE_INSTRUCTION_READ                     = 0x05
+	integer BYTECODE_INSTRUCTION_ASSIGN                   = 0x06
+	integer BYTECODE_INSTRUCTION_INVOKE                   = 0x07
+	integer BYTECODE_INSTRUCTION_INVOKE_INDIRECT          = 0x08
+	integer BYTECODE_INSTRUCTION_RETURN                   = 0x09
+	integer BYTECODE_INSTRUCTION_SET_RETURN               = 0x0a
+	integer BYTECODE_INSTRUCTION_BEGIN_ENTITY             = 0x0b
+	integer BYTECODE_INSTRUCTION_END_ENTITY               = 0x0c
+	integer BYTECODE_INSTRUCTION_BEGIN_CHAIN              = 0x0d
+	integer BYTECODE_INSTRUCTION_END_CHAIN                = 0x0e
+	integer BYTECODE_INSTRUCTION_POOL_STRING              = 0x10
+	integer BYTECODE_INSTRUCTION_DEFINE_LEXICAL_SCOPE     = 0x11
+	integer BYTECODE_INSTRUCTION_ALLOCATE_STRUCTURE       = 0x13
+	integer BYTECODE_INSTRUCTION_DEFINE_STRUCTURE         = 0x14
+	integer BYTECODE_INSTRUCTION_COPY_TO_STRUCTURE        = 0x16
+	integer BYTECODE_INSTRUCTION_READ_REFERENCE           = 0x17
+	integer BYTECODE_INSTRUCTION_BIND_MEMBER_REFERENCE    = 0x18
+	integer BYTECODE_INSTRUCTION_COPY_BUFFER              = 0x19
+	integer BYTECODE_INSTRUCTION_COPY_STRUCTURE           = 0x1b
+	integer BYTECODE_INSTRUCTION_CONSTRUCT_SUM_TYPE       = 0x21
+	integer BYTECODE_INSTRUCTION_ASSIGN_SUMTYPE           = 0x23
+	integer BYTECODE_INSTRUCTION_READ_REFERENCE_ANNOTATED = 0x24
+	integer BYTECODE_INSTRUCTION_READ_STACK_LOCAL         = 0x25
+	integer BYTECODE_INSTRUCTION_INVOKE_OFFSET            = 0x27
+	integer BYTECODE_INSTRUCTION_FUNCTION_SIGNATURE       = 0x28
+	
+	integer BYTECODE_ENTITYTAG_FUNCTION     = 0x01
+	integer BYTECODE_ENTITYTAG_PATTERNMATCH = 0x02
+	integer BYTECODE_ENTITYTAG_TYPEMATCH    = 0x05
 
 
 	// Remaining contents are largely hacky
 	
-	buffer Hack = 8192000
-	integer HackSize = 0
-
 	Variable dummyvar = 0, 0, 0, 0
 
 	Overload dummyoverload = 0, 0, nothing

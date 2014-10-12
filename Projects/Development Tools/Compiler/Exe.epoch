@@ -8,7 +8,7 @@ WriteFile : integer handle, buffer ref data, integer numbytes, integer ref writt
 
 
 	
-MakeExe : EpochProject ref project
+MakeExe : EpochProject ref project, BytecodeStream ref codestream
 {
 	IconDirectoryEntry dummydetails = 0, 0, 0, 0, 0
 	IconReference dummyicon = "", 0, 0, 0, 0, dummydetails
@@ -34,7 +34,7 @@ MakeExe : EpochProject ref project
 	
 
 	integer resourcesize = res.DirectorySize + res.DataSize + 1
-	integer imagesize = 0x4000 + RoundUp(resourcesize) + RoundUp(HackSize)
+	integer imagesize = 0x4000 + RoundUp(resourcesize) + RoundUp(codestream.Offset)
 
 	integer GENERIC_WRITE = 0x40000000
 	integer CREATE_ALWAYS = 2
@@ -53,13 +53,13 @@ MakeExe : EpochProject ref project
 	}
 
 	integer position = 0
-	position += WritePEHeader(filehandle, imagesize, resourcesize, subsystem)
+	position += WritePEHeader(filehandle, imagesize, resourcesize, subsystem, codestream)
 
 	position += WriteSectionHeader(filehandle, ".idata", 0x400, 0x1000, 0x344, 0x400, 0xc0000040)
 	position += WriteSectionHeader(filehandle, ".text", 0x800, 0x2000, 0x150, 0x200, 0x60000020)
 	position += WriteSectionHeader(filehandle, ".data", 0xa00, 0x3000, 0x29e, 0x400, 0x40000040)
 	position += WriteSectionHeader(filehandle, ".rsrc", 0xe00, 0x4000, resourcesize, resourcesize, 0x40000040)
-	position += WriteSectionHeader(filehandle, ".epoch", RoundUp(resourcesize + 0xe00), RoundUp(0x4000 + resourcesize), HackSize, HackSize, 0x40000040)
+	position += WriteSectionHeader(filehandle, ".epoch", RoundUp(resourcesize + 0xe00), RoundUp(0x4000 + resourcesize), codestream.Offset, codestream.Offset, 0x40000040)
 
 	print("Writing thunk table...")
 	position += WritePadding(filehandle, position, 0x400)
@@ -69,7 +69,7 @@ MakeExe : EpochProject ref project
 
 	print("Writing bootstrap code...")
 	position += WritePadding(filehandle, position, 0x800)
-	position += WriteBootstrapCode(filehandle, RoundUp(resourcesize + 0xe00))
+	position += WriteBootstrapCode(filehandle, RoundUp(resourcesize + 0xe00), codestream)
 
 	position += WritePadding(filehandle, position, 0xa00)
 	position += WriteStringTable(filehandle)
@@ -82,7 +82,7 @@ MakeExe : EpochProject ref project
 	position += WritePadding(filehandle, position, RoundUp(resourcesize + 0xe00))
 	print("Writing Epoch code block...")
 	integer written = 0
-	WriteFile(filehandle, Hack, HackSize, written, 0)
+	WriteFile(filehandle, codestream.Buffer, codestream.Offset, written, 0)
 
 	CloseHandle(filehandle)
 
@@ -145,7 +145,7 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 }
 
 
-WriteBootstrapCode : integer filehandle, integer codebeginoffset -> integer writtenbytes = 0
+WriteBootstrapCode : integer filehandle, integer codebeginoffset, BytecodeStream ref codestream -> integer writtenbytes = 0
 {
 	buffer codebuffer = 1024
 	integer codesize = 0
@@ -213,7 +213,7 @@ WriteBootstrapCode : integer filehandle, integer codebeginoffset -> integer writ
 	ByteStreamEmitByte(codebuffer, codesize, 0xeb)
 	ByteStreamEmitByte(codebuffer, codesize, 0xd1)
 	ByteStreamEmitByte(codebuffer, codesize, 0x68)
-	ByteStreamEmitInteger(codebuffer, codesize, HackSize)
+	ByteStreamEmitInteger(codebuffer, codesize, codestream.Offset)
 	ByteStreamEmitByte(codebuffer, codesize, 0x8d)
 	ByteStreamEmitByte(codebuffer, codesize, 0x87)
 	ByteStreamEmitInteger(codebuffer, codesize, codebeginoffset)
@@ -533,7 +533,7 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 }
 
 
-WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, integer16 subsystem -> integer writtenbytes = 0
+WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, integer16 subsystem, BytecodeStream ref codestream -> integer writtenbytes = 0
 {
 	print("Writing PE headers...")
 
@@ -706,7 +706,7 @@ WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, int
 	ByteStreamEmitByte(headerbuffer, headersize, 0x02)			// MajorLinkerVersion
 	ByteStreamEmitByte(headerbuffer, headersize, 0x00)			// MinorLinkerVersion
 
-	ByteStreamEmitInteger(headerbuffer, headersize, RoundUp(HackSize))			// SizeOfCode
+	ByteStreamEmitInteger(headerbuffer, headersize, RoundUp(codestream.Offset))			// SizeOfCode
 	ByteStreamEmitInteger(headerbuffer, headersize, 0x1000)			// SizeOfInitializedData
 	ByteStreamEmitInteger(headerbuffer, headersize, 0)			// SizeOfUninitializedData
 	ByteStreamEmitInteger(headerbuffer, headersize, 0x2000)			// AddressOfEntryPoint

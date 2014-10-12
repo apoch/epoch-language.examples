@@ -3,30 +3,30 @@
 // Callback invoked when the code generation process can begin
 //
 
-OnCodeGenProcessProgram :
+OnCodeGenProcessProgram : BytecodeStream ref stream
 {
 	GenerateTypeMatcherMappings(Functions)
 	GeneratePendingTypeMatchers(PendingTypeMatchers)
 
-	CodeGenEmitStrings()
-	CodeGenEmitSumTypes()
+	CodeGenEmitStrings(stream)
+	CodeGenEmitSumTypes(stream)
 	CodeGenRearrangeStructures(Structures)
-	CodeGenEmitStructures(Structures)
-	CodeGenEmitFunctionSignatures(FunctionSignatures)
+	CodeGenEmitStructures(stream, Structures)
+	CodeGenEmitFunctionSignatures(stream, FunctionSignatures)
 
 	if(GlobalCodeBlockName != 0)
 	{
-		CodeGenEmitSpecificScope(GlobalScope.Wrapped)
+		CodeGenEmitSpecificScope(stream, GlobalScope.Wrapped)
 	}
 
-	CodeGenEmitScopes()
-	CodeGenEmitFunctionTags(GlobalRootNamespace.FunctionTags)
-	CodeGenEmitGlobalBlockPrologue(GlobalCodeBlock)
-	CodeGenEmitFunctions(Functions)
-	CodeGenEmitGlobalBlockEpilogue(GlobalCodeBlock)
-	CodeGenEmitTypeMatchers(TypeMatchers)
-	CodeGenEmitPatternMatchers(PendingPatternMatchers)
-	CodeGenEmitConstructors(Structures)
+	CodeGenEmitScopes(stream)
+	CodeGenEmitFunctionTags(stream, GlobalRootNamespace.FunctionTags)
+	CodeGenEmitGlobalBlockPrologue(stream, GlobalCodeBlock)
+	CodeGenEmitFunctions(stream, Functions)
+	CodeGenEmitGlobalBlockEpilogue(stream, GlobalCodeBlock)
+	CodeGenEmitTypeMatchers(stream, TypeMatchers)
+	CodeGenEmitPatternMatchers(stream, PendingPatternMatchers)
+	CodeGenEmitConstructors(stream, Structures)
 }
 
 OnCodeGenRegisterStructureMemVar : integer structurename, integer structuretype, integer membername, integer typenamehandle, boolean isref, boolean templated [nogc]
@@ -451,53 +451,54 @@ OnCodeGenEnterSubStatement :
 
 
 
-CodeGenEmitSingleString : integer handle, string ref contents -> boolean ret = true [nogc]
+CodeGenEmitSingleString : integer handle, string ref contents, BytecodeStream ref stream -> boolean ret = true [nogc]
 {
-	OnBytecodePoolString(handle, contents)
+	BytecodePoolString(stream, handle, contents)
 }
 
 
-CodeGenEmitStrings :
+CodeGenEmitStrings : BytecodeStream ref stream
 {
-	BinaryTreeWalkAllNodes<string>(GlobalStringPool.LookupMap.RootNode, CodeGenEmitSingleString)
+	BinaryTreeWalkAllNodesWithParam<string, BytecodeStream>(GlobalStringPool.LookupMap.RootNode, CodeGenEmitSingleString, stream)
 }
 
 
 
-CodeGenEmitStructures : list<StructureDefinition> ref structures
+CodeGenEmitStructures : BytecodeStream ref stream, list<StructureDefinition> ref structures
 {
-	CodeGenEmitStructures(structures.next)
+	CodeGenEmitStructures(stream, structures.next)
 
 	if((structures.value.Name != 0) && (!structures.value.IsTemplate))
 	{
-		OnBytecodeDefineStructure(structures.value.Type, structures.value.MemberCount)
-		CodeGenEmitMembers(structures.value.Members)
+		BytecodeDefineStructure(stream, structures.value.Type, structures.value.MemberCount)
+		CodeGenEmitMembers(stream, structures.value.Members)
 	}
 }
 
-CodeGenEmitStructures : nothing
+CodeGenEmitStructures : BytecodeStream ref stream, nothing
 
-CodeGenEmitMembers : list<StructureMember> ref members
+
+CodeGenEmitMembers : BytecodeStream ref stream, list<StructureMember> ref members
 {
-	CodeGenEmitMember(members.value)
-	CodeGenEmitMembers(members.next)
+	CodeGenEmitMember(stream, members.value)
+	CodeGenEmitMembers(stream, members.next)
 }
 
-CodeGenEmitMembers : nothing
+CodeGenEmitMembers : BytecodeStream ref stream, nothing
 
-CodeGenEmitMember : StructureMemberVariable ref memvar
+CodeGenEmitMember : BytecodeStream ref stream, StructureMemberVariable ref memvar
 {
-	OnBytecodeStructureMember(memvar.Name, memvar.Type)
+	BytecodeStructureMember(stream, memvar.Name, memvar.Type)
 }
 
-CodeGenEmitMember : StructureMemberFunctionRef ref member
+CodeGenEmitMember : BytecodeStream ref stream, StructureMemberFunctionRef ref member
 {
-	OnBytecodeStructureMember(member.Name, GetMemberTypeDecompose(member))
+	BytecodeStructureMember(stream, member.Name, GetMemberTypeDecompose(member))
 }
 
 
 
-CodeGenEmitSingleScope : integer scopename, Scope ref scope -> boolean ret = true
+CodeGenEmitSingleScope : integer scopename, Scope ref scope, BytecodeStream ref stream -> boolean ret = true
 {
 	if((scope.Name != 0) && (scope.Name != GlobalCodeBlockName))
 	{
@@ -508,26 +509,26 @@ CodeGenEmitSingleScope : integer scopename, Scope ref scope -> boolean ret = tru
 		}
 
 		integer varcount = CountScopeVariables(scope)
-		OnBytecodeLexicalScope(scope.Name, parentname, varcount)
-		CodeGenEmitVariables(scope.Variables, scope.Name)
+		BytecodeLexicalScope(stream, scope.Name, parentname, varcount)
+		CodeGenEmitVariables(stream, scope.Variables, scope.Name)
 	}
 }
 
-CodeGenEmitScopes :
+CodeGenEmitScopes : BytecodeStream ref stream
 {
-	BinaryTreeWalkAllNodes<Scope>(GlobalRootNamespace.Scopes.RootNode, CodeGenEmitSingleScope)
+	BinaryTreeWalkAllNodesWithParam<Scope, BytecodeStream>(GlobalRootNamespace.Scopes.RootNode, CodeGenEmitSingleScope, stream)
 }
 
 
-CodeGenEmitSpecificScope : Scope ref scope
+CodeGenEmitSpecificScope : BytecodeStream ref stream, Scope ref scope
 {
 	integer varcount = CountScopeVariables(scope)
-	OnBytecodeLexicalScope(scope.Name, 0, varcount)
-	CodeGenEmitVariables(scope.Variables, 0)
+	BytecodeLexicalScope(stream, scope.Name, 0, varcount)
+	CodeGenEmitVariables(stream, scope.Variables, 0)
 }
 
 
-CodeGenEmitVariables : list<Variable> ref vars, integer funcname
+CodeGenEmitVariables : BytecodeStream ref stream, list<Variable> ref vars, integer funcname
 {
 	if(vars.value.Name != 0)
 	{
@@ -541,27 +542,27 @@ CodeGenEmitVariables : list<Variable> ref vars, integer funcname
 		{
 			if(listcontains(CustomConstructors, funcname))
 			{
-				OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, 0)
+				BytecodeLexicalScopeEntry(stream, vars.value.Name, basetype, 0)
 			}
 			else
 			{
-				OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, vars.value.Origin)
+				BytecodeLexicalScopeEntry(stream, vars.value.Name, basetype, vars.value.Origin)
 			}
 		}
 		else
 		{
-			OnBytecodeLexicalScopeEntry(vars.value.Name, basetype, vars.value.Origin)
+			BytecodeLexicalScopeEntry(stream, vars.value.Name, basetype, vars.value.Origin)
 		}
 	}
 
-	CodeGenEmitVariables(vars.next, funcname)
+	CodeGenEmitVariables(stream, vars.next, funcname)
 }
 
-CodeGenEmitVariables : nothing, integer funcname
+CodeGenEmitVariables : BytecodeStream ref stream, nothing, integer funcname
 
 
 
-CodeGenEmitFunctions : list<FunctionDefinition> ref table
+CodeGenEmitFunctions : BytecodeStream ref stream, list<FunctionDefinition> ref table
 {
 	if(!table.value.IsTemplate)
 	{
@@ -570,91 +571,91 @@ CodeGenEmitFunctions : list<FunctionDefinition> ref table
 			FindScopeAndSetContext(table.value)
 
 			EmittingFunctionName = table.value.Name
-			OnBytecodeEnterFunction(table.value.Name)
-			CodeGenEmitFunctionReturn(table.value.Return)
+			BytecodeEnterFunction(stream, table.value.Name)
+			CodeGenEmitFunctionReturn(stream, table.value.Return)
 
 			if(table.value.InvokeTag != 0)
 			{
-				OnBytecodeInvoke(table.value.InvokeTag)
+				BytecodeInvoke(stream, table.value.InvokeTag)
 			}
 
-			CodeGenEmitCodeBlock(table.value.Code)
+			CodeGenEmitCodeBlock(stream, table.value.Code)
 			if(listcontains(CustomConstructors, table.value.Name))
 			{
-				OnBytecodePushVarValueNoCopy(FindReturnVariableName())
-				OnBytecodeBindReference(0, 0)			// TODO - kind of a hack
-				OnBytecodeAssign()
+				BytecodePushVarValueNoCopy(stream, FindReturnVariableName())
+				BytecodeBindReference(stream, 0, 0)			// TODO - kind of a hack
+				BytecodeAssign(stream)
 			}
 			else
 			{
 				if(table.value.AnonymousReturn)
 				{
-					CodeGenEmitReturnRegisterAnonymous(table.value.Return)
+					CodeGenEmitReturnRegisterAnonymous(stream, table.value.Return)
 				}
 				else
 				{
-					CodeGenEmitReturnRegister(table.value.Return)
+					CodeGenEmitReturnRegister(stream, table.value.Return)
 				}
 			}
-			OnBytecodeExitFunction()
+			BytecodeExitFunction(stream)
 		}
 	}
 
-	CodeGenEmitFunctions(table.next)
+	CodeGenEmitFunctions(stream, table.next)
 }
 
-CodeGenEmitFunctions : nothing
+CodeGenEmitFunctions : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitFunctionReturn : Expression ref expr
+CodeGenEmitFunctionReturn : BytecodeStream ref stream, Expression ref expr
 {
-	CodeGenEmitExpressionAtoms(expr.Atoms, false, false)
+	CodeGenEmitExpressionAtoms(stream, expr.Atoms, false, false)
 }
 
-CodeGenEmitFunctionReturn : nothing
+CodeGenEmitFunctionReturn : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitReturnRegister : Expression ref expr
-{
-	integer index = FindReturnVariableIndex()
-	OnBytecodeSetReturnRegister(index)
-}
-
-CodeGenEmitReturnRegister : nothing
-
-
-CodeGenEmitReturnRegisterAnonymous : Expression ref expr
+CodeGenEmitReturnRegister : BytecodeStream ref stream, Expression ref expr
 {
 	integer index = FindReturnVariableIndex()
-
-	OnBytecodeBindReference(0, index)
-	OnBytecodeAssign()
-
-	OnBytecodeSetReturnRegister(index)
+	BytecodeSetReturnRegister(stream, index)
 }
 
-CodeGenEmitReturnRegisterAnonymous : nothing
+CodeGenEmitReturnRegister : BytecodeStream ref stream, nothing
 
 
-
-CodeGenEmitCodeBlock : CodeBlock ref block
+CodeGenEmitReturnRegisterAnonymous : BytecodeStream ref stream, Expression ref expr
 {
-	CodeGenEmitCodeBlockEntries(block.Entries)
+	integer index = FindReturnVariableIndex()
+
+	BytecodeBindReference(stream, 0, index)
+	BytecodeAssign(stream)
+
+	BytecodeSetReturnRegister(stream, index)
 }
 
-CodeGenEmitCodeBlock : nothing
+CodeGenEmitReturnRegisterAnonymous : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitCodeBlockEntries : list<CodeBlockEntry> ref entries
+
+CodeGenEmitCodeBlock : BytecodeStream ref stream, CodeBlock ref block
 {
-	CodeGenEmitSingleCodeBlockEntry(entries.value)
-	CodeGenEmitCodeBlockEntries(entries.next)
+	CodeGenEmitCodeBlockEntries(stream, block.Entries)
 }
 
-CodeGenEmitCodeBlockEntries : nothing
+CodeGenEmitCodeBlock : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitSingleCodeBlockEntry : Statement ref s
+CodeGenEmitCodeBlockEntries : BytecodeStream ref stream, list<CodeBlockEntry> ref entries
+{
+	CodeGenEmitSingleCodeBlockEntry(stream, entries.value)
+	CodeGenEmitCodeBlockEntries(stream, entries.next)
+}
+
+CodeGenEmitCodeBlockEntries : BytecodeStream ref stream, nothing
+
+
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, Statement ref s
 {
 	boolean constructssumtype = false
 	if((s.Type & 0x7f000000) == 0x07000000)
@@ -664,22 +665,22 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 
 	boolean constructorcall = StructureConstructorExists(Structures, s.Name)
 
-	CodeGenEmitExpressionList(s.Parameters, constructssumtype, constructorcall)
+	CodeGenEmitExpressionList(stream, s.Parameters, constructssumtype, constructorcall)
 
 	if(FunctionIsAutoGenOrHasIR(s.Name))
 	{
-		OnBytecodeInvokeOffset(s.Name)
+		BytecodeInvokeOffset(stream, s.Name)
 	}
 	elseif(SumTypeExists(s.Name))
 	{
-		OnBytecodeConstructSumType()
+		BytecodeConstructSumType(stream)
 	}
 	else
 	{
 		integer vartype = GetVariableTypeFromScope(EmittingScope.Wrapped, s.Name)
 		if((vartype != 0) && ((vartype & 0x7f000000) == 0x09000000))
 		{
-			OnBytecodeInvokeIndirect(s.Name)
+			BytecodeInvokeIndirect(stream, s.Name)
 		}
 		else
 		{
@@ -689,215 +690,215 @@ CodeGenEmitSingleCodeBlockEntry : Statement ref s
 				assert(false)
 			}
 			
-			OnBytecodeInvoke(s.Name)
+			BytecodeInvoke(stream, s.Name)
 		}
 	}
 }
 
-CodeGenEmitSingleCodeBlockEntry : MessageSend ref m
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, MessageSend ref m
 {
 	// TODO - send message to target task instead of just invoking a function
-	CodeGenEmitExpressionList(m.Parameters, false, false)
-	OnBytecodeInvokeOffset(m.MessageName)
+	CodeGenEmitExpressionList(stream, m.Parameters, false, false)
+	BytecodeInvokeOffset(stream, m.MessageName)
 }
 
-CodeGenEmitAssignmentRHS : Expression ref expr
+CodeGenEmitAssignmentRHS : BytecodeStream ref stream, Expression ref expr
 {
-	CodeGenEmitExpressionAtoms(expr.Atoms, false, false)
+	CodeGenEmitExpressionAtoms(stream, expr.Atoms, false, false)
 }
 
-CodeGenEmitAssignmentRHS : Assignment ref a
+CodeGenEmitAssignmentRHS : BytecodeStream ref stream, Assignment ref a
 {
-	CodeGenEmitAssignmentRHS(a.RHS)
+	CodeGenEmitAssignmentRHS(stream, a.RHS)
 
 	integer frames = 0
 	integer index = FindVariable(a.LHSName, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 
 	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
-		OnBytecodeAssignSumType()
+		BytecodeAssignSumType(stream)
 	}
 	else
 	{
-		OnBytecodeAssign()
+		BytecodeAssign(stream)
 	}
 
-	CodeGenEmitBindingsForVariable(a.LHSName)
-	OnBytecodeReadReference()
+	CodeGenEmitBindingsForVariable(stream, a.LHSName)
+	BytecodeReadReference(stream)
 }
 
-CodeGenEmitSingleCodeBlockEntry : Assignment ref a
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, Assignment ref a
 {
 	boolean sideeffects = false
 
 	if(a.Operator != PooledStringHandleForAssignment)
 	{
 		sideeffects = true
-		CodeGenEmitBindingsForVariable(a.LHSName)
-		OnBytecodeReadReference()
+		CodeGenEmitBindingsForVariable(stream, a.LHSName)
+		BytecodeReadReference(stream)
 	}
 
-	CodeGenEmitAssignmentRHS(a.RHS)
+	CodeGenEmitAssignmentRHS(stream, a.RHS)
 
 	if(sideeffects)
 	{
-		OnBytecodeInvoke(a.Operator)
+		BytecodeInvoke(stream, a.Operator)
 	}
 
 	if(a.Annotation != 0)
 	{
-		OnBytecodePushTypeAnnotation(a.Annotation)
+		BytecodePushTypeAnnotation(stream, a.Annotation)
 	}
 
 	integer frames = 0
 	integer index = FindVariable(a.LHSName, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 
 	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
-		OnBytecodeAssignSumType()
+		BytecodeAssignSumType(stream)
 	}
 	else
 	{
-		OnBytecodeAssign()
+		BytecodeAssign(stream)
 	}
 }
 
-CodeGenEmitSingleCodeBlockEntry : AssignmentCompound ref a
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, AssignmentCompound ref a
 {
 	boolean sideeffects = false
 	if(a.Operator != PooledStringHandleForAssignment)
 	{
 		sideeffects = true
-		CodeGenEmitBindingsForOperand(a.LHS)
-		OnBytecodeReadReference()
+		CodeGenEmitBindingsForOperand(stream, a.LHS)
+		BytecodeReadReference(stream)
 	}
 
-	CodeGenEmitAssignmentRHS(a.RHS)
+	CodeGenEmitAssignmentRHS(stream, a.RHS)
 
 	if(sideeffects)
 	{
-		OnBytecodeInvoke(a.Operator)
+		BytecodeInvoke(stream, a.Operator)
 	}
 
 	if(a.Annotation != 0)
 	{
-		OnBytecodePushTypeAnnotation(a.Annotation)
+		BytecodePushTypeAnnotation(stream, a.Annotation)
 	}
 
 	integer frames = 0
 	integer index = FindVariable(a.LHS.value, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 
 	integer typeid = MakeNonReferenceType(FindVariableType(a.LHS.value))
 
 	integer structurename = GetNameOfStructureByType(typeid)
-	BindAssignmentMembers(a.LHS.next, structurename)
+	BindAssignmentMembers(stream, a.LHS.next, structurename)
 
 	if((a.LHSType & 0x7f000000) == 0x07000000)
 	{
-		OnBytecodeAssignSumType()
+		BytecodeAssignSumType(stream)
 	}
 	else
 	{
-		OnBytecodeAssign()
+		BytecodeAssign(stream)
 	}
 }
 
 
-CodeGenEmitBindingsForOperand : simplelist<integer> ref operand
+CodeGenEmitBindingsForOperand : BytecodeStream ref stream, simplelist<integer> ref operand
 {
 	integer frames = 0
 	integer index = FindVariable(operand.value, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 
 	integer structurename = GetNameOfStructureByType(FindVariableType(operand.value))
-	BindAssignmentMembers(operand.next, structurename)
+	BindAssignmentMembers(stream, operand.next, structurename)
 }
 
-CodeGenEmitBindingsForVariable : integer operand
+CodeGenEmitBindingsForVariable : BytecodeStream ref stream, integer operand
 {
 	integer frames = 0
 	integer index = FindVariable(operand, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 }
 
 
-CodeGenEmitSingleCodeBlockEntry : PreOpStatement ref preop
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, PreOpStatement ref preop
 {
-	CodeGenEmitBindingsForOperand(preop.Operand)
-	OnBytecodeReadReference()
-	OnBytecodeInvoke(preop.Operator)
-	CodeGenEmitBindingsForOperand(preop.Operand)
-	OnBytecodeAssign()
+	CodeGenEmitBindingsForOperand(stream, preop.Operand)
+	BytecodeReadReference(stream)
+	BytecodeInvoke(stream, preop.Operator)
+	CodeGenEmitBindingsForOperand(stream, preop.Operand)
+	BytecodeAssign(stream)
 }
 
-CodeGenEmitSingleCodeBlockEntry : PostOpStatement ref postop
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, PostOpStatement ref postop
 {
-	CodeGenEmitBindingsForOperand(postop.Operand)
-	OnBytecodeReadReference()
-	OnBytecodeInvoke(postop.Operator)
-	CodeGenEmitBindingsForOperand(postop.Operand)
-	OnBytecodeAssign()
+	CodeGenEmitBindingsForOperand(stream, postop.Operand)
+	BytecodeReadReference(stream)
+	BytecodeInvoke(stream, postop.Operator)
+	CodeGenEmitBindingsForOperand(stream, postop.Operand)
+	BytecodeAssign(stream)
 }
 
 
 
-CodeGenEmitSingleCodeBlockEntry : EntityChain ref chain
+CodeGenEmitSingleCodeBlockEntry : BytecodeStream ref stream, EntityChain ref chain
 {
-	OnBytecodeBeginChain()
-	CodeGenEmitEntityChain(chain.Entries)
-	OnBytecodeEndChain()
+	BytecodeBeginChain(stream)
+	CodeGenEmitEntityChain(stream, chain.Entries)
+	BytecodeEndChain(stream)
 }
 
 
-CodeGenEmitEntityChain : EntityList ref entities
+CodeGenEmitEntityChain : BytecodeStream ref stream, EntityList ref entities
 {
-	CodeGenEmitEntityList(entities.ActualList)
+	CodeGenEmitEntityList(stream, entities.ActualList)
 }
 
-CodeGenEmitEntityList : list<Entity> ref thelist
+CodeGenEmitEntityList : BytecodeStream ref stream, list<Entity> ref thelist
 {
 	if(thelist.value.Tag != 0)
 	{
-		CodeGenEmitExpression(thelist.value.Param, false, false)
-		OnBytecodeEnterEntity(thelist.value.Tag, 0)
-		CodeGenEmitCodeBlock(thelist.value.Code)
-		OnBytecodeExitEntity()
+		CodeGenEmitExpression(stream, thelist.value.Param, false, false)
+		BytecodeEnterEntity(stream, thelist.value.Tag, 0)
+		CodeGenEmitCodeBlock(stream, thelist.value.Code)
+		BytecodeExitEntity(stream)
 	}
 
-	CodeGenEmitEntityList(thelist.next)
+	CodeGenEmitEntityList(stream, thelist.next)
 }
 
-CodeGenEmitEntityList : nothing
+CodeGenEmitEntityList : BytecodeStream ref stream, nothing
 
 
-BindAssignmentMembers : simplelist<integer> ref lhsmembers, integer structurename
+BindAssignmentMembers : BytecodeStream ref stream, simplelist<integer> ref lhsmembers, integer structurename
 {
 	integer membertype = 0
 	integer memberoffset = 0
 	GetStructureMemberTypeAndOffset(structurename, lhsmembers.value, membertype, memberoffset)
 
-	OnBytecodeBindStructReference(membertype, memberoffset)
+	BytecodeBindStructReference(stream, membertype, memberoffset)
 
 	// Recurse
 	assertmsg(membertype != 0, "Member has no type!")
-	BindAssignmentMembers(lhsmembers.next, GetNameOfType(membertype))
+	BindAssignmentMembers(stream, lhsmembers.next, GetNameOfType(membertype))
 }
 
-BindAssignmentMembers : nothing, integer structurename
+BindAssignmentMembers : BytecodeStream ref stream, nothing, integer structurename
 
 
 
-CodeGenEmitExpressionList : nothing, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpressionList : BytecodeStream ref stream, nothing, boolean constructssumtype, boolean constructorcall
 
-CodeGenEmitExpressionList : ExpressionList ref expressions, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpressionList : BytecodeStream ref stream, ExpressionList ref expressions, boolean constructssumtype, boolean constructorcall
 {
-	CodeGenEmitExpressionList(expressions.Expressions, constructssumtype, constructorcall)
+	CodeGenEmitExpressionList(stream, expressions.Expressions, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpressionList : list<Expression> ref expressions, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpressionList : BytecodeStream ref stream, list<Expression> ref expressions, boolean constructssumtype, boolean constructorcall
 {
 	boolean constructssumtypetemp = constructssumtype
 	if((expressions.value.Type & 0x7f000000) == 0x07000000)
@@ -905,35 +906,35 @@ CodeGenEmitExpressionList : list<Expression> ref expressions, boolean constructs
 		constructssumtypetemp = true
 	}
 
-	CodeGenEmitExpressionAtoms(expressions.value.Atoms, constructssumtypetemp, constructorcall)
-	CodeGenEmitExpressionList(expressions.next, constructssumtype, constructorcall)
+	CodeGenEmitExpressionAtoms(stream, expressions.value.Atoms, constructssumtypetemp, constructorcall)
+	CodeGenEmitExpressionList(stream, expressions.next, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpression : nothing, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpression : BytecodeStream ref stream, nothing, boolean constructssumtype, boolean constructorcall
 
-CodeGenEmitExpression : Expression ref expr, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpression : BytecodeStream ref stream, Expression ref expr, boolean constructssumtype, boolean constructorcall
 {
-	CodeGenEmitExpressionAtoms(expr.Atoms, constructssumtype, constructorcall)
+	CodeGenEmitExpressionAtoms(stream, expr.Atoms, constructssumtype, constructorcall)
 }
 
-CodeGenEmitExpressionAtoms : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean constructorcall
+CodeGenEmitExpressionAtoms : BytecodeStream ref stream, list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean constructorcall
 {
 	boolean needsref = false
-	CodeGenEmitExpressionAtomsWorker(atoms, constructssumtype, needsref, constructorcall)
+	CodeGenEmitExpressionAtomsWorker(stream, atoms, constructssumtype, needsref, constructorcall)
 	if(needsref)
 	{
 		if(constructssumtype)
 		{
-			OnBytecodeReadReferenceAnnotated()
+			BytecodeReadReferenceAnnotated(stream)
 		}
 		else
 		{
-			OnBytecodeReadReference()
+			BytecodeReadReference(stream)
 		}
 	}
 }
 
-CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean ref needsref, boolean constructorcall
+CodeGenEmitExpressionAtomsWorker : BytecodeStream ref stream, list<ExpressionAtom> ref atoms, boolean constructssumtype, boolean ref needsref, boolean constructorcall
 {
 	boolean thisneedsref = CodeGenCheckAtomForReadRef(atoms.value)
 	if(thisneedsref)
@@ -944,20 +945,20 @@ CodeGenEmitExpressionAtomsWorker : list<ExpressionAtom> ref atoms, boolean const
 	{
 		if(constructssumtype)
 		{
-			OnBytecodeReadReferenceAnnotated()
+			BytecodeReadReferenceAnnotated(stream)
 		}
 		else
 		{
-			OnBytecodeReadReference()
+			BytecodeReadReference(stream)
 		}
 		needsref = false
 	}
 
-	CodeGenEmitSingleAtom(atoms.value, constructorcall)
-	CodeGenEmitExpressionAtomsWorker(atoms.next, constructssumtype, needsref, constructorcall)
+	CodeGenEmitSingleAtom(stream, atoms.value, constructorcall)
+	CodeGenEmitExpressionAtomsWorker(stream, atoms.next, constructssumtype, needsref, constructorcall)
 }
 
-CodeGenEmitExpressionAtomsWorker : nothing, boolean constructssumtype, boolean ref needsref, boolean constructorcall
+CodeGenEmitExpressionAtomsWorker : BytecodeStream ref stream, nothing, boolean constructssumtype, boolean ref needsref, boolean constructorcall
 
 
 CodeGenCheckAtomForReadRef : RefBinding ref atom -> !atom.IsReference [nogc]
@@ -978,53 +979,53 @@ CodeGenCheckAtomForReadRef : AtomSentinel ref atom -> false [nogc]
 
 
 
-CodeGenEmitSingleAtom : integer ref literalinteger, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, integer ref literalinteger, boolean constructor
 {
-	OnBytecodePushLiteralInteger(literalinteger)
+	BytecodePushLiteralInteger(stream, literalinteger)
 }
 
-CodeGenEmitSingleAtom : integer16 ref literalinteger16, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, integer16 ref literalinteger16, boolean constructor
 {
-	OnBytecodePushLiteralInteger16(literalinteger16)
+	BytecodePushLiteralInteger16(stream, literalinteger16)
 }
 
-CodeGenEmitSingleAtom : boolean ref literalboolean, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, boolean ref literalboolean, boolean constructor
 {
-	OnBytecodePushBoolean(literalboolean)
+	BytecodePushBoolean(stream, literalboolean)
 }
 
-CodeGenEmitSingleAtom : real ref literalreal, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, real ref literalreal, boolean constructor
 {
-	OnBytecodePushLiteralReal(literalreal)
+	BytecodePushLiteralReal(stream, literalreal)
 }
 
-CodeGenEmitSingleAtom : StringHandleAtom ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, StringHandleAtom ref atom, boolean constructor
 {
-	OnBytecodePushLiteralString(atom.Handle)
+	BytecodePushLiteralString(stream, atom.Handle)
 }
 
-CodeGenEmitSingleAtom : OperatorInvokeAtom ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, OperatorInvokeAtom ref atom, boolean constructor
 {
-	OnBytecodeInvoke(atom.OperatorName)
+	BytecodeInvoke(stream, atom.OperatorName)
 }
 
-CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, IdentifierAtom ref idatom, boolean constructor
 {
 	integer atomtype = MakeNonReferenceType(idatom.Type)
 
 	if(atomtype == 0x00000004)							// Nothing type signature
 	{
-		OnBytecodePushLiteralInteger(0)
+		BytecodePushLiteralInteger(stream, 0)
 	}
 	else
 	{
 		if(idatom.IsFunction)
 		{
-			OnBytecodePushLiteralFunction(idatom.Handle)
+			BytecodePushLiteralFunction(stream, idatom.Handle)
 		}
 		elseif(GetTypeByName(idatom.Handle) != 0)
 		{
-			OnBytecodePushLiteralString(idatom.Handle)
+			BytecodePushLiteralString(stream, idatom.Handle)
 		}
 		else
 		{
@@ -1032,18 +1033,18 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 			{
 				if((!constructor) && (!idatom.IsReference))
 				{
-					OnBytecodePushLiteralString(idatom.Handle)
+					BytecodePushLiteralString(stream, idatom.Handle)
 				}
 				else
 				{
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
-					OnBytecodeBindReference(frames, index)
+					BytecodeBindReference(stream, frames, index)
 				}
 			}
 			elseif((atomtype & 0x7f000000) == 0x09000000)			// Function type family signature
 			{
-				OnBytecodePushLiteralFunction(idatom.Handle)
+				BytecodePushLiteralFunction(stream, idatom.Handle)
 			}
 			else
 			{
@@ -1051,7 +1052,7 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 				{
 					integer frames = 0
 					integer index = FindVariable(idatom.Handle, frames)
-					OnBytecodeBindReference(frames, index)
+					BytecodeBindReference(stream, frames, index)
 				}
 				else
 				{
@@ -1060,11 +1061,11 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 
 					if(frames == 0)
 					{
-						OnBytecodePushVarValue(idatom.Handle, idatom.Type)
+						BytecodePushVarValue(stream, idatom.Handle, idatom.Type)
 					}
 					elseif(IsReferenceType(idatom.Type))
 					{
-						OnBytecodeBindReference(frames, index)
+						BytecodeBindReference(stream, frames, index)
 					}
 					else
 					{
@@ -1076,7 +1077,8 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 							print("Code generation error - missing local variable " ; GetPooledString(idatom.Handle) ; " in scope " ; GetPooledString(EmittingFunctionName))
 							assert(false)
 						}
-						OnBytecodePushLocal(frames, var.Offset)
+						
+						BytecodePushLocal(stream, frames, var.Offset)
 					}
 				}
 			}
@@ -1084,71 +1086,71 @@ CodeGenEmitSingleAtom : IdentifierAtom ref idatom, boolean constructor
 	}
 }
 
-CodeGenEmitSingleAtom : TypeAnnotationAtom ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, TypeAnnotationAtom ref atom, boolean constructor
 {
-	OnBytecodePushTypeAnnotation(MakeNonReferenceType(atom.Type))
+	BytecodePushTypeAnnotation(stream, MakeNonReferenceType(atom.Type))
 }
 
-CodeGenEmitSingleAtom : Statement ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, Statement ref atom, boolean constructor
 {
-	CodeGenEmitSingleCodeBlockEntry(atom)
+	CodeGenEmitSingleCodeBlockEntry(stream, atom)
 }
 
-CodeGenEmitSingleAtom : RefBinding ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, RefBinding ref atom, boolean constructor
 {
 	integer memtype = 0
 	integer memoffset = 0
 	GetStructureMemberTypeAndOffset(atom.StructureName, atom.Identifier, memtype, memoffset)
 
-	OnBytecodeBindStructReference(memtype, memoffset)
+	BytecodeBindStructReference(stream, memtype, memoffset)
 }
 
-CodeGenEmitSingleAtom : ParentheticalExpression ref expr, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, ParentheticalExpression ref expr, boolean constructor
 {
-	CodeGenDecomposeParenthetical(expr.Inner)
+	CodeGenDecomposeParenthetical(stream, expr.Inner)
 }
 
-CodeGenDecomposeParenthetical : Expression ref expr
+CodeGenDecomposeParenthetical : BytecodeStream ref stream, Expression ref expr
 {
-	CodeGenEmitExpression(expr, false, false)
+	CodeGenEmitExpression(stream, expr, false, false)
 }
 
-CodeGenDecomposeParenthetical : PreOpStatement ref statement
+CodeGenDecomposeParenthetical : BytecodeStream ref stream, PreOpStatement ref statement
 {
-	CodeGenEmitSingleCodeBlockEntry(statement)
-	CodeGenEmitBindingsForOperand(statement.Operand)
-	OnBytecodeReadReference()
+	CodeGenEmitSingleCodeBlockEntry(stream, statement)
+	CodeGenEmitBindingsForOperand(stream, statement.Operand)
+	BytecodeReadReference(stream)
 }
 
-CodeGenDecomposeParenthetical : PostOpStatement ref statement
+CodeGenDecomposeParenthetical : BytecodeStream ref stream, PostOpStatement ref statement
 {
-	CodeGenEmitBindingsForOperand(statement.Operand)
-	OnBytecodeReadReference()
-	CodeGenEmitSingleCodeBlockEntry(statement)
+	CodeGenEmitBindingsForOperand(stream, statement.Operand)
+	BytecodeReadReference(stream)
+	CodeGenEmitSingleCodeBlockEntry(stream, statement)
 }
 
-CodeGenEmitSingleAtom : CompoundAtom ref atom, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, CompoundAtom ref atom, boolean constructor
 {
 	integer frames = 0
 	integer index = FindVariable(atom.Bindings.value.Identifier, frames)
-	OnBytecodeBindReference(frames, index)
+	BytecodeBindReference(stream, frames, index)
 
-	EmitCompoundBindings(atom.Bindings, atom.Bindings.next)
+	EmitCompoundBindings(stream, atom.Bindings, atom.Bindings.next)
 
 	if(!IsReferenceType(atom.Type))
 	{
 		if((atom.Type & 0x7f000000) == 0x07000000)
 		{
-			OnBytecodeReadReferenceAnnotated()
+			BytecodeReadReferenceAnnotated(stream)
 		}
 		else
 		{
-			OnBytecodeReadReference()
+			BytecodeReadReference(stream)
 		}
 	}
 }
 
-EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
+EmitCompoundBindings : BytecodeStream ref stream, list<RefBinding> ref bindings, list<RefBinding> ref tail
 {
 	Variable var = 0, 0, 0, 0
 	FindVariableDataInSingleScope(EmittingScope.Wrapped, bindings.value.Identifier, var)
@@ -1160,91 +1162,91 @@ EmitCompoundBindings : list<RefBinding> ref bindings, list<RefBinding> ref tail
 	integer memoffset = 0
 	GetStructureMemberTypeAndOffset(lhstypename, tail.value.Identifier, memtype, memoffset)
 
-	OnBytecodeBindStructReference(memtype, memoffset)
+	BytecodeBindStructReference(stream, memtype, memoffset)
 
-	EmitCompoundSubsequentBindings(tail.next)
+	EmitCompoundSubsequentBindings(stream, tail.next)
 }
 
-EmitCompoundSubsequentBindings : nothing
+EmitCompoundSubsequentBindings : BytecodeStream ref stream, nothing
 
-EmitCompoundSubsequentBindings : list<RefBinding> ref bindings
+EmitCompoundSubsequentBindings : BytecodeStream ref stream, list<RefBinding> ref bindings
 {
-	CodeGenEmitSingleAtom(bindings.value, false)
-	EmitCompoundSubsequentBindings(bindings.next)
+	CodeGenEmitSingleAtom(stream, bindings.value, false)
+	EmitCompoundSubsequentBindings(stream, bindings.next)
 }
 
 
-CodeGenEmitSingleAtom : AtomSentinel ref sentinel, boolean constructor
+CodeGenEmitSingleAtom : BytecodeStream ref stream, AtomSentinel ref sentinel, boolean constructor
 
 
-CodeGenEmitSingleSumType : integer typeid, SumType ref st -> boolean ret = true [nogc]
+CodeGenEmitSingleSumType : integer typeid, SumType ref st, BytecodeStream ref stream -> boolean ret = true [nogc]
 {
 	if((st.Type != 0) && (!st.IsTemplate))
 	{
-		ByteStreamEmitByte(Hack, HackSize, 0x1f)			// SumTypeDef instruction
-		ByteStreamEmitInteger(Hack, HackSize, st.Type)
-		ByteStreamEmitInteger(Hack, HackSize, CountSumTypeBases(st.Bases))
-		CodeGenEmitSumTypeBase(st.Bases)
+		ByteStreamEmitByte(stream.Buffer, stream.Offset, 0x1f)			// SumTypeDef instruction
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, st.Type)
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, CountSumTypeBases(st.Bases))
+		CodeGenEmitSumTypeBase(stream, st.Bases)
 	}
 }
 
-CodeGenEmitSumTypes :
+CodeGenEmitSumTypes : BytecodeStream ref stream
 {
-	BinaryTreeWalkAllNodes<SumType>(GlobalRootNamespace.SumTypes.RootNode, CodeGenEmitSingleSumType)
+	BinaryTreeWalkAllNodesWithParam<SumType, BytecodeStream>(GlobalRootNamespace.SumTypes.RootNode, CodeGenEmitSingleSumType, stream)
 }
 
 
 
-CodeGenEmitSumTypeBase : list<SumTypeBase> ref bases [nogc]
+CodeGenEmitSumTypeBase : BytecodeStream ref stream, list<SumTypeBase> ref bases [nogc]
 {
-	CodeGenEmitSumTypeBase(bases.next)
+	CodeGenEmitSumTypeBase(stream, bases.next)
 
 	if(bases.value.Name != 0)
 	{
-		ByteStreamEmitInteger(Hack, HackSize, bases.value.Name)
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, bases.value.Name)
 	}
 }
 
-CodeGenEmitSumTypeBase : nothing [nogc]
+CodeGenEmitSumTypeBase : BytecodeStream ref stream, nothing [nogc]
 
 
 
-CodeGenEmitTypeMatchers : list<TypeMatcher> ref matchers
+CodeGenEmitTypeMatchers : BytecodeStream ref stream, list<TypeMatcher> ref matchers
 {
 	if(matchers.value.Name != 0)
 	{
-		OnBytecodeLexicalScope(matchers.value.Name, 0, 0)
-		OnBytecodeEnterTypeResolver(matchers.value.Name)
-		CodeGenEmitTypeMatcherOverloads(matchers.value.Overloads)
-		OnBytecodeExitTypeResolver()
+		BytecodeLexicalScope(stream, matchers.value.Name, 0, 0)
+		BytecodeEnterTypeResolver(stream, matchers.value.Name)
+		CodeGenEmitTypeMatcherOverloads(stream, matchers.value.Overloads)
+		BytecodeExitTypeResolver(stream)
 	}
 
-	CodeGenEmitTypeMatchers(matchers.next)
+	CodeGenEmitTypeMatchers(stream, matchers.next)
 }
 
-CodeGenEmitTypeMatchers : nothing
+CodeGenEmitTypeMatchers : BytecodeStream ref stream, nothing
 
-CodeGenEmitTypeMatcherOverloads : list<FunctionSignature> ref signatures
+CodeGenEmitTypeMatcherOverloads : BytecodeStream ref stream, list<FunctionSignature> ref signatures
 {
-	CodeGenEmitTypeMatcherOverloads(signatures.next)
+	CodeGenEmitTypeMatcherOverloads(stream, signatures.next)
 
 	if(signatures.value.Name != 0)
 	{
-		ByteStreamEmitByte(Hack, HackSize, 0x20)				// TypeMatch instruction
-		ByteStreamEmitInteger(Hack, HackSize, signatures.value.Name)
-		ByteStreamEmitInteger(Hack, HackSize, 0)
-		ByteStreamEmitInteger(Hack, HackSize, CountParameters(signatures.value.Parameters))
+		ByteStreamEmitByte(stream.Buffer, stream.Offset, 0x20)				// TypeMatch instruction
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, signatures.value.Name)
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, 0)
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, CountParameters(signatures.value.Parameters))
 
-		CodeGenEmitTypeMatcherParams(signatures.value.Parameters)
+		CodeGenEmitTypeMatcherParams(stream, signatures.value.Parameters)
 	}
 }
 
-CodeGenEmitTypeMatcherOverloads : nothing
+CodeGenEmitTypeMatcherOverloads : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitTypeMatcherParams : list<Parameter> ref params [nogc]
+CodeGenEmitTypeMatcherParams : BytecodeStream ref stream, list<Parameter> ref params [nogc]
 {
-	CodeGenEmitTypeMatcherParams(params.next)
+	CodeGenEmitTypeMatcherParams(stream, params.next)
 
 	if(params.value.Name != 0)
 	{
@@ -1254,12 +1256,12 @@ CodeGenEmitTypeMatcherParams : list<Parameter> ref params [nogc]
 			refflag = 1
 		}
 
-		ByteStreamEmitByte(Hack, HackSize, refflag)
-		ByteStreamEmitInteger(Hack, HackSize, MakeNonReferenceType(params.value.Type))
+		ByteStreamEmitByte(stream.Buffer, stream.Offset, refflag)
+		ByteStreamEmitInteger(stream.Buffer, stream.Offset, MakeNonReferenceType(params.value.Type))
 	}
 }
 
-CodeGenEmitTypeMatcherParams : nothing [nogc]
+CodeGenEmitTypeMatcherParams : BytecodeStream ref stream, nothing [nogc]
 
 
 OnCodeGenRegisterFunctionTag : integer funcname, string tagname, integer rawfuncname
@@ -1299,177 +1301,178 @@ AppendFunctionTagParamUnwrap : nothing, string param
 }
 
 
-CodeGenEmitFunctionTags : list<FunctionTag> ref tags
+CodeGenEmitFunctionTags : BytecodeStream ref stream, list<FunctionTag> ref tags
 {
 	if(tags.value.FunctionName != 0)
 	{
 		if((tags.value.TagName != "") && (tags.value.TagName != "static"))
 		{
-			ByteStreamEmitByte(Hack, HackSize, 0x1a)
-			ByteStreamEmitInteger(Hack, HackSize, tags.value.FunctionName)
-			ByteStreamEmitInteger(Hack, HackSize, CountTagParams(tags.value.Parameters))
-			OnBytecodeEmitString(tags.value.TagName)
+			ByteStreamEmitByte(stream.Buffer, stream.Offset, 0x1a)
+			ByteStreamEmitInteger(stream.Buffer, stream.Offset, tags.value.FunctionName)
+			ByteStreamEmitInteger(stream.Buffer, stream.Offset, CountTagParams(tags.value.Parameters))
+			ByteStreamEmitString(stream.Buffer, stream.Offset, tags.value.TagName)
 
-			CodeGenEmitFunctionTagParams(tags.value.Parameters)
+			CodeGenEmitFunctionTagParams(stream, tags.value.Parameters)
 		}
 	}
-	CodeGenEmitFunctionTags(tags.next)
+	CodeGenEmitFunctionTags(stream, tags.next)
 }
 
-CodeGenEmitFunctionTags : nothing
+CodeGenEmitFunctionTags : BytecodeStream ref stream, nothing
 
 
 
-CodeGenEmitFunctionTagParams : list<string> ref params [nogc]
+CodeGenEmitFunctionTagParams : BytecodeStream ref stream, list<string> ref params [nogc]
 {
 	if(params.value != "")
 	{
-		OnBytecodeEmitString(params.value)
+		ByteStreamEmitString(stream.Buffer, stream.Offset, params.value)
 	}
 
-	CodeGenEmitFunctionTagParams(params.next)
+	CodeGenEmitFunctionTagParams(stream, params.next)
 }
 
-CodeGenEmitFunctionTagParams : nothing [nogc]
+CodeGenEmitFunctionTagParams : BytecodeStream ref stream, nothing [nogc]
 
 
 
-CodeGenEmitConstructors : list<StructureDefinition> ref structures
+CodeGenEmitConstructors : BytecodeStream ref stream, list<StructureDefinition> ref structures
 {
 	if((structures.value.Name != 0) && (!structures.value.IsTemplate))
 	{
-		EmitCtorTag(structures.value.ConstructorName)
-		EmitCtorTag(structures.value.AnonConstructorName)
+		EmitCtorTag(stream, structures.value.ConstructorName)
+		EmitCtorTag(stream, structures.value.AnonConstructorName)
 
 		if(structures.value.CopyConstructorName != 0)
 		{
-			EmitCtorTag(structures.value.CopyConstructorName)
+			EmitCtorTag(stream, structures.value.CopyConstructorName)
 		}
 
-		EmitConstructor(structures.value)
-		EmitAnonConstructor(structures.value)
+		EmitConstructor(stream, structures.value)
+		EmitAnonConstructor(stream, structures.value)
 
 		if(structures.value.CopyConstructorName != 0)
 		{
-			EmitCopyConstructor(structures.value)
+			EmitCopyConstructor(stream, structures.value)
 		}
 	}
 
-	CodeGenEmitConstructors(structures.next)
+	CodeGenEmitConstructors(stream, structures.next)
 }
 
-CodeGenEmitConstructors : nothing
+CodeGenEmitConstructors : BytecodeStream ref stream, nothing
 
-EmitCtorTag : integer funcname
+EmitCtorTag : BytecodeStream ref stream, integer funcname
 {
-	ByteStreamEmitByte(Hack, HackSize, 0x1a)
-	ByteStreamEmitInteger(Hack, HackSize, funcname)
-	ByteStreamEmitInteger(Hack, HackSize, 0)
-	OnBytecodeEmitString("@@autogen@constructor")
+	ByteStreamEmitByte(stream.Buffer, stream.Offset, 0x1a)
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, funcname)
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, 0)
+	ByteStreamEmitString(stream.Buffer, stream.Offset, "@@autogen@constructor")
 }
 
 
-EmitConstructor : StructureDefinition ref def
+EmitConstructor : BytecodeStream ref stream, StructureDefinition ref def
 {
 	integer idhandle = PooledStringHandleForIdentifier
 
-	OnBytecodeLexicalScope(def.ConstructorName, 0, def.MemberCount + 1)
-	OnBytecodeLexicalScopeEntry(idhandle, 0x81000000, 1)
-	EmitScopeEntriesForMembers(def.Members)
+	BytecodeLexicalScope(stream, def.ConstructorName, 0, def.MemberCount + 1)
+	BytecodeLexicalScopeEntry(stream, idhandle, 0x81000000, 1)
+	EmitScopeEntriesForMembers(stream, def.Members)
 
-	OnBytecodeEnterFunction(def.ConstructorName)
-	OnBytecodeAllocStructure(def.Type)
-	OnBytecodeBindReference(0, 0)
-	OnBytecodeAssign()
+	BytecodeEnterFunction(stream, def.ConstructorName)
+	BytecodeAllocStructure(stream, def.Type)
+	BytecodeBindReference(stream, 0, 0)
+	BytecodeAssign(stream)
 
-	EmitMemberDataCopies(def.Members, idhandle)
+	EmitMemberDataCopies(stream, def.Members, idhandle)
 
-	OnBytecodeExitFunction()
+	BytecodeExitFunction(stream)
 }
 
-EmitAnonConstructor : StructureDefinition ref def
+EmitAnonConstructor : BytecodeStream ref stream, StructureDefinition ref def
 {
 	integer membercount = def.MemberCount
-	OnBytecodeLexicalScope(def.AnonConstructorName, 0, membercount + 1)
-	EmitScopeEntriesForMembers(def.Members)
-	OnBytecodeLexicalScopeEntry(def.AnonConstructorName, def.Type, 2)
+	
+	BytecodeLexicalScope(stream, def.AnonConstructorName, 0, membercount + 1)
+	EmitScopeEntriesForMembers(stream, def.Members)
+	BytecodeLexicalScopeEntry(stream, def.AnonConstructorName, def.Type, 2)
 
-	OnBytecodeEnterFunction(def.AnonConstructorName)
-	OnBytecodeAllocStructure(def.Type)
-	OnBytecodeBindReference(0, membercount)
-	OnBytecodeAssign()
+	BytecodeEnterFunction(stream, def.AnonConstructorName)
+	BytecodeAllocStructure(stream, def.Type)
+	BytecodeBindReference(stream, 0, membercount)
+	BytecodeAssign(stream)
 
-	EmitMemberDataCopies(def.Members, def.AnonConstructorName)
+	EmitMemberDataCopies(stream, def.Members, def.AnonConstructorName)
 
-	OnBytecodeSetReturnRegister(membercount)
-	OnBytecodeExitFunction()
+	BytecodeSetReturnRegister(stream, membercount)
+	BytecodeExitFunction(stream)
 }
 
-EmitCopyConstructor : StructureDefinition ref def
+EmitCopyConstructor : BytecodeStream ref stream, StructureDefinition ref def
 {
-	OnBytecodeLexicalScope(def.CopyConstructorName, 0, 2)
-	OnBytecodeLexicalScopeEntry(PooledStringHandleForIdentifier, 0x81000000, 1)
-	OnBytecodeLexicalScopeEntry(def.Name, def.Type, 1)
+	BytecodeLexicalScope(stream, def.CopyConstructorName, 0, 2)
+	BytecodeLexicalScopeEntry(stream, PooledStringHandleForIdentifier, 0x81000000, 1)
+	BytecodeLexicalScopeEntry(stream, def.Name, def.Type, 1)
 
-	OnBytecodeEnterFunction(def.CopyConstructorName)
-	OnBytecodePushVarValueNoCopy(def.Name)
-	OnBytecodeCopyStructure()
-	OnBytecodeBindReference(0, 0)
-	OnBytecodeAssign()
-	OnBytecodeExitFunction()
+	BytecodeEnterFunction(stream, def.CopyConstructorName)
+	BytecodePushVarValueNoCopy(stream, def.Name)
+	BytecodeCopyStructure(stream)
+	BytecodeBindReference(stream, 0, 0)
+	BytecodeAssign(stream)
+	BytecodeExitFunction(stream)
 }
 
 
-EmitScopeEntriesForMembers : list<StructureMember> ref members
+EmitScopeEntriesForMembers : BytecodeStream ref stream, list<StructureMember> ref members
 {
-	EmitScopeEntryForMember(members.value)
-	EmitScopeEntriesForMembers(members.next)
+	EmitScopeEntryForMember(stream, members.value)
+	EmitScopeEntriesForMembers(stream, members.next)
 }
 
-EmitScopeEntriesForMembers : nothing
+EmitScopeEntriesForMembers : BytecodeStream ref stream, nothing
 
 
-EmitScopeEntryForMember : StructureMemberVariable ref memvar
-{
-	if(memvar.Name != 0)
-	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, memvar.Type, 1)
-	}
-}
-
-EmitScopeEntryForMember : StructureMemberFunctionRef ref memvar
+EmitScopeEntryForMember : BytecodeStream ref stream, StructureMemberVariable ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodeLexicalScopeEntry(memvar.Name, GetMemberTypeDecompose(memvar), 1)
+		BytecodeLexicalScopeEntry(stream, memvar.Name, memvar.Type, 1)
 	}
 }
 
-
-
-EmitMemberDataCopies : list<StructureMember> ref members, integer idhandle
-{
-	EmitMemberDataCopy(members.value, idhandle)
-	EmitMemberDataCopies(members.next, idhandle)
-}
-
-EmitMemberDataCopies : nothing, integer idhandle
-
-EmitMemberDataCopy : StructureMemberVariable ref memvar, integer idhandle
+EmitScopeEntryForMember : BytecodeStream ref stream, StructureMemberFunctionRef ref memvar
 {
 	if(memvar.Name != 0)
 	{
-		OnBytecodePushVarValue(memvar.Name, memvar.Type)
-		OnBytecodeCopyToStructure(idhandle, memvar.Name)
+		BytecodeLexicalScopeEntry(stream, memvar.Name, GetMemberTypeDecompose(memvar), 1)
 	}
 }
 
-EmitMemberDataCopy : StructureMemberFunctionRef ref member, integer idhandle
+
+
+EmitMemberDataCopies : BytecodeStream ref stream, list<StructureMember> ref members, integer idhandle
+{
+	EmitMemberDataCopy(stream, members.value, idhandle)
+	EmitMemberDataCopies(stream, members.next, idhandle)
+}
+
+EmitMemberDataCopies : BytecodeStream ref stream, nothing, integer idhandle
+
+EmitMemberDataCopy : BytecodeStream ref stream, StructureMemberVariable ref memvar, integer idhandle
+{
+	if(memvar.Name != 0)
+	{
+		BytecodePushVarValue(stream, memvar.Name, memvar.Type)
+		BytecodeCopyToStructure(stream, idhandle, memvar.Name)
+	}
+}
+
+EmitMemberDataCopy : BytecodeStream ref stream, StructureMemberFunctionRef ref member, integer idhandle
 {
 	if(member.Name != 0)
 	{
-		OnBytecodePushVarValue(member.Name, 0x09000000)
-		OnBytecodeCopyToStructure(idhandle, member.Name)
+		BytecodePushVarValue(stream, member.Name, 0x09000000)
+		BytecodeCopyToStructure(stream, idhandle, member.Name)
 	}
 }
 
@@ -1603,7 +1606,7 @@ OnCodeGenRegisterFunctionSigParamList : simplelist<integer> ref paramtypenames, 
 OnCodeGenRegisterFunctionSigParamList : nothing, nothing
 
 
-CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
+CodeGenEmitFunctionSignatures : BytecodeStream ref stream, list<FunctionSignature> ref thelist
 {
 	if(thelist.value.Name != 0)
 	{
@@ -1613,16 +1616,16 @@ CodeGenEmitFunctionSignatures : list<FunctionSignature> ref thelist
 			rettype = 0x00000002		// void
 		}
 
-		OnBytecodeEmitFunctionSignature(thelist.value.Name, rettype, CountParameters(thelist.value.Parameters))
-		CodeGenEmitFunctionSigParams(thelist.value.Parameters)
+		BytecodeEmitFunctionSignature(stream, thelist.value.Name, rettype, CountParameters(thelist.value.Parameters))
+		CodeGenEmitFunctionSigParams(stream, thelist.value.Parameters)
 	}
-	CodeGenEmitFunctionSignatures(thelist.next)
+	CodeGenEmitFunctionSignatures(stream, thelist.next)
 }
 
-CodeGenEmitFunctionSignatures : nothing
+CodeGenEmitFunctionSignatures : BytecodeStream ref stream, nothing
 
 
-CodeGenEmitFunctionSigParams : list<Parameter> ref params
+CodeGenEmitFunctionSigParams : BytecodeStream ref stream, list<Parameter> ref params
 {
 	if(params.value.Type != 0)
 	{
@@ -1631,12 +1634,12 @@ CodeGenEmitFunctionSigParams : list<Parameter> ref params
 		{
 			t = MakeReferenceType(t)
 		}
-		OnBytecodeEmitFunctionSigParam(t)
+		BytecodeEmitFunctionSigParam(stream, t)
 	}
-	CodeGenEmitFunctionSigParams(params.next)
+	CodeGenEmitFunctionSigParams(stream, params.next)
 }
 
-CodeGenEmitFunctionSigParams : nothing
+CodeGenEmitFunctionSigParams : BytecodeStream ref stream, nothing
 
 
 OnCodeGenRegisterParenthetical :
@@ -1725,70 +1728,70 @@ PeekContext : list<ContextStackEntry> ref stack, integer depth -> integer peek =
 }
 
 
-CodeGenEmitGlobalBlockPrologue : CodeBlock ref block
+CodeGenEmitGlobalBlockPrologue : BytecodeStream ref stream, CodeBlock ref block
 {
 	if(GlobalCodeBlockName != 0)
 	{
 		EmittingScope.Wrapped = GlobalScope.Wrapped
 
-		OnBytecodeEnterEntity(4, GlobalCodeBlockName)
-		CodeGenEmitCodeBlock(block)
-		OnBytecodeInvokeOffset(FindHandleInTrie(GlobalStringPool.LookupTrie, "entrypoint"))
-		OnBytecodeHalt()
+		BytecodeEnterEntity(stream, 4, GlobalCodeBlockName)
+		CodeGenEmitCodeBlock(stream, block)
+		BytecodeInvokeOffset(stream, FindHandleInTrie(GlobalStringPool.LookupTrie, "entrypoint"))
+		BytecodeHalt(stream)
 	}
 }
 
-CodeGenEmitGlobalBlockEpilogue : CodeBlock ref block
+CodeGenEmitGlobalBlockEpilogue : BytecodeStream ref stream, CodeBlock ref block
 {
 	if(GlobalCodeBlockName != 0)
 	{
-		OnBytecodeExitEntity()
+		BytecodeExitEntity(stream)
 	}
 }
 
 
-EmitPatternMatchingForFunction : FunctionDefinition ref function
+EmitPatternMatchingForFunction : BytecodeStream ref stream, FunctionDefinition ref function
 {
-	ByteStreamEmitByte(Hack, HackSize, 0x12)			// PatternMatch instruction
-	ByteStreamEmitInteger(Hack, HackSize, function.Name)
-	ByteStreamEmitInteger(Hack, HackSize, 0)
-	ByteStreamEmitInteger(Hack, HackSize, CountUnresolvedParameters(function.Params))
-	EmitPatternMatchingForParameters(function.Params)
+	ByteStreamEmitByte(stream.Buffer, stream.Offset, 0x12)			// PatternMatch instruction
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, function.Name)
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, 0)
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, CountUnresolvedParameters(function.Params))
+	EmitPatternMatchingForParameters(stream, function.Params)
 }
 
-EmitPatternMatchingForParameters : FunctionParams ref params
+EmitPatternMatchingForParameters : BytecodeStream ref stream, FunctionParams ref params
 {
-	EmitPatternMatchingForParameters(params.Params)
+	EmitPatternMatchingForParameters(stream, params.Params)
 }
 
-EmitPatternMatchingForParameters : list<UnresolvedParameter> ref params
+EmitPatternMatchingForParameters : BytecodeStream ref stream, list<UnresolvedParameter> ref params
 {
 	integer parampatterntype = GetOptionalExpressionType(params.value.PatternMatchValue)
-	ByteStreamEmitInteger(Hack, HackSize, MakeNonReferenceType(parampatterntype))
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, MakeNonReferenceType(parampatterntype))
 
 	if(parampatterntype != 0)
 	{
-		OnBytecodeEmitBoolean(true)
-		EmitPatternMatchLiteral(params.value.PatternMatchValue)
+		ByteStreamEmitBoolean(stream.Buffer, stream.Offset, true)
+		EmitPatternMatchLiteral(stream, params.value.PatternMatchValue)
 	}
 	else
 	{
-		OnBytecodeEmitBoolean(false)
+		ByteStreamEmitBoolean(stream.Buffer, stream.Offset, false)
 	}
 
-	EmitPatternMatchingForParameters(params.next)
+	EmitPatternMatchingForParameters(stream, params.next)
 }
 
-EmitPatternMatchingForParameters : nothing
+EmitPatternMatchingForParameters : BytecodeStream ref stream, nothing
 
 
-EmitPatternMatchLiteral : Expression ref expr
+EmitPatternMatchLiteral : BytecodeStream ref stream, Expression ref expr
 {
-	EmitPatternMatchLiteralAtom(expr.Atoms.value)
+	EmitPatternMatchLiteralAtom(stream, expr.Atoms.value)
 }
 
-EmitPatternMatchLiteralAtom : integer value
+EmitPatternMatchLiteralAtom : BytecodeStream ref stream, integer value
 {
-	ByteStreamEmitInteger(Hack, HackSize, value)
+	ByteStreamEmitInteger(stream.Buffer, stream.Offset, value)
 }
 

@@ -530,6 +530,28 @@ BinaryTreeWalkAllNodes<type T> : nothing, (func : integer, T ref -> boolean) -> 
 
 
 
+BinaryTreeWalkAllNodesWithParam<type T, type ParamT> : BinaryTree<T> ref tree, (func : integer, T ref, ParamT ref -> boolean), ParamT ref param -> boolean ret = true
+{
+	if(!func(tree.Value, tree.Payload.Payload, param))
+	{
+		ret = false
+	}
+
+	if(!BinaryTreeWalkAllNodesWithParam<T, ParamT>(tree.Left, func, param))
+	{
+		ret = false
+	}
+
+	if(!BinaryTreeWalkAllNodesWithParam<T, ParamT>(tree.Right, func, param))
+	{
+		ret = false
+	}
+}
+
+BinaryTreeWalkAllNodesWithParam<type T, type ParamT> : nothing, (func : integer, T ref, ParamT ref -> boolean), ParamT ref param -> boolean ret = true
+
+
+
 
 structure tailhack :
 	listnode<ParsedToken> tail

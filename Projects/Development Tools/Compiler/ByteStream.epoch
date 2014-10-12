@@ -44,6 +44,23 @@ ByteStreamEmitInteger16 : buffer ref targetbuffer, integer ref offset, integer16
 }
 
 //
+// Emit a 32-bit floating point real into the stream
+//
+ByteStreamEmitReal : buffer ref targetbuffer, integer ref offset, real value [nogc]
+{
+	writebuffer(targetbuffer, offset, value)
+	offset += 4
+}
+
+//
+// Emit a boolean byte into the stream
+//
+ByteStreamEmitBoolean : buffer ref targetbuffer, integer ref offset, boolean value [nogc]
+{
+	ByteStreamEmitByte(targetbuffer, offset, cast(integer, value))
+}
+
+//
 // Pad the stream with 0 bytes until it is targetoffset bytes long
 //
 ByteStreamEmitPadding : buffer ref targetbuffer, integer ref offset, integer targetoffset [nogc]
@@ -52,6 +69,16 @@ ByteStreamEmitPadding : buffer ref targetbuffer, integer ref offset, integer tar
 	{
 		ByteStreamEmitByte(targetbuffer, offset, 0x00)
 	}
+}
+
+//
+// Emit a string into the stream
+//
+ByteStreamEmitString : buffer ref targetbuffer, integer ref offset, string value [nogc]
+{
+	integer len = (length(value) + 1) * 2
+	writebuffer(targetbuffer, offset, value, len)
+	offset += len
 }
 
 //
