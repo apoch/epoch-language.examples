@@ -1,0 +1,31 @@
+//
+// PARAMSHUFFLE.EPOCH
+//
+// Basic test of shuffling around template parameters
+//
+
+
+structure Wrapper<type T> :
+	T Inner,
+	string Note
+	
+	
+CompareNotes<type T, type U> : Wrapper<T> ref a, Wrapper<U> ref b -> boolean equal = false
+{
+	if(a.Note == b.Note)
+	{
+		equal = true
+	}
+}
+
+entrypoint :
+{
+	Wrapper<integer> alpha = 42, "Test"
+	Wrapper<string> beta = "Foo", "Test"
+	
+	boolean eq = CompareNotes<integer, string>(alpha, beta)
+	assert(eq)
+	
+	passtest()
+}
+

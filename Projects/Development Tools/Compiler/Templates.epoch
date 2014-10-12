@@ -501,9 +501,9 @@ RemapSignatureParamTypes : nothing, list<TemplateParameter> ref templateparams, 
 
 PropagateTemplateArgsForParameter : UnresolvedParameter ref p, TemplateArgumentList ref check, list<TemplateParameter> ref params, list<TemplateArgument> ref args [nogc]
 {
-	TemplateArgumentList wrap = args
-	RemapAllTemplateArguments(wrap, params, args)
-	p.TemplateArgs = wrap
+	TemplateArgumentList copy = check
+	RemapAllTemplateArguments(copy, params, args)
+	p.TemplateArgs = copy
 }
 
 PropagateTemplateArgsForParameter : UnresolvedParameter ref p, nothing, list<TemplateParameter> ref params, list<TemplateArgument> ref args [nogc]
