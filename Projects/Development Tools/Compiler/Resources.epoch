@@ -520,12 +520,12 @@ SetResourceDataOffsets : ResourceHandler ref res, nothing
 	
 AddResourceIcon : string filename, integer groupid, integer language, ResourceHandler ref res
 {
-	integer INVALID_HANDLE_VALUE = 0xffffffff
+	Win32Handle INVALID_HANDLE_VALUE = 0xffffffff
 	integer FILE_SHARE_READ = 0x01
 	integer OPEN_EXISTING = 3
 	integer GENERIC_READ = 0x80000000
 
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	Win32Handle filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		integer PAGE_READONLY = 0x02
@@ -533,7 +533,7 @@ AddResourceIcon : string filename, integer groupid, integer language, ResourceHa
 
 		if(len > 0)
 		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			Win32Handle mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
 			if(mappinghandle != 0)
 			{
 				integer FILE_MAP_READ = 0x04
@@ -791,12 +791,12 @@ CopyIconFromReference : buffer ref rb, integer ref rs, list<IconReference> ref r
 
 CopyIconFromFile : buffer ref rb, integer ref rs, string filename, integer beginoffset, integer size
 {
-	integer INVALID_HANDLE_VALUE = 0xffffffff
+	Win32Handle INVALID_HANDLE_VALUE = 0xffffffff
 	integer FILE_SHARE_READ = 0x01
 	integer OPEN_EXISTING = 3
 	integer GENERIC_READ = 0x80000000
 
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	Win32Handle filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		integer PAGE_READONLY = 0x02
@@ -804,7 +804,7 @@ CopyIconFromFile : buffer ref rb, integer ref rs, string filename, integer begin
 
 		if(len > 0)
 		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			Win32Handle mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
 			if(mappinghandle != 0)
 			{
 				integer FILE_MAP_READ = 0x04
@@ -841,7 +841,7 @@ CopyIconFromFile : buffer ref rb, integer ref rs, string filename, integer begin
 
 
 
-WriteResources : integer filehandle, ResourceHandler ref res -> integer writtenbytes = 0
+WriteResources : Win32Handle filehandle, ResourceHandler ref res -> integer writtenbytes = 0
 {
 	buffer resourcebuffer = 1024 * 1024
 	integer resourcesize = 0
@@ -1176,13 +1176,13 @@ LoadResourceManifest : string ref scriptcontents, ResourceHandler ref res
 	}
 	
 	
-	integer INVALID_HANDLE_VALUE = 0xffffffff
+	Win32Handle INVALID_HANDLE_VALUE = 0xffffffff
 	integer FILE_SHARE_READ = 0x01
 	integer OPEN_EXISTING = 3
 	integer GENERIC_READ = 0x80000000
 
 	integer filesize = 0
-	integer filehandle = CreateFile(sourceline, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	Win32Handle filehandle = CreateFile(sourceline, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		filesize = GetFileSize(filehandle, 0)
@@ -1359,12 +1359,12 @@ CopyManifestFromReference : buffer ref rb, integer ref rs, list<ManifestReferenc
 {
 	if(manifests.value.ID == resid)
 	{
-		integer INVALID_HANDLE_VALUE = 0xffffffff
+		Win32Handle INVALID_HANDLE_VALUE = 0xffffffff
 		integer FILE_SHARE_READ = 0x01
 		integer OPEN_EXISTING = 3
 		integer GENERIC_READ = 0x80000000
 
-		integer filehandle = CreateFile(manifests.value.Filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+		Win32Handle filehandle = CreateFile(manifests.value.Filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 		if(filehandle != INVALID_HANDLE_VALUE)
 		{
 			integer PAGE_READONLY = 0x02
@@ -1372,7 +1372,7 @@ CopyManifestFromReference : buffer ref rb, integer ref rs, list<ManifestReferenc
 
 			if(len > 0)
 			{
-				integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+				Win32Handle mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
 				if(mappinghandle != 0)
 				{
 					integer FILE_MAP_READ = 0x04

@@ -1563,6 +1563,7 @@ OnCodeGenRegisterAlias : integer aliastype, integer aliasname, integer base
 	TypeAlias newalias = aliastype, aliasname, base
 	BinaryTreeCreateOrInsert<TypeAlias>(GlobalRootNamespace.TypeAliases, aliastype, newalias)
 	BinaryTreeCreateOrInsert<integer>(NameToTypeMap, aliasname, aliastype)
+	BinaryTreeCreateOrInsert<integer>(TypeToNameMap, aliastype, aliasname)
 }
 
 OnCodeGenRegisterWeakAlias : integer aliastype, integer aliasname, integer basename
@@ -1570,6 +1571,7 @@ OnCodeGenRegisterWeakAlias : integer aliastype, integer aliasname, integer basen
 	TypeAlias newalias = aliastype, aliasname, basename
 	BinaryTreeCreateOrInsert<TypeAlias>(GlobalRootNamespace.TypeWeakAliases, aliastype, newalias)
 	BinaryTreeCreateOrInsert<integer>(NameToTypeMap, aliasname, aliastype)
+	BinaryTreeCreateOrInsert<integer>(TypeToNameMap, aliastype, aliasname)
 }
 
 

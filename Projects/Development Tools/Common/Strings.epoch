@@ -39,12 +39,12 @@ ExtractLine : string ref contents -> string line = ""
 
 ReadFile : string filename, integer ref len -> string contents = ""
 {
-	integer INVALID_HANDLE_VALUE = 0xffffffff
+	Win32Handle INVALID_HANDLE_VALUE = 0xffffffff
 	integer FILE_SHARE_READ = 0x01
 	integer OPEN_EXISTING = 3
 	integer GENERIC_READ = 0x80000000
 
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	Win32Handle filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		integer PAGE_READONLY = 0x02
@@ -53,7 +53,7 @@ ReadFile : string filename, integer ref len -> string contents = ""
 
 		if(len > 0)
 		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			Win32Handle mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
 			if(mappinghandle != 0)
 			{
 				integer FILE_MAP_READ = 0x04

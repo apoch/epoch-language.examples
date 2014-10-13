@@ -1,10 +1,14 @@
 TypeListContains : simplelist<integer> ref thelist, integer value -> integer ret = 0 [nogc]
 {
 	integer listval = thelist.value
-	if((listval & 0x7f000000) == 0x05000000)
+	if((value & 0x7f000000) != 0x05000000)
 	{
-		listval = FindTypeAliasBase(listval)
+		while((listval & 0x7f000000) == 0x05000000)
+		{
+			listval = FindTypeAliasBase(listval)
+		}
 	}
+
 
 	if(listval == value)
 	{
@@ -456,14 +460,15 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			SetFunctionReturnType(context.FuncRef.Wrapped, context.ScopeName, vartype)
 		}
 
-		while((vartype & 0x7f000000) == 0x05000000)
+		integer basetype = vartype
+		while((basetype & 0x7f000000) == 0x05000000)
 		{
-			vartype = FindTypeAliasBase(vartype)
+			basetype = FindTypeAliasBase(basetype)
 		}
 
-		if(IsStructureType(vartype))
+		if(IsStructureType(basetype))
 		{
-			statement.Name = GetConstructorName(Structures, vartype)
+			statement.Name = GetConstructorName(Structures, basetype)
 		}
 		else
 		{
@@ -550,7 +555,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 
 		if(overloadname != 0)
-		{	
+		{			
 			statement.Name = overloadname
 
 			if(IsRecognizedBuiltIn(statement.Name))
@@ -618,6 +623,11 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		else
 		{
 			FindConstructorAndAnnotateTypeMatchedParams(Structures, statement.Name, statement.Parameters)
+		}
+		
+		if((vartype & 0x7f000000) == 0x05000000)
+		{
+			statement.Name = GetNameOfType(FindTypeAliasBase(vartype))
 		}
 	}
 	elseif(ContextHasTypeMatcher(contextmatch))
@@ -910,7 +920,7 @@ ResolvedTypesMatch : list<UnresolvedParameter> ref params, simplelist<integer> r
 	}
 
 	integer expected = types.value
-	while((expected & 0x7f000000) == 0x0500000)
+	while((expected & 0x7f000000) == 0x05000000)
 	{
 		expected = FindTypeAliasBase(expected)
 	}
@@ -1133,8 +1143,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			if((!context.FunctionReturn) && (context.StatementName != 0))
 			{
 				simplelist<integer> types = 0, nothing
-				integer typecount = EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
-
+				EliminateImpossibleType(stack.value.PossibilityList.value.ReturnType.Types, context.ExpectedTypes, types)
+				FilterTypesForAliasing(types)				
+				
+				integer typecount = countnonzero(types)
 				if(typecount == 1)
 				{
 					assertmsg(types.value != 0, "Inferred a non-type!")
@@ -1165,6 +1177,7 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				simplelist<integer> possibletypes = 0, nothing
 				FilterTypesForDemotion(stack.value.PossibilityList.value.ReturnType.Types, possibletypes)
+				FilterTypesForAliasing(types)
 
 				integer typecount = countnonzero(possibletypes)
 				if(typecount == 1)
@@ -1209,8 +1222,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 		if((!context.FunctionReturn) && (context.StatementName != 0))
 		{
 			simplelist<integer> types = 0, nothing
-			integer typecount = EliminateImpossibleType(poss.Types, context.ExpectedTypes, types)
+			EliminateImpossibleType(poss.Types, context.ExpectedTypes, types)
+			FilterTypesForAliasing(types)
 
+			integer typecount = countnonzero(types)
 			if(typecount == 1)
 			{
 				expression.Type = types.value
@@ -1224,15 +1239,18 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				print("Can't figure out type of expression atom!")
 				DumpAtom(expression.Atoms.value)
+				print("Failed guesses:")
+				DumpTypeList(poss.Types)
 				print("Expected types:")
 				DumpTypeList(context.ExpectedTypes)
 				success = false
 			}
 		}
 		else
-		{
+		{		
 			simplelist<integer> filtered = 0, nothing
 			FilterTypesForDemotion(poss.Types, filtered)
+			FilterTypesForAliasing(filtered)
 
 			integer typecount = countnonzero(filtered)
 			if(typecount == 1)
@@ -1244,11 +1262,15 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 			{
 				print("Failed to infer return type of function - " ; cast(string, typecount) ; " types possible")
 				DumpTypeList(filtered)
+				
+				success = false
 			}
 			else
 			{
 				print("Expression has " ; cast(string, typecount) ; " types possible")
 				DumpTypeList(filtered)
+				
+				success = false
 			}
 		}
 	}
@@ -1275,6 +1297,10 @@ TypeInference : Expression ref expression, InferenceContext ref context -> boole
 	}
 }
 
+
+FilterTypesForAliasing : simplelist<integer> ref typeids [nogc]
+{
+}
 
 CountPossibilities : list<InferencePossibility> ref thelist -> integer count = 0 [nogc]
 {
@@ -1615,10 +1641,10 @@ AddPossibleParameter : simplelist<integer> ref possibilities, integer paramtype 
 {
 	simpleprepend<integer>(possibilities, paramtype)
 
-	if((paramtype & 0x7f000000) == 0x05000000)
-	{
-		simpleprepend<integer>(possibilities, FindTypeAliasBase(paramtype))
-	}
+	//if((paramtype & 0x7f000000) == 0x05000000)
+	//{
+	//	simpleprepend<integer>(possibilities, FindTypeAliasBase(paramtype))
+	//}
 }
 
 AddBinaryPossibility : list<InferencePossibility> ref possibilities, integer functionname, integer param1type, integer param2type, integer rettype [nogc]

@@ -1,21 +1,11 @@
 //
-// Epoch Compiler
-// Compiler.epoch
+// The Epoch Language Project
+// Epoch Development Tools - Compiler Core
 //
-// Monolithic self-hosting compiler
-//
-// Support for separate compilation is desirable so this file is less of a mess.
+// COMPILER.EPOCH
+// Entry point and command line parsing logic
 //
 
-CloseHandle : integer handle -> boolean ret = false [external("Kernel32.dll", "CloseHandle", "stdcall")]
-CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
-CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
-MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
-UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
-GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
-SetCurrentDirectory : string path -> boolean success = false [external("Kernel32.dll", "SetCurrentDirectoryW", "stdcall")]
-
-timeGetTime : -> integer ms = 0 [external("WinMM.dll", "timeGetTime", "stdcall")]
 
 ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll", "ExecuteByteCodeDeferred", "stdcall")]
 

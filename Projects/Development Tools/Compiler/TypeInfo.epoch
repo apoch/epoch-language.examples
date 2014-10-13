@@ -93,6 +93,10 @@ GetNameOfType : integer typeid -> integer name = 0
 	{
 		name = PoolString("{function} " ; cast(string, typeid))
 	}
+	elseif((typeid & 0x7f000000) == 0x05000000)
+	{
+		BinaryTreeCopyPayload<integer>(TypeToNameMap.RootNode, typeid, name)
+	}
 	elseif(typeid == 0x00000002)
 	{
 		name = PoolString("{no return type}")

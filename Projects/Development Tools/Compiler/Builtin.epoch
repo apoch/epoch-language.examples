@@ -479,7 +479,7 @@ FindBuiltinAndAddParameterTypes : integer funcname, integer paramindex, integer 
 			}
 			elseif(paramindex == 1)
 			{
-				simpleprepend<integer>(types, 0x01000001)	// integer type signature
+				simpleprepend<integer>(types, ctype)
 			}
 		}
 	}

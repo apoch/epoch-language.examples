@@ -4,9 +4,6 @@
 
 RoundUp : integer in -> integer out = ((in / 0x1000) + 1) * 0x1000			// TODO - this over-estimates if in is a perfect multiple of 0x1000
 
-WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
-
-
 	
 MakeExe : EpochProject ref project, BytecodeStream ref codestream
 {
@@ -39,7 +36,7 @@ MakeExe : EpochProject ref project, BytecodeStream ref codestream
 	integer GENERIC_WRITE = 0x40000000
 	integer CREATE_ALWAYS = 2
 
-	integer filehandle = CreateFile(project.OutputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
+	Win32Handle filehandle = CreateFile(project.OutputFileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == -1)
 	{
 		print("Cannot open " ; project.OutputFileName ; " to emit .EXE!")
@@ -89,7 +86,7 @@ MakeExe : EpochProject ref project, BytecodeStream ref codestream
 	print("Compilation complete.")
 }
 
-WriteStringTable : integer filehandle -> integer writtenbytes = 0
+WriteStringTable : Win32Handle filehandle -> integer writtenbytes = 0
 {
 	buffer tablebuffer = 1024
 	integer tablesize = 0
@@ -120,7 +117,7 @@ WriteStringTable : integer filehandle -> integer writtenbytes = 0
 }
 
 
-WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
+WriteThunkAddresses : Win32Handle filehandle -> integer writtenbytes = 0
 {
 	buffer thunkbuffer = 1024
 	integer thunksize = 0
@@ -145,7 +142,7 @@ WriteThunkAddresses : integer filehandle -> integer writtenbytes = 0
 }
 
 
-WriteBootstrapCode : integer filehandle, integer codebeginoffset, BytecodeStream ref codestream -> integer writtenbytes = 0
+WriteBootstrapCode : Win32Handle filehandle, integer codebeginoffset, BytecodeStream ref codestream -> integer writtenbytes = 0
 {
 	buffer codebuffer = 1024
 	integer codesize = 0
@@ -236,7 +233,7 @@ WriteBootstrapCode : integer filehandle, integer codebeginoffset, BytecodeStream
 }
 
 
-WriteThunkTable : integer filehandle -> integer writtenbytes = 0
+WriteThunkTable : Win32Handle filehandle -> integer writtenbytes = 0
 {
 	buffer thunkbuffer = 1024
 	integer thunksize = 0
@@ -479,7 +476,7 @@ WriteThunkTable : integer filehandle -> integer writtenbytes = 0
 }
 
 
-WritePadding : integer filehandle, integer startpos, integer desiredpos -> integer writtenbytes = 0
+WritePadding : Win32Handle filehandle, integer startpos, integer desiredpos -> integer writtenbytes = 0
 {
 	writtenbytes = desiredpos - startpos
 	buffer empty = writtenbytes
@@ -488,7 +485,7 @@ WritePadding : integer filehandle, integer startpos, integer desiredpos -> integ
 }
 
 
-WriteSectionHeader : integer filehandle, string sectionname, integer location, integer virtuallocation, integer sectionsize, integer sectionvirtualsize, integer flags -> integer writtenbytes = 0
+WriteSectionHeader : Win32Handle filehandle, string sectionname, integer location, integer virtuallocation, integer sectionsize, integer sectionvirtualsize, integer flags -> integer writtenbytes = 0
 {
 	print("Writing header for section '" ; sectionname ; "'...")
 
@@ -533,7 +530,7 @@ WriteSectionHeader : integer filehandle, string sectionname, integer location, i
 }
 
 
-WritePEHeader : integer filehandle, integer imagesize, integer resourcesize, integer16 subsystem, BytecodeStream ref codestream -> integer writtenbytes = 0
+WritePEHeader : Win32Handle filehandle, integer imagesize, integer resourcesize, integer16 subsystem, BytecodeStream ref codestream -> integer writtenbytes = 0
 {
 	print("Writing PE headers...")
 

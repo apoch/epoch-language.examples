@@ -10,12 +10,21 @@ type Meters : integer
 RectArea : Meters w, Meters h -> Meters ret = w * h
 
 
+Mixed : Meters a, integer b
+{
+}
+
+
 entrypoint :
 {
 	Meters area = RectArea(3, 5)
 	assert(area == 15)
 	
 	assert(RectArea(3, 5) == 15)
+	
+	
+	Mixed(12, 13)
+	Mixed(area, 42)
 	
 	passtest()
 }
