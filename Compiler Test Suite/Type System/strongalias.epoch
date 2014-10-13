@@ -12,7 +12,11 @@ RectArea : Meters w, Meters h -> Meters ret = w * h
 
 entrypoint :
 {
+	Meters area = RectArea(3, 5)
+	assert(area == 15)
+	
 	assert(RectArea(3, 5) == 15)
+	
 	passtest()
 }
 
