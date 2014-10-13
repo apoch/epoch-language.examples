@@ -30,39 +30,45 @@ entrypoint :
 		return()
 	}
 	
-	if(cmdlinegetcount() < 1)
+	if(cmdlinegetcount() < 2)
 	{
 		print("Please specify the program or project to compile.")
 		return()
 	}
 
-	string filename = cmdlineget(1)
-	if((length(filename) > 5) && (substring(filename, length(filename) - 5) == ".eprj"))
+	integer cmdlineindex = 1
+	while(cmdlineindex < cmdlinegetcount())
 	{
-		print("Building: " ; filename)
-		print("")
-
-		PrepareStringTable()
-		InitBuiltInOverloads()
-
-		ChangeToPath(filename)
-		CompileProject(filename)
-	}
-	else
-	{
-		print("Executing: " ; filename)
-		print("")
-
-		buffer codebuffer = 1024000
-		BytecodeStream codestream = codebuffer, 0
-		
-		PrepareStringTable()
-		InitBuiltInOverloads()
-
-		if(CompileFile(filename, codestream))
+		string filename = cmdlineget(cmdlineindex)
+		if((length(filename) > 5) && (substring(filename, length(filename) - 5) == ".eprj"))
 		{
-			ExecuteByteCodeBuffer(codestream.Buffer, codestream.Offset)
+			print("Building: " ; filename)
+			print("")
+
+			PrepareStringTable()
+			InitBuiltInOverloads()
+
+			ChangeToPath(filename)
+			CompileProject(filename)
 		}
+		else
+		{
+			print("Executing: " ; filename)
+			print("")
+
+			buffer codebuffer = 1024000
+			BytecodeStream codestream = codebuffer, 0
+			
+			PrepareStringTable()
+			InitBuiltInOverloads()
+
+			if(CompileFile(filename, codestream))
+			{
+				ExecuteByteCodeBuffer(codestream.Buffer, codestream.Offset)
+			}
+		}
+		
+		++cmdlineindex
 	}
 }
 
