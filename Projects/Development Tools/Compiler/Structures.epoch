@@ -19,7 +19,7 @@ FindStructureAndAddMember : nothing, integer structurename, integer structuretyp
 	StructureDefinition def = structurename, structuretype, 0, 0, 0, members, 1, GetPooledString(structurename), false
 
 	prepend<StructureDefinition>(Structures, def)
-	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, structurename, def)
+	BinaryTreeCreateOrInsert<StructureDefinition>(GlobalRootNamespace.Structures, structurename, def)
 }
 
 AppendStructureMember : list<StructureMember> ref members, list<StructureMember> ref tail, StructureMember ref member [nogc]
@@ -72,7 +72,7 @@ CheckMemberForAddingParam : StructureMemberFunctionRef ref member, integer membe
 FindStructureAndSetConstructors : integer structurename, integer constructorname, integer anonname, integer copyname [nogc]
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, structurename, wrap)
 	assertmsg(found, "Internal error: constructors cannot be set on non-existent structure")
 
 	SetConstructors(wrap, constructorname, anonname, copyname)
@@ -110,7 +110,7 @@ GetNameOfStructureByType : nothing, integer typeid -> integer name = 0
 GetStructureMemberTypeAndOffset : integer structurename, integer membername, integer ref memtype, integer ref memoffset
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, structurename, wrap)
 	assert(found)
 
 	memtype = 0
@@ -121,7 +121,7 @@ GetStructureMemberTypeAndOffset : integer structurename, integer membername, int
 GetStructureMemberType : integer structurename, integer membername -> integer rtype = 0
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, structurename, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, structurename, wrap)
 	if(found)
 	{
 		rtype = GetMemberType(wrap, membername)
@@ -206,7 +206,7 @@ GetMemberSize : StructureMemberFunctionRef ref member -> 4 [nogc]
 GetStructureTypeByName : integer name -> integer typeid = 0 [nogc]
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, name, wrap)
 
 	if(found)
 	{

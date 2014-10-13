@@ -13,6 +13,7 @@ Tabs.epoch
 ..\Common\Parser.epoch
 ..\Common\StringTable.epoch
 ..\Common\DataStructures.epoch
+..\Common\Win32.epoch
 ParserHooks.epoch
 
 [resources]

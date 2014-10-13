@@ -357,11 +357,5 @@ global
 
 	BinaryTreeRoot<integer> TypeToNameMap = nothing
 	BinaryTreeRoot<integer> NameToTypeMap = nothing
-
-	BTPayloadWrap<FunctionDefinition> fwewrap = dummyfunc
-	BinaryTree<FunctionDefinition> FunctionsWhichExist = 0, fwewrap, nothing, nothing, -1
-
-	BTPayloadWrap<StructureDefinition> swewrap = dummystruct
-	BinaryTree<StructureDefinition> StructuresWhichExist = 0, swewrap, nothing, nothing, -1
 }
 

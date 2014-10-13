@@ -1,8 +1,18 @@
 //
+// The Epoch Language Project
+// Epoch Development Tools - Common Library Modules
 //
+// DATASTRUCTURES.EPOCH
+// Library of common data structures and algorithms for using them
+//
+
 
 //
 // Singly linked list data structures
+//
+// The simplelist holds elements by value type, whereas
+// the list holds them by reference. Prefer to use the
+// simplelist for things which are cheap to copy.
 //
 
 type simplelistnode<type T> : simplelist<T> | nothing
@@ -42,23 +52,6 @@ ListPrependOrCreate<type T> : listnode<T> ref node, T ref value [nogc]
 	node = wrap
 }
 
-
-
-countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
-{
-	if(thelist.value != 0)
-	{
-		++count
-	}
-
-	count += countnonzero(thelist.next)
-}
-
-countnonzero : nothing -> 0 [nogc]
-
-
-
-
 simple_append_recurse<type T> : simplelist<T> ref thelist, nothing, T value [nogc]
 {
 	simplelist<T> newlist = value, nothing
@@ -70,29 +63,10 @@ simple_append_recurse<type T> : simplelist<T> ref thelist, simplelist<T> ref tai
 	simple_append_recurse<T>(tail, tail.next, value)
 }
 
-
 simple_append<type T> : simplelist<T> ref thelist, T value [nogc]
 {
 	simple_append_recurse<T>(thelist, thelist.next, value)
 }
-
-
-
-
-
-quick_append : list<ParsedToken> ref tailnode, ParsedToken ref token [nogc]
-{
-	list<ParsedToken> newlist = token, nothing
-	tailnode.next = newlist
-	TokenStreamTail.tail = newlist
-}
-
-quick_append : nothing, ParsedToken ref token [nogc]
-{
-	assertmsg(false, "quick_append failure")
-}
-
-
 
 append_recurse<type T> : list<T> ref thelist, nothing, T ref value [nogc]
 {
@@ -105,13 +79,10 @@ append_recurse<type T> : list<T> ref thelist, list<T> ref tail, T ref value [nog
 	append_recurse<T>(tail, tail.next, value)
 }
 
-
 append<type T> : list<T> ref thelist, T ref value [nogc]
 {
 	append_recurse<T>(thelist, thelist.next, value)
 }
-
-
 
 pop<type T> : list<T> ref head, list<T> ref tail [nogc]
 {
@@ -125,16 +96,18 @@ pop<type T> : list<T> ref head, list<T> ref tail [nogc]
 // List traversal/inspection functions
 //
 
-map<type T> : list<T> ref thelist, (func : T)
+countnonzero : simplelist<integer> ref thelist -> integer count = 0 [nogc]
 {
-	// TODO - figure out why this expression doesn't coalesce correctly
-	//func(thelist.value)
-	map<T>(thelist.next, func)
+	if(thelist.value != 0)
+	{
+		++count
+	}
+
+	count += countnonzero(thelist.next)
 }
 
-map<type T> : nothing, (func : T)
-{
-}
+countnonzero : nothing -> 0 [nogc]
+
 
 
 listcontains : simplelist<integer> ref thelist, integer value -> boolean ret = false [nogc]
@@ -153,6 +126,12 @@ listcontains : nothing, integer value -> boolean contains = false [nogc]
 
 
 
+//
+// Trie data structure
+//
+// The trie is a special structure which is especially useful for
+// mapping strings onto integer handles.
+//
 
 structure Trie :
 	integer Character,
@@ -236,15 +215,12 @@ FindHandleInTrieChildren : list<Trie> ref triechildren, integer character, strin
 FindHandleInTrieChildren : nothing, integer character, string alldata, integer offset, integer datalength -> integer handle = 0 [nogc]
 
 
-assertmsg : boolean check, string message [nogc]
-{
-	if(!check)
-	{
-		print(message)
-		assert(false)
-	}
-}
-
+//
+// Binary tree structure
+//
+// This structure is useful for dictionaries mapping integers
+// onto other types, particularly heavy-weight strucures.
+//
 
 type BinaryTreeNode<type T> : BinaryTree<T> | nothing
 
@@ -559,7 +535,16 @@ BinaryTreeWalkAllNodesWithParam<type T, type ParamT> : nothing, (func : integer,
 
 
 
+//
+// Miscellaneous useful functions
+//
 
-structure tailhack :
-	listnode<ParsedToken> tail
+assertmsg : boolean check, string message [nogc]
+{
+	if(!check)
+	{
+		print(message)
+		assert(false)
+	}
+}
 

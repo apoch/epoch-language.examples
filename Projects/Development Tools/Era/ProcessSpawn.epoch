@@ -48,6 +48,8 @@ CreatePipe : integer ref readpipe, integer ref writepipe, SecurityAttributes ref
 SetHandleInformation : integer handle, integer mask, integer flags -> boolean ret = false [external("Kernel32.dll", "SetHandleInformation", "stdcall")]
 
 
+PeekNamedPipe : integer pipe, integer databuffer, integer buffersize, integer ref bytesread, integer ref bytesavailable, integer ref bytesleft -> boolean ret = false [external("Kernel32.dll", "PeekNamedPipe", "stdcall")]
+
 CreateProcess : buffer ref appname, buffer ref cmdline, integer procaddr, integer threadattr, boolean inherithandles,
 		integer creationflags, integer environment, integer curdirectory, StartupInfo ref startinfo, ProcessInformation ref outprocinfo
 	->
@@ -110,18 +112,36 @@ BuildProject : EpochProject ref project
 	{
 		buffer buf = 2048
 		integer numread = 0
-		readfromchild = ReadFile(childoutread, buf, 1, numread, 0)
 		
-		if(numread == 0)
+		integer ignored = 0
+		integer left = 0
+		integer available = 0
+		
+		readfromchild = PeekNamedPipe(childoutread, 0, 0, ignored, available, left)
+		if(available > 0)
 		{
-			readfromchild = false
+			readfromchild = ReadFile(childoutread, buf, 1, numread, 0)
+			
+			if(numread == 0)
+			{
+				readfromchild = false
+			}
+			else
+			{
+				chunk = chunk ; widenfrombuffer(buf, numread)
+			}
+			
+			TurnChunkIntoHistoryLine(chunk)
 		}
 		else
 		{
-			chunk = chunk ; widenfrombuffer(buf, numread)
+			WaitMessage()
 		}
 		
-		TurnChunkIntoHistoryLine(chunk)
+		if(!NonModalMessagePump(MainHWND))
+		{
+			readfromchild = false
+		}
 	}
 	
 	CloseHandle(pi.ProcessHandle)

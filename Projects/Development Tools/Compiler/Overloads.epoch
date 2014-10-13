@@ -2,7 +2,7 @@
 RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mangledname = rawname
 {
 	ContextNode<FunctionDefinition> funcwrap = nothing
-	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawname, funcwrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, rawname, funcwrap)
 	if(found)
 	{
 		integer existingcount = CountOverloadsForContext(funcwrap, rawname)
@@ -21,7 +21,7 @@ RegisterOverloadForFunction : string rawnamestr, integer rawname -> integer mang
 FindFunctionAndAddOverload : Overload ref overload
 {
 	ContextNode<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, overload.NormalName, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, overload.NormalName, wrap)
 	if(found)
 	{
 		AddOverloadToFunc(wrap, overload)
@@ -179,7 +179,7 @@ FindOverloadWithParameterTypes : nothing, integer rawname, simplelist<integer> r
 		{	// TODO - this is a sloppy hack to work around the fact that operators don't short circuit properly yet
 			if(!matchesctor)
 			{
-				if(!SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, rawname))
+				if(!SearchBinaryTree<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, rawname))
 				{
 					overloadname = rawname
 				}

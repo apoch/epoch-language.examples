@@ -123,7 +123,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = rawfuncname, funcname, nothing, nothing, nothing, dummyoverloadlist, scopewrap, rawfuncnamestr, 0, false, istemplate, false
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, funcname, func)
+	BinaryTreeCreateOrInsert<FunctionDefinition>(GlobalRootNamespace.Functions, funcname, func)
 
 	// TODO - this is a weird bug. For some reason we don't init the field correctly in the above constructor
 	if(istemplate)
@@ -134,7 +134,7 @@ OnCodeGenRegisterFunction : integer funcname, integer rawfuncname, string rawfun
 	if(funcname != rawfuncname)
 	{	
 		ContextNode<FunctionDefinition> wrap = nothing
-		if(SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, rawfuncname, wrap))
+		if(SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, rawfuncname, wrap))
 		{
 			AttachContextToFunction(wrap, funcname, func)
 		}

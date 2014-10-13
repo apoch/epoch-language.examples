@@ -17,7 +17,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 	integer OPEN_EXISTING = 3
 	integer GENERIC_READ = 0x80000000
 
-	integer filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
+	Win32Handle filehandle = CreateFile(filename, GENERIC_READ, 0, 0, OPEN_EXISTING, 0, 0)
 	if(filehandle != INVALID_HANDLE_VALUE)
 	{
 		integer PAGE_READONLY = 0x02
@@ -26,7 +26,7 @@ Open : integer hwnd, integer ScintillaHWND, string filename
 
 		if(len > 0)
 		{
-			integer mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
+			Win32Handle mappinghandle = CreateFileMapping(filehandle, 0, PAGE_READONLY, 0, 0, 0)
 			if(mappinghandle != 0)
 			{
 				integer FILE_MAP_READ = 0x04
@@ -71,7 +71,7 @@ DoSave : integer hwnd
 	OpenTab tab = 0, 0, "", ""
 	FindTabAtIndex(CurrentTabs, ActiveTabIndex, tab)
 
-	integer filehandle = CreateFile(tab.FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
+	Win32Handle filehandle = CreateFile(tab.FileName, GENERIC_WRITE, 0, 0, CREATE_ALWAYS, 0, 0)
 	if(filehandle == 0)
 	{
 		MessageBox(hwnd, "Unexpected error while saving file!", "ERA Development Environment", MB_ICONSTOP)

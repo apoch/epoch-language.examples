@@ -77,7 +77,7 @@ GeneratePendingTypeMatcher : PendingTypeMatcher ref matcher
 	}
 
 	ContextNode<FunctionDefinition> wrap = nothing
-	SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, matcher.OverloadName, wrap)
+	SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, matcher.OverloadName, wrap)
 
 	WalkParametersForTypeMatcherContext(wrap, matchwrap)
 }

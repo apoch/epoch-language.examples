@@ -6,7 +6,7 @@ IsFunctionTemplate : nothing -> false [nogc]
 IsFunctionTemplateFast : integer name -> boolean istemplate = false [nogc]
 {
 	ContextNode<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, name, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, name, wrap)
 	if(!found)
 	{
 		print("Internal error - function undefined: " ; GetPooledString(name))
@@ -252,7 +252,7 @@ FindSumTypeTemplateAndInstantiate : nothing, integer defname, list<TemplateArgum
 DoStructureInstantiation : integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, defname, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, defname, wrap)
 	assertmsg(found, "Internal error: structure definition missing")
 
 	StructInstInner(wrap, defname, instancename, params, args)
@@ -270,7 +270,7 @@ StructInstInner : StructureDefinition ref templstruct, integer defname, integer 
 
 	StructureDefinition struct = instancename, GlobalTemplateInstanceCounter, 0, 0, 0, members, templstruct.MemberCount, GetPooledString(instancename), false
 	prepend<StructureDefinition>(Structures, struct)
-	InsertIntoBinaryTree<StructureDefinition>(StructuresWhichExist, instancename, struct)
+	BinaryTreeCreateOrInsert<StructureDefinition>(GlobalRootNamespace.Structures, instancename, struct)
 
 	TemplateInstance instance = defname, instancename, args
 	prepend<TemplateInstance>(TemplateStructureInstances, instance)
@@ -390,7 +390,7 @@ RemapAllTemplateArguments : nothing, list<TemplateParameter> ref params, list<Te
 DoFunctionInstantiation : integer basenamemangled, integer defname, integer instancename, list<TemplateParameter> ref params, list<TemplateArgument> ref args, Overload ref overload
 {
 	ContextNode<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, defname, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, defname, wrap)
 	assertmsg(found, "Internal error: function definition missing")
 
 	FunctionInstantiationInner(wrap, basenamemangled, defname, instancename, params, args, overload)
@@ -416,7 +416,7 @@ FunctionInstantiationInner : FunctionDefinition ref originalfunc, integer basena
 	ContextWrapper<Scope> scopewrap = nothing
 	FunctionDefinition func = basenamemangled, instancename, nothing, nothing, nothing, originalfunc.Overloads, scopewrap, GetPooledString(basenamemangled), 0, false, false, originalfunc.AnonymousReturn
 	prepend<FunctionDefinition>(Functions, func)
-	InsertIntoBinaryTree<FunctionDefinition>(FunctionsWhichExist, instancename, func)
+	BinaryTreeCreateOrInsert<FunctionDefinition>(GlobalRootNamespace.Functions, instancename, func)
 
 	Overload selfoverload = instancename, instancename, func
 	prepend<Overload>(func.Overloads, selfoverload)
@@ -813,7 +813,7 @@ InstantiateEntityChainEntries : nothing, list<TemplateParameter> ref templatepar
 SetStructureToTemplate : integer name
 {
 	ContextNode<StructureDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(StructuresWhichExist, name, wrap)
+	boolean found = SearchBinaryTreeForPayload<StructureDefinition>(GlobalRootNamespace.Structures.RootNode, name, wrap)
 	assert(found)
 
 	SetStructureToTemplate(wrap)

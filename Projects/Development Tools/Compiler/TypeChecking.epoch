@@ -514,7 +514,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 		}
 		else
 		{
-			isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
+			isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, statement.Name, contextfunc)
 		}
 
 		simplelist<integer> paramtypes = 0, nothing
@@ -564,7 +564,7 @@ TypeInference : Statement ref statement, InferenceContext ref context -> boolean
 			}
 			else
 			{
-				isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, statement.Name, contextfunc)
+				isuserfunc = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, statement.Name, contextfunc)
 			}
 
 
@@ -1614,7 +1614,7 @@ GetAtomType : IdentifierAtom ref atom, TypePossibilityList ref possibilities, Sc
 	}
 	else
 	{
-		if(SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, atom.Handle))
+		if(SearchBinaryTree<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, atom.Handle))
 		{
 			atom.IsFunction = true
 

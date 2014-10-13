@@ -2,6 +2,11 @@
 // Testing of separate compilation - hosting parser in its own file (partially...)
 //
 
+structure tailhack :
+	listnode<ParsedToken> tail
+
+
+
 Parse : string filename, string code, integer len, (printer : string) -> boolean success = false
 {
 	Lex(filename, code, len)
@@ -1562,4 +1567,19 @@ HandleLiteralFunctionParam : string token -> boolean isliteral = false
 		// TODO - support pattern match literals of other types
 	}
 }
+
+
+
+quick_append : list<ParsedToken> ref tailnode, ParsedToken ref token [nogc]
+{
+	list<ParsedToken> newlist = token, nothing
+	tailnode.next = newlist
+	TokenStreamTail.tail = newlist
+}
+
+quick_append : nothing, ParsedToken ref token [nogc]
+{
+	assertmsg(false, "quick_append failure")
+}
+
 

@@ -169,6 +169,7 @@ LoadCursor : integer hinstance, integer cursorid -> integer cursorhandle = 0 [ex
 LoadMenu : integer hinstance, integer menuid -> integer menuhandle = 0 [external("User32.dll", "LoadMenuW", "stdcall")]
 LoadIcon : integer hinstance, integer iconid -> integer iconhandle = 0 [external("User32.dll", "LoadIconW", "stdcall")]
 GetMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax -> integer result = 0 [external("User32.dll", "GetMessageW", "stdcall")]
+PeekMessage : MessageInfo ref msg, integer hwnd, integer filtermin, integer filtermax, integer remove -> integer result = 0 [external("User32.dll", "PeekMessageW", "stdcall")]
 TranslateMessage : MessageInfo msg -> boolean success = false [external("User32.dll", "TranslateMessage", "stdcall")]
 DispatchMessage : MessageInfo msg -> integer unused = 0 [external("User32.dll", "DispatchMessageW", "stdcall")]
 IsDialogMessage : integer hwnd, MessageInfo ref msg -> boolean handled = false [external("User32.dll", "IsDialogMessageW", "stdcall")]
@@ -197,14 +198,6 @@ WaitMessage : -> boolean success = false [external("User32.dll", "WaitMessage", 
 
 MessageBox : integer hwnd, string message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
 MessageBox : integer hwnd, buffer message, string caption, integer style -> integer ret = 0 [external("User32.dll", "MessageBoxW", "stdcall")]
-
-CreateFile : string filename, integer access, integer sharemode, integer attributes, integer creation, integer flags, integer template -> integer ret = 0 [external("Kernel32.dll", "CreateFileW", "stdcall")]
-CreateFileMapping : integer filehandle, integer attributes, integer protection, integer maxsizehigh, integer maxsizelow, integer name -> integer ret = 0 [external("Kernel32.dll", "CreateFileMappingW", "stdcall")]
-MapViewOfFile : integer handle, integer access, integer offsethigh, integer offsetlow, integer bytestomap -> integer ptr = 0 [external("Kernel32.dll", "MapViewOfFile", "stdcall")]
-UnmapViewOfFile : integer ptr -> boolean ret = false [external("Kernel32.dll", "UnmapViewOfFile", "stdcall")]
-GetFileSize : integer handle, integer ignored -> integer size = 0 [external("Kernel32.dll", "GetFileSize", "stdcall")]
-
-WriteFile : integer handle, buffer ref data, integer numbytes, integer ref written, integer ignored2 -> boolean ret = false [external("Kernel32.dll", "WriteFile", "stdcall")]
 
 DestroyWindow : integer handle -> boolean ret = false [external("User32.dll", "DestroyWindow", "stdcall")]
 
@@ -473,6 +466,12 @@ global
 	integer MainHWND = 0
 	integer HistoryHWND = 0
 	
+	//
+	// UI globals - additional resources
+	//
+	
+	integer WindowsAccelerators = 0
+	
 	
 	//
 	// Additional constants for simplicity
@@ -734,7 +733,7 @@ entrypoint :
 	SendMessage(FindBoxHWND, ECM_SETCUEBANNER, 0, "Search")
 	SetWindowSubclass(FindBoxHWND, FindBoxSubclassProc, 0, 0)
 
-	integer accelerators = LoadAccelerators(hInstance, 9000)
+	WindowsAccelerators = LoadAccelerators(hInstance, 9000)
 	
 
 	ShowWindow(hwnd, SW_SHOWMAXIMIZED)
@@ -746,7 +745,7 @@ entrypoint :
 
 	while(GetMessage(msg, 0, 0, 0) != 0)
 	{		
-		if(TranslateAccelerator(hwnd, accelerators, msg) == 0)
+		if(TranslateAccelerator(hwnd, WindowsAccelerators, msg) == 0)
 		{
 			TranslateMessage(msg)
 			DispatchMessage(msg)
@@ -788,6 +787,45 @@ ModalDialogPump : integer dialoghwnd -> boolean active = true
 		}
 	}
 }
+
+
+//
+// Helper routine for pumping messages while an external process is running
+//
+NonModalMessagePump : integer dialoghwnd -> boolean active = true
+{	
+	Point pt = 0, 0
+	MessageInfo msg = 0, 0, 0, 0, 0, pt
+
+	while(true)
+	{
+		integer result = PeekMessage(msg, 0, 0, 0, 1)
+		if(result == 0)
+		{
+			return()
+		}
+		
+		if(msg.message == WM_QUIT)
+		{
+			active = false
+			SendMessage(0, WM_QUIT, 0, 0)
+			return()
+		}
+
+		if(TranslateAccelerator(dialoghwnd, WindowsAccelerators, msg) == 0)
+		{
+			TranslateMessage(msg)
+			DispatchMessage(msg)
+		}
+
+		if(!IsWindow(dialoghwnd))
+		{
+			active = false
+			return()
+		}
+	}
+}
+
 
 
 //

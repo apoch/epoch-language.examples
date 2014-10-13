@@ -54,7 +54,7 @@ FunctionIsAutoGenOrHasIR : integer funcname -> boolean ret = false
 		return()
 	}
 
-	if(SearchBinaryTree<FunctionDefinition>(FunctionsWhichExist, funcname))
+	if(SearchBinaryTree<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, funcname))
 	{
 		ret = true
 	}
@@ -205,7 +205,7 @@ FunctionWrapperMatchesParameterTypes : nothing, integer funcname, simplelist<int
 FunctionMatchesParameterTypes : list<FunctionDefinition> ref functions, integer funcname, simplelist<integer> ref types -> boolean match = false
 {
 	ContextNode<FunctionDefinition> wrap = nothing
-	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
+	boolean found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, funcname, wrap)
 	if(found)
 	{
 		match = CheckParameterTypesForMatch(wrap, types)
@@ -294,7 +294,7 @@ FunctionMatchesParameterTypes : nothing, integer funcname, simplelist<integer> r
 GatherAllPossibleParamTypes : integer funcname, integer numparams, boolean toplevel, list<ParameterTypeList> ref outinfo -> boolean found = false
 {
 	ContextNode<FunctionDefinition> wrap = nothing
-	found = SearchBinaryTreeForPayload<FunctionDefinition>(FunctionsWhichExist, funcname, wrap)
+	found = SearchBinaryTreeForPayload<FunctionDefinition>(GlobalRootNamespace.Functions.RootNode, funcname, wrap)
 	if(found)
 	{
 		InferAllFunctionParameterTypes(wrap, numparams, toplevel, outinfo)
