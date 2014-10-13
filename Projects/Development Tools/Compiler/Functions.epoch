@@ -616,3 +616,16 @@ FlagFunctionAsExternal : integer functionname
 }
 
 
+
+
+CountTagParams : list<string> ref params -> integer count = 0 [nogc]
+{
+	count = CountTagParams(params.next)
+	if(params.value != "")
+	{
+		++count
+	}
+}
+
+CountTagParams : nothing -> integer count = 0 [nogc]
+

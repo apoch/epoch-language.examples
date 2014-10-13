@@ -7,97 +7,74 @@
 //
 
 
+//
+// External helpers, linked from the Epoch runtime
+//
+
 ExecuteByteCodeBuffer : buffer ref code, integer len [external("EpochRuntime.dll", "ExecuteByteCodeDeferred", "stdcall")]
 
 
-PrinterReplacement : string line
-{
-	print(line)
-}
 
-
-
+//
+// Compiler entry point
+//
 entrypoint :
 {
 	print("Epoch Language Project")
 	print("Command line compiler and tools interface")
 	print("")
-
-	if(cmdlineisvalid() && (cmdlinegetcount() > 1))
+	
+	if(!cmdlineisvalid())
 	{
-		boolean makeproject = false
+		print("Invalid command line provided.")
+		return()
+	}
+	
+	if(cmdlinegetcount() < 1)
+	{
+		print("Please specify the program or project to compile.")
+		return()
+	}
 
-		string filename = cmdlineget(1)
-		if((length(filename) > 5) && (substring(filename, length(filename) - 5) == ".eprj"))
-		{
-			makeproject = true
-		}
-		else
-		{
-			print("Executing: " ; filename)
-			print("")
-		}
+	string filename = cmdlineget(1)
+	if((length(filename) > 5) && (substring(filename, length(filename) - 5) == ".eprj"))
+	{
+		print("Building: " ; filename)
+		print("")
 
 		PrepareStringTable()
 		InitBuiltInOverloads()
 
-		if(makeproject)
-		{
-			ChangeToPath(filename)
-			CompileProject(filename)
-		}
-		else
-		{
-			buffer codebuffer = 1024000
-			BytecodeStream codestream = codebuffer, 0
-			
-			if(CompileFile(filename, codestream))
-			{
-				ExecuteByteCodeBuffer(codestream.Buffer, codestream.Offset)
-			}
-		}
+		ChangeToPath(filename)
+		CompileProject(filename)
 	}
 	else
 	{
-		print("Please specify a program to execute!")
+		print("Executing: " ; filename)
+		print("")
+
+		buffer codebuffer = 1024000
+		BytecodeStream codestream = codebuffer, 0
+		
+		PrepareStringTable()
+		InitBuiltInOverloads()
+
+		if(CompileFile(filename, codestream))
+		{
+			ExecuteByteCodeBuffer(codestream.Buffer, codestream.Offset)
+		}
 	}
 }
 
 
-ChangeToPath : string filename
-{
-	if(!stringcontains(filename, "\"))
-	{
-		return()
-	}
-	
-	integer pos = length(filename) - 1
-	while(charat(filename, pos) != "\")
-	{
-		--pos
-	}
-	
-	string path = substring(filename, 0, pos)
-	SetCurrentDirectory(path)
-}
-
-
-ParseFile : string filename -> boolean success = false
-{
-	integer len = 0
-	string contents = ReadFile(filename, len)
-
-	if(len == 0)
-	{
-		return()
-	}
-	
-	success = Parse(filename, contents, len, PrinterReplacement)
-}
-
-
+//
+// Load the given project file (.eprj) and compile
+// all of the code referenced by it.
+//
 CompileProject : string filename
 {	
+	integer projectStartMs = timeGetTime()
+
 	simplelist<string> emptysourcefilelist = "", nothing
 	simplelist<string> emptyresourcefilelist = "", nothing
 	EpochProject project = "", "project.exe", emptysourcefilelist, emptyresourcefilelist, false
@@ -105,16 +82,31 @@ CompileProject : string filename
 	ParseProjectFile(filename, project)
 
 	print("Parsing source code...")
-	boolean parseok = ProjectParseAllCode(project.SourceFiles)	
+	integer startMs = timeGetTime()
+	boolean parseok = ProjectParseAllCode(project.SourceFiles)
+	integer endMs = timeGetTime()
+	print("Parsing completed in " ; cast(string, endMs - startMs) ; " milliseconds")
+	
 	if(!parseok)
 	{
+		integer projectEndMs = timeGetTime()
+		print("Building failed in " ; cast(string, projectEndMs - projectStartMs) ; " milliseconds")
+		
 		return()
 	}
+	
 
 	print("Performing semantic analysis...")
+	startMs = timeGetTime()
 	boolean irok = IRProcess()
+	endMs = timeGetTime()
+	print("Semantic analysis completed in " ; cast(string, endMs - startMs) ; " milliseconds")
+	
 	if(!irok)
 	{
+		integer projectEndMs = timeGetTime()
+		print("Building failed in " ; cast(string, projectEndMs - projectStartMs) ; " milliseconds")
+		
 		return()
 	}
 
@@ -123,10 +115,17 @@ CompileProject : string filename
 	buffer streambuffer = 8192000
 	BytecodeStream stream = streambuffer, 0
 
+	startMs = timeGetTime()
 	OnCodeGenProcessProgram(stream)
+	endMs = timeGetTime()
+	print("Code generation completed in " ; cast(string, endMs - startMs) ; " milliseconds")
 	
 	print("Writing executable file...")
 	MakeExe(project, stream)
+
+	integer projectEndMs = timeGetTime()
+	print("Building succeeded in " ; cast(string, projectEndMs - projectStartMs) ; " milliseconds")
+		
 }
 
 //
@@ -153,6 +152,26 @@ ProjectParseAllCode : simplelist<string> ref files -> boolean success = true
 ProjectParseAllCode : nothing -> true
 
 
+//
+// Wrapper for loading and parsing a code file
+//
+ParseFile : string filename -> boolean success = false
+{
+	integer len = 0
+	string contents = ReadFile(filename, len)
+
+	if(len == 0)
+	{
+		return()
+	}
+	
+	success = Parse(filename, contents, len, PrintWrapper)
+}
+
+
+//
+// Helper for compiling a single-file program
+//
 CompileFile : string filename, BytecodeStream ref codestream -> boolean success = false
 {
 	integer len = 0
@@ -164,7 +183,7 @@ CompileFile : string filename, BytecodeStream ref codestream -> boolean success 
 	}
 
 	integer startparsems = timeGetTime()
-	boolean parseok = Parse(filename, contents, len, PrinterReplacement)
+	boolean parseok = Parse(filename, contents, len, PrintWrapper)
 	integer durationparsems = timeGetTime() - startparsems
 
 	print("Parsing completed in " ; cast(string, durationparsems) ; " milliseconds")
@@ -194,122 +213,14 @@ CompileFile : string filename, BytecodeStream ref codestream -> boolean success 
 }
 
 
-
-PopContext : list<ContextStackEntry> ref stack, list<ContextStackEntry> ref next
-{
-	stack = next
-}
-
-PopContext : list<ContextStackEntry> ref stack, nothing
-{
-	print("No contexts available")
-	assert(false)
-}
-
-PopExpression : list<Expression> ref thelist, list<Expression> ref next
-{
-	thelist = next
-}
-
-PopExpression : list<Expression> ref thelist, nothing
-
-
-
-PopCodeBlock : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref next
-{
-	stack = next
-}
-
-PopCodeBlock : list<OptionalCodeBlock> ref stack, nothing
-{
-	list<OptionalCodeBlock> newlist = nothing, nothing
-	stack = newlist
-}
-
-
-PopEntityStack : list<Entity> ref stack, list<Entity> ref next
-{
-	stack = next
-}
-
-PopEntityStack : list<Entity> ref stack, nothing
-
-
-PopChain : list<EntityChain> ref stack, list<EntityChain> ref next
-{
-	stack = next
-}
-
-PopChain : list<EntityChain> ref stack, nothing
-
-
-
-PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
-{
-	ExpressionAtom atom = SubStatements.value
-
-	expressions = tail
-
-	PlaceAtomInScratchExpression(atom)
-	PopSubStatement(SubStatements, SubStatements.next)
-}
-
-SetGlobalCodeBlock : CodeBlock ref block
-{
-	GlobalCodeBlock = block
-}
-
-SetGlobalCodeBlock : nothing
-
-
-PopSubStatement : list<Statement> ref statements, list<Statement> ref tail
-{
-	statements = tail
-}
-
-
-
-
-FindScopeAndSetContext : FunctionDefinition ref func [nogc]
-{
-	EmittingScope.Wrapped = func.AttachedScope.Wrapped
-}
-
-
-
-
-
-
-CountTagParams : list<string> ref params -> integer count = 0 [nogc]
-{
-	count = CountTagParams(params.next)
-	if(params.value != "")
-	{
-		++count
-	}
-}
-
-CountTagParams : nothing -> integer count = 0 [nogc]
-
-
-
-FindLastPreOpAndAppendCompoundMemberHelper : CodeBlock ref codeblock, integer operand
-{
-	FindLastPreOpAndAppendCompoundMember(codeblock.Entries, codeblock.Entries.next, operand)
-}
-
-FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
-{
-	FindLastPreOpAndAppendCompoundMember(tail, tail.next, membername)
-}
-
-FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
-{
-	AppendCompoundMemberHelper(entries.value, membername)
-}
-
-
-
+//
+// Source lookup table stubs
+//
+// These are just here to keep the parser happy, since it assumes
+// someone wants callbacks whenever a symbol is registered during
+// the parsing of a program. Right now, the compiler does not use
+// this metadata, so these functions do nothing.
+//
 
 SourceLookupTableAddStrongAlias : integer id, string name, ParsedToken ref token
 SourceLookupTableAddStructure : integer id, string name, ParsedToken ref token
@@ -317,5 +228,43 @@ SourceLookupTableAddSumType : integer id, string name, ParsedToken ref token
 SourceLookupTableAddWeakAlias : integer id, string name, ParsedToken ref token
 SourceLookupTableAddFunction : integer id, string name, ParsedToken ref token
 
+
+//
+// General utility functions
+//
+
+
+//
+// print() currently is not wired up for passing to higher-order
+// functions, so we use this stupid wrapper instead. Someday the
+// compiler should be updated to allow print() to be passed like
+// any other function.
+//
+PrintWrapper : string line
+{
+	print(line)
+}
+
+
+//
+// Change the working directory to the path in which the given
+// file resides, if a path is provided. Otherwise do nothing.
+//
+ChangeToPath : string filename
+{
+	if(!stringcontains(filename, "\"))
+	{
+		return()
+	}
+	
+	integer pos = length(filename) - 1
+	while(charat(filename, pos) != "\")
+	{
+		--pos
+	}
+	
+	string path = substring(filename, 0, pos)
+	SetCurrentDirectory(path)
+}
 
 

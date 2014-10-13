@@ -178,7 +178,7 @@ OnCodeGenEnterFunctionReturn : integer funcname, boolean anonymous
 OnCodeGenExitContext :
 {
 	integer entrytype = ContextStack.value.EntryType
-	PopContext(ContextStack, ContextStack.next)
+	pop<ContextStackEntry>(ContextStack, ContextStack.next)
 
 	if(entrytype == STACK_TYPE_STATEMENT)
 	{
@@ -214,21 +214,21 @@ OnCodeGenExitContext :
 	{
 		Entity entity = EntityStack.value.Tag, EntityStack.value.PostfixTag, EntityStack.value.Param, CurrentCodeBlockStack.value
 		AppendEntityToChain(ChainStack, entity)
-		PopEntityStack(EntityStack, EntityStack.next)
+		pop<Entity>(EntityStack, EntityStack.next)
 		PopCodeBlock(CurrentCodeBlockStack, CurrentCodeBlockStack.next)
 	}
 	elseif(entrytype == STACK_TYPE_CHAIN)
 	{
 		CodeBlockEntry cbe = ChainStack.value
 		AppendEntryToCurrentCodeBlock(cbe)
-		PopChain(ChainStack, ChainStack.next)
+		pop<EntityChain>(ChainStack, ChainStack.next)
 	}
 	elseif(entrytype == STACK_TYPE_PARENTHETICAL)
 	{
 		ExpressionOrPrePostOp epp = ScratchExpressions.value
 		ParentheticalExpression parenthetical = epp
 		ExpressionAtom atom = parenthetical
-		PopExpression(ScratchExpressions, ScratchExpressions.next)
+		pop<Expression>(ScratchExpressions, ScratchExpressions.next)
 		PlaceAtomInScratchExpression(atom)
 	}
 	elseif(entrytype == STACK_TYPE_GLOBAL)
@@ -1797,3 +1797,8 @@ EmitPatternMatchLiteralAtom : BytecodeStream ref stream, integer value
 	ByteStreamEmitInteger(stream.Buffer, stream.Offset, value)
 }
 
+
+FindScopeAndSetContext : FunctionDefinition ref func [nogc]
+{
+	EmittingScope.Wrapped = func.AttachedScope.Wrapped
+}

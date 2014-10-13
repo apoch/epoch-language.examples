@@ -113,6 +113,13 @@ append<type T> : list<T> ref thelist, T ref value [nogc]
 
 
 
+pop<type T> : list<T> ref head, list<T> ref tail [nogc]
+{
+	head = tail
+}
+
+
+
 
 //
 // List traversal/inspection functions

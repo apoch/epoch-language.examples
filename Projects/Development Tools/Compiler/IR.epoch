@@ -392,3 +392,52 @@ IRRegisterUnresolvedParameter : string name, integer typeid
 }
 
 
+
+
+FindLastPreOpAndAppendCompoundMemberHelper : CodeBlock ref codeblock, integer operand
+{
+	FindLastPreOpAndAppendCompoundMember(codeblock.Entries, codeblock.Entries.next, operand)
+}
+
+FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, list<CodeBlockEntry> ref tail, integer membername
+{
+	FindLastPreOpAndAppendCompoundMember(tail, tail.next, membername)
+}
+
+FindLastPreOpAndAppendCompoundMember : list<CodeBlockEntry> ref entries, nothing, integer membername
+{
+	AppendCompoundMemberHelper(entries.value, membername)
+}
+
+
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, list<OptionalCodeBlock> ref next
+{
+	stack = next
+}
+
+PopCodeBlock : list<OptionalCodeBlock> ref stack, nothing
+{
+	list<OptionalCodeBlock> newlist = nothing, nothing
+	stack = newlist
+}
+
+
+
+PopCurrentStatementAndAppendToScratchExpression : list<Expression> ref expressions, list<Expression> ref tail
+{
+	ExpressionAtom atom = SubStatements.value
+
+	expressions = tail
+
+	PlaceAtomInScratchExpression(atom)
+	pop<Statement>(SubStatements, SubStatements.next)
+}
+
+SetGlobalCodeBlock : CodeBlock ref block
+{
+	GlobalCodeBlock = block
+}
+
+SetGlobalCodeBlock : nothing
+
